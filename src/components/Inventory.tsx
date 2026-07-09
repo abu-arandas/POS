@@ -159,7 +159,7 @@ export default function Inventory({
     });
 
     return list;
-  }, [products, searchQuery, selectedCategory, stockFilter, sortBy, sortOrder]);
+  }, [products, searchQuery, selectedCategory]);
 
   const toggleSort = (field: 'name' | 'stock' | 'price' | 'sku') => {
     if (sortBy === field) {

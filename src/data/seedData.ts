@@ -167,8 +167,8 @@ export const INITIAL_CUSTOMERS: Customer[] = [
 ];
 
 export const INITIAL_SETTINGS: StoreSettings = {
-  storeName: 'The Daily Grind Cafe',
-  storeAddress: '100 Espresso Blvd, Seattle, WA 98101',
+  storeName: 'EA POS',
+  storeAddress: '123 Tech Boulevard, Suite 400, WA 98101',
   storePhone: '206-555-0100',
   taxRate: 8.5, // 8.5% Seattle tax
   currency: '$',

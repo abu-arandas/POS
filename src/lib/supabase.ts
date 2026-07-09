@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Product, Category, Customer, SaleTransaction, UserAccount } from '../types';
+import { Product, Category, Customer, SaleTransaction, UserAccount, OrderItem } from '../types';
 
 let supabaseInstance: SupabaseClient | null = null;
 let currentUrl = '';
@@ -281,19 +281,19 @@ export async function pullTransactions(client: SupabaseClient): Promise<SaleTran
     return (data || []).map(r => ({
       id: r.id,
       date: r.date,
-      items: r.items as any[],
+      items: r.items as OrderItem[],
       subtotal: Number(r.subtotal),
       discount: Number(r.discount),
-      discountType: r.discount_type as any,
+      discountType: r.discount_type as SaleTransaction['discountType'],
       discountValue: Number(r.discount_value),
       tax: Number(r.tax),
       total: Number(r.total),
-      paymentMethod: r.payment_method as any,
+      paymentMethod: r.payment_method as SaleTransaction['paymentMethod'],
       cashPaid: r.cash_paid ? Number(r.cash_paid) : undefined,
       cashChange: r.cash_change ? Number(r.cash_change) : undefined,
       customerId: r.customer_id,
       customerName: r.customer_name,
-      status: r.status as any,
+      status: r.status as SaleTransaction['status'],
       refundDate: r.refund_date
     }));
   } catch (err) {
@@ -331,7 +331,7 @@ export async function pullUserAccounts(client: SupabaseClient): Promise<UserAcco
     return (data || []).map(r => ({
       id: r.id,
       name: r.name,
-      role: r.role as any,
+      role: r.role as UserAccount['role'],
       pin: r.pin,
       active: !!r.active,
       createdAt: r.created_at

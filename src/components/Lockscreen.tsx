@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { UserAccount } from '../types';
-import { ShieldAlert, User, Delete, ArrowLeft } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useState } from "react";
+import { UserAccount } from "../types";
+import { ShieldAlert, User, Delete, ArrowLeft } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
 interface LockscreenProps {
   users: UserAccount[];
@@ -9,19 +9,23 @@ interface LockscreenProps {
   storeName: string;
 }
 
-export default function Lockscreen({ users, onLogin, storeName }: LockscreenProps) {
+export default function Lockscreen({
+  users,
+  onLogin,
+  storeName,
+}: LockscreenProps) {
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
-  const [pin, setPin] = useState<string>('');
+  const [pin, setPin] = useState<string>("");
   const [error, setError] = useState<boolean>(false);
 
-  const activeUsers = users.filter(u => u.active);
+  const activeUsers = users.filter((u) => u.active);
 
   const handleKeyPress = (num: string) => {
     if (error) setError(false);
     if (pin.length < 4) {
       const nextPin = pin + num;
       setPin(nextPin);
-      
+
       // Automatically check pin once 4 digits are entered
       if (nextPin.length === 4) {
         if (selectedUser && selectedUser.pin === nextPin) {
@@ -29,7 +33,7 @@ export default function Lockscreen({ users, onLogin, storeName }: LockscreenProp
         } else {
           // Play mistake state
           setError(true);
-          setPin('');
+          setPin("");
           // Clear error vibration/shake after a split-second
           setTimeout(() => setError(false), 800);
         }
@@ -44,19 +48,22 @@ export default function Lockscreen({ users, onLogin, storeName }: LockscreenProp
   };
 
   const handleClear = () => {
-    setPin('');
+    setPin("");
   };
 
   const handleBackToUsers = () => {
     setSelectedUser(null);
-    setPin('');
+    setPin("");
     setError(false);
   };
 
   return (
-    <div id="lockscreen-root" className="fixed inset-0 bg-slate-950 z-50 flex flex-col items-center justify-center p-4">
+    <div
+      id="lockscreen-root"
+      className="fixed inset-0 bg-slate-950 z-50 flex flex-col items-center justify-center p-4"
+    >
       {/* Background Decorative Grid */}
-      <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] bg-size-[16px_16px] opacity-10 pointer-events-none" />
 
       {/* Terminal Title */}
       <div className="text-center mb-8 shrink-0 z-10">
@@ -80,12 +87,16 @@ export default function Lockscreen({ users, onLogin, storeName }: LockscreenProp
               className="flex-1 flex flex-col space-y-4"
             >
               <div className="text-center pb-2">
-                <h2 className="text-slate-200 font-sans font-bold text-base">Select Staff Profile</h2>
-                <p className="text-slate-500 text-xs mt-0.5">Choose your account to login to terminal</p>
+                <h2 className="text-slate-200 font-sans font-bold text-base">
+                  Select Staff Profile
+                </h2>
+                <p className="text-slate-500 text-xs mt-0.5">
+                  Choose your account to login to terminal
+                </p>
               </div>
 
               <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[300px]">
-                {activeUsers.map(user => (
+                {activeUsers.map((user) => (
                   <button
                     key={user.id}
                     onClick={() => setSelectedUser(user)}
@@ -96,7 +107,9 @@ export default function Lockscreen({ users, onLogin, storeName }: LockscreenProp
                         <User size={18} />
                       </div>
                       <div>
-                        <h4 className="text-white text-xs font-bold font-sans">{user.name}</h4>
+                        <h4 className="text-white text-xs font-bold font-sans">
+                          {user.name}
+                        </h4>
                         <span className="text-[10px] uppercase font-mono font-bold text-slate-500 tracking-wider">
                           Role: {user.role}
                         </span>
@@ -127,8 +140,12 @@ export default function Lockscreen({ users, onLogin, storeName }: LockscreenProp
                   <ArrowLeft size={14} /> Back
                 </button>
                 <div className="text-right">
-                  <h3 className="text-white text-xs font-bold font-sans">{selectedUser.name}</h3>
-                  <span className="text-[9px] uppercase font-mono font-bold text-slate-500 tracking-wider">{selectedUser.role}</span>
+                  <h3 className="text-white text-xs font-bold font-sans">
+                    {selectedUser.name}
+                  </h3>
+                  <span className="text-[9px] uppercase font-mono font-bold text-slate-500 tracking-wider">
+                    {selectedUser.role}
+                  </span>
                 </div>
               </div>
 
@@ -139,15 +156,15 @@ export default function Lockscreen({ users, onLogin, storeName }: LockscreenProp
                 className="flex flex-col items-center justify-center space-y-3 my-2"
               >
                 <div className="flex justify-center space-x-4">
-                  {[0, 1, 2, 3].map(idx => (
+                  {[0, 1, 2, 3].map((idx) => (
                     <div
                       key={idx}
                       className={`w-3.5 h-3.5 rounded-full border transition-all duration-150 ${
                         error
-                          ? 'bg-rose-500 border-rose-500 shadow-md shadow-rose-500/20'
+                          ? "bg-rose-500 border-rose-500 shadow-md shadow-rose-500/20"
                           : pin.length > idx
-                          ? 'bg-emerald-400 border-emerald-400 shadow-md shadow-emerald-400/20'
-                          : 'bg-transparent border-slate-700'
+                            ? "bg-emerald-400 border-emerald-400 shadow-md shadow-emerald-400/20"
+                            : "bg-transparent border-slate-700"
                       }`}
                     />
                   ))}
@@ -163,7 +180,7 @@ export default function Lockscreen({ users, onLogin, storeName }: LockscreenProp
 
               {/* PIN Keypad Grid */}
               <div className="grid grid-cols-3 gap-2.5 w-full max-w-[280px]">
-                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
+                {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
                   <button
                     key={num}
                     onClick={() => handleKeyPress(num)}
@@ -172,16 +189,16 @@ export default function Lockscreen({ users, onLogin, storeName }: LockscreenProp
                     {num}
                   </button>
                 ))}
-                
+
                 <button
                   onClick={handleClear}
                   className="h-12 bg-slate-950/20 hover:bg-slate-800 text-slate-500 hover:text-rose-400 font-semibold text-[11px] rounded-2xl transition-all uppercase"
                 >
                   Clear
                 </button>
-                
+
                 <button
-                  onClick={() => handleKeyPress('0')}
+                  onClick={() => handleKeyPress("0")}
                   className="h-12 bg-slate-950/60 hover:bg-slate-800 border border-slate-800 text-slate-100 hover:text-white font-mono text-base font-bold rounded-2xl transition-all active:scale-95"
                 >
                   0
@@ -202,10 +219,11 @@ export default function Lockscreen({ users, onLogin, storeName }: LockscreenProp
 
       {/* Helper Footer Hint */}
       <div className="mt-6 text-center text-slate-600 font-mono text-[10px] z-10 max-w-xs">
-        Default testing PINs: <br/>
-        Admin: <strong className="text-slate-400 font-semibold">1234</strong> | 
-        Manager: <strong className="text-slate-400 font-semibold">5555</strong> | 
-        Cashier: <strong className="text-slate-400 font-semibold">0000</strong>
+        Default testing PINs: <br />
+        Admin: <strong className="text-slate-400 font-semibold">1234</strong> |
+        Manager: <strong className="text-slate-400 font-semibold">5555</strong>{" "}
+        | Cashier:{" "}
+        <strong className="text-slate-400 font-semibold">0000</strong>
       </div>
     </div>
   );
