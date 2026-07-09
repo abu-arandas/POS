@@ -1,7 +1,9 @@
 import React from 'react';
 import { User, Plus, Minus, Trash2, Tag, Percent, DollarSign, CreditCard, Info, X, UserPlus } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Product, Customer, StoreSettings } from '../types';
+import { Product, Customer } from '../types';
+import { useCustomerStore } from '../stores/customerStore';
+import { useSettingsStore } from '../stores/settingsStore';
 
 interface CartPanelProps {
   cart: Array<{ product: Product; quantity: number }>;
@@ -9,7 +11,6 @@ interface CartPanelProps {
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
   activeCustomer: Customer | null;
-  customers: Customer[];
   selectedCustomerId: string | null;
   setSelectedCustomerId: (id: string | null) => void;
   setAddCustomerOpen: (open: boolean) => void;
@@ -25,7 +26,6 @@ interface CartPanelProps {
   discountAmount: number;
   taxAmount: number;
   totalAmount: number;
-  settings: StoreSettings;
   handleCheckoutClick: () => void;
 }
 
@@ -35,7 +35,6 @@ export default function CartPanel({
   removeFromCart,
   clearCart,
   activeCustomer,
-  customers,
   selectedCustomerId,
   setSelectedCustomerId,
   setAddCustomerOpen,
@@ -51,9 +50,10 @@ export default function CartPanel({
   discountAmount,
   taxAmount,
   totalAmount,
-  settings,
   handleCheckoutClick
 }: CartPanelProps) {
+  const { customers } = useCustomerStore();
+  const { settings } = useSettingsStore();
 
   const applyLoyaltyPoints = () => {
     if (!activeCustomer) return;
@@ -72,8 +72,6 @@ export default function CartPanel({
 
   return (
     <div id="cart-section" className="w-96 glass dark:glass-dark border-l border-slate-200/50 dark:border-slate-800/50 shadow-2xl flex flex-col h-full shrink-0 relative z-10 transition-colors duration-300">
-      
-      {/* Customer Selector Header */}
       <div id="cart-customer-header" className="p-4 border-b border-slate-200/50 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/40 flex items-center justify-between">
         <div className="flex items-center space-x-3 overflow-hidden">
           <div className={`p-2 rounded-xl shrink-0 transition-colors ${activeCustomer ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
@@ -110,7 +108,6 @@ export default function CartPanel({
           ) : (
             <div className="flex items-center gap-1">
               <select
-                id="select-customer-dropdown"
                 value={selectedCustomerId || ''}
                 onChange={(e) => setSelectedCustomerId(e.target.value || null)}
                 className="bg-white/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 rounded-lg text-xs font-medium px-2 py-1 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-emerald-500 max-w-[100px]"
@@ -132,7 +129,6 @@ export default function CartPanel({
         </div>
       </div>
 
-      {/* Cart items list */}
       <div id="cart-items-container" className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {cart.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center opacity-50 py-12">
@@ -164,7 +160,6 @@ export default function CartPanel({
                 </div>
               </div>
 
-              {/* Adjuster controls */}
               <div className="flex items-center space-x-2.5 shrink-0">
                 <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
                   <button
@@ -184,7 +179,6 @@ export default function CartPanel({
                     <Plus size={12} />
                   </button>
                 </div>
-
                 <button
                   onClick={() => removeFromCart(item.product.id)}
                   className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
@@ -197,9 +191,7 @@ export default function CartPanel({
         )}
       </div>
 
-      {/* Promo & Loyalty Discount Box */}
       <div id="cart-promos-box" className="p-4 border-t border-slate-200/50 dark:border-slate-800/50 bg-white/30 dark:bg-slate-900/30 space-y-2.5 backdrop-blur-md">
-        {/* Quick Loyalty apply */}
         {activeCustomer && activeCustomer.points > 0 && discountType !== 'loyalty' && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2.5 flex items-center justify-between shadow-inner">
             <div className="flex items-start space-x-2">
@@ -218,7 +210,6 @@ export default function CartPanel({
           </motion.div>
         )}
 
-        {/* Active Discount badge */}
         {discountType !== 'none' && !showPromoInput && (
           <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="flex items-center justify-between bg-amber-500/10 border border-amber-500/20 rounded-xl p-2 px-3 text-xs">
             <span className="text-amber-700 dark:text-amber-400 font-medium flex items-center gap-1.5">
@@ -234,7 +225,6 @@ export default function CartPanel({
           </motion.div>
         )}
 
-        {/* Manual Discount Toggle buttons */}
         {(discountType === 'none' || showPromoInput) && (
           <div className="flex items-center gap-2">
             {!showPromoInput ? (
@@ -255,7 +245,6 @@ export default function CartPanel({
             ) : (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full flex items-center space-x-2 bg-white dark:bg-slate-900 border border-emerald-500/30 rounded-xl p-1 shadow-inner">
                 <input
-                  id="discount-input-field"
                   type="number"
                   min="0"
                   placeholder={discountType === 'percentage' ? "Discount %" : "Discount $"}
@@ -282,7 +271,6 @@ export default function CartPanel({
         )}
       </div>
 
-      {/* Totals & Checkout Button */}
       <div id="cart-pricing-summary" className="p-5 border-t border-slate-200/50 dark:border-slate-800/50 bg-white/50 dark:bg-slate-900/50 space-y-4 backdrop-blur-md">
         <div className="space-y-2">
           <div className="flex justify-between text-slate-500 dark:text-slate-400 text-xs">

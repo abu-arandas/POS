@@ -4,19 +4,10 @@ import {
 } from 'lucide-react';
 import { StoreSettings, SupabaseConfig } from '../types';
 
-interface SettingsProps {
-  settings: StoreSettings;
-  onUpdateSettings: (settings: StoreSettings) => void;
-  onResetToDemo: () => void;
-  onClearData: () => void;
-  onImportDatabase: (jsonString: string) => boolean;
-  onExportDatabase: () => string;
-}
+import { useSettingsStore } from '../stores/settingsStore';
 
-export default function Settings({ 
-  settings, 
-  onUpdateSettings,
-}: SettingsProps) {
+export default function Settings() {
+  const { settings, setSettings } = useSettingsStore();
   const [activeTab, setActiveTab] = useState<'profile' | 'supabase'>('profile');
 
   // Supabase Local State
@@ -31,7 +22,7 @@ export default function Settings({
   });
 
   const handleUpdateSetting = (key: keyof StoreSettings, value: string | number) => {
-    onUpdateSettings({ ...settings, [key]: value });
+    setSettings({ ...settings, [key]: value });
   };
 
   const tabs = [

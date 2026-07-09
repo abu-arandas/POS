@@ -1,92 +1,60 @@
 import React, { useState, useMemo } from 'react';
 import { CreditCard, DollarSign, Smartphone, Gift, Check, X, Printer, UserPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, Category, Customer, StoreSettings, SaleTransaction } from '../types';
+import { Product, SaleTransaction } from '../types';
 import ProductGrid from './ProductGrid';
 import CartPanel from './CartPanel';
+import { useProductStore } from '../stores/productStore';
+import { useCustomerStore } from '../stores/customerStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { useTransactionStore } from '../stores/transactionStore';
+import { calculateOrderTotals } from '../lib/pricing';
+import { syncToCloudIfEnabled } from '../lib/sync';
 
-interface RegisterProps {
-  products: Product[];
-  categories: Category[];
-  customers: Customer[];
-  settings: StoreSettings;
-  onCheckout: (
-    items: Array<{ productId: string; productName: string; price: number; cost: number; quantity: number }>,
-    customerId: string | null,
-    discountType: 'none' | 'percentage' | 'fixed' | 'loyalty',
-    discountValue: number,
-    paymentMethod: 'cash' | 'card' | 'mobile' | 'gift',
-    cashPaid?: number,
-    cashChange?: number
-  ) => SaleTransaction | null;
-  onAddCustomer: (name: string, phone: string, email: string) => Customer;
-}
+export default function Register() {
+  const { products, categories, handleUpdateProduct } = useProductStore();
+  const { customers, handleAddCustomer, updateCustomerPoints } = useCustomerStore();
+  const { settings, printerConfig } = useSettingsStore();
+  const { transactions, addTransaction } = useTransactionStore();
 
-export default function Register({ products, categories, customers, settings, onCheckout, onAddCustomer }: RegisterProps) {
-  // Navigation & Search State
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-
-  // Cart State
+  
   const [cart, setCart] = useState<Array<{ product: Product; quantity: number }>>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   
-  // Discount State
   const [discountType, setDiscountType] = useState<'none' | 'percentage' | 'fixed' | 'loyalty'>('none');
   const [discountInput, setDiscountInput] = useState<string>('');
   const [loyaltyPointsToUse, setLoyaltyPointsToUse] = useState<number>(0);
   const [showPromoInput, setShowPromoInput] = useState<boolean>(false);
 
-  // Modals & Popups State
   const [checkoutModalOpen, setCheckoutModalOpen] = useState<boolean>(false);
   const [addCustomerOpen, setAddCustomerOpen] = useState<boolean>(false);
   const [receiptModalOpen, setReceiptModalOpen] = useState<boolean>(false);
   const [activeReceipt, setActiveReceipt] = useState<SaleTransaction | null>(null);
 
-  // Customer Form State
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
   const [custEmail, setCustEmail] = useState('');
 
-  // Payment Calculation State
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'mobile' | 'gift'>('card');
   const [cashPaidText, setCashPaidText] = useState<string>('');
 
-  const activeCustomer = useMemo(() => {
-    return customers.find(c => c.id === selectedCustomerId) || null;
-  }, [customers, selectedCustomerId]);
+  const activeCustomer = useMemo(() => customers.find(c => c.id === selectedCustomerId) || null, [customers, selectedCustomerId]);
 
-  // Pricing calculations
-  const subtotal = useMemo(() => {
-    return Number(cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0).toFixed(2));
-  }, [cart]);
+  const cartItems = useMemo(() => cart.map(item => ({
+    productId: item.product.id,
+    productName: item.product.name,
+    price: item.product.price,
+    cost: item.product.cost,
+    quantity: item.quantity
+  })), [cart]);
 
-  const discountAmount = useMemo(() => {
-    if (discountType === 'percentage') {
-      const val = parseFloat(discountInput) || 0;
-      return Number(((subtotal * val) / 100).toFixed(2));
-    }
-    if (discountType === 'fixed') {
-      const val = parseFloat(discountInput) || 0;
-      return Math.min(val, subtotal);
-    }
-    if (discountType === 'loyalty') {
-      return Number((loyaltyPointsToUse * settings.loyaltyPointValue).toFixed(2));
-    }
-    return 0;
-  }, [discountType, discountInput, loyaltyPointsToUse, subtotal, settings.loyaltyPointValue]);
+  const discountValue = discountType === 'loyalty' ? loyaltyPointsToUse : (parseFloat(discountInput) || 0);
 
-  const taxableAmount = useMemo(() => {
-    return Math.max(0, subtotal - discountAmount);
-  }, [subtotal, discountAmount]);
-
-  const taxAmount = useMemo(() => {
-    return Number((taxableAmount * (settings.taxRate / 100)).toFixed(2));
-  }, [taxableAmount, settings.taxRate]);
-
-  const totalAmount = useMemo(() => {
-    return Number((taxableAmount + taxAmount).toFixed(2));
-  }, [taxableAmount, taxAmount]);
+  const { subtotal, discountAmount, taxAmount, totalAmount } = useMemo(() => 
+    calculateOrderTotals(cartItems, discountType, discountValue, settings),
+  [cartItems, discountType, discountValue, settings]);
 
   const cashSuggestions = useMemo(() => {
     if (totalAmount <= 0) return [];
@@ -115,17 +83,11 @@ export default function Register({ products, categories, customers, settings, on
 
   const addToCart = (product: Product) => {
     const existing = cart.find(item => item.product.id === product.id);
-    const availableStock = product.stock;
-
-    if (availableStock <= 0) return;
+    if (product.stock <= 0) return;
 
     if (existing) {
-      if (existing.quantity >= availableStock) return;
-      setCart(cart.map(item => 
-        item.product.id === product.id 
-          ? { ...item, quantity: item.quantity + 1 } 
-          : item
-      ));
+      if (existing.quantity >= product.stock) return;
+      setCart(cart.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
     } else {
       setCart([...cart, { product, quantity: 1 }]);
     }
@@ -135,18 +97,15 @@ export default function Register({ products, categories, customers, settings, on
     setCart(cart.map(item => {
       if (item.product.id === productId) {
         const newQty = item.quantity + delta;
-        const availableStock = item.product.stock;
         if (newQty <= 0) return null;
-        if (newQty > availableStock) return item;
+        if (newQty > item.product.stock) return item;
         return { ...item, quantity: newQty };
       }
       return item;
     }).filter(Boolean) as Array<{ product: Product; quantity: number }>);
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(cart.filter(item => item.product.id !== productId));
-  };
+  const removeFromCart = (productId: string) => setCart(cart.filter(item => item.product.id !== productId));
 
   const clearCart = () => {
     setCart([]);
@@ -160,11 +119,9 @@ export default function Register({ products, categories, customers, settings, on
   const handleAddNewCustomer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!custName.trim()) return;
-    const newCust = onAddCustomer(custName, custPhone, custEmail);
+    const newCust = handleAddCustomer(custName, custPhone, custEmail);
     setSelectedCustomerId(newCust.id);
-    setCustName('');
-    setCustPhone('');
-    setCustEmail('');
+    setCustName(''); setCustPhone(''); setCustEmail('');
     setAddCustomerOpen(false);
   };
 
@@ -177,63 +134,71 @@ export default function Register({ products, categories, customers, settings, on
 
   const handleCompletePayment = () => {
     const paidValue = paymentMethod === 'cash' ? parseFloat(cashPaidText) || 0 : undefined;
-    
-    if (paymentMethod === 'cash') {
-      if (!paidValue || paidValue < totalAmount) {
-        alert('Insufficient cash paid!');
-        return;
-      }
+    if (paymentMethod === 'cash' && (!paidValue || paidValue < totalAmount)) {
+      alert('Insufficient cash paid!');
+      return;
     }
 
-    const orderItems = cart.map(item => ({
-      productId: item.product.id,
-      productName: item.product.name,
-      price: item.product.price,
-      cost: item.product.cost,
-      quantity: item.quantity,
-      total: Number((item.product.price * item.quantity).toFixed(2))
-    }));
-
-    const transaction = onCheckout(
-      orderItems,
-      selectedCustomerId,
-      discountType,
-      discountType === 'loyalty' ? loyaltyPointsToUse : (parseFloat(discountInput) || 0),
-      paymentMethod,
-      paidValue,
-      paymentMethod === 'cash' ? cashChangeDue : undefined
-    );
-
-    if (transaction) {
-      setActiveReceipt(transaction);
-      setCheckoutModalOpen(false);
-      setReceiptModalOpen(true);
-      clearCart();
+    let nextId = 'TX-10001';
+    if (transactions.length > 0) {
+      const maxId = Math.max(...transactions.map(t => parseInt(t.id.split('-').pop() || '10000')));
+      nextId = `TX-${maxId + 1}`;
     }
+
+    const transaction: SaleTransaction = {
+      id: nextId,
+      date: new Date().toISOString(),
+      items: cartItems.map(item => ({ ...item, total: Number((item.price * item.quantity).toFixed(2)) })),
+      subtotal, discount: discountAmount, discountType, discountValue,
+      tax: taxAmount, total: totalAmount,
+      paymentMethod, cashPaid: paidValue, cashChange: paymentMethod === 'cash' ? cashChangeDue : undefined,
+      customerId: selectedCustomerId, customerName: activeCustomer?.name || null,
+      status: 'completed'
+    };
+
+    // Update stocks
+    const updatedProducts: Product[] = [];
+    cart.forEach(item => {
+      const updated = { ...item.product, stock: Math.max(0, item.product.stock - item.quantity) };
+      handleUpdateProduct(updated);
+      updatedProducts.push(updated);
+    });
+
+    // Update customer points
+    let updatedCustomer = null;
+    if (selectedCustomerId) {
+      const pointsGained = Math.floor(totalAmount * settings.loyaltyPointsRate);
+      let pointsDelta = pointsGained;
+      if (discountType === 'loyalty') pointsDelta -= discountValue;
+      updateCustomerPoints(selectedCustomerId, pointsDelta);
+      updatedCustomer = useCustomerStore.getState().customers.find(c => c.id === selectedCustomerId);
+    }
+
+    addTransaction(transaction);
+    syncToCloudIfEnabled(updatedProducts, undefined, updatedCustomer ? [updatedCustomer] : undefined, [transaction]);
+
+    setActiveReceipt(transaction);
+    setCheckoutModalOpen(false);
+    setReceiptModalOpen(true);
+    clearCart();
   };
 
   return (
     <div id="register-root" className="flex flex-1 h-full overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
-      
       <ProductGrid 
-        products={products}
-        categories={categories}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}
         cart={cart}
         addToCart={addToCart}
-        settings={settings}
       />
-
       <CartPanel 
         cart={cart}
         updateCartQty={updateCartQty}
         removeFromCart={removeFromCart}
         clearCart={clearCart}
         activeCustomer={activeCustomer}
-        customers={customers}
         selectedCustomerId={selectedCustomerId}
         setSelectedCustomerId={setSelectedCustomerId}
         setAddCustomerOpen={setAddCustomerOpen}
@@ -249,11 +214,9 @@ export default function Register({ products, categories, customers, settings, on
         discountAmount={discountAmount}
         taxAmount={taxAmount}
         totalAmount={totalAmount}
-        settings={settings}
         handleCheckoutClick={handleCheckoutClick}
       />
 
-      {/* MODAL 1: Checkout/Payment Dialog */}
       <AnimatePresence>
         {checkoutModalOpen && (
           <div id="payment-modal" className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -277,8 +240,6 @@ export default function Register({ products, categories, customers, settings, on
               </div>
 
               <div className="p-6 space-y-6">
-                
-                {/* Method selector grid */}
                 <div className="grid grid-cols-4 gap-3">
                   {[
                     { id: 'card', label: 'Card', icon: CreditCard, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -306,7 +267,6 @@ export default function Register({ products, categories, customers, settings, on
                   })}
                 </div>
 
-                {/* Conditional Cash Handling */}
                 <AnimatePresence mode="wait">
                   {paymentMethod === 'cash' && (
                     <motion.div
@@ -323,7 +283,6 @@ export default function Register({ products, categories, customers, settings, on
                           {cashSuggestions.map(val => (
                             <button
                               key={val}
-                              id={`cash-suggest-${val}`}
                               onClick={() => setCashPaidText(val.toFixed(2))}
                               className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all shadow-sm"
                             >
@@ -339,7 +298,6 @@ export default function Register({ products, categories, customers, settings, on
                           <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl p-1 bg-slate-50 dark:bg-slate-950 shadow-inner">
                             <span className="font-mono text-slate-400 dark:text-slate-500 pl-3 font-bold">{settings.currency}</span>
                             <input
-                              id="cash-tendered-input"
                               type="number"
                               step="0.01"
                               min={totalAmount}
@@ -366,7 +324,6 @@ export default function Register({ products, categories, customers, settings, on
                 </AnimatePresence>
               </div>
 
-              {/* Checkout Actions */}
               <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between">
                 <button
                   onClick={() => setCheckoutModalOpen(false)}
@@ -375,7 +332,6 @@ export default function Register({ products, categories, customers, settings, on
                   Cancel
                 </button>
                 <button
-                  id="pay-confirm-btn"
                   onClick={handleCompletePayment}
                   disabled={paymentMethod === 'cash' && (!parseFloat(cashPaidText) || parseFloat(cashPaidText) < totalAmount)}
                   className="px-8 py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:from-slate-400 disabled:to-slate-400 text-white font-sans font-bold text-sm rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/25 transition-all transform active:scale-95"
@@ -389,7 +345,6 @@ export default function Register({ products, categories, customers, settings, on
         )}
       </AnimatePresence>
 
-      {/* MODAL 2: Add Customer Popup */}
       <AnimatePresence>
         {addCustomerOpen && (
           <div id="add-customer-modal" className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -413,7 +368,6 @@ export default function Register({ products, categories, customers, settings, on
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">Full Name *</label>
                   <input
-                    id="new-customer-name"
                     type="text"
                     required
                     placeholder="e.g. John Doe"
@@ -425,7 +379,6 @@ export default function Register({ products, categories, customers, settings, on
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">Phone Number</label>
                   <input
-                    id="new-customer-phone"
                     type="tel"
                     placeholder="e.g. 555-0100"
                     value={custPhone}
@@ -436,7 +389,6 @@ export default function Register({ products, categories, customers, settings, on
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">Email Address</label>
                   <input
-                    id="new-customer-email"
                     type="email"
                     placeholder="e.g. john@example.com"
                     value={custEmail}
@@ -466,7 +418,6 @@ export default function Register({ products, categories, customers, settings, on
         )}
       </AnimatePresence>
 
-      {/* MODAL 3: Checkout Success / Receipt View */}
       <AnimatePresence>
         {receiptModalOpen && activeReceipt && (
           <div id="receipt-modal" className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -476,7 +427,6 @@ export default function Register({ products, categories, customers, settings, on
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800"
             >
-              {/* Success Banner */}
               <div className="bg-linear-to-br from-emerald-500 to-emerald-600 text-white p-8 text-center space-y-3 flex flex-col items-center">
                 <motion.div 
                   initial={{ scale: 0 }}
@@ -490,7 +440,6 @@ export default function Register({ products, categories, customers, settings, on
                 <p className="text-emerald-100 text-sm font-mono bg-black/10 px-3 py-1 rounded-full">Receipt {activeReceipt.id}</p>
               </div>
 
-              {/* Thermal Receipt Body */}
               <div className="p-6 flex-1 overflow-y-auto max-h-[380px] bg-slate-50 dark:bg-slate-950">
                 <div id="thermal-receipt" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4 font-mono text-xs text-slate-700 dark:text-slate-300">
                   <div className="text-center border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
@@ -520,7 +469,6 @@ export default function Register({ products, categories, customers, settings, on
                     )}
                   </div>
 
-                  {/* Items list */}
                   <div className="space-y-2 border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
                     {activeReceipt.items.map((item, idx) => (
                       <div key={idx} className="flex justify-between">
@@ -530,7 +478,6 @@ export default function Register({ products, categories, customers, settings, on
                     ))}
                   </div>
 
-                  {/* Pricing block */}
                   <div className="space-y-1.5">
                     <div className="flex justify-between">
                       <span>SUBTOTAL:</span>
@@ -577,7 +524,6 @@ export default function Register({ products, categories, customers, settings, on
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-4">
                 <button
                   onClick={() => alert('Receipt printing is mock triggered!')}
@@ -587,7 +533,6 @@ export default function Register({ products, categories, customers, settings, on
                   <span>Print</span>
                 </button>
                 <button
-                  id="new-sale-btn"
                   onClick={() => setReceiptModalOpen(false)}
                   className="flex-1 px-4 py-3 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl text-sm font-bold shadow-md shadow-slate-900/10 transition-colors"
                 >

@@ -1,31 +1,29 @@
 import React, { useMemo } from 'react';
 import { Search, X } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Product, Category, StoreSettings } from '../types';
+import { Product } from '../types';
+import { useProductStore } from '../stores/productStore';
+import { useSettingsStore } from '../stores/settingsStore';
 
 interface ProductGridProps {
-  products: Product[];
-  categories: Category[];
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   selectedCategory: string;
   setSelectedCategory: (c: string) => void;
   cart: Array<{ product: Product; quantity: number }>;
   addToCart: (product: Product) => void;
-  settings: StoreSettings;
 }
 
 export default function ProductGrid({
-  products,
-  categories,
   searchQuery,
   setSearchQuery,
   selectedCategory,
   setSelectedCategory,
   cart,
   addToCart,
-  settings
 }: ProductGridProps) {
+  const { products, categories } = useProductStore();
+  const { settings } = useSettingsStore();
 
   const filteredProducts = useMemo(() => {
     return products.filter(prod => {
@@ -119,7 +117,6 @@ export default function ProductGrid({
                       : 'border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl hover:shadow-emerald-500/10'
                   }`}
                 >
-                  {/* Badge */}
                   <div className="absolute top-2 left-2 z-10 flex flex-col gap-1.5">
                     {isOutOfStock && (
                       <span className="bg-rose-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
@@ -138,7 +135,6 @@ export default function ProductGrid({
                     )}
                   </div>
 
-                  {/* Image or emoji placeholder */}
                   <div className="relative aspect-square w-full bg-slate-100/50 dark:bg-slate-800/50 flex items-center justify-center overflow-hidden">
                     {prod.image ? (
                       <img
@@ -153,7 +149,6 @@ export default function ProductGrid({
                     <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
 
-                  {/* Details */}
                   <div className="p-3.5 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md flex-1 flex flex-col justify-between">
                     <div>
                       <span className="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400 block uppercase tracking-wider mb-1">

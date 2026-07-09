@@ -6,22 +6,17 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, Category, StoreSettings } from '../types';
 
-interface InventoryProps {
-  products: Product[];
-  categories: Category[];
-  settings: StoreSettings;
-  onAddProduct: (product: Omit<Product, 'id'>) => Product;
-  onUpdateProduct: (product: Product) => void;
-  onDeleteProduct: (id: string) => void;
-  onAddCategory: (name: string, color: string) => Category;
-  onDeleteCategory: (id: string) => void;
-}
+import { useProductStore } from '../stores/productStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { syncToCloudIfEnabled } from '../lib/sync';
 
-export default function Inventory({ 
-  products, categories, settings, 
-  onAddProduct, onUpdateProduct, onDeleteProduct,
-  onAddCategory, onDeleteCategory 
-}: InventoryProps) {
+export default function Inventory() {
+  const { 
+    products, categories, 
+    handleAddProduct, handleUpdateProduct, handleDeleteProduct,
+    handleAddCategory, handleDeleteCategory 
+  } = useProductStore();
+  const { settings } = useSettingsStore();
   
   // Tab control: 'products' or 'categories'
   const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
@@ -111,12 +106,12 @@ export default function Inventory({
     };
 
     if (editingProduct) {
-      onUpdateProduct({
-        ...productPayload,
-        id: editingProduct.id,
-      });
+      const updated = { ...productPayload, id: editingProduct.id };
+      handleUpdateProduct(updated);
+      syncToCloudIfEnabled([updated]);
     } else {
-      onAddProduct(productPayload);
+      const added = handleAddProduct(productPayload);
+      syncToCloudIfEnabled([added]);
     }
     setProductModalOpen(false);
   };
@@ -125,7 +120,8 @@ export default function Inventory({
   const handleSubmitCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCatName.trim()) return;
-    onAddCategory(newCatName.trim(), newCatColor);
+    const added = handleAddCategory(newCatName.trim(), newCatColor);
+    syncToCloudIfEnabled(undefined, [added]);
     setNewCatName('');
     setCategoryModalOpen(false);
   };
@@ -393,7 +389,7 @@ export default function Inventory({
                               </button>
                               <button
                                 id={`del-prod-${prod.id}`}
-                                onClick={() => { if (confirm(`Delete ${prod.name}?`)) onDeleteProduct(prod.id); }}
+                                onClick={() => { if (confirm(`Delete ${prod.name}?`)) handleDeleteProduct(prod.id); }}
                                 className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100/50 rounded-lg transition-colors"
                                 title="Delete product"
                               >
@@ -441,7 +437,7 @@ export default function Inventory({
                     <button
                       id={`del-cat-${cat.id}`}
                       disabled={productCount > 0}
-                      onClick={() => onDeleteCategory(cat.id)}
+                      onClick={() => handleDeleteCategory(cat.id)}
                       className="text-slate-400 hover:text-rose-600 disabled:opacity-30 disabled:hover:text-slate-400 p-1.5 hover:bg-slate-50 rounded-lg transition-all"
                       title={productCount > 0 ? "Cannot delete category containing products" : "Delete category"}
                     >

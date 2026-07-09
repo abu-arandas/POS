@@ -8,16 +8,14 @@ import {
   BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
 import { motion } from 'motion/react';
-import { SaleTransaction, Product, Category, StoreSettings } from '../types';
+import { useTransactionStore } from '../stores/transactionStore';
+import { useProductStore } from '../stores/productStore';
+import { useSettingsStore } from '../stores/settingsStore';
 
-interface DashboardProps {
-  transactions: SaleTransaction[];
-  products: Product[];
-  categories: Category[];
-  settings: StoreSettings;
-}
-
-export default function Dashboard({ transactions, products, categories, settings }: DashboardProps) {
+export default function Dashboard() {
+  const { transactions } = useTransactionStore();
+  const { products, categories } = useProductStore();
+  const { settings } = useSettingsStore();
   
   const completedTransactions = useMemo(() => {
     return transactions.filter(t => t.status === 'completed');

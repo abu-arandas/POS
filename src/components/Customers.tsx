@@ -19,23 +19,18 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { Customer, SaleTransaction, StoreSettings } from "../types";
 
-interface CustomersProps {
-  customers: Customer[];
-  transactions: SaleTransaction[];
-  settings: StoreSettings;
-  onAddCustomer: (name: string, phone: string, email: string) => Customer;
-  onUpdateCustomer: (customer: Customer) => void;
-  onDeleteCustomer: (id: string) => void;
-}
+import { useCustomerStore } from '../stores/customerStore';
+import { useTransactionStore } from '../stores/transactionStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { syncToCloudIfEnabled } from '../lib/sync';
 
-export default function Customers({
-  customers,
-  transactions,
-  settings,
-  onAddCustomer,
-  onUpdateCustomer,
-  onDeleteCustomer,
-}: CustomersProps) {
+export default function Customers() {
+  const { 
+    customers, 
+    handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer 
+  } = useCustomerStore();
+  const { transactions } = useTransactionStore();
+  const { settings } = useSettingsStore();
   // Search and sorting
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "points" | "date">("name");
@@ -140,12 +135,15 @@ export default function Customers({
     };
 
     if (editingCustomer) {
-      onUpdateCustomer({
+      const updated = {
         ...editingCustomer,
         ...payload,
-      });
+      };
+      handleUpdateCustomer(updated);
+      syncToCloudIfEnabled(undefined, undefined, [updated]);
     } else {
-      onAddCustomer(payload.name, payload.phone, payload.email);
+      const added = handleAddCustomer(payload.name, payload.phone, payload.email);
+      syncToCloudIfEnabled(undefined, undefined, [added]);
     }
     setProductModalOpen(false);
   };
@@ -318,7 +316,7 @@ export default function Customers({
                                 `Delete CRM account for ${cust.name}? points history will be cleared.`,
                               )
                             ) {
-                              onDeleteCustomer(cust.id);
+                              handleDeleteCustomer(cust.id);
                               if (selectedCustomerId === cust.id)
                                 setSelectedCustomerId(null);
                             }

@@ -3,24 +3,21 @@ import { UserAccount } from "../types";
 import { ShieldAlert, User, Delete, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-interface LockscreenProps {
-  users: UserAccount[];
-  onLogin: (user: UserAccount) => void;
-  storeName: string;
-}
+import { hashPin } from '../lib/hash';
+import { useAuthStore } from '../stores/authStore';
+import { useSettingsStore } from '../stores/settingsStore';
 
-export default function Lockscreen({
-  users,
-  onLogin,
-  storeName,
-}: LockscreenProps) {
+export default function Lockscreen() {
+  const { users, setCurrentUser } = useAuthStore();
+  const { settings } = useSettingsStore();
+  const storeName = settings.storeName;
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
   const [pin, setPin] = useState<string>("");
   const [error, setError] = useState<boolean>(false);
 
   const activeUsers = users.filter((u) => u.active);
 
-  const handleKeyPress = (num: string) => {
+  const handleKeyPress = async (num: string) => {
     if (error) setError(false);
     if (pin.length < 4) {
       const nextPin = pin + num;
@@ -28,14 +25,17 @@ export default function Lockscreen({
 
       // Automatically check pin once 4 digits are entered
       if (nextPin.length === 4) {
-        if (selectedUser && selectedUser.pin === nextPin) {
-          onLogin(selectedUser);
-        } else {
-          // Play mistake state
-          setError(true);
-          setPin("");
-          // Clear error vibration/shake after a split-second
-          setTimeout(() => setError(false), 800);
+        if (selectedUser) {
+          const hashedNextPin = await hashPin(nextPin);
+          if (selectedUser.pin === hashedNextPin) {
+            setCurrentUser(selectedUser);
+          } else {
+            // Play mistake state
+            setError(true);
+            setPin("");
+            // Clear error vibration/shake after a split-second
+            setTimeout(() => setError(false), 800);
+          }
         }
       }
     }

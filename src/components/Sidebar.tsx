@@ -2,18 +2,21 @@ import { ShoppingBag, Package, History, Users, BarChart3, Settings, AlertCircle,
 import { motion } from 'motion/react';
 import { UserAccount } from '../types';
 
+import { useAuthStore } from '../stores/authStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { useProductStore } from '../stores/productStore';
+
 interface SidebarProps {
   currentScreen: 'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings';
   setScreen: (screen: 'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings') => void;
-  lowStockCount: number;
-  storeName: string;
-  currentUser: UserAccount | null;
-  onLogout: () => void;
-  darkMode: boolean;
-  setDarkMode: (val: boolean) => void;
 }
 
-export default function Sidebar({ currentScreen, setScreen, lowStockCount, storeName, currentUser, onLogout, darkMode, setDarkMode }: SidebarProps) {
+export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
+  const { currentUser, setCurrentUser } = useAuthStore();
+  const { settings, darkMode, setDarkMode } = useSettingsStore();
+  const { products } = useProductStore();
+  const storeName = settings.storeName;
+  const lowStockCount = products.filter(p => p.stock <= p.minStock && p.stock > 0).length;
   // Define full list of all available menu items
   const allMenuItems: Array<{
     id: 'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings';
@@ -147,7 +150,7 @@ export default function Sidebar({ currentScreen, setScreen, lowStockCount, store
           </div>
           
           <button
-            onClick={onLogout}
+            onClick={() => setCurrentUser(null)}
             title="Lock POS Screen"
             className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors shrink-0 focus:outline-none"
           >

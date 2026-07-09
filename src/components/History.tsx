@@ -3,19 +3,17 @@ import {
   Search, History as HistoryIcon, Calendar, Printer, RotateCcw, 
   ChevronRight, CreditCard, DollarSign, Smartphone, Gift, X, Check, AlertTriangle, ShieldCheck, Lock
 } from 'lucide-react';
+import { SaleTransaction } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { SaleTransaction, StoreSettings, UserAccount, PrinterConfig } from '../types';
+import { hashPin } from '../lib/hash';
+import { useTransactionStore } from '../stores/transactionStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { useAuthStore } from '../stores/authStore';
 
-interface HistoryProps {
-  transactions: SaleTransaction[];
-  settings: StoreSettings;
-  onRefundTransaction: (id: string) => void;
-  currentUser: UserAccount | null;
-  users: UserAccount[];
-  printerConfig: PrinterConfig;
-}
-
-export default function History({ transactions, settings, onRefundTransaction, currentUser, users, printerConfig }: HistoryProps) {
+export default function History() {
+  const { transactions, refundTransaction } = useTransactionStore();
+  const { settings, printerConfig } = useSettingsStore();
+  const { currentUser, users } = useAuthStore();
   
   // Filters & Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,20 +77,20 @@ export default function History({ transactions, settings, onRefundTransaction, c
       setShowOverrideModal(true);
     } else {
       if (confirm(`Are you sure you want to refund receipt ${tx.id}? All items will be added back to stock and customer loyalty points will be adjusted.`)) {
-        onRefundTransaction(tx.id);
+        refundTransaction(tx.id, new Date().toISOString());
       }
     }
   };
 
-  const handleAuthorizeOverride = (e: React.FormEvent) => {
+  const handleAuthorizeOverride = async (e: React.FormEvent) => {
     e.preventDefault();
     setOverrideError('');
 
-    // Look up manager or admin with this PIN
-    const authorizedUser = users.find(u => u.pin === overridePin && u.active && (u.role === 'manager' || u.role === 'admin'));
+    const hashedPin = await hashPin(overridePin);
+    const authorizedUser = users.find(u => u.pin === hashedPin && u.active && (u.role === 'manager' || u.role === 'admin'));
     if (authorizedUser) {
       if (pendingRefundTxId) {
-        onRefundTransaction(pendingRefundTxId);
+        refundTransaction(pendingRefundTxId, new Date().toISOString());
         alert(`Refund authorized successfully by ${authorizedUser.name} (${authorizedUser.role})!`);
       }
       setShowOverrideModal(false);
