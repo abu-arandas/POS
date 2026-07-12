@@ -109,7 +109,7 @@ export default function Dashboard() {
       revenue: Number(v.revenue.toFixed(2)),
       profit: Number(v.profit.toFixed(2)),
     }));
-  }, [completedTransactions]);
+  }, [completedTransactions, i18n.language]);
 
   const topProductsData = useMemo(() => {
     const productSalesMap = new Map<string, { name: string; quantity: number; revenue: number }>();
@@ -153,7 +153,9 @@ export default function Dashboard() {
     return Array.from(catSalesMap.entries())
       .map(([catId, revenue], idx) => {
         const catObj = categories.find((c) => c.id === catId);
-        const catName = catObj ? t(`categories.${catObj.name.toLowerCase()}`, { defaultValue: catObj.name }) : 'General';
+        const catName = catObj
+          ? t(`categories.${catObj.name.toLowerCase()}`, { defaultValue: catObj.name })
+          : 'General';
         return {
           name: catName,
           value: Number(revenue.toFixed(2)),
@@ -161,7 +163,7 @@ export default function Dashboard() {
         };
       })
       .sort((a, b) => b.value - a.value);
-  }, [completedTransactions, products, categories]);
+  }, [completedTransactions, products, categories, t]);
 
   const paymentMethodsData = useMemo(() => {
     const counts = { cash: 0, card: 0, mobile: 0, gift: 0 };

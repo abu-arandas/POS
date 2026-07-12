@@ -60,7 +60,7 @@ export default function App() {
         categories,
         settings,
       });
-    } catch (e) {
+    } catch (_e) {
       // Not running in Electron
     }
   }, [products, categories, settings]);
@@ -70,10 +70,12 @@ export default function App() {
       if (currentUser.role === 'cashier') {
         const prohibitedScreens = ['inventory', 'customers', 'dashboard', 'settings', 'qrmenu'];
         if (prohibitedScreens.includes(currentScreen)) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setScreen('register');
         }
       } else if (currentUser.role === 'manager') {
         if (currentScreen === 'settings') {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setScreen('register');
         }
       }

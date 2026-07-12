@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function QRMenu() {
   const { t } = useTranslation();
-  const [localIp, setLocalIp] = useState<string>('localhost');
+  const [localIp, setLocalIp] = useState<string>(() => typeof window !== 'undefined' ? window.location.hostname : 'localhost');
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -21,9 +21,8 @@ export default function QRMenu() {
         .catch((err: Error) => {
           console.error('Failed to get local IP:', err);
         });
-    } catch (e) {
-      // Not running in Electron, fallback to current hostname
-      setLocalIp(window.location.hostname);
+    } catch (_e) {
+      // Not running in Electron, use the default hostname
     }
   }, []);
 

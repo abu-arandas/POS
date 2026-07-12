@@ -194,8 +194,12 @@ export default function Settings() {
             )}
             {activeTab === 'supabase' && (
               <div className="p-6 bg-white rounded-2xl border border-slate-200">
-                <h3 className="font-semibold text-slate-900 mb-4">{t('settings.supabaseConfig')}</h3>
-                <p className="text-sm text-slate-600">{t('settings.status')}: {supabaseConfig.status}</p>
+                <h3 className="font-semibold text-slate-900 mb-4">
+                  {t('settings.supabaseConfig')}
+                </h3>
+                <p className="text-sm text-slate-600">
+                  {t('settings.status')}: {supabaseConfig.status}
+                </p>
                 <p className="text-xs text-slate-400 mt-2">{t('settings.configureEnv')}</p>
               </div>
             )}

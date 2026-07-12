@@ -119,7 +119,13 @@ function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories,
       <div className="p-3.5 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md flex-1 flex flex-col justify-between pointer-events-none">
         <div>
           <span className="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400 block uppercase tracking-wider mb-1">
-            {t(`categories.${categories.find((c: any) => c.id === prod.category)?.name?.toLowerCase() || 'general'}`, { defaultValue: categories.find((c: any) => c.id === prod.category)?.name || 'General' })}
+            {t(
+              `categories.${categories.find((c: any) => c.id === prod.category)?.name?.toLowerCase() || 'general'}`,
+              {
+                defaultValue:
+                  categories.find((c: any) => c.id === prod.category)?.name || 'General',
+              },
+            )}
           </span>
           <h3 className="font-sans font-semibold text-slate-800 dark:text-slate-100 text-sm tracking-tight line-clamp-2 h-10 leading-snug">
             {prod.name}

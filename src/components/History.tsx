@@ -102,7 +102,7 @@ export default function History() {
 
       return matchesSearch && matchesStatus && matchesDate;
     });
-  }, [transactions, searchQuery, dateFilter, statusFilter]);
+  }, [transactions, searchQuery, dateFilter, statusFilter, customStartDate, customEndDate]);
 
   // Refund handler
   const handleRefundClick = (tx: SaleTransaction) => {

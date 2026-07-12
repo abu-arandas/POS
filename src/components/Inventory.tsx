@@ -149,7 +149,7 @@ export default function Inventory() {
 
   // Sort & Filter logic
   const sortedAndFilteredProducts = useMemo(() => {
-    let list = products.filter((prod) => {
+    const list = products.filter((prod) => {
       const matchesSearch =
         prod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         prod.sku.toLowerCase().includes(searchQuery.toLowerCase());
@@ -179,7 +179,7 @@ export default function Inventory() {
     });
 
     return list;
-  }, [products, searchQuery, selectedCategory]);
+  }, [products, searchQuery, selectedCategory, sortBy, sortOrder, stockFilter]);
 
   const toggleSort = (field: 'name' | 'stock' | 'price' | 'sku') => {
     if (sortBy === field) {

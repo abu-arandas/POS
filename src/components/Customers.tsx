@@ -77,7 +77,7 @@ export default function Customers() {
 
   // Filtering & sorting customer list
   const sortedAndFilteredCustomers = useMemo(() => {
-    let list = customers.filter((c) => {
+    const list = customers.filter((c) => {
       return (
         c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
