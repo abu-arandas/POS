@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Our Digital Menu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      @keyframes aurora {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        background: linear-gradient(-45deg, #0f172a, #1e293b, #064e3b, #0f172a);
+        background-size: 400% 400%;
+        animation: aurora 15s ease infinite;
+        color: #f8fafc; /* slate-50 */
+        -webkit-tap-highlight-color: transparent;
+      }
+      .glass {
+        background: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+      }
+
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      .category-chip {
+        transition: all 0.3s ease;
+      }
+      .category-chip.active {
+        background-color: #10b981; /* emerald-500 */
+        color: #022c22; /* emerald-950 */
+        font-weight: 600;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .animate-fade-in {
+        animation: fadeIn 0.4s ease-out forwards;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen pb-24">
+    <!-- Header -->
+    <header class="sticky top-0 z-50 glass px-4 py-4 mb-6 shadow-lg">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1
+            id="store-name"
+            class="text-xl font-bold tracking-tight text-white"
+          >
+            Loading...
+          </h1>
+          <p class="text-xs text-slate-400 mt-0.5">Digital Menu</p>
+        </div>
+        <div
+          id="store-logo-container"
+          class="hidden h-10 w-10 rounded-full bg-slate-800 items-center justify-center overflow-hidden border border-slate-700"
+        >
+          <img
+            id="store-logo"
+            src=""
+            alt="Logo"
+            class="h-full w-full object-cover"
+          />
+        </div>
+      </div>
+    </header>
+
+    <main class="px-4 max-w-md mx-auto">
+      <!-- Search -->
+      <div class="mb-6 relative">
+        <svg
+          class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          ></path>
+        </svg>
+        <input
+          type="text"
+          id="search-input"
+          placeholder="Search menu..."
+          class="w-full bg-slate-800/50 border border-slate-700 rounded-2xl py-3 pl-10 pr-4 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+        />
+      </div>
+
+      <!-- Categories -->
+      <div class="mb-6">
+        <div
+          class="flex overflow-x-auto hide-scrollbar gap-2 pb-2"
+          id="categories-container"
+        >
+          <!-- Categories will be injected here -->
+        </div>
+      </div>
+
+      <!-- Products -->
+      <div class="space-y-4" id="products-container">
+        <!-- Loading state -->
+        <div class="flex justify-center items-center py-12">
+          <div
+            class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"
+          ></div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      let allProducts = [];
+      let allCategories = [];
+      let storeSettings = {};
+      let activeCategory = "all";
+      let searchQuery = "";
+
+      async function fetchMenu() {
+        try {
+          const response = await fetch("/api/menu");
+          const data = await response.json();
+          allProducts = data.products || [];
+          allCategories = data.categories || [];
+          storeSettings = data.settings || {};
+
+          initUI();
+        } catch (err) {
+          console.error("Failed to load menu", err);
+          document.getElementById("store-name").textContent =
+            "Error loading menu";
+          document.getElementById("products-container").innerHTML = `
+                    <div class="text-center py-10 text-slate-400">
+                        <p>Could not load the menu.</p>
+                        <button onclick="fetchMenu()" class="mt-4 px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm">Retry</button>
+                    </div>
+                `;
+        }
+      }
+
+      function initUI() {
+        // Header
+        document.getElementById("store-name").textContent =
+          storeSettings.storeName || "Our Menu";
+        if (storeSettings.storeLogo) {
+          const logoContainer = document.getElementById("store-logo-container");
+          const logoImg = document.getElementById("store-logo");
+          logoImg.src = storeSettings.storeLogo;
+          logoContainer.classList.remove("hidden");
+        }
+
+        // Search
+        const searchInput = document.getElementById("search-input");
+        searchInput.addEventListener("input", (e) => {
+          searchQuery = e.target.value.toLowerCase();
+          renderProducts();
+        });
+
+        renderCategories();
+        renderProducts();
+      }
+
+      function renderCategories() {
+        const container = document.getElementById("categories-container");
+        let html = `<button onclick="setCategory('all')" class="category-chip ${activeCategory === "all" ? "active" : "bg-slate-800 text-slate-300"} px-4 py-2 rounded-full text-sm whitespace-nowrap shrink-0 border border-slate-700">All Items</button>`;
+
+        allCategories.forEach((cat) => {
+          const isActive = activeCategory === cat.id;
+          html += `<button onclick="setCategory('${cat.id}')" class="category-chip ${isActive ? "active" : "bg-slate-800 text-slate-300"} px-4 py-2 rounded-full text-sm whitespace-nowrap shrink-0 border border-slate-700">${cat.name}</button>`;
+        });
+
+        container.innerHTML = html;
+      }
+
+      function setCategory(id) {
+        activeCategory = id;
+        renderCategories();
+        renderProducts();
+      }
+
+      function formatCurrency(amount) {
+        const symbol = storeSettings.currency || "$";
+        return `${symbol}${amount.toFixed(2)}`;
+      }
+
+      function renderProducts() {
+        const container = document.getElementById("products-container");
+
+        let filtered = allProducts;
+
+        if (activeCategory !== "all") {
+          filtered = filtered.filter((p) => p.category === activeCategory);
+        }
+
+        if (searchQuery) {
+          filtered = filtered.filter((p) =>
+            p.name.toLowerCase().includes(searchQuery),
+          );
+        }
+
+        if (filtered.length === 0) {
+          container.innerHTML = `
+                    <div class="text-center py-12 animate-fade-in">
+                        <div class="text-4xl mb-3">🍽️</div>
+                        <h3 class="text-slate-300 font-medium">No items found</h3>
+                        <p class="text-slate-500 text-sm mt-1">Try selecting a different category or search term.</p>
+                    </div>
+                `;
+          return;
+        }
+
+        let delay = 0;
+        let html = filtered
+          .map((product) => {
+            const isTailwindColor =
+              product.image && product.image.startsWith("bg-");
+            let imgContent = "";
+
+            if (product.image && !isTailwindColor) {
+              imgContent = `<img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover">`;
+            } else {
+              const bgColor = isTailwindColor ? product.image : "bg-slate-700";
+              imgContent = `<div class="w-full h-full ${bgColor} flex items-center justify-center text-white font-bold text-xl">${product.name.charAt(0)}</div>`;
+            }
+
+            const catName =
+              allCategories.find((c) => c.id === product.category)?.name ||
+              "Uncategorized";
+
+            delay += 0.05;
+
+            return `
+                    <div class="glass rounded-2xl overflow-hidden flex animate-fade-in" style="animation-delay: ${delay}s; opacity: 0; animation-fill-mode: forwards;">
+                        <div class="w-28 h-28 shrink-0 relative">
+                            ${imgContent}
+                            ${product.stock <= 0 ? '<div class="absolute inset-0 bg-slate-900/60 flex items-center justify-center"><span class="bg-rose-500 text-white text-[10px] font-bold px-2 py-1 rounded">SOLD OUT</span></div>' : ""}
+                        </div>
+                        <div class="p-3 flex flex-col justify-between flex-1 min-w-0">
+                            <div>
+                                <div class="flex justify-between items-start mb-1">
+                                    <h3 class="font-semibold text-slate-100 truncate pr-2 text-sm">${product.name}</h3>
+                                    <span class="font-bold text-emerald-400 text-sm shrink-0">${formatCurrency(product.price)}</span>
+                                </div>
+                                <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">${catName}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+          })
+          .join("");
+
+        container.innerHTML = html;
+      }
+
+      // Initialize
+      fetchMenu();
+    </script>
+  </body>
+</html>
