@@ -55,12 +55,16 @@ function createWindow() {
     width: 1200,
     height: 800,
     title: "EA POS",
+    autoHideMenuBar: true,
     icon: path.join(__dirname, 'icon.ico'), // Ensure you have an icon, or this is ignored
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false, // For simplicity in this local POS app
     }
   });
+
+  // Completely remove the default menu bar (File, Edit, View, etc.)
+  mainWindow.setMenu(null);
 
   // Depending on whether we are in dev mode or prod mode, load the app
   const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
