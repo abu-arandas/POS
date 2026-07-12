@@ -17,9 +17,9 @@ export const useCustomerStore = create<CustomerState>()(
   persist(
     (set, get) => ({
       customers: INITIAL_CUSTOMERS,
-      
+
       setCustomers: (customers) => set({ customers }),
-      
+
       handleAddCustomer: (name, phone, email) => {
         const newCustomer: Customer = {
           id: `cust-${Math.floor(100 + Math.random() * 900)}`,
@@ -27,38 +27,38 @@ export const useCustomerStore = create<CustomerState>()(
           phone,
           email,
           points: 0,
-          createdAt: new Date().toISOString().split('T')[0]
+          createdAt: new Date().toISOString().split('T')[0],
         };
         set({ customers: [...get().customers, newCustomer] });
         return newCustomer;
       },
-      
+
       handleUpdateCustomer: (updated) => {
         set({
-          customers: get().customers.map(c => c.id === updated.id ? updated : c)
+          customers: get().customers.map((c) => (c.id === updated.id ? updated : c)),
         });
       },
-      
+
       handleDeleteCustomer: (id) => {
         set({
-          customers: get().customers.filter(c => c.id !== id)
+          customers: get().customers.filter((c) => c.id !== id),
         });
       },
-      
+
       updateCustomerPoints: (id, delta) => {
         set({
-          customers: get().customers.map(c => {
+          customers: get().customers.map((c) => {
             if (c.id === id) {
               return { ...c, points: Math.max(0, c.points + delta) };
             }
             return c;
-          })
+          }),
         });
-      }
+      },
     }),
     {
       name: 'pos-customer-storage',
       storage: createJSONStorage(() => idbStorage),
-    }
-  )
+    },
+  ),
 );

@@ -1,17 +1,25 @@
-import { getSupabaseClient, pushProducts, pushCategories, pushCustomers, pushTransactions, pushUserAccounts } from './supabase';
+import {
+  getSupabaseClient,
+  pushProducts,
+  pushCategories,
+  pushCustomers,
+  pushTransactions,
+  pushUserAccounts,
+  deleteTransactionsSupabase,
+} from './supabase';
 import { useSettingsStore } from '../stores/settingsStore';
 import { Product, Category, Customer, SaleTransaction, UserAccount } from '../types';
 
 export const syncToCloudIfEnabled = async (
-  prods?: Product[], 
-  cats?: Category[], 
-  custs?: Customer[], 
+  prods?: Product[],
+  cats?: Category[],
+  custs?: Customer[],
   txs?: SaleTransaction[],
-  accts?: UserAccount[]
+  accts?: UserAccount[],
 ) => {
   const { supabaseConfig } = useSettingsStore.getState();
   if (!supabaseConfig.enabled || !supabaseConfig.url || !supabaseConfig.anonKey) return;
-  
+
   const client = getSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
   if (!client) return;
 
@@ -24,5 +32,19 @@ export const syncToCloudIfEnabled = async (
     if (accts && accts.length > 0) await pushUserAccounts(client, accts);
   } catch (err) {
     console.warn('Background live sync push postponed:', err);
+  }
+};
+
+export const deleteTransactionsCloudIfEnabled = async (ids: string[]) => {
+  const { supabaseConfig } = useSettingsStore.getState();
+  if (!supabaseConfig.enabled || !supabaseConfig.url || !supabaseConfig.anonKey) return;
+
+  const client = getSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
+  if (!client) return;
+
+  try {
+    if (ids && ids.length > 0) await deleteTransactionsSupabase(client, ids);
+  } catch (err) {
+    console.warn('Background live sync delete postponed:', err);
   }
 };

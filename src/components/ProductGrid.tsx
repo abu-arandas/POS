@@ -29,22 +29,11 @@ interface ProductGridProps {
   addToCart: (product: Product) => void;
 }
 
-function SortableProductCard({ 
-  prod, 
-  isEditMode, 
-  addToCart, 
-  cartQty, 
-  categories, 
-  settings 
-}: any) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: prod.id, disabled: !isEditMode });
+function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories, settings }: any) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: prod.id,
+    disabled: !isEditMode,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -70,13 +59,17 @@ function SortableProductCard({
       whileHover={!isEditMode ? { scale: isOutOfStock ? 1 : 1.03, y: isOutOfStock ? 0 : -4 } : {}}
       whileTap={!isEditMode ? { scale: isOutOfStock ? 1 : 0.96 } : {}}
       className={`relative glass dark:glass-dark rounded-2xl transition-all duration-200 overflow-hidden flex flex-col justify-between group ${
-        isEditMode ? 'cursor-grab active:cursor-grabbing border-slate-300 dark:border-slate-600 hover:ring-2 ring-slate-400/50' : 'cursor-pointer'
+        isEditMode
+          ? 'cursor-grab active:cursor-grabbing border-slate-300 dark:border-slate-600 hover:ring-2 ring-slate-400/50'
+          : 'cursor-pointer'
       } ${
         isOutOfStock && !isEditMode
           ? 'border-slate-200/50 dark:border-slate-700/50 opacity-50 cursor-not-allowed grayscale'
           : isLimitReached && !isEditMode
-          ? 'border-emerald-500 ring-2 ring-emerald-500/20'
-          : !isEditMode ? 'border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl hover:shadow-emerald-500/10' : ''
+            ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+            : !isEditMode
+              ? 'border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl hover:shadow-emerald-500/10'
+              : ''
       }`}
       {...attributes}
       {...listeners}
@@ -114,7 +107,9 @@ function SortableProductCard({
             referrerPolicy="no-referrer"
           />
         ) : (
-          <span className="text-4xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">☕</span>
+          <span className="text-4xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
+            ☕
+          </span>
         )}
         <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       </div>
@@ -130,7 +125,8 @@ function SortableProductCard({
         </div>
         <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
           <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
-            {settings.currency}{prod.price.toFixed(2)}
+            {settings.currency}
+            {prod.price.toFixed(2)}
           </span>
           <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
             SKU: {prod.sku.split('-').pop()}
@@ -155,7 +151,7 @@ export default function ProductGrid({
   const [isEditMode, setIsEditMode] = useState(false);
 
   const filteredProducts = useMemo(() => {
-    return products.filter(prod => {
+    return products.filter((prod) => {
       return selectedCategory === 'all' || prod.category === selectedCategory;
     });
   }, [products, selectedCategory]);
@@ -168,7 +164,7 @@ export default function ProductGrid({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -180,12 +176,16 @@ export default function ProductGrid({
 
   return (
     <div id="catalog-section" className="flex-1 flex flex-col min-w-0 p-6 overflow-hidden">
-      
       {/* Header Category pills & Edit Toggle */}
-      <div id="catalog-controls" className="glass dark:glass-dark p-4 rounded-2xl shadow-sm flex items-center justify-between mb-6 transition-all duration-300">
-        
+      <div
+        id="catalog-controls"
+        className="glass dark:glass-dark p-4 rounded-2xl shadow-sm flex items-center justify-between mb-6 transition-all duration-300"
+      >
         {/* Category Tabs */}
-        <div id="category-pills" className="flex items-center space-x-2 overflow-x-auto scrollbar-none flex-1">
+        <div
+          id="category-pills"
+          className="flex items-center space-x-2 overflow-x-auto scrollbar-none flex-1"
+        >
           <button
             onClick={() => setSelectedCategory('all')}
             className={`px-4 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-200 shrink-0 ${
@@ -196,7 +196,7 @@ export default function ProductGrid({
           >
             All Products
           </button>
-          {categories.map(cat => (
+          {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
@@ -215,8 +215,8 @@ export default function ProductGrid({
           <button
             onClick={() => setIsEditMode(!isEditMode)}
             className={`ml-4 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all shadow-sm shrink-0 ${
-              isEditMode 
-                ? 'bg-rose-500 text-white border-rose-500 shadow-rose-500/20' 
+              isEditMode
+                ? 'bg-rose-500 text-white border-rose-500 shadow-rose-500/20'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
@@ -231,21 +231,26 @@ export default function ProductGrid({
         {filteredProducts.length === 0 ? (
           <div className="h-64 flex flex-col items-center justify-center text-center animate-fade-in">
             <span className="text-4xl animate-float-slow">☕</span>
-            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400 font-medium">No products</p>
+            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400 font-medium">
+              No products
+            </p>
           </div>
         ) : (
-          <DndContext 
+          <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            <SortableContext 
-              items={filteredProducts.map(p => p.id)}
+            <SortableContext
+              items={filteredProducts.map((p) => p.id)}
               strategy={rectSortingStrategy}
             >
-              <div id="products-grid" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+              <div
+                id="products-grid"
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"
+              >
                 {filteredProducts.map((prod) => {
-                  const cartQty = cart.find(item => item.product.id === prod.id)?.quantity || 0;
+                  const cartQty = cart.find((item) => item.product.id === prod.id)?.quantity || 0;
                   return (
                     <SortableProductCard
                       key={prod.id}

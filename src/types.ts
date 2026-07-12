@@ -89,4 +89,3 @@ export interface SupabaseConfig {
   enabled: boolean;
   status: 'disconnected' | 'connected' | 'error';
 }
-

@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react';
-import { ShoppingBag, Package, History as HistoryIcon, Users, BarChart3, Settings as SettingsIcon, Menu, X as XIcon } from 'lucide-react';
+import {
+  ShoppingBag,
+  Package,
+  History as HistoryIcon,
+  Users,
+  BarChart3,
+  Settings as SettingsIcon,
+  Menu,
+  X as XIcon,
+  QrCode,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Sidebar from './components/Sidebar';
 import Register from './components/Register';
@@ -9,26 +19,44 @@ import Customers from './components/Customers';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import Lockscreen from './components/Lockscreen';
+import QRMenu from './components/QRMenu';
 import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
 
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentScreen, setScreen] = useState<'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings'>('register');
+  const [currentScreen, setScreen] = useState<
+    'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings' | 'qrmenu'
+  >('register');
 
   const { currentUser, setCurrentUser } = useAuthStore();
   const { settings, darkMode, setDarkMode } = useSettingsStore();
-  
+
   // We only pull what we absolutely need in App to minimize re-renders.
   // lowStockCount can be derived here, or passed.
-  const products = useProductStore(state => state.products);
-  const lowStockCount = products.filter(p => p.stock <= p.minStock).length;
+  const products = useProductStore((state) => state.products);
+  const categories = useProductStore((state) => state.categories);
+  const lowStockCount = products.filter((p) => p.stock <= p.minStock).length;
+
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ipcRenderer = (window as any).require('electron').ipcRenderer;
+      ipcRenderer.send('update-menu-data', {
+        products,
+        categories,
+        settings,
+      });
+    } catch (e) {
+      // Not running in Electron
+    }
+  }, [products, categories, settings]);
 
   useEffect(() => {
     if (currentUser) {
       if (currentUser.role === 'cashier') {
-        const prohibitedScreens = ['inventory', 'customers', 'dashboard', 'settings'];
+        const prohibitedScreens = ['inventory', 'customers', 'dashboard', 'settings', 'qrmenu'];
         if (prohibitedScreens.includes(currentScreen)) {
           setScreen('register');
         }
@@ -56,6 +84,8 @@ export default function App() {
         return <Customers />;
       case 'dashboard':
         return <Dashboard />;
+      case 'qrmenu':
+        return <QRMenu />;
       case 'settings':
         return <Settings />;
       default:
@@ -64,35 +94,68 @@ export default function App() {
   };
 
   const mobileMenuItems = [
-    { id: 'register', label: 'Sell Register', icon: ShoppingBag, allowedRoles: ['admin', 'manager', 'cashier'] },
-    { id: 'dashboard', label: 'Business Dashboard', icon: BarChart3, allowedRoles: ['admin', 'manager'] },
-    { id: 'inventory', label: 'Catalog Inventory', icon: Package, badge: lowStockCount > 0 ? lowStockCount : undefined, allowedRoles: ['admin', 'manager'] },
-    { id: 'history', label: 'Sales Transactions', icon: HistoryIcon, allowedRoles: ['admin', 'manager', 'cashier'] },
+    {
+      id: 'register',
+      label: 'Sell Register',
+      icon: ShoppingBag,
+      allowedRoles: ['admin', 'manager', 'cashier'],
+    },
+    {
+      id: 'dashboard',
+      label: 'Business Dashboard',
+      icon: BarChart3,
+      allowedRoles: ['admin', 'manager'],
+    },
+    {
+      id: 'inventory',
+      label: 'Catalog Inventory',
+      icon: Package,
+      badge: lowStockCount > 0 ? lowStockCount : undefined,
+      allowedRoles: ['admin', 'manager'],
+    },
+    {
+      id: 'history',
+      label: 'Sales Transactions',
+      icon: HistoryIcon,
+      allowedRoles: ['admin', 'manager', 'cashier'],
+    },
     { id: 'customers', label: 'CRM Customers', icon: Users, allowedRoles: ['admin', 'manager'] },
+    { id: 'qrmenu', label: 'Digital QR Menu', icon: QrCode, allowedRoles: ['admin', 'manager'] },
     { id: 'settings', label: 'System Settings', icon: SettingsIcon, allowedRoles: ['admin'] },
-  ].filter(item => !currentUser || item.allowedRoles.includes(item.allowedRoles.includes(currentUser.role) ? currentUser.role : 'admin'));
+  ].filter(
+    (item) =>
+      !currentUser ||
+      item.allowedRoles.includes(
+        item.allowedRoles.includes(currentUser.role) ? currentUser.role : 'admin',
+      ),
+  );
 
-  const allowedMobileItems = mobileMenuItems.filter(item => 
-    item.allowedRoles.includes(currentUser.role)
+  const allowedMobileItems = mobileMenuItems.filter((item) =>
+    item.allowedRoles.includes(currentUser.role),
   );
 
   return (
-    <div id="application-container" className="flex min-h-screen bg-slate-100 dark:bg-slate-950 overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300">
-      
+    <div
+      id="application-container"
+      className={`flex min-h-screen overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300 ${darkMode ? 'mesh-bg-dark' : 'mesh-bg'}`}
+    >
       <div id="desktop-sidebar-rail" className="hidden lg:block shrink-0">
-        <Sidebar
-          currentScreen={currentScreen}
-          setScreen={setScreen}
-        />
+        <Sidebar currentScreen={currentScreen} setScreen={setScreen} />
       </div>
 
-      <div id="mobile-navigation-shell" className="lg:hidden flex flex-col w-full h-screen overflow-hidden">
+      <div
+        id="mobile-navigation-shell"
+        className="lg:hidden flex flex-col w-full h-screen overflow-hidden"
+      >
         <header className="bg-slate-900 text-slate-100 px-4 py-3 flex items-center justify-between shadow-md shrink-0">
           <div className="flex items-center space-x-2">
             <div className="bg-emerald-500 text-slate-950 p-1.5 rounded-lg">
               <ShoppingBag size={16} className="stroke-[2.5]" />
             </div>
-            <h1 className="font-sans font-bold tracking-tight text-white text-sm truncate max-w-[120px]" title={settings.storeName}>
+            <h1
+              className="font-sans font-bold tracking-tight text-white text-sm truncate max-w-[120px]"
+              title={settings.storeName}
+            >
               {settings.storeName}
             </h1>
             <span className="text-[9px] uppercase font-mono font-bold bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">
@@ -105,7 +168,11 @@ export default function App() {
               onClick={() => setDarkMode(!darkMode)}
               className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg focus:outline-none"
             >
-              {darkMode ? <div className="text-amber-400">☀️</div> : <div className="text-indigo-400">🌙</div>}
+              {darkMode ? (
+                <div className="text-amber-400">☀️</div>
+              ) : (
+                <div className="text-indigo-400">🌙</div>
+              )}
             </button>
             <button
               onClick={() => setCurrentUser(null)}
@@ -131,15 +198,20 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               className="absolute top-[48px] inset-x-0 bg-slate-900 border-b border-slate-800 shadow-2xl z-40 p-4 space-y-2 flex flex-col"
             >
-              {allowedMobileItems.map(item => {
+              {allowedMobileItems.map((item) => {
                 const Icon = item.icon;
                 const isSel = currentScreen === item.id;
                 return (
                   <button
                     key={item.id}
-                    onClick={() => { setScreen(item.id as any); setMobileMenuOpen(false); }}
+                    onClick={() => {
+                      setScreen(item.id as any);
+                      setMobileMenuOpen(false);
+                    }}
                     className={`flex items-center justify-between w-full p-3 rounded-xl text-xs font-semibold ${
-                      isSel ? 'bg-slate-800 text-white border-l-4 border-emerald-500 pl-2' : 'text-slate-400 bg-slate-950/20'
+                      isSel
+                        ? 'bg-slate-800 text-white border-l-4 border-emerald-500 pl-2'
+                        : 'text-slate-400 bg-slate-950/20'
                     }`}
                   >
                     <div className="flex items-center space-x-2.5">
@@ -158,12 +230,15 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        <main className="flex-1 min-h-0 bg-slate-50 dark:bg-slate-950 relative overflow-hidden">
+        <main className="flex-1 min-h-0 bg-transparent relative overflow-hidden">
           {renderActiveScreen()}
         </main>
       </div>
 
-      <main id="desktop-view-container" className="hidden lg:flex flex-1 min-w-0 bg-slate-50 dark:bg-slate-950 relative overflow-hidden h-screen">
+      <main
+        id="desktop-view-container"
+        className="hidden lg:flex flex-1 min-w-0 bg-transparent relative overflow-hidden h-screen"
+      >
         {renderActiveScreen()}
       </main>
     </div>

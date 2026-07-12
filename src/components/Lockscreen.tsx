@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { UserAccount } from "../types";
-import { ShieldAlert, User, Delete, ArrowLeft } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { useState } from 'react';
+import { UserAccount } from '../types';
+import { ShieldAlert, User, Delete, ArrowLeft } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 import { hashPin } from '../lib/hash';
 import { useAuthStore } from '../stores/authStore';
@@ -12,7 +12,7 @@ export default function Lockscreen() {
   const { settings } = useSettingsStore();
   const storeName = settings.storeName;
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
-  const [pin, setPin] = useState<string>("");
+  const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<boolean>(false);
 
   const activeUsers = users.filter((u) => u.active);
@@ -32,7 +32,7 @@ export default function Lockscreen() {
           } else {
             // Play mistake state
             setError(true);
-            setPin("");
+            setPin('');
             // Clear error vibration/shake after a split-second
             setTimeout(() => setError(false), 800);
           }
@@ -48,12 +48,12 @@ export default function Lockscreen() {
   };
 
   const handleClear = () => {
-    setPin("");
+    setPin('');
   };
 
   const handleBackToUsers = () => {
     setSelectedUser(null);
-    setPin("");
+    setPin('');
     setError(false);
   };
 
@@ -107,9 +107,7 @@ export default function Lockscreen() {
                         <User size={18} />
                       </div>
                       <div>
-                        <h4 className="text-white text-xs font-bold font-sans">
-                          {user.name}
-                        </h4>
+                        <h4 className="text-white text-xs font-bold font-sans">{user.name}</h4>
                         <span className="text-[10px] uppercase font-mono font-bold text-slate-500 tracking-wider">
                           Role: {user.role}
                         </span>
@@ -140,9 +138,7 @@ export default function Lockscreen() {
                   <ArrowLeft size={14} /> Back
                 </button>
                 <div className="text-right">
-                  <h3 className="text-white text-xs font-bold font-sans">
-                    {selectedUser.name}
-                  </h3>
+                  <h3 className="text-white text-xs font-bold font-sans">{selectedUser.name}</h3>
                   <span className="text-[9px] uppercase font-mono font-bold text-slate-500 tracking-wider">
                     {selectedUser.role}
                   </span>
@@ -161,10 +157,10 @@ export default function Lockscreen() {
                       key={idx}
                       className={`w-3.5 h-3.5 rounded-full border transition-all duration-150 ${
                         error
-                          ? "bg-rose-500 border-rose-500 shadow-md shadow-rose-500/20"
+                          ? 'bg-rose-500 border-rose-500 shadow-md shadow-rose-500/20'
                           : pin.length > idx
-                            ? "bg-emerald-400 border-emerald-400 shadow-md shadow-emerald-400/20"
-                            : "bg-transparent border-slate-700"
+                            ? 'bg-emerald-400 border-emerald-400 shadow-md shadow-emerald-400/20'
+                            : 'bg-transparent border-slate-700'
                       }`}
                     />
                   ))}
@@ -180,7 +176,7 @@ export default function Lockscreen() {
 
               {/* PIN Keypad Grid */}
               <div className="grid grid-cols-3 gap-2.5 w-full max-w-[280px]">
-                {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
                   <button
                     key={num}
                     onClick={() => handleKeyPress(num)}
@@ -198,7 +194,7 @@ export default function Lockscreen() {
                 </button>
 
                 <button
-                  onClick={() => handleKeyPress("0")}
+                  onClick={() => handleKeyPress('0')}
                   className="h-12 bg-slate-950/60 hover:bg-slate-800 border border-slate-800 text-slate-100 hover:text-white font-mono text-base font-bold rounded-2xl transition-all active:scale-95"
                 >
                   0
@@ -220,9 +216,8 @@ export default function Lockscreen() {
       {/* Helper Footer Hint */}
       <div className="mt-6 text-center text-slate-600 font-mono text-[10px] z-10 max-w-xs">
         Default testing PINs: <br />
-        Admin: <strong className="text-slate-400 font-semibold">1234</strong> |
-        Manager: <strong className="text-slate-400 font-semibold">5555</strong>{" "}
-        | Cashier:{" "}
+        Admin: <strong className="text-slate-400 font-semibold">1234</strong> | Manager:{' '}
+        <strong className="text-slate-400 font-semibold">5555</strong> | Cashier:{' '}
         <strong className="text-slate-400 font-semibold">0000</strong>
       </div>
     </div>

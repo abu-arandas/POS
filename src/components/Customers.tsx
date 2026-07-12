@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo } from 'react';
 import {
   Users,
   Search,
@@ -15,9 +15,9 @@ import {
   ShoppingBag,
   Plus,
   Minus,
-} from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
-import { Customer, SaleTransaction, StoreSettings } from "../types";
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Customer, SaleTransaction, StoreSettings } from '../types';
 
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
@@ -25,30 +25,26 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
 
 export default function Customers() {
-  const { 
-    customers, 
-    handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer 
-  } = useCustomerStore();
+  const { customers, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer } =
+    useCustomerStore();
   const { transactions } = useTransactionStore();
   const { settings } = useSettingsStore();
   // Search and sorting
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "points" | "date">("name");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'points' | 'date'>('name');
 
   // Active Selected Customer for detail panel
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
-    null,
-  );
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   // Customer Form Modal State
   const [customerModalOpen, setProductModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
   // Customer Form Fields
-  const [custName, setCustName] = useState("");
-  const [custPhone, setCustPhone] = useState("");
-  const [custEmail, setCustEmail] = useState("");
-  const [custPoints, setCustPoints] = useState("0");
+  const [custName, setCustName] = useState('');
+  const [custPhone, setCustPhone] = useState('');
+  const [custEmail, setCustEmail] = useState('');
+  const [custPoints, setCustPoints] = useState('0');
 
   const activeCustomer = useMemo(() => {
     return customers.find((c) => c.id === selectedCustomerId) || null;
@@ -65,9 +61,7 @@ export default function Customers() {
     if (activeCustomerTransactions.length === 0) {
       return { totalSpent: 0, averageSpent: 0, totalVisits: 0 };
     }
-    const completedTx = activeCustomerTransactions.filter(
-      (t) => t.status === "completed",
-    );
+    const completedTx = activeCustomerTransactions.filter((t) => t.status === 'completed');
     const totalSpent = completedTx.reduce((sum, tx) => sum + tx.total, 0);
     const totalVisits = completedTx.length;
     const averageSpent = totalVisits > 0 ? totalSpent / totalVisits : 0;
@@ -90,13 +84,11 @@ export default function Customers() {
     });
 
     list.sort((a, b) => {
-      if (sortBy === "points") {
+      if (sortBy === 'points') {
         return b.points - a.points; // Descending
       }
-      if (sortBy === "date") {
-        return (
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        ); // Newest first
+      if (sortBy === 'date') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // Newest first
       }
       return a.name.localeCompare(b.name); // Ascending Name
     });
@@ -107,10 +99,10 @@ export default function Customers() {
   // Add / Edit actions
   const handleOpenAddCustomer = () => {
     setEditingCustomer(null);
-    setCustName("");
-    setCustPhone("");
-    setCustEmail("");
-    setCustPoints("0");
+    setCustName('');
+    setCustPhone('');
+    setCustEmail('');
+    setCustPoints('0');
     setProductModalOpen(true);
   };
 
@@ -150,17 +142,15 @@ export default function Customers() {
 
   // Customer Loyalty Tier helper
   const getCustomerTier = (points: number) => {
-    if (points >= 200)
-      return { name: "Platinum VIP", style: "bg-indigo-500 text-white" };
-    if (points >= 100)
-      return { name: "Gold Club", style: "bg-amber-500 text-slate-900" };
-    return { name: "Silver Member", style: "bg-slate-200 text-slate-700" };
+    if (points >= 200) return { name: 'Platinum VIP', style: 'bg-indigo-500 text-white' };
+    if (points >= 100) return { name: 'Gold Club', style: 'bg-amber-500 text-slate-900' };
+    return { name: 'Silver Member', style: 'bg-slate-200 text-slate-700' };
   };
 
   return (
     <div
       id="customers-root"
-      className="flex-1 flex h-screen overflow-hidden bg-slate-50 p-6"
+      className="flex-1 flex h-screen overflow-hidden bg-transparent p-6 text-slate-800 dark:text-slate-100"
     >
       {/* LEFT COLUMN: Customer Directory (2/3 width) */}
       <div
@@ -168,17 +158,13 @@ export default function Customers() {
         className="flex-1 flex flex-col min-w-0 pr-6 overflow-hidden"
       >
         {/* Header */}
-        <div
-          id="customers-header"
-          className="mb-6 shrink-0 flex items-center justify-between"
-        >
+        <div id="customers-header" className="mb-6 shrink-0 flex items-center justify-between">
           <div>
             <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
               <Users className="text-emerald-500" /> Customer Loyalty CRM
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-              Manage customer accounts, verify loyalty metrics, and reward
-              returning patrons.
+              Manage customer accounts, verify loyalty metrics, and reward returning patrons.
             </p>
           </div>
 
@@ -195,7 +181,7 @@ export default function Customers() {
         {/* Filters */}
         <div
           id="customers-filters"
-          className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-4 mb-6 shrink-0"
+          className="glass dark:glass-dark p-4 rounded-2xl border border-white/20 dark:border-white/10 shadow-lg space-y-4 mb-6 shrink-0 backdrop-blur-md"
         >
           <div className="flex flex-col md:flex-row gap-3">
             {/* Search */}
@@ -214,17 +200,17 @@ export default function Customers() {
             {/* Sorting buttons */}
             <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
               {[
-                { id: "name", label: "Alphabetical" },
-                { id: "points", label: "Loyalty Points" },
-                { id: "date", label: "Join Date" },
+                { id: 'name', label: 'Alphabetical' },
+                { id: 'points', label: 'Loyalty Points' },
+                { id: 'date', label: 'Join Date' },
               ].map((opt) => (
                 <button
                   key={opt.id}
                   onClick={() => setSortBy(opt.id as any)}
                   className={`px-3.5 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0 ${
                     sortBy === opt.id
-                      ? "bg-white text-slate-900 shadow-xs"
-                      : "text-slate-500 hover:text-slate-800"
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   {opt.label}
@@ -241,10 +227,7 @@ export default function Customers() {
               NO CUSTOMERS MATCHING YOUR CRITERIA
             </div>
           ) : (
-            <div
-              id="crm-grid"
-              className="grid grid-cols-1 md:grid-cols-2 gap-4"
-            >
+            <div id="crm-grid" className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {sortedAndFilteredCustomers.map((cust) => {
                 const tier = getCustomerTier(cust.points);
                 const isSelected = cust.id === selectedCustomerId;
@@ -255,10 +238,10 @@ export default function Customers() {
                     layoutId={`crm-card-${cust.id}`}
                     id={`crm-card-${cust.id}`}
                     onClick={() => setSelectedCustomerId(cust.id)}
-                    className={`bg-white rounded-2xl border p-4 shadow-xs hover:shadow-md transition-all cursor-pointer flex items-start justify-between ${
+                    className={`glass dark:glass-dark rounded-2xl border p-4 shadow-lg hover:shadow-xl transition-all cursor-pointer flex items-start justify-between card-hover backdrop-blur-md ${
                       isSelected
-                        ? "border-slate-900 ring-2 ring-slate-900/5"
-                        : "border-slate-200/80 hover:border-slate-300"
+                        ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                        : 'border-white/20 dark:border-white/10 hover:border-white/40 dark:hover:border-white/20'
                     }`}
                   >
                     <div className="space-y-3 min-w-0 flex-1 pr-3">
@@ -275,10 +258,10 @@ export default function Customers() {
 
                       <div className="space-y-1 font-sans text-[11px] text-slate-500">
                         <p className="flex items-center gap-1.5 truncate">
-                          <Mail size={12} /> {cust.email || "No email"}
+                          <Mail size={12} /> {cust.email || 'No email'}
                         </p>
                         <p className="flex items-center gap-1.5">
-                          <Phone size={12} /> {cust.phone || "No phone"}
+                          <Phone size={12} /> {cust.phone || 'No phone'}
                         </p>
                         <p className="flex items-center gap-1.5 font-mono text-[10px]">
                           <Calendar size={12} /> Registered: {cust.createdAt}
@@ -287,7 +270,7 @@ export default function Customers() {
                     </div>
 
                     <div className="flex flex-col items-end justify-between h-full space-y-4 shrink-0">
-                      <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-1.5 text-center shadow-xs">
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-1.5 text-center shadow-inner">
                         <span className="text-[10px] text-emerald-600 font-bold block uppercase tracking-wider font-mono">
                           Points
                         </span>
@@ -317,8 +300,7 @@ export default function Customers() {
                               )
                             ) {
                               handleDeleteCustomer(cust.id);
-                              if (selectedCustomerId === cust.id)
-                                setSelectedCustomerId(null);
+                              if (selectedCustomerId === cust.id) setSelectedCustomerId(null);
                             }
                           }}
                           className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100/50 rounded-lg transition-colors"
@@ -339,12 +321,12 @@ export default function Customers() {
       {/* RIGHT COLUMN: Customer Shopping Analytics & Order Log (1/3 width) */}
       <div
         id="crm-profile-section"
-        className="w-80 border border-slate-200 rounded-3xl bg-white shadow-xl flex flex-col overflow-hidden shrink-0"
+        className="w-80 glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden shrink-0 backdrop-blur-md"
       >
         {activeCustomer ? (
           <>
             {/* Header Profiler */}
-            <div className="p-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+            <div className="p-5 border-b border-slate-200/50 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/40 flex items-center justify-between">
               <div>
                 <h3 className="font-sans font-bold text-slate-800 text-sm">
                   {activeCustomer.name}
@@ -362,10 +344,10 @@ export default function Customers() {
             </div>
 
             {/* Profile body scroll */}
-            <div className="flex-1 p-5 overflow-y-auto space-y-5 bg-slate-50/50">
+            <div className="flex-1 p-5 overflow-y-auto space-y-5">
               {/* Stats KPI Card */}
               <div id="crm-stats-block" className="grid grid-cols-2 gap-3">
-                <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center shadow-xs">
+                <div className="bg-white/40 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-700/50 rounded-2xl p-3 text-center shadow-inner">
                   <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider font-mono">
                     Total Spent
                   </span>
@@ -374,7 +356,7 @@ export default function Customers() {
                     {activeCustomerStats.totalSpent.toFixed(2)}
                   </p>
                 </div>
-                <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center shadow-xs">
+                <div className="bg-white/40 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-700/50 rounded-2xl p-3 text-center shadow-inner">
                   <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider font-mono">
                     Order Count
                   </span>
@@ -408,12 +390,10 @@ export default function Customers() {
                     {activeCustomerTransactions.map((tx) => (
                       <div
                         key={tx.id}
-                        className="bg-white border border-slate-100 rounded-xl p-2.5 flex items-center justify-between shadow-xs text-[11px]"
+                        className="bg-white/60 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-2.5 flex items-center justify-between shadow-sm text-[11px]"
                       >
                         <div>
-                          <span className="font-mono font-bold text-slate-800 block">
-                            {tx.id}
-                          </span>
+                          <span className="font-mono font-bold text-slate-800 block">{tx.id}</span>
                           <span className="text-[10px] text-slate-400 font-mono mt-0.5">
                             {new Date(tx.date).toLocaleDateString()}
                           </span>
@@ -424,11 +404,9 @@ export default function Customers() {
                             {tx.total.toFixed(2)}
                           </span>
                           <span
-                            className={`text-[9px] font-bold ${tx.status === "refunded" ? "text-rose-500" : "text-slate-400"}`}
+                            className={`text-[9px] font-bold ${tx.status === 'refunded' ? 'text-rose-500' : 'text-slate-400'}`}
                           >
-                            {tx.status === "refunded"
-                              ? "Refunded"
-                              : "Completed"}
+                            {tx.status === 'refunded' ? 'Refunded' : 'Completed'}
                           </span>
                         </div>
                       </div>
@@ -441,12 +419,10 @@ export default function Customers() {
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 bg-slate-50/20">
             <span className="text-4xl mb-2">🏅</span>
-            <h4 className="font-sans font-bold text-slate-700 text-sm">
-              CRM Profile Offline
-            </h4>
+            <h4 className="font-sans font-bold text-slate-700 text-sm">CRM Profile Offline</h4>
             <p className="text-xs text-slate-400 max-w-[200px] mt-1">
-              Select any client card from the CRM directory list to audit
-              loyalty logs and transaction logs.
+              Select any client card from the CRM directory list to audit loyalty logs and
+              transaction logs.
             </p>
           </div>
         )}
@@ -467,9 +443,7 @@ export default function Customers() {
             >
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <h3 className="font-sans font-bold text-slate-800 text-base">
-                  {editingCustomer
-                    ? "Edit Customer Record"
-                    : "Register New Customer"}
+                  {editingCustomer ? 'Edit Customer Record' : 'Register New Customer'}
                 </h3>
                 <button
                   onClick={() => setProductModalOpen(false)}

@@ -9,7 +9,7 @@ interface SettingsState {
   printerConfig: PrinterConfig;
   supabaseConfig: SupabaseConfig;
   darkMode: boolean;
-  
+
   setSettings: (settings: StoreSettings) => void;
   setPrinterConfig: (config: PrinterConfig) => void;
   setSupabaseConfig: (config: SupabaseConfig) => void;
@@ -21,14 +21,14 @@ const DEFAULT_PRINTER: PrinterConfig = {
   paperSize: '80mm',
   showBarcode: true,
   footerMessage: 'Thank you for shopping with us!',
-  autoPrintOnCheckout: true
+  autoPrintOnCheckout: true,
 };
 
 const DEFAULT_SUPABASE: SupabaseConfig = {
   url: '',
   anonKey: '',
   enabled: false,
-  status: 'disconnected'
+  status: 'disconnected',
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -38,7 +38,7 @@ export const useSettingsStore = create<SettingsState>()(
       printerConfig: DEFAULT_PRINTER,
       supabaseConfig: DEFAULT_SUPABASE,
       darkMode: false,
-      
+
       setSettings: (settings) => set({ settings }),
       setPrinterConfig: (printerConfig) => set({ printerConfig }),
       setSupabaseConfig: (supabaseConfig) => set({ supabaseConfig }),
@@ -56,6 +56,6 @@ export const useSettingsStore = create<SettingsState>()(
           }
         }
       },
-    }
-  )
+    },
+  ),
 );

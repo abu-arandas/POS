@@ -11,7 +11,7 @@ export function getSupabaseClient(url: string, anonKey: string): SupabaseClient 
     supabaseInstance = null;
     return null;
   }
-  
+
   if (supabaseInstance && currentUrl === url && currentKey === anonKey) {
     return supabaseInstance;
   }
@@ -116,7 +116,7 @@ ON CONFLICT (id) DO NOTHING;
 export async function testSupabaseConnection(url: string, anonKey: string): Promise<boolean> {
   const client = getSupabaseClient(url, anonKey);
   if (!client) return false;
-  
+
   try {
     const { error } = await client.from('user_accounts').select('id').limit(1);
     if (error) {
@@ -134,7 +134,7 @@ export async function testSupabaseConnection(url: string, anonKey: string): Prom
 export async function pushProducts(client: SupabaseClient, products: Product[]): Promise<boolean> {
   if (products.length === 0) return true;
   try {
-    const records = products.map(p => ({
+    const records = products.map((p) => ({
       id: p.id,
       name: p.name,
       price: p.price,
@@ -143,7 +143,7 @@ export async function pushProducts(client: SupabaseClient, products: Product[]):
       sku: p.sku,
       stock: p.stock,
       min_stock: p.minStock,
-      image: p.image
+      image: p.image,
     }));
 
     const { error } = await client.from('products').upsert(records);
@@ -160,7 +160,7 @@ export async function pullProducts(client: SupabaseClient): Promise<Product[] | 
   try {
     const { data, error } = await client.from('products').select('*');
     if (error) throw error;
-    return (data || []).map(r => ({
+    return (data || []).map((r) => ({
       id: r.id,
       name: r.name,
       price: Number(r.price),
@@ -169,7 +169,7 @@ export async function pullProducts(client: SupabaseClient): Promise<Product[] | 
       sku: r.sku,
       stock: Number(r.stock),
       minStock: Number(r.min_stock),
-      image: r.image
+      image: r.image,
     }));
   } catch (err) {
     console.error('Failed pulling products:', err);
@@ -178,7 +178,10 @@ export async function pullProducts(client: SupabaseClient): Promise<Product[] | 
 }
 
 // Push local categories
-export async function pushCategories(client: SupabaseClient, categories: Category[]): Promise<boolean> {
+export async function pushCategories(
+  client: SupabaseClient,
+  categories: Category[],
+): Promise<boolean> {
   if (categories.length === 0) return true;
   try {
     const { error } = await client.from('categories').upsert(categories);
@@ -203,16 +206,19 @@ export async function pullCategories(client: SupabaseClient): Promise<Category[]
 }
 
 // Push local customers
-export async function pushCustomers(client: SupabaseClient, customers: Customer[]): Promise<boolean> {
+export async function pushCustomers(
+  client: SupabaseClient,
+  customers: Customer[],
+): Promise<boolean> {
   if (customers.length === 0) return true;
   try {
-    const records = customers.map(c => ({
+    const records = customers.map((c) => ({
       id: c.id,
       name: c.name,
       email: c.email,
       phone: c.phone,
       points: c.points,
-      created_at: c.createdAt
+      created_at: c.createdAt,
     }));
     const { error } = await client.from('customers').upsert(records);
     if (error) throw error;
@@ -228,13 +234,13 @@ export async function pullCustomers(client: SupabaseClient): Promise<Customer[] 
   try {
     const { data, error } = await client.from('customers').select('*');
     if (error) throw error;
-    return (data || []).map(r => ({
+    return (data || []).map((r) => ({
       id: r.id,
       name: r.name,
       email: r.email || '',
       phone: r.phone || '',
       points: Number(r.points || 0),
-      createdAt: r.created_at || new Date().toISOString().split('T')[0]
+      createdAt: r.created_at || new Date().toISOString().split('T')[0],
     }));
   } catch (err) {
     console.error('Failed pulling customers:', err);
@@ -243,10 +249,13 @@ export async function pullCustomers(client: SupabaseClient): Promise<Customer[] 
 }
 
 // Push local transactions
-export async function pushTransactions(client: SupabaseClient, transactions: SaleTransaction[]): Promise<boolean> {
+export async function pushTransactions(
+  client: SupabaseClient,
+  transactions: SaleTransaction[],
+): Promise<boolean> {
   if (transactions.length === 0) return true;
   try {
-    const records = transactions.map(t => ({
+    const records = transactions.map((t) => ({
       id: t.id,
       date: t.date,
       items: t.items, // JSONB structure
@@ -262,7 +271,7 @@ export async function pushTransactions(client: SupabaseClient, transactions: Sal
       customer_id: t.customerId || null,
       customer_name: t.customerName || null,
       status: t.status,
-      refund_date: t.refundDate || null
+      refund_date: t.refundDate || null,
     }));
     const { error } = await client.from('transactions').upsert(records);
     if (error) throw error;
@@ -273,12 +282,31 @@ export async function pushTransactions(client: SupabaseClient, transactions: Sal
   }
 }
 
+// Delete transactions
+export async function deleteTransactionsSupabase(
+  client: SupabaseClient,
+  ids: string[],
+): Promise<boolean> {
+  if (ids.length === 0) return true;
+  try {
+    const { error } = await client.from('transactions').delete().in('id', ids);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Failed deleting transactions:', err);
+    return false;
+  }
+}
+
 // Pull transactions
 export async function pullTransactions(client: SupabaseClient): Promise<SaleTransaction[] | null> {
   try {
-    const { data, error } = await client.from('transactions').select('*').order('date', { ascending: false });
+    const { data, error } = await client
+      .from('transactions')
+      .select('*')
+      .order('date', { ascending: false });
     if (error) throw error;
-    return (data || []).map(r => ({
+    return (data || []).map((r) => ({
       id: r.id,
       date: r.date,
       items: r.items as OrderItem[],
@@ -294,7 +322,7 @@ export async function pullTransactions(client: SupabaseClient): Promise<SaleTran
       customerId: r.customer_id,
       customerName: r.customer_name,
       status: r.status as SaleTransaction['status'],
-      refundDate: r.refund_date
+      refundDate: r.refund_date,
     }));
   } catch (err) {
     console.error('Failed pulling transactions:', err);
@@ -303,16 +331,19 @@ export async function pullTransactions(client: SupabaseClient): Promise<SaleTran
 }
 
 // Push local user accounts
-export async function pushUserAccounts(client: SupabaseClient, accounts: UserAccount[]): Promise<boolean> {
+export async function pushUserAccounts(
+  client: SupabaseClient,
+  accounts: UserAccount[],
+): Promise<boolean> {
   if (accounts.length === 0) return true;
   try {
-    const records = accounts.map(a => ({
+    const records = accounts.map((a) => ({
       id: a.id,
       name: a.name,
       role: a.role,
       pin: a.pin,
       active: a.active,
-      created_at: a.createdAt
+      created_at: a.createdAt,
     }));
     const { error } = await client.from('user_accounts').upsert(records);
     if (error) throw error;
@@ -328,13 +359,13 @@ export async function pullUserAccounts(client: SupabaseClient): Promise<UserAcco
   try {
     const { data, error } = await client.from('user_accounts').select('*');
     if (error) throw error;
-    return (data || []).map(r => ({
+    return (data || []).map((r) => ({
       id: r.id,
       name: r.name,
       role: r.role as UserAccount['role'],
       pin: r.pin,
       active: !!r.active,
-      createdAt: r.created_at
+      createdAt: r.created_at,
     }));
   } catch (err) {
     console.error('Failed pulling user accounts:', err);

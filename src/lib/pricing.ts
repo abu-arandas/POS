@@ -12,10 +12,10 @@ export function calculateOrderTotals(
   items: CheckoutItem[],
   discountType: 'none' | 'percentage' | 'fixed' | 'loyalty',
   discountValue: number,
-  settings: Pick<StoreSettings, 'taxRate' | 'loyaltyPointValue'>
+  settings: Pick<StoreSettings, 'taxRate' | 'loyaltyPointValue'>,
 ) {
-  const subtotal = Number(items.reduce((sum, i) => sum + (i.price * i.quantity), 0).toFixed(2));
-  
+  const subtotal = Number(items.reduce((sum, i) => sum + i.price * i.quantity, 0).toFixed(2));
+
   let discountAmount = 0;
   if (discountType === 'percentage') {
     discountAmount = Number(((subtotal * discountValue) / 100).toFixed(2));
@@ -24,7 +24,7 @@ export function calculateOrderTotals(
   } else if (discountType === 'loyalty') {
     discountAmount = Number((discountValue * settings.loyaltyPointValue).toFixed(2));
   }
-  
+
   const taxableAmount = Math.max(0, subtotal - discountAmount);
   const taxAmount = Number((taxableAmount * (settings.taxRate / 100)).toFixed(2));
   const totalAmount = Number((taxableAmount + taxAmount).toFixed(2));

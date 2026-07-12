@@ -1,4 +1,17 @@
-import { ShoppingBag, Package, History, Users, BarChart3, Settings, AlertCircle, LogOut, Shield, Sun, Moon } from 'lucide-react';
+import {
+  ShoppingBag,
+  Package,
+  History,
+  Users,
+  BarChart3,
+  Settings,
+  AlertCircle,
+  LogOut,
+  Shield,
+  Sun,
+  Moon,
+  QrCode,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import { UserAccount } from '../types';
 
@@ -7,8 +20,12 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
 
 interface SidebarProps {
-  currentScreen: 'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings';
-  setScreen: (screen: 'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings') => void;
+  currentScreen:
+    'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings' | 'qrmenu';
+  setScreen: (
+    screen:
+      'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings' | 'qrmenu',
+  ) => void;
 }
 
 export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
@@ -16,51 +33,80 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
   const { settings, darkMode, setDarkMode } = useSettingsStore();
   const { products } = useProductStore();
   const storeName = settings.storeName;
-  const lowStockCount = products.filter(p => p.stock <= p.minStock && p.stock > 0).length;
+  const lowStockCount = products.filter((p) => p.stock <= p.minStock && p.stock > 0).length;
   // Define full list of all available menu items
   const allMenuItems: Array<{
-    id: 'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings';
+    id: 'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings' | 'qrmenu';
     label: string;
     icon: typeof ShoppingBag;
     badge?: number;
     allowedRoles: Array<UserAccount['role']>;
   }> = [
-    { id: 'register', label: 'Register', icon: ShoppingBag, allowedRoles: ['admin', 'manager', 'cashier'] },
+    {
+      id: 'register',
+      label: 'Register',
+      icon: ShoppingBag,
+      allowedRoles: ['admin', 'manager', 'cashier'],
+    },
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, allowedRoles: ['admin', 'manager'] },
-    { id: 'inventory', label: 'Inventory', icon: Package, badge: lowStockCount > 0 ? lowStockCount : undefined, allowedRoles: ['admin', 'manager'] },
-    { id: 'history', label: 'Transactions', icon: History, allowedRoles: ['admin', 'manager', 'cashier'] },
+    {
+      id: 'inventory',
+      label: 'Inventory',
+      icon: Package,
+      badge: lowStockCount > 0 ? lowStockCount : undefined,
+      allowedRoles: ['admin', 'manager'],
+    },
+    {
+      id: 'history',
+      label: 'Transactions',
+      icon: History,
+      allowedRoles: ['admin', 'manager', 'cashier'],
+    },
     { id: 'customers', label: 'Customers', icon: Users, allowedRoles: ['admin', 'manager'] },
+    { id: 'qrmenu', label: 'QR Menu', icon: QrCode, allowedRoles: ['admin', 'manager'] },
     { id: 'settings', label: 'Settings', icon: Settings, allowedRoles: ['admin'] },
   ];
 
   // Filter based on the logged-in staff member's role
-  const allowedItems = allMenuItems.filter(item => 
-    !currentUser || item.allowedRoles.includes(currentUser.role)
+  const allowedItems = allMenuItems.filter(
+    (item) => !currentUser || item.allowedRoles.includes(currentUser.role),
   );
 
   return (
-    <aside id="sidebar-container" className="flex flex-col w-64 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl text-slate-100 border-r border-slate-800/50 min-h-screen transition-colors duration-300 relative overflow-hidden">
-      
+    <aside
+      id="sidebar-container"
+      className="flex flex-col w-64 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl text-slate-100 border-r border-slate-800/50 min-h-screen transition-colors duration-300 relative overflow-hidden"
+    >
       {/* Background Gradient Mesh */}
       <div className="absolute top-0 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none" />
       <div className="absolute bottom-0 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
 
       {/* Brand Header */}
-      <div id="brand-header" className="p-6 border-b border-slate-800/50 flex items-center space-x-3 relative z-10">
-        <motion.div 
+      <div
+        id="brand-header"
+        className="p-6 border-b border-slate-800/50 flex items-center space-x-3 relative z-10"
+      >
+        <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', damping: 15 }}
           className="bg-linear-to-br from-emerald-400 to-emerald-600 text-slate-950 p-2.5 rounded-xl shadow-lg shadow-emerald-500/20"
         >
           {settings.storeLogo ? (
-            <img src={settings.storeLogo} alt="Logo" className="w-[22px] h-[22px] object-contain rounded-sm" />
+            <img
+              src={settings.storeLogo}
+              alt="Logo"
+              className="w-[22px] h-[22px] object-contain rounded-sm"
+            />
           ) : (
             <ShoppingBag size={22} className="stroke-[2.5]" />
           )}
         </motion.div>
         <div className="min-w-0">
-          <h1 className="font-sans font-bold tracking-tight text-white text-base truncate" title={storeName}>
+          <h1
+            className="font-sans font-bold tracking-tight text-white text-base truncate"
+            title={storeName}
+          >
             {storeName}
           </h1>
           <span className="text-[10px] text-emerald-400 font-mono tracking-widest uppercase flex items-center gap-1.5">
@@ -129,30 +175,45 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
           className="w-full flex items-center justify-center gap-2 p-3 bg-slate-800/40 hover:bg-slate-700/50 text-slate-300 rounded-xl transition-colors mb-2 text-xs font-semibold"
         >
           {darkMode ? (
-            <><Sun size={14} className="text-amber-400" /> Light Mode</>
+            <>
+              <Sun size={14} className="text-amber-400" /> Light Mode
+            </>
           ) : (
-            <><Moon size={14} className="text-indigo-400" /> Dark Mode</>
+            <>
+              <Moon size={14} className="text-indigo-400" /> Dark Mode
+            </>
           )}
         </button>
       </div>
 
       {/* Logged in employee info container */}
       {currentUser && (
-        <div id="sidebar-user-card" className="p-4 mx-4 mb-4 glass-dark border border-slate-700/50 rounded-2xl flex items-center justify-between relative z-10 shadow-lg">
+        <div
+          id="sidebar-user-card"
+          className="p-4 mx-4 mb-4 glass-dark border border-slate-700/50 rounded-2xl flex items-center justify-between relative z-10 shadow-lg"
+        >
           <div className="flex items-center space-x-3 min-w-0">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${
-              currentUser.role === 'admin' ? 'bg-indigo-500/20 text-indigo-400' : 
-              currentUser.role === 'manager' ? 'bg-amber-500/20 text-amber-400' : 
-              'bg-emerald-500/20 text-emerald-400'
-            }`}>
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${
+                currentUser.role === 'admin'
+                  ? 'bg-indigo-500/20 text-indigo-400'
+                  : currentUser.role === 'manager'
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'bg-emerald-500/20 text-emerald-400'
+              }`}
+            >
               <Shield size={16} />
             </div>
             <div className="min-w-0">
-              <h5 className="text-xs font-bold text-white truncate leading-tight">{currentUser.name.split(' ')[0]}</h5>
-              <span className="text-[9px] uppercase font-mono font-bold text-slate-400 tracking-wider">{currentUser.role}</span>
+              <h5 className="text-xs font-bold text-white truncate leading-tight">
+                {currentUser.name.split(' ')[0]}
+              </h5>
+              <span className="text-[9px] uppercase font-mono font-bold text-slate-400 tracking-wider">
+                {currentUser.role}
+              </span>
             </div>
           </div>
-          
+
           <button
             onClick={() => setCurrentUser(null)}
             title="Lock POS Screen"

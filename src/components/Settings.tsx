@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { 
-  Settings as SettingsIcon, Cloud
-} from 'lucide-react';
+import { Settings as SettingsIcon, Cloud } from 'lucide-react';
 import { StoreSettings, SupabaseConfig } from '../types';
 
 import { useSettingsStore } from '../stores/settingsStore';
@@ -13,12 +11,14 @@ export default function Settings() {
   // Supabase Local State
   const [supabaseConfig] = useState<SupabaseConfig>(() => {
     const saved = localStorage.getItem('pos_supabase_config');
-    return saved ? JSON.parse(saved) : {
-      url: '',
-      anonKey: '',
-      enabled: false,
-      status: 'disconnected'
-    };
+    return saved
+      ? JSON.parse(saved)
+      : {
+          url: '',
+          anonKey: '',
+          enabled: false,
+          status: 'disconnected',
+        };
   });
 
   const handleUpdateSetting = (key: keyof StoreSettings, value: string | number) => {
@@ -27,7 +27,7 @@ export default function Settings() {
 
   const tabs = [
     { id: 'profile', label: 'Store Profile', icon: SettingsIcon },
-    { id: 'supabase', label: 'Supabase Sync', icon: Cloud }
+    { id: 'supabase', label: 'Supabase Sync', icon: Cloud },
   ] as const;
 
   return (
@@ -52,8 +52,8 @@ export default function Settings() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors ${
-                    isActive 
-                      ? 'bg-emerald-50 text-emerald-700 font-semibold' 
+                    isActive
+                      ? 'bg-emerald-50 text-emerald-700 font-semibold'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
@@ -75,7 +75,9 @@ export default function Settings() {
                 <div className="p-6 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Store Name</label>
+                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+                        Store Name
+                      </label>
                       <input
                         type="text"
                         value={settings.storeName}
@@ -84,7 +86,9 @@ export default function Settings() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Store Phone</label>
+                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+                        Store Phone
+                      </label>
                       <input
                         type="text"
                         value={settings.storePhone}
@@ -93,7 +97,9 @@ export default function Settings() {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Store Address</label>
+                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+                        Store Address
+                      </label>
                       <input
                         type="text"
                         value={settings.storeAddress}
@@ -102,7 +108,9 @@ export default function Settings() {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Store Logo URL or Upload</label>
+                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+                        Store Logo URL or Upload
+                      </label>
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -113,26 +121,37 @@ export default function Settings() {
                         />
                         <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 flex items-center justify-center shrink-0">
                           Upload File
-                          <input type="file" className="hidden" accept="image/*" onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (event) => {
-                                handleUpdateSetting('storeLogo', event.target?.result as string);
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }} />
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  handleUpdateSetting('storeLogo', event.target?.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
                         </label>
                       </div>
                       {settings.storeLogo && (
                         <div className="mt-3 p-3 bg-white border border-slate-200 rounded-xl inline-block shadow-sm">
-                          <img src={settings.storeLogo} alt="Store Logo" className="h-16 w-auto object-contain" />
+                          <img
+                            src={settings.storeLogo}
+                            alt="Store Logo"
+                            className="h-16 w-auto object-contain"
+                          />
                         </div>
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Currency Symbol</label>
+                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+                        Currency Symbol
+                      </label>
                       <input
                         type="text"
                         value={settings.currency}
@@ -141,13 +160,17 @@ export default function Settings() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Tax Rate (%)</label>
+                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+                        Tax Rate (%)
+                      </label>
                       <input
                         type="number"
                         min="0"
                         step="0.1"
                         value={settings.taxRate}
-                        onChange={(e) => handleUpdateSetting('taxRate', parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleUpdateSetting('taxRate', parseFloat(e.target.value) || 0)
+                        }
                         className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
                       />
                     </div>
@@ -157,9 +180,9 @@ export default function Settings() {
             )}
             {activeTab === 'supabase' && (
               <div className="p-6 bg-white rounded-2xl border border-slate-200">
-                 <h3 className="font-semibold text-slate-900 mb-4">Supabase Config</h3>
-                 <p className="text-sm text-slate-600">Status: {supabaseConfig.status}</p>
-                 <p className="text-xs text-slate-400 mt-2">Configure through .env file</p>
+                <h3 className="font-semibold text-slate-900 mb-4">Supabase Config</h3>
+                <p className="text-sm text-slate-600">Status: {supabaseConfig.status}</p>
+                <p className="text-xs text-slate-400 mt-2">Configure through .env file</p>
               </div>
             )}
           </div>

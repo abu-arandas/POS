@@ -1,5 +1,49 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const express = require('express');
+const cors = require('cors');
+const os = require('os');
+
+let menuData = { products: [], categories: [], settings: {} };
+
+// Setup Express Server
+const expressApp = express();
+expressApp.use(cors());
+
+expressApp.get('/api/menu', (req, res) => {
+  res.json(menuData);
+});
+
+expressApp.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'menu.html'));
+});
+
+// Use 3001 or fallback to another port if needed
+let serverPort = 3001;
+expressApp.listen(serverPort, '0.0.0.0', () => {
+  console.log(`Menu Express server listening on port ${serverPort}`);
+});
+
+function getLocalIp() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      // Skip over non-ipv4 and internal (i.e. 127.0.0.1) addresses
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
+ipcMain.handle('get-local-ip', () => {
+  return getLocalIp();
+});
+
+ipcMain.on('update-menu-data', (event, data) => {
+  menuData = data;
+});
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
