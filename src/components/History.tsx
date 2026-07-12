@@ -24,8 +24,10 @@ import { hashPin } from '../lib/hash';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
+import { useTranslation } from 'react-i18next';
 
 export default function History() {
+  const { t } = useTranslation();
   const { transactions, refundTransaction, deleteTransactions } = useTransactionStore();
   const { settings, printerConfig } = useSettingsStore();
   const { currentUser, users } = useAuthStore();
@@ -111,11 +113,7 @@ export default function History() {
       setOverrideError('');
       setShowOverrideModal(true);
     } else {
-      if (
-        confirm(
-          `Are you sure you want to refund receipt ${tx.id}? All items will be added back to stock and customer loyalty points will be adjusted.`,
-        )
-      ) {
+      if (confirm(t('history.refundConfirm', { id: tx.id }))) {
         refundTransaction(tx.id, new Date().toISOString());
       }
     }
@@ -132,13 +130,15 @@ export default function History() {
     if (authorizedUser) {
       if (pendingRefundTxId) {
         refundTransaction(pendingRefundTxId, new Date().toISOString());
-        alert(`Refund authorized successfully by ${authorizedUser.name} (${authorizedUser.role})!`);
+        alert(
+          t('history.refundAuthorized', { name: authorizedUser.name, role: authorizedUser.role }),
+        );
       }
       setShowOverrideModal(false);
       setPendingRefundTxId(null);
       setOverridePin('');
     } else {
-      setOverrideError('Invalid passcode or insufficient privileges');
+      setOverrideError(t('history.invalidPasscode'));
       setOverridePin('');
     }
   };
@@ -280,14 +280,10 @@ export default function History() {
         `);
         printWindow.document.close();
       } else {
-        alert(
-          'Standard Print Blocked: Please allow popups for direct hardware system receipts formatting!',
-        );
+        alert(t('history.standardPrintBlocked'));
       }
     } else {
-      alert(
-        `ESC/POS receipt stream dispatched to active ${printerConfig.type.toUpperCase()} printer module. Cutting paper roll...`,
-      );
+      alert(t('history.escPosPrintMessage', { type: printerConfig.type.toUpperCase() }));
     }
   };
 
@@ -471,14 +467,10 @@ export default function History() {
         `);
         printWindow.document.close();
       } else {
-        alert(
-          'Standard Print Blocked: Please allow popups for direct hardware system receipts formatting!',
-        );
+        alert(t('history.standardPrintBlocked'));
       }
     } else {
-      alert(
-        `ESC/POS bulk receipt stream dispatched to active ${printerConfig.type.toUpperCase()} printer module. Cutting paper roll...`,
-      );
+      alert(t('history.escPosPrintMessage', { type: printerConfig.type.toUpperCase() }));
     }
   };
 
@@ -503,16 +495,14 @@ export default function History() {
       {/* LEFT COLUMN: Transaction List (2/3 width) */}
       <div
         id="transaction-list-section"
-        className="flex-1 flex flex-col min-w-0 pr-6 overflow-hidden"
+        className="flex-1 flex flex-col min-w-0 pe-6 overflow-hidden"
       >
         {/* Header */}
         <div id="history-header" className="mb-6 shrink-0">
           <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
-            <HistoryIcon className="text-emerald-500" /> Transaction Logs
+            <HistoryIcon className="text-emerald-500" /> {t('history.transactionLogs')}
           </h2>
-          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Audit past orders, process refunds, and view detailed printable receipts.
-          </p>
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">{t('history.auditPastOrders')}</p>
         </div>
 
         {/* Filters */}
@@ -527,7 +517,7 @@ export default function History() {
               <input
                 id="history-search-input"
                 type="text"
-                placeholder="Search by receipt ID, customer name, payment method..."
+                placeholder={t('history.searchReceipts')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 bg-transparent border-none text-slate-800 text-xs focus:outline-none placeholder-slate-400"
@@ -536,10 +526,10 @@ export default function History() {
 
             <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
               {[
-                { id: 'all', label: 'All Dates' },
-                { id: 'today', label: 'Today' },
-                { id: 'yesterday', label: 'Yesterday' },
-                { id: '7days', label: 'Last 7 Days' },
+                { id: 'all', label: t('history.allDates') },
+                { id: 'today', label: t('history.today') },
+                { id: 'yesterday', label: t('history.yesterday') },
+                { id: '7days', label: t('history.last7Days') },
               ].map((opt) => (
                 <button
                   key={opt.id}
@@ -555,23 +545,24 @@ export default function History() {
               ))}
             </div>
 
-            {/* Status filter select */}
             <select
               id="history-status-select"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
               className="bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold px-3 py-1.5 text-slate-600 focus:outline-none focus:border-emerald-500 shrink-0"
             >
-              <option value="all">All Statuses</option>
-              <option value="completed">Paid / Completed</option>
-              <option value="refunded">Refunded / Returned</option>
+              <option value="all">{t('history.allStatuses')}</option>
+              <option value="completed">{t('history.paidCompleted')}</option>
+              <option value="refunded">{t('history.refundedReturned')}</option>
             </select>
           </div>
 
           <div className="flex items-center space-x-3 pt-1 w-full">
             <div className="flex-1 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 px-4 py-1.5 rounded-xl">
               <div className="flex items-center space-x-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">From:</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase">
+                  {t('history.from')}
+                </span>
                 <input
                   type="datetime-local"
                   value={customStartDate}
@@ -585,7 +576,9 @@ export default function History() {
               </div>
 
               <div className="flex items-center space-x-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">To:</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase">
+                  {t('history.to')}
+                </span>
                 <input
                   type="datetime-local"
                   value={customEndDate}
@@ -603,7 +596,7 @@ export default function History() {
                   : 'bg-emerald-500 hover:bg-emerald-600 text-white'
               }`}
             >
-              Apply Filter
+              {t('history.applyFilter')}
             </button>
           </div>
         </div>
@@ -611,20 +604,20 @@ export default function History() {
         {selectedTxIds.length > 0 && (
           <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex justify-between items-center mb-6 shrink-0 shadow-sm transition-all animate-in fade-in slide-in-from-top-2">
             <span className="text-emerald-800 font-bold text-xs px-2">
-              {selectedTxIds.length} transactions selected
+              {selectedTxIds.length} {t('history.transactionsSelected')}
             </span>
             <div className="flex gap-2">
               <button
                 onClick={handleBulkPrint}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 transition-colors"
               >
-                <Printer size={14} /> Print Selected
+                <Printer size={14} /> {t('history.printSelected')}
               </button>
               <button
                 onClick={handleBulkDelete}
                 className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 transition-colors"
               >
-                <Trash2 size={14} /> Delete Selected
+                <Trash2 size={14} /> {t('history.deleteSelected')}
               </button>
             </div>
           </div>
@@ -650,13 +643,13 @@ export default function History() {
                       onChange={handleToggleSelectAll}
                     />
                   </th>
-                  <th className="py-3 px-2 w-[120px]">Receipt ID</th>
-                  <th className="py-3 px-4 w-1/4">Timestamp</th>
-                  <th className="py-3 px-4 w-1/4">Customer</th>
-                  <th className="py-3 px-3 w-1/8 text-center">Items</th>
-                  <th className="py-3 px-4 w-1/8 text-right">Total</th>
-                  <th className="py-3 px-4 w-1/8 text-center">Payment</th>
-                  <th className="py-3 px-4 w-[100px] text-center">Status</th>
+                  <th className="py-3 px-2 w-[120px]">{t('history.receiptId')}</th>
+                  <th className="py-3 px-4 w-1/4">{t('history.timestamp')}</th>
+                  <th className="py-3 px-4 w-1/4">{t('history.customer')}</th>
+                  <th className="py-3 px-3 w-1/8 text-center">{t('history.items')}</th>
+                  <th className="py-3 px-4 w-1/8 text-right">{t('history.total')}</th>
+                  <th className="py-3 px-4 w-1/8 text-center">{t('history.payment')}</th>
+                  <th className="py-3 px-4 w-[100px] text-center">{t('history.status')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/50 dark:divide-slate-700/50 text-xs font-sans text-slate-700 dark:text-slate-200">
@@ -666,7 +659,7 @@ export default function History() {
                       colSpan={7}
                       className="py-12 text-center text-slate-400 font-medium font-mono"
                     >
-                      NO HISTORICAL TRANSACTIONS RECORDED
+                      {t('history.noHistoricalTransactions')}
                     </td>
                   </tr>
                 ) : (
@@ -707,7 +700,9 @@ export default function History() {
                         </td>
                         <td className="py-3 px-4 font-semibold text-slate-700 truncate">
                           {tx.customerName || (
-                            <span className="text-slate-400 font-normal">Walk-In</span>
+                            <span className="text-slate-400 font-normal">
+                              {t('history.walkIn')}
+                            </span>
                           )}
                         </td>
                         <td className="py-3 px-3 text-center font-mono font-bold bg-slate-50/40">
@@ -731,7 +726,7 @@ export default function History() {
                                 : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                             }`}
                           >
-                            {isRefunded ? 'Refunded' : 'Paid'}
+                            {isRefunded ? t('history.refunded') : t('history.paid')}
                           </span>
                         </td>
                       </tr>
@@ -743,9 +738,11 @@ export default function History() {
           </div>
           {/* Table Footer */}
           <div className="px-4 py-2.5 border-t border-slate-200/50 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm text-[10px] text-slate-500 dark:text-slate-400 font-mono flex justify-between shrink-0">
-            <span>FILTERED COUNT: {filteredTransactions.length} Sales</span>
             <span>
-              TOTAL VALUE: {settings.currency}
+              {t('history.filteredCount')} {filteredTransactions.length} {t('history.sales')}
+            </span>
+            <span>
+              {t('history.totalValue')} {settings.currency}
               {filteredTransactions
                 .reduce((sum, t) => sum + (t.status === 'completed' ? t.total : 0), 0)
                 .toFixed(2)}
@@ -778,8 +775,8 @@ export default function History() {
                 />
                 <span className="font-sans font-bold text-xs">
                   {activeTransaction.status === 'refunded'
-                    ? 'Transaction Refunded'
-                    : 'Transaction PAID'}
+                    ? t('history.transactionRefunded')
+                    : t('history.transactionPaid')}
                 </span>
               </div>
               <button
@@ -818,22 +815,22 @@ export default function History() {
 
                 <div className="space-y-1 text-[10px] border-b border-dashed border-slate-200 pb-3">
                   <div className="flex justify-between">
-                    <span>DATE:</span>
+                    <span>{t('history.date')}</span>
                     <span>{new Date(activeTransaction.date).toLocaleString()}</span>
                   </div>
                   {activeTransaction.status === 'refunded' && activeTransaction.refundDate && (
                     <div className="flex justify-between text-rose-600">
-                      <span>REFUNDED:</span>
+                      <span>{t('history.refunded').toUpperCase()}:</span>
                       <span>{new Date(activeTransaction.refundDate).toLocaleDateString()}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span>RECEIPT:</span>
+                    <span>{t('history.receipt')}</span>
                     <span>{activeTransaction.id}</span>
                   </div>
                   {activeTransaction.customerName && (
                     <div className="flex justify-between text-emerald-600 font-bold">
-                      <span>MEMBER:</span>
+                      <span>{t('history.member')}</span>
                       <span>{activeTransaction.customerName}</span>
                     </div>
                   )}
@@ -857,7 +854,7 @@ export default function History() {
                 {/* Pricing Block */}
                 <div className="space-y-1 pb-3 border-b border-dashed border-slate-200">
                   <div className="flex justify-between">
-                    <span>SUBTOTAL:</span>
+                    <span>{t('history.subtotal')}</span>
                     <span>
                       {settings.currency}
                       {activeTransaction.subtotal.toFixed(2)}
@@ -865,7 +862,7 @@ export default function History() {
                   </div>
                   {activeTransaction.discount > 0 && (
                     <div className="flex justify-between text-amber-600">
-                      <span>DISCOUNT:</span>
+                      <span>{t('history.discount')}</span>
                       <span>
                         -{settings.currency}
                         {activeTransaction.discount.toFixed(2)}
@@ -873,7 +870,7 @@ export default function History() {
                     </div>
                   )}
                   <div className="flex justify-between text-slate-950 font-bold pt-1.5 border-t border-slate-100 text-sm">
-                    <span>TOTAL PAID:</span>
+                    <span>{t('history.totalPaid')}</span>
                     <span>
                       {settings.currency}
                       {activeTransaction.total.toFixed(2)}
@@ -884,20 +881,20 @@ export default function History() {
                 {/* Payment block */}
                 <div className="space-y-1 text-[10px]">
                   <div className="flex justify-between">
-                    <span>PAY METHOD:</span>
+                    <span>{t('history.payMethod')}</span>
                     <span className="uppercase font-bold">{activeTransaction.paymentMethod}</span>
                   </div>
                   {activeTransaction.paymentMethod === 'cash' && (
                     <>
                       <div className="flex justify-between">
-                        <span>CASH PAID:</span>
+                        <span>{t('history.cashPaid')}</span>
                         <span>
                           {settings.currency}
                           {(activeTransaction.cashPaid || 0).toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between text-slate-950 font-bold">
-                        <span>CASH CHANGE:</span>
+                        <span>{t('history.cashChange')}</span>
                         <span>
                           {settings.currency}
                           {(activeTransaction.cashChange || 0).toFixed(2)}
@@ -913,7 +910,7 @@ export default function History() {
                     ||| | |||| ||| || | |||| || ||| | |||
                   </div>
                   <span className="text-[9px] text-slate-400 font-mono">
-                    AUTH: {activeTransaction.id}
+                    {t('history.auth')} {activeTransaction.id}
                   </span>
                 </div>
               </div>
@@ -927,17 +924,14 @@ export default function History() {
                     className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-sans font-bold text-xs py-2.5 rounded-xl flex items-center justify-center space-x-1.5 transition-colors shadow-sm"
                   >
                     <RotateCcw size={14} />
-                    <span>Refund This Sale</span>
+                    <span>{t('history.refundThisSale')}</span>
                   </button>
                 ) : (
                   <div className="bg-rose-50 border border-rose-100 p-3 rounded-xl flex items-start gap-2">
                     <AlertTriangle size={14} className="text-rose-600 mt-0.5 shrink-0" />
                     <div className="text-[10px] text-rose-800 leading-normal">
-                      <span className="font-bold">Returned Inventory Locked</span>
-                      <p className="mt-0.5">
-                        This transaction has been refunded. Items have been added back to catalog
-                        levels, and transactions cannot be double refunded.
-                      </p>
+                      <span className="font-bold">{t('history.returnedInventoryLocked')}</span>
+                      <p className="mt-0.5">{t('history.returnedInventoryMsg')}</p>
                     </div>
                   </div>
                 )}
@@ -951,16 +945,18 @@ export default function History() {
                 className="w-full bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold text-xs py-2.5 rounded-xl flex items-center justify-center space-x-1.5 transition-colors shadow-md shadow-slate-900/10"
               >
                 <Printer size={14} />
-                <span>Print Copy Receipt</span>
+                <span>{t('history.printCopyReceipt')}</span>
               </button>
             </div>
           </>
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
             <span className="text-4xl mb-2">🧾</span>
-            <h4 className="font-sans font-bold text-slate-700 text-sm">No Receipt Selected</h4>
+            <h4 className="font-sans font-bold text-slate-700 text-sm">
+              {t('history.noReceiptSelected')}
+            </h4>
             <p className="text-xs text-slate-400 max-w-[200px] mt-1">
-              Select a transaction row from the logs to view its detailed receipt & action controls.
+              {t('history.selectTransactionRow')}
             </p>
           </div>
         )}
@@ -980,10 +976,12 @@ export default function History() {
                 <div className="mx-auto w-10 h-10 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-full flex items-center justify-center">
                   <AlertTriangle size={18} />
                 </div>
-                <h3 className="font-sans font-extrabold text-base text-white">Confirm Deletion</h3>
+                <h3 className="font-sans font-extrabold text-base text-white">
+                  {t('history.confirmDeletion')}
+                </h3>
                 <p className="text-xs text-slate-400">
-                  Are you sure you want to PERMANENTLY DELETE {selectedTxIds.length} transaction
-                  {selectedTxIds.length !== 1 && 's'}? This action cannot be undone.
+                  {t('history.confirmDeletionMsg1')} {selectedTxIds.length}{' '}
+                  {t('history.confirmDeletionMsg2')}
                 </p>
               </div>
 
@@ -992,13 +990,13 @@ export default function History() {
                   onClick={() => setShowDeleteModal(false)}
                   className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white transition-colors"
                 >
-                  Cancel
+                  {t('history.cancel')}
                 </button>
                 <button
                   onClick={confirmBulkDelete}
                   className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-colors"
                 >
-                  Delete Now
+                  {t('history.deleteNow')}
                 </button>
               </div>
             </motion.div>
@@ -1021,11 +1019,9 @@ export default function History() {
                   <Lock size={18} />
                 </div>
                 <h3 className="font-sans font-extrabold text-base text-white">
-                  Manager Override Required
+                  {t('history.managerOverride')}
                 </h3>
-                <p className="text-xs text-slate-400">
-                  Enter a Manager or Admin passcode PIN to authorize this sales refund.
-                </p>
+                <p className="text-xs text-slate-400">{t('history.enterManagerPasscode')}</p>
               </div>
 
               <form onSubmit={handleAuthorizeOverride} className="space-y-4">
@@ -1057,13 +1053,13 @@ export default function History() {
                     }}
                     className="flex-1 bg-slate-800 hover:bg-slate-750 text-slate-400 hover:text-white font-sans font-semibold text-xs py-2.5 rounded-xl transition-colors"
                   >
-                    Cancel
+                    {t('history.cancel')}
                   </button>
                   <button
                     type="submit"
                     className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-sans font-bold text-xs py-2.5 rounded-xl transition-colors"
                   >
-                    Authorize Refund
+                    {t('history.authorizeRefund')}
                   </button>
                 </div>
               </form>

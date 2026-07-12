@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { hashPin } from '../lib/hash';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useTranslation } from 'react-i18next';
 
 export default function Lockscreen() {
   const { users, setCurrentUser } = useAuthStore();
@@ -14,6 +15,7 @@ export default function Lockscreen() {
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<boolean>(false);
+  const { t } = useTranslation();
 
   const activeUsers = users.filter((u) => u.active);
 
@@ -71,7 +73,7 @@ export default function Lockscreen() {
           {storeName}
         </h1>
         <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[10px] font-bold px-3 py-1 rounded-full inline-block">
-          ● SECURE TERMINAL LOCK
+          ● {t('lockscreen.secureTerminal')}
         </div>
       </div>
 
@@ -88,19 +90,17 @@ export default function Lockscreen() {
             >
               <div className="text-center pb-2">
                 <h2 className="text-slate-200 font-sans font-bold text-base">
-                  Select Staff Profile
+                  {t('lockscreen.selectProfile')}
                 </h2>
-                <p className="text-slate-500 text-xs mt-0.5">
-                  Choose your account to login to terminal
-                </p>
+                <p className="text-slate-500 text-xs mt-0.5">{t('lockscreen.chooseAccount')}</p>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[300px]">
+              <div className="flex-1 overflow-y-auto space-y-2 pe-1 max-h-[300px]">
                 {activeUsers.map((user) => (
                   <button
                     key={user.id}
                     onClick={() => setSelectedUser(user)}
-                    className="w-full flex items-center justify-between p-4 bg-slate-950/40 hover:bg-slate-800/60 border border-slate-800 hover:border-slate-700/80 rounded-2xl transition-all group text-left"
+                    className="w-full flex items-center justify-between p-4 bg-slate-950/40 hover:bg-slate-800/60 border border-slate-800 hover:border-slate-700/80 rounded-2xl transition-all group text-start"
                   >
                     <div className="flex items-center space-x-3.5">
                       <div className="bg-slate-800 text-slate-300 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
@@ -109,12 +109,12 @@ export default function Lockscreen() {
                       <div>
                         <h4 className="text-white text-xs font-bold font-sans">{user.name}</h4>
                         <span className="text-[10px] uppercase font-mono font-bold text-slate-500 tracking-wider">
-                          Role: {user.role}
+                          {t('lockscreen.role')}: {user.role}
                         </span>
                       </div>
                     </div>
                     <div className="bg-slate-900 px-2.5 py-1 rounded-lg text-[9px] text-slate-400 font-mono group-hover:text-emerald-400 transition-colors">
-                      PIN Required
+                      {t('lockscreen.pinRequired')}
                     </div>
                   </button>
                 ))}
@@ -135,9 +135,9 @@ export default function Lockscreen() {
                   onClick={handleBackToUsers}
                   className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg flex items-center gap-1 text-[11px] font-semibold transition-colors"
                 >
-                  <ArrowLeft size={14} /> Back
+                  <ArrowLeft size={14} className="rtl:rotate-180" /> {t('lockscreen.back')}
                 </button>
-                <div className="text-right">
+                <div className="text-end">
                   <h3 className="text-white text-xs font-bold font-sans">{selectedUser.name}</h3>
                   <span className="text-[9px] uppercase font-mono font-bold text-slate-500 tracking-wider">
                     {selectedUser.role}
@@ -168,7 +168,7 @@ export default function Lockscreen() {
                 <div className="h-4">
                   {error && (
                     <span className="text-[10px] text-rose-400 font-bold font-mono tracking-wider flex items-center gap-1">
-                      <ShieldAlert size={11} /> INCORRECT PIN CODE
+                      <ShieldAlert size={11} /> {t('lockscreen.incorrectPin')}
                     </span>
                   )}
                 </div>
@@ -190,7 +190,7 @@ export default function Lockscreen() {
                   onClick={handleClear}
                   className="h-12 bg-slate-950/20 hover:bg-slate-800 text-slate-500 hover:text-rose-400 font-semibold text-[11px] rounded-2xl transition-all uppercase"
                 >
-                  Clear
+                  {t('lockscreen.clear')}
                 </button>
 
                 <button
@@ -215,7 +215,7 @@ export default function Lockscreen() {
 
       {/* Helper Footer Hint */}
       <div className="mt-6 text-center text-slate-600 font-mono text-[10px] z-10 max-w-xs">
-        Default testing PINs: <br />
+        {t('lockscreen.defaultPins')} <br />
         Admin: <strong className="text-slate-400 font-semibold">1234</strong> | Manager:{' '}
         <strong className="text-slate-400 font-semibold">5555</strong> | Cashier:{' '}
         <strong className="text-slate-400 font-semibold">0000</strong>

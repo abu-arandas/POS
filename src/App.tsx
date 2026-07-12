@@ -11,6 +11,7 @@ import {
   QrCode,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import Sidebar from './components/Sidebar';
 import Register from './components/Register';
 import Inventory from './components/Inventory';
@@ -31,7 +32,18 @@ export default function App() {
   >('register');
 
   const { currentUser, setCurrentUser } = useAuthStore();
-  const { settings, darkMode, setDarkMode } = useSettingsStore();
+  const { settings, darkMode, setDarkMode, language } = useSettingsStore();
+  const { t, i18n } = useTranslation();
+
+  useEffect(() => {
+    i18n.changeLanguage(language);
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    if (language === 'ar') {
+      document.documentElement.classList.add('font-arabic');
+    } else {
+      document.documentElement.classList.remove('font-arabic');
+    }
+  }, [language, i18n]);
 
   // We only pull what we absolutely need in App to minimize re-renders.
   // lowStockCount can be derived here, or passed.
@@ -96,32 +108,37 @@ export default function App() {
   const mobileMenuItems = [
     {
       id: 'register',
-      label: 'Sell Register',
+      label: t('sidebar.register'),
       icon: ShoppingBag,
       allowedRoles: ['admin', 'manager', 'cashier'],
     },
     {
       id: 'dashboard',
-      label: 'Business Dashboard',
+      label: t('sidebar.dashboard'),
       icon: BarChart3,
       allowedRoles: ['admin', 'manager'],
     },
     {
       id: 'inventory',
-      label: 'Catalog Inventory',
+      label: t('sidebar.inventory'),
       icon: Package,
       badge: lowStockCount > 0 ? lowStockCount : undefined,
       allowedRoles: ['admin', 'manager'],
     },
     {
       id: 'history',
-      label: 'Sales Transactions',
+      label: t('sidebar.transactions'),
       icon: HistoryIcon,
       allowedRoles: ['admin', 'manager', 'cashier'],
     },
-    { id: 'customers', label: 'CRM Customers', icon: Users, allowedRoles: ['admin', 'manager'] },
-    { id: 'qrmenu', label: 'Digital QR Menu', icon: QrCode, allowedRoles: ['admin', 'manager'] },
-    { id: 'settings', label: 'System Settings', icon: SettingsIcon, allowedRoles: ['admin'] },
+    {
+      id: 'customers',
+      label: t('sidebar.customers'),
+      icon: Users,
+      allowedRoles: ['admin', 'manager'],
+    },
+    { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode, allowedRoles: ['admin', 'manager'] },
+    { id: 'settings', label: t('sidebar.settings'), icon: SettingsIcon, allowedRoles: ['admin'] },
   ].filter(
     (item) =>
       !currentUser ||
@@ -210,7 +227,7 @@ export default function App() {
                     }}
                     className={`flex items-center justify-between w-full p-3 rounded-xl text-xs font-semibold ${
                       isSel
-                        ? 'bg-slate-800 text-white border-l-4 border-emerald-500 pl-2'
+                        ? 'bg-slate-800 text-white border-s-4 border-emerald-500 ps-2'
                         : 'text-slate-400 bg-slate-950/20'
                     }`}
                   >

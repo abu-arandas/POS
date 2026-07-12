@@ -22,8 +22,10 @@ import { Product, Category, StoreSettings } from '../types';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
+import { useTranslation } from 'react-i18next';
 
 export default function Inventory() {
+  const { t } = useTranslation();
   const {
     products,
     categories,
@@ -107,7 +109,7 @@ export default function Inventory() {
   const handleSubmitProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!prodName.trim() || !prodCategory || !prodPrice || !prodCost || !prodStock) {
-      alert('Please fill out all required fields');
+      alert(t('inventory.pleaseFillRequired'));
       return;
     }
 
@@ -209,10 +211,10 @@ export default function Inventory() {
       <div id="inventory-header" className="flex items-center justify-between mb-6">
         <div>
           <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
-            <Layers className="text-emerald-500" /> Catalog & Inventory
+            <Layers className="text-emerald-500" /> {t('inventory.catalogInventory')}
           </h2>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Manage store items, stock alarms, pricing margins, and categories.
+            {t('inventory.manageStoreItems')}
           </p>
         </div>
 
@@ -227,7 +229,7 @@ export default function Inventory() {
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              Products
+              {t('inventory.products')}
             </button>
             <button
               onClick={() => setActiveTab('categories')}
@@ -237,7 +239,7 @@ export default function Inventory() {
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              Categories
+              {t('inventory.categories')}
             </button>
           </div>
 
@@ -249,7 +251,9 @@ export default function Inventory() {
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-sans font-bold text-xs sm:text-sm px-4 py-2 rounded-xl flex items-center space-x-1.5 shadow-lg shadow-emerald-600/10"
           >
             <Plus size={16} />
-            <span>{activeTab === 'products' ? 'Add Product' : 'Add Category'}</span>
+            <span>
+              {activeTab === 'products' ? t('inventory.addProduct') : t('inventory.addCategory')}
+            </span>
           </button>
         </div>
       </div>
@@ -269,7 +273,7 @@ export default function Inventory() {
                 <input
                   id="inventory-search-input"
                   type="text"
-                  placeholder="Search products by SKU or Name..."
+                  placeholder={t('inventory.searchProducts')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 bg-transparent border-none text-slate-800 text-xs focus:outline-none placeholder-slate-400"
@@ -279,7 +283,7 @@ export default function Inventory() {
               {/* Select Category */}
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Category:
+                  {t('inventory.category')}
                 </span>
                 <select
                   id="filter-category-select"
@@ -287,7 +291,7 @@ export default function Inventory() {
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold px-3 py-1.5 text-slate-600 focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="all">All Categories</option>
+                  <option value="all">{t('inventory.allCategories')}</option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -299,7 +303,7 @@ export default function Inventory() {
               {/* Stock status filter */}
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Stock Level:
+                  {t('inventory.stockLevel')}
                 </span>
                 <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                   <button
@@ -310,7 +314,7 @@ export default function Inventory() {
                         : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
-                    All
+                    {t('inventory.all')}
                   </button>
                   <button
                     onClick={() => setStockFilter('low')}
@@ -320,7 +324,7 @@ export default function Inventory() {
                         : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
-                    Low
+                    {t('inventory.low')}
                   </button>
                   <button
                     onClick={() => setStockFilter('out')}
@@ -330,7 +334,7 @@ export default function Inventory() {
                         : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
-                    Out
+                    {t('inventory.out')}
                   </button>
                 </div>
               </div>
@@ -346,35 +350,35 @@ export default function Inventory() {
               <table id="inventory-table" className="w-full text-left border-collapse table-fixed">
                 <thead>
                   <tr className="bg-white/40 dark:bg-slate-900/40 text-slate-500 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider font-mono border-b border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
-                    <th className="py-3 px-5 w-1/4">Product Details</th>
+                    <th className="py-3 px-5 w-1/4">{t('inventory.productDetails')}</th>
                     <th className="py-3 px-4 w-1/8">
                       <button
                         onClick={() => toggleSort('sku')}
                         className="flex items-center gap-1 hover:text-slate-800 transition-colors"
                       >
-                        SKU <ArrowUpDown size={11} />
+                        {t('inventory.sku')} <ArrowUpDown size={11} />
                       </button>
                     </th>
-                    <th className="py-3 px-4 w-1/6">Category</th>
+                    <th className="py-3 px-4 w-1/6">{t('inventory.category').replace(':', '')}</th>
                     <th className="py-3 px-4 w-1/8 text-right">
                       <button
                         onClick={() => toggleSort('price')}
                         className="flex items-center gap-1 hover:text-slate-800 transition-colors justify-end w-full"
                       >
-                        Price <ArrowUpDown size={11} />
+                        {t('inventory.price')} <ArrowUpDown size={11} />
                       </button>
                     </th>
-                    <th className="py-3 px-4 w-1/8 text-right">Cost</th>
-                    <th className="py-3 px-4 w-1/8 text-right">Margin</th>
+                    <th className="py-3 px-4 w-1/8 text-right">{t('inventory.cost')}</th>
+                    <th className="py-3 px-4 w-1/8 text-right">{t('inventory.margin')}</th>
                     <th className="py-3 px-5 w-1/6 text-center">
                       <button
                         onClick={() => toggleSort('stock')}
                         className="flex items-center gap-1 hover:text-slate-800 transition-colors justify-center w-full"
                       >
-                        Stock <ArrowUpDown size={11} />
+                        {t('inventory.stock')} <ArrowUpDown size={11} />
                       </button>
                     </th>
-                    <th className="py-3 px-4 w-[100px] text-center">Actions</th>
+                    <th className="py-3 px-4 w-[100px] text-center">{t('inventory.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200/50 dark:divide-slate-700/50 text-xs font-sans text-slate-700 dark:text-slate-200">
@@ -384,7 +388,7 @@ export default function Inventory() {
                         colSpan={8}
                         className="py-12 text-center text-slate-400 font-medium font-mono"
                       >
-                        NO PRODUCTS REGISTERED IN CATALOG
+                        {t('inventory.noProductsRegistered')}
                       </td>
                     </tr>
                   ) : (
@@ -417,7 +421,7 @@ export default function Inventory() {
                                 {prod.name}
                               </span>
                               <span className="text-[10px] font-mono font-medium text-slate-400 block mt-0.5">
-                                Threshold Alert: {prod.minStock}
+                                {t('inventory.thresholdAlert')}: {prod.minStock}
                               </span>
                             </div>
                           </td>
@@ -455,15 +459,15 @@ export default function Inventory() {
                               </span>
                               {isOut ? (
                                 <span className="text-[9px] text-rose-500 font-bold uppercase mt-0.5 flex items-center gap-0.5">
-                                  <AlertTriangle size={10} /> OUT OF STOCK
+                                  <AlertTriangle size={10} /> {t('inventory.outOfStock')}
                                 </span>
                               ) : isLow ? (
                                 <span className="text-[9px] text-amber-500 font-bold uppercase mt-0.5 flex items-center gap-0.5">
-                                  <AlertTriangle size={10} /> LOW STOCK
+                                  <AlertTriangle size={10} /> {t('inventory.lowStock')}
                                 </span>
                               ) : (
                                 <span className="text-[9px] text-emerald-500 font-bold uppercase mt-0.5 font-mono">
-                                  Good level
+                                  {t('inventory.goodLevel')}
                                 </span>
                               )}
                             </div>
@@ -480,7 +484,8 @@ export default function Inventory() {
                               <button
                                 id={`del-prod-${prod.id}`}
                                 onClick={() => {
-                                  if (confirm(`Delete ${prod.name}?`)) handleDeleteProduct(prod.id);
+                                  if (confirm(t('inventory.deleteConfirm', { name: prod.name })))
+                                    handleDeleteProduct(prod.id);
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100/50 rounded-lg transition-colors"
                                 title="Delete product"
@@ -498,13 +503,16 @@ export default function Inventory() {
             </div>
             {/* Table Footer Stats */}
             <div className="px-5 py-3 border-t border-slate-200/50 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm text-[11px] text-slate-500 dark:text-slate-400 font-mono flex justify-between">
-              <span>ACTIVE SKUS: {products.length}</span>
+              <span>
+                {t('inventory.activeSkus')}: {products.length}
+              </span>
               <span className="flex items-center gap-4">
                 <span className="text-amber-600 font-bold flex items-center gap-1">
-                  ● LOW STOCK: {products.filter((p) => p.stock <= p.minStock && p.stock > 0).length}
+                  ● {t('inventory.lowStock')}:{' '}
+                  {products.filter((p) => p.stock <= p.minStock && p.stock > 0).length}
                 </span>
                 <span className="text-rose-600 font-bold flex items-center gap-1">
-                  ● OUT OF STOCK: {products.filter((p) => p.stock === 0).length}
+                  ● {t('inventory.outOfStock')}: {products.filter((p) => p.stock === 0).length}
                 </span>
               </span>
             </div>
@@ -538,20 +546,24 @@ export default function Inventory() {
                       className="text-slate-400 hover:text-rose-600 disabled:opacity-30 disabled:hover:text-slate-400 p-1.5 hover:bg-slate-50 rounded-lg transition-all"
                       title={
                         productCount > 0
-                          ? 'Cannot delete category containing products'
-                          : 'Delete category'
+                          ? t('inventory.cannotDeleteCategory')
+                          : t('inventory.deleteCategory')
                       }
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
-                  <p className="text-xs text-slate-400 mt-2 font-mono">ID: {cat.id}</p>
+                  <p className="text-xs text-slate-400 mt-2 font-mono">
+                    {t('inventory.id')}: {cat.id}
+                  </p>
                 </div>
 
                 <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                  <span className="text-xs text-slate-500 font-medium">Linked Products</span>
+                  <span className="text-xs text-slate-500 font-medium">
+                    {t('inventory.linkedProducts')}
+                  </span>
                   <span className="font-mono text-slate-800 dark:text-slate-100 font-bold text-sm bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
-                    {productCount} items
+                    {productCount} {t('inventory.items')}
                   </span>
                 </div>
               </div>
@@ -575,7 +587,9 @@ export default function Inventory() {
             >
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <h3 className="font-sans font-bold text-slate-800 text-base">
-                  {editingProduct ? 'Edit Catalog Product' : 'Add New Product'}
+                  {editingProduct
+                    ? t('inventory.editCatalogProduct')
+                    : t('inventory.addNewProduct')}
                 </h3>
                 <button
                   onClick={() => setProductModalOpen(false)}
@@ -591,7 +605,7 @@ export default function Inventory() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        Product Name *
+                        {t('inventory.productName')}
                       </label>
                       <input
                         id="form-prod-name"
@@ -606,7 +620,7 @@ export default function Inventory() {
 
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        SKU Code *
+                        {t('inventory.skuCode')}
                       </label>
                       <input
                         id="form-prod-sku"
@@ -621,13 +635,13 @@ export default function Inventory() {
 
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        Category *
+                        {t('inventory.category').replace(':', ' *')}
                       </label>
                       <select
                         id="form-prod-category"
                         value={prodCategory}
                         onChange={(e) => setProdCategory(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 font-semibold text-slate-600"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 font-semibold"
                       >
                         {categories.map((cat) => (
                           <option key={cat.id} value={cat.id}>
@@ -642,7 +656,7 @@ export default function Inventory() {
                   <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        Sell Price ({settings.currency}) *
+                        {t('inventory.sellPrice')} ({settings.currency}) *
                       </label>
                       <input
                         id="form-prod-price"
@@ -659,7 +673,7 @@ export default function Inventory() {
 
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        Cost Price ({settings.currency}) *
+                        {t('inventory.costPrice')} ({settings.currency}) *
                       </label>
                       <input
                         id="form-prod-cost"
@@ -676,7 +690,7 @@ export default function Inventory() {
 
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        In-Stock Count *
+                        {t('inventory.inStockCount')}
                       </label>
                       <input
                         id="form-prod-stock"
@@ -692,7 +706,7 @@ export default function Inventory() {
 
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        Low-Stock Alert Level
+                        {t('inventory.lowStockAlert')}
                       </label>
                       <input
                         id="form-prod-minstock"
@@ -709,7 +723,7 @@ export default function Inventory() {
                   {/* Asset settings */}
                   <div className="pt-2 border-t border-slate-100">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                      Product Image URL (Optional)
+                      {t('inventory.productImageOptional')}
                     </label>
                     <input
                       id="form-prod-image"
@@ -728,15 +742,15 @@ export default function Inventory() {
                     onClick={() => setProductModalOpen(false)}
                     className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50"
                   >
-                    Cancel
+                    {t('inventory.cancel')}
                   </button>
                   <button
                     type="submit"
                     id="form-submit-prod-btn"
                     className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold text-xs sm:text-sm rounded-xl flex items-center shadow-lg shadow-slate-900/10"
                   >
-                    <Check size={16} className="mr-1" />
-                    <span>Save Catalog Item</span>
+                    <Check size={16} className="me-1" />
+                    <span>{t('inventory.saveCatalogItem')}</span>
                   </button>
                 </div>
               </form>
@@ -760,7 +774,8 @@ export default function Inventory() {
             >
               <div className="flex justify-between items-center">
                 <h3 className="font-sans font-bold text-slate-800 text-base flex items-center gap-2">
-                  <FolderPlus size={18} className="text-emerald-500" /> Add New Category
+                  <FolderPlus size={18} className="text-emerald-500" />{' '}
+                  {t('inventory.addNewCategory')}
                 </h3>
                 <button
                   onClick={() => setCategoryModalOpen(false)}
@@ -773,7 +788,7 @@ export default function Inventory() {
               <form onSubmit={handleSubmitCategory} className="space-y-4">
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                    Category Name *
+                    {t('inventory.categoryName')}
                   </label>
                   <input
                     id="new-cat-name-input"
@@ -788,7 +803,7 @@ export default function Inventory() {
 
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                    Visual Theme Color
+                    {t('inventory.visualThemeColor')}
                   </label>
                   <div className="grid grid-cols-4 gap-2">
                     {categoryColors.map((colorOption) => (
@@ -814,13 +829,13 @@ export default function Inventory() {
                     onClick={() => setCategoryModalOpen(false)}
                     className="px-4 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 rounded-lg"
                   >
-                    Cancel
+                    {t('inventory.cancel')}
                   </button>
                   <button
                     type="submit"
                     className="px-4 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-sm"
                   >
-                    Save Category
+                    {t('inventory.saveCategory')}
                   </button>
                 </div>
               </form>

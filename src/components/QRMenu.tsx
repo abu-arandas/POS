@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { QrCode, Smartphone, Wifi, Printer, Copy, Check } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useTranslation } from 'react-i18next';
 
 export default function QRMenu() {
+  const { t } = useTranslation();
   const [localIp, setLocalIp] = useState<string>('localhost');
   const [copied, setCopied] = useState(false);
 
@@ -43,11 +45,9 @@ export default function QRMenu() {
         <div>
           <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
             <QrCode className="text-emerald-500" />
-            Digital QR Menu
+            {t('qrmenu.title')}
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Let customers view your menu directly on their phones
-          </p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t('qrmenu.subtitle')}</p>
         </div>
       </div>
 
@@ -58,31 +58,30 @@ export default function QRMenu() {
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6">
               <h3 className="text-lg font-bold text-emerald-700 dark:text-emerald-400 mb-4 flex items-center gap-2">
                 <Wifi size={20} />
-                How it works
+                {t('qrmenu.howItWorks')}
               </h3>
               <ul className="space-y-4 text-slate-600 dark:text-slate-300 text-sm">
                 <li className="flex gap-3">
                   <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shrink-0">
                     1
                   </div>
-                  <p>
-                    Ensure your POS and your customers' phones are connected to the{' '}
-                    <strong>same Wi-Fi network</strong>.
-                  </p>
+                  <p
+                    dangerouslySetInnerHTML={{
+                      __html: t('qrmenu.step1'),
+                    }}
+                  />
                 </li>
                 <li className="flex gap-3">
                   <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shrink-0">
                     2
                   </div>
-                  <p>Print this QR code and place it on tables or at the counter.</p>
+                  <p>{t('qrmenu.step2')}</p>
                 </li>
                 <li className="flex gap-3">
                   <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shrink-0">
                     3
                   </div>
-                  <p>
-                    Customers scan the code with their camera to instantly view your latest menu.
-                  </p>
+                  <p>{t('qrmenu.step3')}</p>
                 </li>
               </ul>
             </div>
@@ -90,7 +89,7 @@ export default function QRMenu() {
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
               <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                 <Smartphone size={16} className="text-slate-400" />
-                Direct Menu Link
+                {t('qrmenu.directLink')}
               </h4>
               <div className="flex gap-2">
                 <input
@@ -114,15 +113,15 @@ export default function QRMenu() {
           <div className="flex flex-col items-center justify-center">
             <div
               id="print-area"
-              className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 mb-6 flex flex-col items-center text-center max-w-sm w-full relative overflow-hidden"
+              className="bg-white p-8 rounded-4xl shadow-xl border border-slate-100 dark:border-slate-800 mb-6 flex flex-col items-center text-center max-w-sm w-full relative overflow-hidden"
             >
-              <div className="absolute top-0 left-0 w-full h-32 bg-linear-to-b from-emerald-50 to-transparent"></div>
+              <div className="absolute top-0 inset-s-0 w-full h-32 bg-linear-to-b from-emerald-50 to-transparent"></div>
 
               <h3 className="text-2xl font-black text-slate-900 mb-2 relative z-10">
-                Scan to Order
+                {t('qrmenu.scanToOrder')}
               </h3>
               <p className="text-slate-500 text-sm mb-8 font-medium relative z-10">
-                View our complete menu instantly
+                {t('qrmenu.viewMenu')}
               </p>
 
               <div className="bg-white p-4 rounded-2xl shadow-inner border-2 border-slate-100 mb-6 relative z-10">
@@ -137,7 +136,7 @@ export default function QRMenu() {
 
               <div className="flex items-center gap-2 text-emerald-600 font-bold relative z-10">
                 <Smartphone size={20} />
-                <span>No app required</span>
+                <span>{t('qrmenu.noApp')}</span>
               </div>
             </div>
 
@@ -146,7 +145,7 @@ export default function QRMenu() {
               className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-8 rounded-xl shadow-lg shadow-emerald-500/30 flex items-center gap-2 transition-all hover:-translate-y-0.5 active:translate-y-0 w-full max-w-sm justify-center"
             >
               <Printer size={20} />
-              Print Table Display
+              {t('qrmenu.printDisplay')}
             </button>
 
             {/* Print styles - only visible when printing */}

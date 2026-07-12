@@ -16,6 +16,7 @@ import { motion } from 'motion/react';
 import { Product, Customer } from '../types';
 import { useCustomerStore } from '../stores/customerStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useTranslation } from 'react-i18next';
 
 interface CartPanelProps {
   cart: Array<{ product: Product; quantity: number }>;
@@ -66,6 +67,7 @@ export default function CartPanel({
 }: CartPanelProps) {
   const { customers } = useCustomerStore();
   const { settings } = useSettingsStore();
+  const { t } = useTranslation();
 
   const applyLoyaltyPoints = () => {
     if (!activeCustomer) return;
@@ -88,7 +90,7 @@ export default function CartPanel({
   return (
     <div
       id="cart-section"
-      className="w-96 glass dark:glass-dark border-l border-white/20 dark:border-white/10 shadow-2xl flex flex-col h-full shrink-0 relative z-10 transition-colors duration-300 backdrop-blur-xl"
+      className="w-96 glass dark:glass-dark border-s border-white/20 dark:border-white/10 shadow-2xl flex flex-col h-full shrink-0 relative z-10 transition-colors duration-300 backdrop-blur-xl"
     >
       <div
         id="cart-customer-header"
@@ -113,10 +115,10 @@ export default function CartPanel({
             ) : (
               <>
                 <p className="font-sans font-semibold text-slate-700 dark:text-slate-300 text-xs leading-none">
-                  Walk-In Customer
+                  {t('register.walkIn')}
                 </p>
                 <p className="text-[10px] font-sans text-slate-500 dark:text-slate-500 mt-1">
-                  Select a member to award points
+                  {t('register.selectMember')}
                 </p>
               </>
             )}
@@ -142,7 +144,7 @@ export default function CartPanel({
                 onChange={(e) => setSelectedCustomerId(e.target.value || null)}
                 className="bg-white/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 rounded-lg text-xs font-medium px-2 py-1 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-emerald-500 max-w-[100px]"
               >
-                <option value="">Link</option>
+                <option value="">{t('register.link')}</option>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -166,7 +168,7 @@ export default function CartPanel({
           <div className="h-full flex flex-col items-center justify-center text-center opacity-50 py-12">
             <span className="text-5xl mb-3 animate-float">🛒</span>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-mono tracking-wider">
-              CART IS EMPTY
+              {t('register.cartEmpty')}
             </p>
           </div>
         ) : (
@@ -179,7 +181,7 @@ export default function CartPanel({
               exit={{ opacity: 0, scale: 0.9 }}
               className="flex items-center justify-between glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-xl p-2.5 shadow-md hover:shadow-lg transition-shadow card-hover"
             >
-              <div className="min-w-0 flex-1 pr-2">
+              <div className="min-w-0 flex-1 pe-2">
                 <h4 className="font-sans font-semibold text-slate-800 dark:text-slate-200 text-xs truncate leading-snug">
                   {item.product.name}
                 </h4>
@@ -190,7 +192,7 @@ export default function CartPanel({
                   </span>
                   <span className="text-[10px] text-slate-300 dark:text-slate-600">•</span>
                   <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                    Total: {settings.currency}
+                    {t('register.total')}: {settings.currency}
                     {(item.product.price * item.quantity).toFixed(2)}
                   </span>
                 </div>
@@ -200,7 +202,7 @@ export default function CartPanel({
                 <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
                   <button
                     onClick={() => updateCartQty(item.product.id, -1)}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors rounded-l-lg"
+                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors rounded-s-lg"
                   >
                     <Minus size={12} />
                   </button>
@@ -210,7 +212,7 @@ export default function CartPanel({
                   <button
                     onClick={() => updateCartQty(item.product.id, 1)}
                     disabled={item.quantity >= item.product.stock}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 disabled:opacity-30 transition-colors rounded-r-lg"
+                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 disabled:opacity-30 transition-colors rounded-e-lg"
                   >
                     <Plus size={12} />
                   </button>
@@ -240,9 +242,9 @@ export default function CartPanel({
             <div className="flex items-start space-x-2">
               <Info size={14} className="text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
               <div className="text-[11px] text-emerald-800 dark:text-emerald-200">
-                <span className="font-bold">Loyalty Points Available</span>
+                <span className="font-bold">{t('register.loyaltyPointsAvail')}</span>
                 <p className="text-[10px] text-emerald-600/80 dark:text-emerald-300/80 mt-0.5">
-                  Save {settings.currency}
+                  {t('register.save')} {settings.currency}
                   {(
                     Math.min(
                       activeCustomer.points,
@@ -256,7 +258,7 @@ export default function CartPanel({
               onClick={applyLoyaltyPoints}
               className="text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-lg shadow-sm transition-colors shrink-0"
             >
-              Apply
+              {t('register.apply')}
             </button>
           </motion.div>
         )}
@@ -269,7 +271,7 @@ export default function CartPanel({
           >
             <span className="text-amber-700 dark:text-amber-400 font-medium flex items-center gap-1.5">
               <Tag size={13} />
-              Discount:{' '}
+              {t('register.discount')}{' '}
               <strong className="font-bold">
                 {discountType === 'percentage'
                   ? `${discountInput}%`
@@ -302,7 +304,7 @@ export default function CartPanel({
                   }}
                   className="flex-1 flex items-center justify-center gap-1.5 border border-slate-200/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl py-1.5 text-xs font-semibold transition-colors shadow-sm"
                 >
-                  <Percent size={12} /> Add %
+                  <Percent size={12} /> <span dir="ltr">{t('register.addPercent')}</span>
                 </button>
                 <button
                   onClick={() => {
@@ -311,7 +313,7 @@ export default function CartPanel({
                   }}
                   className="flex-1 flex items-center justify-center gap-1.5 border border-slate-200/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl py-1.5 text-xs font-semibold transition-colors shadow-sm"
                 >
-                  <DollarSign size={12} /> Fixed
+                  <DollarSign size={12} /> {t('register.fixed')}
                 </button>
               </>
             ) : (
@@ -323,7 +325,7 @@ export default function CartPanel({
                 <input
                   type="number"
                   min="0"
-                  placeholder={discountType === 'percentage' ? 'Discount %' : 'Discount $'}
+                  placeholder={discountType === 'percentage' ? '%' : '$'}
                   value={discountInput}
                   onChange={(e) => setDiscountInput(e.target.value)}
                   className="flex-1 text-xs border-none bg-transparent px-2.5 focus:outline-none text-slate-800 dark:text-slate-200"
@@ -333,7 +335,7 @@ export default function CartPanel({
                   onClick={handleApplyPromoCode}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-3 py-1.5 rounded-lg transition-colors"
                 >
-                  Apply
+                  {t('register.apply')}
                 </button>
                 <button
                   onClick={() => {
@@ -356,7 +358,7 @@ export default function CartPanel({
       >
         <div className="space-y-2">
           <div className="flex justify-between text-slate-500 dark:text-slate-400 text-xs">
-            <span>Subtotal</span>
+            <span>{t('register.subtotal')}</span>
             <span className="font-mono">
               {settings.currency}
               {subtotal.toFixed(2)}
@@ -365,7 +367,7 @@ export default function CartPanel({
 
           {discountAmount > 0 && (
             <div className="flex justify-between text-amber-600 dark:text-amber-400 text-xs font-medium">
-              <span>Discount</span>
+              <span>{t('register.discount').replace(':', '')}</span>
               <span className="font-mono">
                 -{settings.currency}
                 {discountAmount.toFixed(2)}
@@ -374,7 +376,7 @@ export default function CartPanel({
           )}
 
           <div className="flex justify-between text-slate-800 dark:text-slate-100 font-bold text-sm pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
-            <span>Total</span>
+            <span>{t('register.total')}</span>
             <span className="font-mono text-xl text-emerald-600 dark:text-emerald-400 tracking-tight">
               {settings.currency}
               {totalAmount.toFixed(2)}
@@ -397,7 +399,7 @@ export default function CartPanel({
             className="flex-1 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:from-slate-400 disabled:to-slate-400 text-white font-sans font-bold text-sm py-3 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/25 transition-all transform active:scale-95"
           >
             <CreditCard size={18} />
-            <span>Checkout</span>
+            <span>{t('register.checkout')}</span>
           </button>
         </div>
       </div>

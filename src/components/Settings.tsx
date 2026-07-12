@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Settings as SettingsIcon, Cloud } from 'lucide-react';
 import { StoreSettings, SupabaseConfig } from '../types';
-
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../stores/settingsStore';
 
 export default function Settings() {
-  const { settings, setSettings } = useSettingsStore();
+  const { settings, setSettings, language, setLanguage } = useSettingsStore();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'profile' | 'supabase'>('profile');
 
   // Supabase Local State
@@ -26,8 +27,8 @@ export default function Settings() {
   };
 
   const tabs = [
-    { id: 'profile', label: 'Store Profile', icon: SettingsIcon },
-    { id: 'supabase', label: 'Supabase Sync', icon: Cloud },
+    { id: 'profile', label: t('settings.title'), icon: SettingsIcon },
+    { id: 'supabase', label: t('settings.supabaseSync'), icon: Cloud },
   ] as const;
 
   return (
@@ -36,13 +37,13 @@ export default function Settings() {
         <div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2">
             <SettingsIcon className="text-emerald-500" />
-            System Control Center
+            {t('settings.systemControlCenter')}
           </h2>
         </div>
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-        <div className="w-full md:w-64 bg-white border-r border-slate-200 shrink-0 p-4 overflow-y-auto">
+        <div className="w-full md:w-64 bg-white border-e border-slate-200 shrink-0 p-4 overflow-y-auto">
           <nav className="space-y-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -51,7 +52,7 @@ export default function Settings() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-start transition-colors ${
                     isActive
                       ? 'bg-emerald-50 text-emerald-700 font-semibold'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -70,13 +71,13 @@ export default function Settings() {
             {activeTab === 'profile' && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                  <h3 className="font-semibold text-slate-900">Store Profile</h3>
+                  <h3 className="font-semibold text-slate-900">{t('settings.title')}</h3>
                 </div>
                 <div className="p-6 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
-                        Store Name
+                        {t('settings.storeName')}
                       </label>
                       <input
                         type="text"
@@ -87,7 +88,7 @@ export default function Settings() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
-                        Store Phone
+                        {t('settings.storePhone')}
                       </label>
                       <input
                         type="text"
@@ -98,7 +99,7 @@ export default function Settings() {
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
-                        Store Address
+                        {t('settings.storeAddress')}
                       </label>
                       <input
                         type="text"
@@ -109,7 +110,7 @@ export default function Settings() {
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
-                        Store Logo URL or Upload
+                        {t('settings.storeLogoUrl')}
                       </label>
                       <div className="flex gap-2">
                         <input
@@ -120,7 +121,7 @@ export default function Settings() {
                           className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
                         />
                         <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 flex items-center justify-center shrink-0">
-                          Upload File
+                          {t('settings.uploadFile')}
                           <input
                             type="file"
                             className="hidden"
@@ -150,7 +151,7 @@ export default function Settings() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
-                        Currency Symbol
+                        {t('settings.currencySymbol')}
                       </label>
                       <input
                         type="text"
@@ -161,7 +162,7 @@ export default function Settings() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
-                        Tax Rate (%)
+                        {t('settings.taxRate')}
                       </label>
                       <input
                         type="number"
@@ -174,15 +175,28 @@ export default function Settings() {
                         className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
                       />
                     </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+                        {t('settings.language')}
+                      </label>
+                      <select
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value as 'en' | 'ar')}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
+                      >
+                        <option value="en">{t('settings.english')}</option>
+                        <option value="ar">{t('settings.arabic')}</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
             {activeTab === 'supabase' && (
               <div className="p-6 bg-white rounded-2xl border border-slate-200">
-                <h3 className="font-semibold text-slate-900 mb-4">Supabase Config</h3>
-                <p className="text-sm text-slate-600">Status: {supabaseConfig.status}</p>
-                <p className="text-xs text-slate-400 mt-2">Configure through .env file</p>
+                <h3 className="font-semibold text-slate-900 mb-4">{t('settings.supabaseConfig')}</h3>
+                <p className="text-sm text-slate-600">{t('settings.status')}: {supabaseConfig.status}</p>
+                <p className="text-xs text-slate-400 mt-2">{t('settings.configureEnv')}</p>
               </div>
             )}
           </div>

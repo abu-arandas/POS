@@ -23,8 +23,10 @@ import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
+import { useTranslation } from 'react-i18next';
 
 export default function Customers() {
+  const { t } = useTranslation();
   const { customers, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer } =
     useCustomerStore();
   const { transactions } = useTransactionStore();
@@ -155,16 +157,16 @@ export default function Customers() {
       {/* LEFT COLUMN: Customer Directory (2/3 width) */}
       <div
         id="customer-directory-section"
-        className="flex-1 flex flex-col min-w-0 pr-6 overflow-hidden"
+        className="flex-1 flex flex-col min-w-0 pe-6 overflow-hidden"
       >
         {/* Header */}
         <div id="customers-header" className="mb-6 shrink-0 flex items-center justify-between">
           <div>
             <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
-              <Users className="text-emerald-500" /> Customer Loyalty CRM
+              <Users className="text-emerald-500" /> {t('customers.customerLoyaltyCrm')}
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-              Manage customer accounts, verify loyalty metrics, and reward returning patrons.
+              {t('customers.manageCustomerAccounts')}
             </p>
           </div>
 
@@ -174,7 +176,7 @@ export default function Customers() {
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-sans font-bold text-xs sm:text-sm px-4 py-2 rounded-xl flex items-center space-x-1.5 shadow-lg shadow-emerald-600/10"
           >
             <UserPlus size={16} />
-            <span>New Customer</span>
+            <span>{t('customers.newCustomer')}</span>
           </button>
         </div>
 
@@ -190,7 +192,7 @@ export default function Customers() {
               <input
                 id="customer-search-input"
                 type="text"
-                placeholder="Search CRM by full name, phone number, or email..."
+                placeholder={t('customers.searchCrm')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 bg-transparent border-none text-slate-800 text-xs focus:outline-none placeholder-slate-400"
@@ -200,9 +202,9 @@ export default function Customers() {
             {/* Sorting buttons */}
             <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
               {[
-                { id: 'name', label: 'Alphabetical' },
-                { id: 'points', label: 'Loyalty Points' },
-                { id: 'date', label: 'Join Date' },
+                { id: 'name', label: t('customers.alphabetical') },
+                { id: 'points', label: t('customers.loyaltyPoints') },
+                { id: 'date', label: t('customers.joinDate') },
               ].map((opt) => (
                 <button
                   key={opt.id}
@@ -221,10 +223,10 @@ export default function Customers() {
         </div>
 
         {/* Directory Grid */}
-        <div id="crm-grid-container" className="flex-1 overflow-y-auto pr-1">
+        <div id="crm-grid-container" className="flex-1 overflow-y-auto pe-1">
           {sortedAndFilteredCustomers.length === 0 ? (
             <div className="bg-white rounded-2xl p-12 text-center text-slate-400 font-mono text-xs border border-slate-200">
-              NO CUSTOMERS MATCHING YOUR CRITERIA
+              {t('customers.noCustomersMatching')}
             </div>
           ) : (
             <div id="crm-grid" className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -244,7 +246,7 @@ export default function Customers() {
                         : 'border-white/20 dark:border-white/10 hover:border-white/40 dark:hover:border-white/20'
                     }`}
                   >
-                    <div className="space-y-3 min-w-0 flex-1 pr-3">
+                    <div className="space-y-3 min-w-0 flex-1 pe-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-sans font-bold text-slate-800 text-sm leading-tight truncate max-w-[150px]">
                           {cust.name}
@@ -258,13 +260,13 @@ export default function Customers() {
 
                       <div className="space-y-1 font-sans text-[11px] text-slate-500">
                         <p className="flex items-center gap-1.5 truncate">
-                          <Mail size={12} /> {cust.email || 'No email'}
+                          <Mail size={12} /> {cust.email || t('customers.noEmail')}
                         </p>
                         <p className="flex items-center gap-1.5">
-                          <Phone size={12} /> {cust.phone || 'No phone'}
+                          <Phone size={12} /> {cust.phone || t('customers.noPhone')}
                         </p>
                         <p className="flex items-center gap-1.5 font-mono text-[10px]">
-                          <Calendar size={12} /> Registered: {cust.createdAt}
+                          <Calendar size={12} /> {t('customers.registered')} {cust.createdAt}
                         </p>
                       </div>
                     </div>
@@ -272,7 +274,7 @@ export default function Customers() {
                     <div className="flex flex-col items-end justify-between h-full space-y-4 shrink-0">
                       <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-1.5 text-center shadow-inner">
                         <span className="text-[10px] text-emerald-600 font-bold block uppercase tracking-wider font-mono">
-                          Points
+                          {t('customers.points')}
                         </span>
                         <span className="font-mono font-extrabold text-sm text-emerald-700">
                           {cust.points}
@@ -286,7 +288,7 @@ export default function Customers() {
                             handleOpenEditCustomer(cust);
                           }}
                           className="p-1.5 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200/60 rounded-lg transition-colors"
-                          title="Edit Customer Details"
+                          title={t('customers.editCustomerDetails')}
                         >
                           <Edit2 size={12} />
                         </button>
@@ -294,17 +296,13 @@ export default function Customers() {
                           id={`del-cust-${cust.id}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (
-                              confirm(
-                                `Delete CRM account for ${cust.name}? points history will be cleared.`,
-                              )
-                            ) {
+                            if (confirm(t('customers.deleteConfirm', { name: cust.name }))) {
                               handleDeleteCustomer(cust.id);
                               if (selectedCustomerId === cust.id) setSelectedCustomerId(null);
                             }
                           }}
                           className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100/50 rounded-lg transition-colors"
-                          title="Delete Customer CRM record"
+                          title={t('customers.deleteCustomerRecord')}
                         >
                           <Trash2 size={12} />
                         </button>
@@ -332,7 +330,7 @@ export default function Customers() {
                   {activeCustomer.name}
                 </h3>
                 <span className="text-[10px] font-mono text-slate-400">
-                  Account: {activeCustomer.id}
+                  {t('customers.account')} {activeCustomer.id}
                 </span>
               </div>
               <button
@@ -349,7 +347,7 @@ export default function Customers() {
               <div id="crm-stats-block" className="grid grid-cols-2 gap-3">
                 <div className="bg-white/40 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-700/50 rounded-2xl p-3 text-center shadow-inner">
                   <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider font-mono">
-                    Total Spent
+                    {t('customers.totalSpent')}
                   </span>
                   <p className="font-mono font-extrabold text-sm text-slate-800 mt-1">
                     {settings.currency}
@@ -358,15 +356,15 @@ export default function Customers() {
                 </div>
                 <div className="bg-white/40 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-700/50 rounded-2xl p-3 text-center shadow-inner">
                   <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider font-mono">
-                    Order Count
+                    {t('customers.orderCount')}
                   </span>
                   <p className="font-mono font-extrabold text-sm text-slate-800 mt-1">
-                    {activeCustomerStats.totalVisits} visits
+                    {activeCustomerStats.totalVisits} {t('customers.visits')}
                   </p>
                 </div>
                 <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center shadow-xs col-span-2">
                   <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider font-mono">
-                    Average Ticket Value
+                    {t('customers.averageTicketValue')}
                   </span>
                   <p className="font-mono font-extrabold text-sm text-emerald-600 mt-1">
                     {settings.currency}
@@ -378,12 +376,12 @@ export default function Customers() {
               {/* Purchase history log list */}
               <div className="space-y-3">
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                  <ShoppingBag size={12} /> Purchase History Log
+                  <ShoppingBag size={12} /> {t('customers.purchaseHistoryLog')}
                 </h4>
 
                 {activeCustomerTransactions.length === 0 ? (
                   <p className="text-[10px] font-mono text-slate-400 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200">
-                    NO LINKED SALES ON FILE
+                    {t('customers.noLinkedSales')}
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -406,7 +404,9 @@ export default function Customers() {
                           <span
                             className={`text-[9px] font-bold ${tx.status === 'refunded' ? 'text-rose-500' : 'text-slate-400'}`}
                           >
-                            {tx.status === 'refunded' ? 'Refunded' : 'Completed'}
+                            {tx.status === 'refunded'
+                              ? t('customers.refunded')
+                              : t('customers.completed')}
                           </span>
                         </div>
                       </div>
@@ -419,10 +419,11 @@ export default function Customers() {
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 bg-slate-50/20">
             <span className="text-4xl mb-2">🏅</span>
-            <h4 className="font-sans font-bold text-slate-700 text-sm">CRM Profile Offline</h4>
+            <h4 className="font-sans font-bold text-slate-700 text-sm">
+              {t('customers.crmProfileOffline')}
+            </h4>
             <p className="text-xs text-slate-400 max-w-[200px] mt-1">
-              Select any client card from the CRM directory list to audit loyalty logs and
-              transaction logs.
+              {t('customers.selectClientCard')}
             </p>
           </div>
         )}
@@ -443,7 +444,9 @@ export default function Customers() {
             >
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <h3 className="font-sans font-bold text-slate-800 text-base">
-                  {editingCustomer ? 'Edit Customer Record' : 'Register New Customer'}
+                  {editingCustomer
+                    ? t('customers.editCustomerRecord')
+                    : t('customers.registerNewCustomer')}
                 </h3>
                 <button
                   onClick={() => setProductModalOpen(false)}
@@ -457,7 +460,7 @@ export default function Customers() {
                 <div className="p-6 space-y-4">
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                      Customer Full Name *
+                      {t('customers.customerFullName')}
                     </label>
                     <input
                       id="form-cust-name"
@@ -472,7 +475,7 @@ export default function Customers() {
 
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                      Phone Number
+                      {t('customers.phoneNumber')}
                     </label>
                     <input
                       id="form-cust-phone"
@@ -486,7 +489,7 @@ export default function Customers() {
 
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                      Email Address
+                      {t('customers.emailAddress')}
                     </label>
                     <input
                       id="form-cust-email"
@@ -501,7 +504,7 @@ export default function Customers() {
                   {editingCustomer && (
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        Adjust Loyalty Points
+                        {t('customers.adjustLoyaltyPoints')}
                       </label>
                       <input
                         id="form-cust-points"
@@ -521,15 +524,15 @@ export default function Customers() {
                     onClick={() => setProductModalOpen(false)}
                     className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50"
                   >
-                    Cancel
+                    {t('customers.cancel')}
                   </button>
                   <button
                     type="submit"
                     id="form-submit-cust-btn"
                     className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold text-xs sm:text-sm rounded-xl flex items-center shadow-lg shadow-slate-900/10"
                   >
-                    <Check size={16} className="mr-1" />
-                    <span>Save Customer</span>
+                    <Check size={16} className="me-1" />
+                    <span>{t('customers.saveCustomer')}</span>
                   </button>
                 </div>
               </form>

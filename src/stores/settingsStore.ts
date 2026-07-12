@@ -9,11 +9,13 @@ interface SettingsState {
   printerConfig: PrinterConfig;
   supabaseConfig: SupabaseConfig;
   darkMode: boolean;
+  language: 'en' | 'ar';
 
   setSettings: (settings: StoreSettings) => void;
   setPrinterConfig: (config: PrinterConfig) => void;
   setSupabaseConfig: (config: SupabaseConfig) => void;
   setDarkMode: (darkMode: boolean) => void;
+  setLanguage: (lang: 'en' | 'ar') => void;
 }
 
 const DEFAULT_PRINTER: PrinterConfig = {
@@ -38,11 +40,13 @@ export const useSettingsStore = create<SettingsState>()(
       printerConfig: DEFAULT_PRINTER,
       supabaseConfig: DEFAULT_SUPABASE,
       darkMode: false,
+      language: 'en',
 
       setSettings: (settings) => set({ settings }),
       setPrinterConfig: (printerConfig) => set({ printerConfig }),
       setSupabaseConfig: (supabaseConfig) => set({ supabaseConfig }),
       setDarkMode: (darkMode) => set({ darkMode }),
+      setLanguage: (language) => set({ language }),
     }),
     {
       name: 'pos-settings-storage',

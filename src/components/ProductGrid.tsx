@@ -21,6 +21,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useTranslation } from 'react-i18next';
 
 interface ProductGridProps {
   selectedCategory: string;
@@ -45,6 +46,7 @@ function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories,
   const isLowStock = prod.stock <= prod.minStock && prod.stock > 0;
   const isOutOfStock = prod.stock === 0;
   const isLimitReached = cartQty >= prod.stock;
+  const { t } = useTranslation();
 
   return (
     <motion.div
@@ -74,26 +76,26 @@ function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories,
       {...attributes}
       {...listeners}
     >
-      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1.5">
+      <div className="absolute top-2 inset-s-2 z-10 flex flex-col gap-1.5">
         {isOutOfStock && (
           <span className="bg-rose-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
-            Out of Stock
+            {t('register.outOfStock')}
           </span>
         )}
         {!isOutOfStock && isLowStock && (
           <span className="bg-amber-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm shimmer">
-            Only {prod.stock} Left
+            {t('register.onlyLeft', { count: prod.stock })}
           </span>
         )}
         {cartQty > 0 && !isEditMode && (
           <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-md shadow-emerald-500/30 animate-pop-in">
-            {cartQty} in Cart
+            {t('register.inCart', { count: cartQty })}
           </span>
         )}
       </div>
 
       {isEditMode && (
-        <div className="absolute top-2 right-2 z-20 bg-slate-900/50 text-white p-1 rounded-lg backdrop-blur-md">
+        <div className="absolute top-2 inset-e-2 z-20 bg-slate-900/50 text-white p-1 rounded-lg backdrop-blur-md">
           <GripHorizontal size={14} />
         </div>
       )}
@@ -117,7 +119,7 @@ function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories,
       <div className="p-3.5 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md flex-1 flex flex-col justify-between pointer-events-none">
         <div>
           <span className="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400 block uppercase tracking-wider mb-1">
-            {categories.find((c: any) => c.id === prod.category)?.name || 'General'}
+            {t(`categories.${categories.find((c: any) => c.id === prod.category)?.name?.toLowerCase() || 'general'}`, { defaultValue: categories.find((c: any) => c.id === prod.category)?.name || 'General' })}
           </span>
           <h3 className="font-sans font-semibold text-slate-800 dark:text-slate-100 text-sm tracking-tight line-clamp-2 h-10 leading-snug">
             {prod.name}
@@ -129,7 +131,7 @@ function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories,
             {prod.price.toFixed(2)}
           </span>
           <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
-            SKU: {prod.sku.split('-').pop()}
+            {t('register.sku')}: {prod.sku.split('-').pop()}
           </span>
         </div>
       </div>
@@ -147,6 +149,7 @@ export default function ProductGrid({
   const { settings } = useSettingsStore();
   const { currentUser } = useAuthStore();
   const isAdmin = currentUser?.role === 'admin';
+  const { t } = useTranslation();
 
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -194,7 +197,7 @@ export default function ProductGrid({
                 : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-transparent hover:bg-white dark:hover:bg-slate-700'
             }`}
           >
-            All Products
+            {t('register.allProducts')}
           </button>
           {categories.map((cat) => (
             <button
@@ -206,7 +209,7 @@ export default function ProductGrid({
                   : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-transparent hover:bg-white dark:hover:bg-slate-700'
               }`}
             >
-              {cat.name}
+              {t(`categories.${cat.name.toLowerCase()}`, { defaultValue: cat.name })}
             </button>
           ))}
         </div>
@@ -214,25 +217,25 @@ export default function ProductGrid({
         {isAdmin && (
           <button
             onClick={() => setIsEditMode(!isEditMode)}
-            className={`ml-4 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all shadow-sm shrink-0 ${
+            className={`ms-4 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all shadow-sm shrink-0 ${
               isEditMode
                 ? 'bg-rose-500 text-white border-rose-500 shadow-rose-500/20'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
             <LayoutGrid size={14} />
-            {isEditMode ? 'Done Editing' : 'Edit Layout'}
+            {isEditMode ? t('register.doneEditing') : t('register.editLayout')}
           </button>
         )}
       </div>
 
       {/* Products Grid */}
-      <div id="products-grid-container" className="flex-1 overflow-y-auto pr-1">
+      <div id="products-grid-container" className="flex-1 overflow-y-auto pe-1">
         {filteredProducts.length === 0 ? (
           <div className="h-64 flex flex-col items-center justify-center text-center animate-fade-in">
             <span className="text-4xl animate-float-slow">☕</span>
             <p className="mt-4 text-sm text-slate-500 dark:text-slate-400 font-medium">
-              No products
+              {t('register.noProducts')}
             </p>
           </div>
         ) : (

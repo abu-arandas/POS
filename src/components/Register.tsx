@@ -20,8 +20,10 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
+import { useTranslation } from 'react-i18next';
 
 export default function Register() {
+  const { t } = useTranslation();
   const { products, categories, handleUpdateProduct } = useProductStore();
   const { customers, handleAddCustomer, updateCustomerPoints } = useCustomerStore();
   const { settings, printerConfig } = useSettingsStore();
@@ -285,10 +287,10 @@ export default function Register() {
               <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
                 <div>
                   <h3 className="font-sans font-bold text-slate-800 dark:text-white text-lg">
-                    Select Payment Method
+                    {t('register.selectPaymentMethod')}
                   </h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                    Amount to pay:{' '}
+                    {t('register.amountToPay')}{' '}
                     <span className="font-bold text-emerald-600 dark:text-emerald-400">
                       {settings.currency}
                       {totalAmount.toFixed(2)}
@@ -369,7 +371,7 @@ export default function Register() {
                     >
                       <div>
                         <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2 font-mono uppercase tracking-wider">
-                          Quick Cash Pay
+                          {t('register.quickCashPay')}
                         </label>
                         <div className="flex flex-wrap gap-2">
                           {cashSuggestions.map((val) => (
@@ -388,10 +390,10 @@ export default function Register() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1.5">
-                            Cash Tendered ({settings.currency})
+                            {t('register.cashTendered')} ({settings.currency})
                           </label>
                           <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl p-1 bg-slate-50 dark:bg-slate-950 shadow-inner">
-                            <span className="font-mono text-slate-400 dark:text-slate-500 pl-3 font-bold">
+                            <span className="font-mono text-slate-400 dark:text-slate-500 ps-3 font-bold">
                               {settings.currency}
                             </span>
                             <input
@@ -408,11 +410,11 @@ export default function Register() {
 
                         <div>
                           <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1.5">
-                            Change Due
+                            {t('register.changeDue')}
                           </label>
                           <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-2 flex items-center justify-between h-[46px]">
                             <span className="text-emerald-800 dark:text-emerald-400 text-xs font-semibold uppercase font-mono">
-                              Return
+                              {t('register.returnAmount')}
                             </span>
                             <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-lg">
                               {settings.currency}
@@ -431,7 +433,7 @@ export default function Register() {
                   onClick={() => setCheckoutModalOpen(false)}
                   className="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
                 >
-                  Cancel
+                  {t('register.cancel')}
                 </button>
                 <button
                   onClick={handleCompletePayment}
@@ -442,7 +444,7 @@ export default function Register() {
                   className="px-8 py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:from-slate-400 disabled:to-slate-400 text-white font-sans font-bold text-sm rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/25 transition-all transform active:scale-95"
                 >
                   <Check size={18} />
-                  <span>Complete Order</span>
+                  <span>{t('register.completeOrder')}</span>
                 </button>
               </div>
             </motion.div>
@@ -465,7 +467,7 @@ export default function Register() {
               <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
                 <h3 className="font-sans font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
                   <UserPlus size={20} className="text-emerald-500" />
-                  New Customer
+                  {t('register.newCustomer')}
                 </h3>
                 <button
                   onClick={() => setAddCustomerOpen(false)}
@@ -478,7 +480,7 @@ export default function Register() {
               <form onSubmit={handleAddNewCustomer} className="space-y-4">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
-                    Full Name *
+                    {t('register.fullName')}
                   </label>
                   <input
                     type="text"
@@ -491,7 +493,7 @@ export default function Register() {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
-                    Phone Number
+                    {t('register.phoneNumber')}
                   </label>
                   <input
                     type="tel"
@@ -503,7 +505,7 @@ export default function Register() {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
-                    Email Address
+                    {t('register.emailAddress')}
                   </label>
                   <input
                     type="email"
@@ -520,13 +522,13 @@ export default function Register() {
                     onClick={() => setAddCustomerOpen(false)}
                     className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
                   >
-                    Cancel
+                    {t('register.cancel')}
                   </button>
                   <button
                     type="submit"
                     className="px-5 py-2.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20 transition-all transform active:scale-95"
                   >
-                    Save & Link
+                    {t('register.saveLink')}
                   </button>
                 </div>
               </form>
@@ -557,10 +559,10 @@ export default function Register() {
                   <Check size={32} className="stroke-3" />
                 </motion.div>
                 <h3 className="font-sans font-bold text-white text-xl tracking-tight">
-                  Payment Successful!
+                  {t('register.paymentSuccessful')}
                 </h3>
                 <p className="text-emerald-100 text-sm font-mono bg-black/10 px-3 py-1 rounded-full">
-                  Receipt {activeReceipt.id}
+                  {t('register.receipt')} {activeReceipt.id}
                 </p>
               </div>
 
@@ -598,16 +600,16 @@ export default function Register() {
                       <span>{new Date(activeReceipt.date).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>RECEIPT:</span>
+                      <span>{t('register.receipt').toUpperCase()}:</span>
                       <span>{activeReceipt.id}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>OPERATOR:</span>
+                      <span>{t('register.operator')}:</span>
                       <span>Admin</span>
                     </div>
                     {activeReceipt.customerName && (
                       <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold mt-1">
-                        <span>MEMBER:</span>
+                        <span>{t('register.member')}:</span>
                         <span>{activeReceipt.customerName}</span>
                       </div>
                     )}
@@ -629,7 +631,7 @@ export default function Register() {
 
                   <div className="space-y-1.5">
                     <div className="flex justify-between">
-                      <span>SUBTOTAL:</span>
+                      <span>{t('register.subtotal').toUpperCase()}:</span>
                       <span>
                         {settings.currency}
                         {activeReceipt.subtotal.toFixed(2)}
@@ -637,7 +639,7 @@ export default function Register() {
                     </div>
                     {activeReceipt.discount > 0 && (
                       <div className="flex justify-between text-amber-600 dark:text-amber-400">
-                        <span>DISCOUNT:</span>
+                        <span>{t('register.discount').toUpperCase()}</span>
                         <span>
                           -{settings.currency}
                           {activeReceipt.discount.toFixed(2)}
@@ -645,7 +647,7 @@ export default function Register() {
                       </div>
                     )}
                     <div className="flex justify-between text-slate-900 dark:text-white font-bold pt-2 border-t border-slate-200 dark:border-slate-800 mt-2 text-sm">
-                      <span>TOTAL PAID:</span>
+                      <span>{t('register.totalPaid')}:</span>
                       <span>
                         {settings.currency}
                         {activeReceipt.total.toFixed(2)}
@@ -655,20 +657,20 @@ export default function Register() {
 
                   <div className="border-t border-dashed border-slate-300 dark:border-slate-700 pt-4 space-y-1.5 text-[10px]">
                     <div className="flex justify-between">
-                      <span>METHOD:</span>
+                      <span>{t('register.method')}:</span>
                       <span className="uppercase font-bold">{activeReceipt.paymentMethod}</span>
                     </div>
                     {activeReceipt.paymentMethod === 'cash' && (
                       <>
                         <div className="flex justify-between">
-                          <span>CASH TENDERED:</span>
+                          <span>{t('register.cashTenderedReceipt')}:</span>
                           <span>
                             {settings.currency}
                             {(activeReceipt.cashPaid || 0).toFixed(2)}
                           </span>
                         </div>
                         <div className="flex justify-between text-slate-900 dark:text-white font-bold">
-                          <span>CHANGE:</span>
+                          <span>{t('register.change')}:</span>
                           <span>
                             {settings.currency}
                             {(activeReceipt.cashChange || 0).toFixed(2)}
@@ -679,7 +681,7 @@ export default function Register() {
                   </div>
 
                   <div className="text-center pt-4 border-t border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-slate-400 dark:text-slate-500">
-                    <p>THANK YOU FOR YOUR VISIT</p>
+                    <p>{t('register.thankYou')}</p>
                   </div>
                 </div>
               </div>
@@ -690,13 +692,13 @@ export default function Register() {
                   className="flex-1 flex justify-center items-center gap-2 px-4 py-3 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-semibold transition-colors shadow-sm"
                 >
                   <Printer size={16} />
-                  <span>Print</span>
+                  <span>{t('register.print')}</span>
                 </button>
                 <button
                   onClick={() => setReceiptModalOpen(false)}
                   className="flex-1 px-4 py-3 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl text-sm font-bold shadow-md shadow-slate-900/10 transition-colors"
                 >
-                  New Sale
+                  {t('register.newSale')}
                 </button>
               </div>
             </motion.div>

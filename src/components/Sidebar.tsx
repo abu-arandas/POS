@@ -13,6 +13,7 @@ import {
   QrCode,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { UserAccount } from '../types';
 
 import { useAuthStore } from '../stores/authStore';
@@ -32,6 +33,7 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
   const { currentUser, setCurrentUser } = useAuthStore();
   const { settings, darkMode, setDarkMode } = useSettingsStore();
   const { products } = useProductStore();
+  const { t } = useTranslation();
   const storeName = settings.storeName;
   const lowStockCount = products.filter((p) => p.stock <= p.minStock && p.stock > 0).length;
   // Define full list of all available menu items
@@ -44,27 +46,37 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
   }> = [
     {
       id: 'register',
-      label: 'Register',
+      label: t('sidebar.register'),
       icon: ShoppingBag,
       allowedRoles: ['admin', 'manager', 'cashier'],
     },
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3, allowedRoles: ['admin', 'manager'] },
+    {
+      id: 'dashboard',
+      label: t('sidebar.dashboard'),
+      icon: BarChart3,
+      allowedRoles: ['admin', 'manager'],
+    },
     {
       id: 'inventory',
-      label: 'Inventory',
+      label: t('sidebar.inventory'),
       icon: Package,
       badge: lowStockCount > 0 ? lowStockCount : undefined,
       allowedRoles: ['admin', 'manager'],
     },
     {
       id: 'history',
-      label: 'Transactions',
+      label: t('sidebar.transactions'),
       icon: History,
       allowedRoles: ['admin', 'manager', 'cashier'],
     },
-    { id: 'customers', label: 'Customers', icon: Users, allowedRoles: ['admin', 'manager'] },
-    { id: 'qrmenu', label: 'QR Menu', icon: QrCode, allowedRoles: ['admin', 'manager'] },
-    { id: 'settings', label: 'Settings', icon: Settings, allowedRoles: ['admin'] },
+    {
+      id: 'customers',
+      label: t('sidebar.customers'),
+      icon: Users,
+      allowedRoles: ['admin', 'manager'],
+    },
+    { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode, allowedRoles: ['admin', 'manager'] },
+    { id: 'settings', label: t('sidebar.settings'), icon: Settings, allowedRoles: ['admin'] },
   ];
 
   // Filter based on the logged-in staff member's role
@@ -75,11 +87,11 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
   return (
     <aside
       id="sidebar-container"
-      className="flex flex-col w-64 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl text-slate-100 border-r border-slate-800/50 min-h-screen transition-colors duration-300 relative overflow-hidden"
+      className="flex flex-col w-64 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl text-slate-100 border-e border-slate-800/50 min-h-screen transition-colors duration-300 relative overflow-hidden shrink-0"
     >
       {/* Background Gradient Mesh */}
-      <div className="absolute top-0 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none" />
-      <div className="absolute bottom-0 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
+      <div className="absolute top-0 -inset-s-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none" />
+      <div className="absolute bottom-0 -inset-e-20 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
 
       {/* Brand Header */}
       <div
@@ -147,7 +159,7 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
               {isActive && (
                 <motion.div
                   layoutId="active-nav-indicator"
-                  className="absolute inset-0 bg-linear-to-r from-emerald-500/10 to-transparent border-l-4 border-emerald-500 rounded-2xl"
+                  className="absolute inset-0 bg-linear-to-r from-emerald-500/10 to-transparent border-s-4 border-emerald-500 rounded-2xl"
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />
               )}
@@ -176,11 +188,11 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
         >
           {darkMode ? (
             <>
-              <Sun size={14} className="text-amber-400" /> Light Mode
+              <Sun size={14} className="text-amber-400" /> {t('sidebar.lightMode')}
             </>
           ) : (
             <>
-              <Moon size={14} className="text-indigo-400" /> Dark Mode
+              <Moon size={14} className="text-indigo-400" /> {t('sidebar.darkMode')}
             </>
           )}
         </button>

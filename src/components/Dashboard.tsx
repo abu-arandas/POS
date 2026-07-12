@@ -27,8 +27,10 @@ import { motion } from 'motion/react';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useTranslation } from 'react-i18next';
 
 export default function Dashboard() {
+  const { t, i18n } = useTranslation();
   const { transactions } = useTransactionStore();
   const { products, categories } = useProductStore();
   const { settings } = useSettingsStore();
@@ -81,7 +83,7 @@ export default function Dashboard() {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
       const key = d.toDateString();
-      const label = d.toLocaleDateString([], {
+      const label = d.toLocaleDateString(i18n.language === 'ar' ? 'ar' : 'en', {
         weekday: 'short',
         month: 'numeric',
         day: 'numeric',
@@ -150,7 +152,8 @@ export default function Dashboard() {
 
     return Array.from(catSalesMap.entries())
       .map(([catId, revenue], idx) => {
-        const catName = categories.find((c) => c.id === catId)?.name || 'General';
+        const catObj = categories.find((c) => c.id === catId);
+        const catName = catObj ? t(`categories.${catObj.name.toLowerCase()}`, { defaultValue: catObj.name }) : 'General';
         return {
           name: catName,
           value: Number(revenue.toFixed(2)),
@@ -192,10 +195,10 @@ export default function Dashboard() {
       <div id="dashboard-header" className="mb-6 shrink-0 flex items-center justify-between">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
-            <TrendingUp className="text-emerald-500" /> Business Analytics
+            <TrendingUp className="text-emerald-500" /> {t('dashboard.title')}
           </h2>
           <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
-            Real-time point of sale cash metrics, revenue charts, and inventory checks.
+            {t('dashboard.subtitle')}
           </p>
         </motion.div>
 
@@ -206,12 +209,12 @@ export default function Dashboard() {
           className="flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 rounded-xl font-mono text-[10px] font-bold shadow-inner"
         >
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-          <span>LIVE METRICS SYNCED</span>
+          <span>{t('dashboard.sync')}</span>
         </motion.div>
       </div>
 
       {/* Main dashboard content container */}
-      <div id="dashboard-content" className="flex-1 overflow-y-auto space-y-6 pr-1 pb-6">
+      <div id="dashboard-content" className="flex-1 overflow-y-auto space-y-6 pe-1 pb-6">
         {/* KPI Row */}
         <div id="kpi-row" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Card 1: Revenue Today */}
@@ -221,10 +224,10 @@ export default function Dashboard() {
             transition={{ delay: 0.1 }}
             className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-5 shadow-lg shadow-slate-200/50 dark:shadow-none flex items-start justify-between relative overflow-hidden group hover:border-emerald-500/30 transition-colors"
           >
-            <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-colors" />
+            <div className="absolute -inset-e-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-colors" />
             <div className="space-y-1 relative z-10">
               <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block uppercase tracking-wider font-mono">
-                Today's Revenue
+                {t('dashboard.todaysRevenue')}
               </span>
               <h3 className="font-mono font-extrabold text-transparent bg-clip-text bg-linear-to-br from-emerald-600 to-emerald-400 dark:from-emerald-400 dark:to-emerald-200 text-2xl md:text-3xl animate-count-up">
                 {settings.currency}
@@ -232,16 +235,16 @@ export default function Dashboard() {
               </h3>
               <div className="flex items-center gap-1.5 text-[11px] font-medium mt-2">
                 {kpis.revenueToday >= kpis.avgDailyRevenue ? (
-                  <span className="text-emerald-600 dark:text-emerald-400 flex items-center bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
-                    <ArrowUpRight size={12} className="mr-0.5" /> Above Avg
+                  <span className="text-emerald-500 font-bold flex items-center">
+                    <ArrowUpRight size={12} className="me-0.5" /> {t('dashboard.aboveAvg')}
                   </span>
                 ) : (
-                  <span className="text-amber-500 flex items-center bg-amber-500/10 px-1.5 py-0.5 rounded-md">
-                    <ArrowDownRight size={12} className="mr-0.5" /> Below Avg
+                  <span className="text-rose-500 font-bold flex items-center">
+                    <ArrowDownRight size={12} className="me-0.5" /> {t('dashboard.belowAvg')}
                   </span>
                 )}
                 <span className="text-slate-400 dark:text-slate-500 font-mono">
-                  Daily Avg: {settings.currency}
+                  {t('dashboard.dailyAvg')} {settings.currency}
                   {kpis.avgDailyRevenue.toFixed(0)}
                 </span>
               </div>
@@ -258,10 +261,10 @@ export default function Dashboard() {
             transition={{ delay: 0.2 }}
             className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-5 shadow-lg shadow-slate-200/50 dark:shadow-none flex items-start justify-between relative overflow-hidden group hover:border-blue-500/30 transition-colors"
           >
-            <div className="absolute -right-6 -top-6 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-colors" />
+            <div className="absolute -inset-e-6 -top-6 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-colors" />
             <div className="space-y-1 relative z-10">
               <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block uppercase tracking-wider font-mono">
-                Net Profit Today
+                {t('dashboard.netProfit')}
               </span>
               <h3 className="font-mono font-extrabold text-slate-900 dark:text-white text-2xl md:text-3xl animate-count-up">
                 {settings.currency}
@@ -269,13 +272,13 @@ export default function Dashboard() {
               </h3>
               <div className="flex items-center gap-1.5 text-[11px] font-medium mt-2 text-slate-500 font-mono">
                 <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-md">
-                  Margin:{' '}
+                  {t('dashboard.margin')}{' '}
                   {kpis.revenueToday > 0
                     ? ((kpis.profitToday / kpis.revenueToday) * 100).toFixed(0)
                     : 0}
                   %
                 </span>
-                <span>• Excl. tax</span>
+                <span>• {t('dashboard.exclTax')}</span>
               </div>
             </div>
             <div className="p-3.5 rounded-2xl bg-blue-500/10 text-blue-500 dark:text-blue-400 shadow-inner relative z-10">
@@ -290,17 +293,17 @@ export default function Dashboard() {
             transition={{ delay: 0.3 }}
             className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-5 shadow-lg shadow-slate-200/50 dark:shadow-none flex items-start justify-between relative overflow-hidden group hover:border-purple-500/30 transition-colors"
           >
-            <div className="absolute -right-6 -top-6 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-colors" />
+            <div className="absolute -inset-e-6 -top-6 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-colors" />
             <div className="space-y-1 relative z-10">
               <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block uppercase tracking-wider font-mono">
-                Completed Sales
+                {t('dashboard.completedSales')}
               </span>
               <h3 className="font-mono font-extrabold text-slate-900 dark:text-white text-2xl md:text-3xl animate-count-up">
                 {kpis.ordersToday}
               </h3>
               <div className="flex items-center gap-1 text-[11px] font-medium mt-2 text-slate-500">
                 <span className="font-mono bg-purple-500/10 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded-md">
-                  Ticket Avg: {settings.currency}
+                  {t('dashboard.ticketAvg')} {settings.currency}
                   {kpis.aovToday}
                 </span>
               </div>
@@ -318,11 +321,11 @@ export default function Dashboard() {
             className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-5 shadow-lg shadow-slate-200/50 dark:shadow-none flex items-start justify-between relative overflow-hidden group hover:border-amber-500/30 transition-colors"
           >
             <div
-              className={`absolute -right-6 -top-6 w-24 h-24 rounded-full blur-2xl transition-colors ${kpis.lowStockItems > 0 ? 'bg-amber-500/20 group-hover:bg-amber-500/30' : 'bg-emerald-500/10'}`}
+              className={`absolute -inset-e-6 -top-6 w-24 h-24 rounded-full blur-2xl transition-colors ${kpis.lowStockItems > 0 ? 'bg-amber-500/20 group-hover:bg-amber-500/30' : 'bg-emerald-500/10'}`}
             />
             <div className="space-y-1 relative z-10">
               <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block uppercase tracking-wider font-mono">
-                Stock Warnings
+                {t('dashboard.stockWarnings')}
               </span>
               <h3 className="font-mono font-extrabold text-slate-900 dark:text-white text-2xl md:text-3xl animate-count-up">
                 {kpis.lowStockItems}
@@ -330,11 +333,11 @@ export default function Dashboard() {
               <div className="flex items-center gap-1 text-[11px] font-semibold mt-2">
                 {kpis.lowStockItems > 0 ? (
                   <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 rounded-md">
-                    <AlertTriangle size={12} /> Low items on shelf
+                    <AlertTriangle size={12} /> {t('dashboard.lowItems')}
                   </span>
                 ) : (
                   <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
-                    ● All shelves stocked
+                    ● {t('dashboard.allStocked')}
                   </span>
                 )}
               </div>
@@ -357,20 +360,20 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-sans font-bold text-slate-800 dark:text-white text-base">
-                Sales & Profit Trend
+                {t('dashboard.salesTrend')}
               </h3>
               <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">
-                Historical performance over the past 7 days
+                {t('dashboard.historicalPerf')}
               </p>
             </div>
             <div className="flex items-center gap-4 text-xs font-mono bg-slate-100 dark:bg-slate-900/50 px-3 py-1.5 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
               <span className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />{' '}
-                Revenue
+                {t('dashboard.revenue')}
               </span>
               <span className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />{' '}
-                Profit
+                {t('dashboard.profit')}
               </span>
             </div>
           </div>
@@ -466,16 +469,16 @@ export default function Dashboard() {
           >
             <div>
               <h3 className="font-sans font-bold text-slate-800 dark:text-white text-base">
-                Best Sellers
+                {t('dashboard.bestSellers')}
               </h3>
               <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">
-                Top menu items ranked by checkout volume
+                {t('dashboard.topMenu')}
               </p>
             </div>
             <div className="h-64 w-full">
               {topProductsData.length === 0 ? (
                 <div className="h-full flex items-center justify-center font-mono text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                  NO SALES TO PLOT
+                  {t('dashboard.noSales')}
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
@@ -500,6 +503,7 @@ export default function Dashboard() {
                     <YAxis
                       dataKey="name"
                       type="category"
+                      orientation={i18n.language === 'ar' ? 'right' : 'left'}
                       stroke="#64748b"
                       fontSize={10}
                       width={100}
@@ -537,16 +541,16 @@ export default function Dashboard() {
           >
             <div>
               <h3 className="font-sans font-bold text-slate-800 dark:text-white text-base">
-                Sales by Category
+                {t('dashboard.salesByCategory')}
               </h3>
               <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">
-                Revenue share across departments
+                {t('dashboard.revenueShare')}
               </p>
             </div>
             <div className="flex-1 min-h-[180px] w-full relative flex items-center justify-center">
               {categoryShareData.length === 0 ? (
                 <div className="font-mono text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 w-full h-full rounded-2xl flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800">
-                  NO CATEGORY STATS
+                  {t('dashboard.noCategoryStats')}
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
@@ -610,10 +614,10 @@ export default function Dashboard() {
         >
           <div>
             <h3 className="font-sans font-bold text-slate-800 dark:text-white text-base">
-              Payment Methods
+              {t('dashboard.paymentMethods')}
             </h3>
             <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">
-              Preferred checkout modes by volume
+              {t('dashboard.preferredModes')}
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
@@ -629,7 +633,7 @@ export default function Dashboard() {
                 >
                   <div className="absolute inset-0 bg-linear-to-br from-white/5 to-transparent dark:from-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest font-mono relative z-10">
-                    {method}
+                    {t(`dashboard.${method}`, { defaultValue: method })}
                   </span>
                   <div className="mt-3 relative z-10">
                     <span className="font-mono font-extrabold text-lg text-slate-800 dark:text-white block">
@@ -637,7 +641,8 @@ export default function Dashboard() {
                       {val.toFixed(2)}
                     </span>
                     <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold mt-1.5 block bg-emerald-500/10 w-max px-2 py-0.5 rounded-md">
-                      {pct.toFixed(0)}% of sales
+                      {pct.toFixed(0)}
+                      {t('dashboard.ofSales')}
                     </span>
                   </div>
                 </div>
