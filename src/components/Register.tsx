@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CreditCard, DollarSign, Smartphone, Gift, Check, X, Printer, UserPlus } from 'lucide-react';
+import { CreditCard, DollarSign, Smartphone, Gift, Check, X, Printer, UserPlus, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, SaleTransaction } from '../types';
 import ProductGrid from './ProductGrid';
@@ -18,7 +18,6 @@ export default function Register() {
   const { transactions, addTransaction } = useTransactionStore();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
   
   const [cart, setCart] = useState<Array<{ product: Product; quantity: number }>>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
@@ -186,8 +185,6 @@ export default function Register() {
   return (
     <div id="register-root" className="flex flex-1 h-full overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       <ProductGrid 
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}
         cart={cart}
@@ -443,6 +440,13 @@ export default function Register() {
               <div className="p-6 flex-1 overflow-y-auto max-h-[380px] bg-slate-50 dark:bg-slate-950">
                 <div id="thermal-receipt" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4 font-mono text-xs text-slate-700 dark:text-slate-300">
                   <div className="text-center border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
+                    <div className="flex justify-center mb-3">
+                      {settings.storeLogo ? (
+                        <img src={settings.storeLogo} alt="Logo" className="h-[28px] w-auto object-contain" />
+                      ) : (
+                        <ShoppingBag size={28} className="text-slate-800 dark:text-slate-200" />
+                      )}
+                    </div>
                     <h4 className="font-bold text-slate-900 dark:text-white text-base uppercase tracking-widest">{settings.storeName}</h4>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">{settings.storeAddress}</p>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400">{settings.storePhone}</p>
@@ -489,10 +493,6 @@ export default function Register() {
                         <span>-{settings.currency}{activeReceipt.discount.toFixed(2)}</span>
                       </div>
                     )}
-                    <div className="flex justify-between">
-                      <span>TAX ({settings.taxRate}%):</span>
-                      <span>{settings.currency}{activeReceipt.tax.toFixed(2)}</span>
-                    </div>
                     <div className="flex justify-between text-slate-900 dark:text-white font-bold pt-2 border-t border-slate-200 dark:border-slate-800 mt-2 text-sm">
                       <span>TOTAL PAID:</span>
                       <span>{settings.currency}{activeReceipt.total.toFixed(2)}</span>

@@ -57,6 +57,7 @@ export interface StoreSettings {
   storeName: string;
   storeAddress: string;
   storePhone: string;
+  storeLogo?: string;
   taxRate: number; // e.g., 8 for 8%
   currency: string; // e.g., "$"
   loyaltyPointsRate: number; // points earned per unit of currency (e.g. 1 point per $1)

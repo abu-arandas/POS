@@ -170,6 +170,7 @@ export const INITIAL_SETTINGS: StoreSettings = {
   storeName: 'EA POS',
   storeAddress: '123 Tech Boulevard, Suite 400, WA 98101',
   storePhone: '206-555-0100',
+  storeLogo: '',
   taxRate: 8.5, // 8.5% Seattle tax
   currency: '$',
   loyaltyPointsRate: 1, // 1 point per $1

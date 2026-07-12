@@ -53,7 +53,11 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
           transition={{ type: 'spring', damping: 15 }}
           className="bg-linear-to-br from-emerald-400 to-emerald-600 text-slate-950 p-2.5 rounded-xl shadow-lg shadow-emerald-500/20"
         >
-          <ShoppingBag size={22} className="stroke-[2.5]" />
+          {settings.storeLogo ? (
+            <img src={settings.storeLogo} alt="Logo" className="w-[22px] h-[22px] object-contain rounded-sm" />
+          ) : (
+            <ShoppingBag size={22} className="stroke-[2.5]" />
+          )}
         </motion.div>
         <div className="min-w-0">
           <h1 className="font-sans font-bold tracking-tight text-white text-base truncate" title={storeName}>

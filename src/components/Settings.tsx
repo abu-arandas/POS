@@ -84,11 +84,70 @@ export default function Settings() {
                       />
                     </div>
                     <div>
+                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Store Phone</label>
+                      <input
+                        type="text"
+                        value={settings.storePhone}
+                        onChange={(e) => handleUpdateSetting('storePhone', e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Store Address</label>
+                      <input
+                        type="text"
+                        value={settings.storeAddress}
+                        onChange={(e) => handleUpdateSetting('storeAddress', e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Store Logo URL or Upload</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Image URL..."
+                          value={settings.storeLogo || ''}
+                          onChange={(e) => handleUpdateSetting('storeLogo', e.target.value)}
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
+                        />
+                        <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 flex items-center justify-center shrink-0">
+                          Upload File
+                          <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                handleUpdateSetting('storeLogo', event.target?.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }} />
+                        </label>
+                      </div>
+                      {settings.storeLogo && (
+                        <div className="mt-3 p-3 bg-white border border-slate-200 rounded-xl inline-block shadow-sm">
+                          <img src={settings.storeLogo} alt="Store Logo" className="h-16 w-auto object-contain" />
+                        </div>
+                      )}
+                    </div>
+                    <div>
                       <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Currency Symbol</label>
                       <input
                         type="text"
                         value={settings.currency}
                         onChange={(e) => handleUpdateSetting('currency', e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Tax Rate (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={settings.taxRate}
+                        onChange={(e) => handleUpdateSetting('taxRate', parseFloat(e.target.value) || 0)}
                         className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
                       />
                     </div>

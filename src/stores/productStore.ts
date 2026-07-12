@@ -15,6 +15,7 @@ interface ProductState {
   handleAddProduct: (payload: Omit<Product, 'id'>) => Product;
   handleUpdateProduct: (updated: Product) => void;
   handleDeleteProduct: (id: string) => void;
+  reorderProducts: (activeId: string, overId: string) => void;
   
   handleAddCategory: (name: string, color: string) => Category;
   handleDeleteCategory: (id: string) => void;
@@ -48,6 +49,18 @@ export const useProductStore = create<ProductState>()(
         set({
           products: get().products.filter(p => p.id !== id)
         });
+      },
+      
+      reorderProducts: (activeId, overId) => {
+        const { products } = get();
+        const oldIndex = products.findIndex(p => p.id === activeId);
+        const newIndex = products.findIndex(p => p.id === overId);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newProducts = [...products];
+          const [movedItem] = newProducts.splice(oldIndex, 1);
+          newProducts.splice(newIndex, 0, movedItem);
+          set({ products: newProducts });
+        }
       },
       
       handleAddCategory: (name, color) => {
