@@ -1,0 +1,6 @@
+{
+  "name": "Point of Sale",
+  "description": "A comprehensive, professional Point of Sale (POS) system featuring an interactive cash register, real-time inventory tracking, customer loyalty accounts, order history with returns, and a sales analytics dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
