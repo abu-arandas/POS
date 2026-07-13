@@ -18,12 +18,15 @@ import {
   ShoppingBag,
   Trash2,
 } from 'lucide-react';
-import { SaleTransaction } from '../types';
+import { SaleTransaction, Product, Customer } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { hashPin } from '../lib/hash';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
+import { useProductStore } from '../stores/productStore';
+import { useCustomerStore } from '../stores/customerStore';
+import { syncToCloudIfEnabled } from '../lib/sync';
 import { useTranslation } from 'react-i18next';
 
 export default function History() {
@@ -31,6 +34,8 @@ export default function History() {
   const { transactions, refundTransaction, deleteTransactions } = useTransactionStore();
   const { settings, printerConfig } = useSettingsStore();
   const { currentUser, users } = useAuthStore();
+  const { handleUpdateProduct } = useProductStore();
+  const { updateCustomerPoints } = useCustomerStore();
 
   // Filters & Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -104,6 +109,44 @@ export default function History() {
     });
   }, [transactions, searchQuery, dateFilter, statusFilter, customStartDate, customEndDate]);
 
+  // Processes a refund: marks the transaction refunded, returns items to stock,
+  // reverses the loyalty points that were awarded/redeemed, and syncs the changes.
+  const processRefund = (tx: SaleTransaction) => {
+    if (tx.status === 'refunded') return;
+
+    // Return purchased quantities back to catalog stock levels.
+    const updatedProducts: Product[] = [];
+    tx.items.forEach((item) => {
+      const prod = useProductStore.getState().products.find((p) => p.id === item.productId);
+      if (prod) {
+        const updated = { ...prod, stock: prod.stock + item.quantity };
+        handleUpdateProduct(updated);
+        updatedProducts.push(updated);
+      }
+    });
+
+    // Reverse the loyalty-point movement from the original sale: remove the
+    // points earned and refund the points that were redeemed as a discount.
+    let updatedCustomer: Customer | undefined;
+    if (tx.customerId) {
+      const pointsEarned = Math.floor(tx.total * settings.loyaltyPointsRate);
+      let reverseDelta = -pointsEarned;
+      if (tx.discountType === 'loyalty') reverseDelta += tx.discountValue;
+      if (reverseDelta !== 0) updateCustomerPoints(tx.customerId, reverseDelta);
+      updatedCustomer = useCustomerStore.getState().customers.find((c) => c.id === tx.customerId);
+    }
+
+    const refundDate = new Date().toISOString();
+    refundTransaction(tx.id, refundDate);
+
+    syncToCloudIfEnabled(
+      updatedProducts.length > 0 ? updatedProducts : undefined,
+      undefined,
+      updatedCustomer ? [updatedCustomer] : undefined,
+      [{ ...tx, status: 'refunded', refundDate }],
+    );
+  };
+
   // Refund handler
   const handleRefundClick = (tx: SaleTransaction) => {
     if (currentUser?.role === 'cashier') {
@@ -114,7 +157,7 @@ export default function History() {
       setShowOverrideModal(true);
     } else {
       if (confirm(t('history.refundConfirm', { id: tx.id }))) {
-        refundTransaction(tx.id, new Date().toISOString());
+        processRefund(tx);
       }
     }
   };
@@ -128,8 +171,9 @@ export default function History() {
       (u) => u.pin === hashedPin && u.active && (u.role === 'manager' || u.role === 'admin'),
     );
     if (authorizedUser) {
-      if (pendingRefundTxId) {
-        refundTransaction(pendingRefundTxId, new Date().toISOString());
+      const pendingTx = transactions.find((tx) => tx.id === pendingRefundTxId);
+      if (pendingTx) {
+        processRefund(pendingTx);
         alert(
           t('history.refundAuthorized', { name: authorizedUser.name, role: authorizedUser.role }),
         );
@@ -656,7 +700,7 @@ export default function History() {
                 {filteredTransactions.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className="py-12 text-center text-slate-400 font-medium font-mono"
                     >
                       {t('history.noHistoricalTransactions')}

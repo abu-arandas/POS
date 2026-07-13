@@ -52,17 +52,8 @@ export default function App() {
   const lowStockCount = products.filter((p) => p.stock <= p.minStock).length;
 
   useEffect(() => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ipcRenderer = (window as any).require('electron').ipcRenderer;
-      ipcRenderer.send('update-menu-data', {
-        products,
-        categories,
-        settings,
-      });
-    } catch (_e) {
-      // Not running in Electron
-    }
+    // Keep the embedded QR-menu server in sync. No-op outside Electron.
+    window.electronAPI?.updateMenuData({ products, categories, settings });
   }, [products, categories, settings]);
 
   useEffect(() => {
@@ -141,13 +132,7 @@ export default function App() {
     },
     { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode, allowedRoles: ['admin', 'manager'] },
     { id: 'settings', label: t('sidebar.settings'), icon: SettingsIcon, allowedRoles: ['admin'] },
-  ].filter(
-    (item) =>
-      !currentUser ||
-      item.allowedRoles.includes(
-        item.allowedRoles.includes(currentUser.role) ? currentUser.role : 'admin',
-      ),
-  );
+  ];
 
   const allowedMobileItems = mobileMenuItems.filter((item) =>
     item.allowedRoles.includes(currentUser.role),

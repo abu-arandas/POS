@@ -1,4 +1,4 @@
-import { Product, Category, Customer, SaleTransaction, StoreSettings, UserAccount } from '../types';
+import { Product, Category, Customer, SaleTransaction, StoreSettings } from '../types';
 
 export const INITIAL_CATEGORIES: Category[] = [
   { id: 'cat-bev', name: 'Beverages', color: 'bg-blue-100 text-blue-800 border-blue-200' },
@@ -318,30 +318,3 @@ export function generatePastTransactions(): SaleTransaction[] {
   // Sort from newest to oldest
   return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
-
-export const INITIAL_USER_ACCOUNTS: UserAccount[] = [
-  {
-    id: 'user-admin',
-    name: 'Admin Manager',
-    role: 'admin',
-    pin: '1234',
-    active: true,
-    createdAt: '2026-01-01T00:00:00.000Z',
-  },
-  {
-    id: 'user-manager',
-    name: 'Sarah Store Manager',
-    role: 'manager',
-    pin: '5555',
-    active: true,
-    createdAt: '2026-01-10T00:00:00.000Z',
-  },
-  {
-    id: 'user-cashier',
-    name: 'John Cashier',
-    role: 'cashier',
-    pin: '0000',
-    active: true,
-    createdAt: '2026-01-20T00:00:00.000Z',
-  },
-];

@@ -67,7 +67,21 @@ CREATE TABLE IF NOT EXISTS transactions (
   refund_date TIMESTAMP WITH TIME ZONE
 );
 
--- 7. Disable Row Level Security for open POS access
+-- 7. Row Level Security
+-- ============================================================
+-- ⚠️  SECURITY WARNING
+-- The statements below DISABLE RLS so the app can read/write with only the
+-- public anon key. This means ANYONE who obtains the anon key (it ships in the
+-- client bundle) can read and modify EVERY row — including user_accounts and
+-- their PIN hashes. This is acceptable ONLY for a local demo/prototype.
+--
+-- For any real deployment: adopt Supabase Auth, keep RLS ENABLED, and add
+-- policies scoped to authenticated staff, e.g.
+--     ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+--     CREATE POLICY "staff read"  ON products FOR SELECT TO authenticated USING (true);
+--     CREATE POLICY "staff write" ON products FOR ALL    TO authenticated USING (true) WITH CHECK (true);
+-- and NEVER expose user_accounts / PIN hashes to the anon role.
+-- ============================================================
 ALTER TABLE user_accounts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE categories    DISABLE ROW LEVEL SECURITY;
 ALTER TABLE products      DISABLE ROW LEVEL SECURITY;

@@ -9,21 +9,12 @@ export default function QRMenu() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    try {
-      // We fetch the local IP from the Electron main process via IPC
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ipcRenderer = (window as any).require('electron').ipcRenderer;
-      ipcRenderer
-        .invoke('get-local-ip')
-        .then((ip: string) => {
-          setLocalIp(ip);
-        })
-        .catch((err: Error) => {
-          console.error('Failed to get local IP:', err);
-        });
-    } catch (_e) {
-      // Not running in Electron, use the default hostname
-    }
+    // Fetch the LAN IP from the Electron main process. No-op in a browser,
+    // where the default window.location.hostname is used instead.
+    window.electronAPI
+      ?.getLocalIp()
+      .then((ip) => setLocalIp(ip))
+      .catch((err: Error) => console.error('Failed to get local IP:', err));
   }, []);
 
   const menuUrl = `http://${localIp}:3001`;

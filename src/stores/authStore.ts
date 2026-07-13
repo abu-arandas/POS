@@ -14,7 +14,7 @@ interface AuthState {
   handleDeleteUser: (id: string) => void;
 }
 
-// Pre-hashed default PINs for seed data (1234, 5678, 0000)
+// Pre-hashed (SHA-256) default PINs for seed data (Admin 1234, Manager 5555, Cashier 0000)
 const DEFAULT_USERS: UserAccount[] = [
   {
     id: 'u-1',
@@ -28,7 +28,7 @@ const DEFAULT_USERS: UserAccount[] = [
     id: 'u-2',
     name: 'Manager',
     role: 'manager',
-    pin: '670aa5bd7f2868853b0e4871e9f2913fbfa25141b65db910d5c0e2a222383be2',
+    pin: 'c1f330d0aff31c1c87403f1e4347bcc21aff7c179908723535f2b31723702525',
     active: true,
     createdAt: '2023-01-01',
   },
@@ -36,7 +36,7 @@ const DEFAULT_USERS: UserAccount[] = [
     id: 'u-3',
     name: 'Cashier',
     role: 'cashier',
-    pin: 'a7b3db276ee46f7f4577889e47cbbe014a6e8b4e7a835a6b0c2aeb3baf22b3db',
+    pin: '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0',
     active: true,
     createdAt: '2023-01-01',
   },

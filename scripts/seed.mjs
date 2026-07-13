@@ -2,10 +2,23 @@
  * Supabase Seeder Script
  * Creates the schema tables and seeds all initial data.
  * Run with: node scripts/seed.mjs
+ *
+ * Requires SUPABASE_URL and SUPABASE_ANON_KEY, provided via environment
+ * variables or a local .env file (see .env.example). Credentials must never
+ * be committed to source control.
  */
 
-const SUPABASE_URL = 'https://rzpyauhymrwonjnkboqf.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ6cHlhdWh5bXJ3b25qbmtib3FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTUzNTgsImV4cCI6MjA5OTA5MTM1OH0.IEaPkISAezltX5OABvohwlzvPcFJj8fwVEMxzfK_F04';
+import 'dotenv/config';
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error(
+    '❌ Missing SUPABASE_URL or SUPABASE_ANON_KEY. Set them in a .env file (see .env.example) or export them before running.',
+  );
+  process.exit(1);
+}
 
 // ─── Inline Seed Data ────────────────────────────────────────────────────────
 

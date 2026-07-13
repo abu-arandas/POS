@@ -58,8 +58,9 @@ function createWindow() {
     autoHideMenuBar: true,
     icon: path.join(__dirname, 'icon.ico'), // Ensure you have an icon, or this is ignored
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false, // For simplicity in this local POS app
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
     }
   });
 
