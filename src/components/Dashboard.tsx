@@ -33,7 +33,8 @@ export default function Dashboard() {
   const { t, i18n } = useTranslation();
   const { transactions } = useTransactionStore();
   const { products, categories } = useProductStore();
-  const { settings } = useSettingsStore();
+  const { settings, supabaseConfig } = useSettingsStore();
+  const cloudLive = supabaseConfig.enabled && supabaseConfig.status === 'connected';
 
   const completedTransactions = useMemo(() => {
     return transactions.filter((t) => t.status === 'completed');
@@ -204,14 +205,24 @@ export default function Dashboard() {
           </p>
         </motion.div>
 
-        {/* Sync Indicator */}
+        {/* Sync Indicator — reflects whether cloud sync is actually connected */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 rounded-xl font-mono text-[10px] font-bold shadow-inner"
+          className={`flex items-center space-x-2 border px-3 py-1.5 rounded-xl font-mono text-[10px] font-bold shadow-inner ${
+            cloudLive
+              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+              : 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400'
+          }`}
         >
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-          <span>{t('dashboard.sync')}</span>
+          <span
+            className={`w-2 h-2 rounded-full ${
+              cloudLive
+                ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]'
+                : 'bg-slate-400'
+            }`}
+          />
+          <span>{cloudLive ? t('dashboard.sync') : t('dashboard.syncOff')}</span>
         </motion.div>
       </div>
 

@@ -49,6 +49,8 @@ export interface SaleTransaction {
   cashChange?: number;
   customerId: string | null;
   customerName?: string | null;
+  operatorId?: string | null; // staff member who rang up the sale
+  operatorName?: string | null;
   status: 'completed' | 'refunded';
   refundDate?: string | null;
 }

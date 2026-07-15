@@ -1,5 +1,8 @@
 # EA POS — Senior QA Review & End-to-End Test Report
 
+> **Follow-up:** most findings below have since been fixed — see [`FIXES.md`](FIXES.md)
+> and `qa/verify-fixes.mjs` (20/20 checks green). This report is the original assessment.
+
 - **Date:** 2026-07-15
 - **Commit under test:** `0aec2b4` (branch `claude/project-qa-review-testing-ip1gjw`)
 - **App:** React 19 + Vite 6 + Zustand (IndexedDB persistence) + Tailwind v4 + Electron wrapper

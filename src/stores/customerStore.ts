@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { Customer } from '../types';
 import { INITIAL_CUSTOMERS } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
+import { deleteCustomersCloudIfEnabled } from '../lib/sync';
 
 interface CustomerState {
   customers: Customer[];
@@ -43,6 +44,7 @@ export const useCustomerStore = create<CustomerState>()(
         set({
           customers: get().customers.filter((c) => c.id !== id),
         });
+        deleteCustomersCloudIfEnabled([id]);
       },
 
       updateCustomerPoints: (id, delta) => {

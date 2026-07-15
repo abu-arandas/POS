@@ -1,0 +1,9 @@
+# Runtime artifacts from local QA runs — not source
+node_modules
+profile-*/
+shots/
+mock-server.log
+mock-log.json
+/results-*.json
+package.json
+package-lock.json

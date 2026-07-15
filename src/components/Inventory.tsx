@@ -395,7 +395,7 @@ export default function Inventory() {
                     sortedAndFilteredProducts.map((prod) => {
                       const isLow = prod.stock <= prod.minStock && prod.stock > 0;
                       const isOut = prod.stock === 0;
-                      const margin = ((prod.price - prod.cost) / prod.price) * 100;
+                      const margin = prod.price > 0 ? ((prod.price - prod.cost) / prod.price) * 100 : 0;
 
                       return (
                         <tr

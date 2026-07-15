@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { Product, Category } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_CATEGORIES } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
+import { deleteProductsCloudIfEnabled, deleteCategoriesCloudIfEnabled } from '../lib/sync';
 
 interface ProductState {
   products: Product[];
@@ -49,6 +50,7 @@ export const useProductStore = create<ProductState>()(
         set({
           products: get().products.filter((p) => p.id !== id),
         });
+        deleteProductsCloudIfEnabled([id]);
       },
 
       reorderProducts: (activeId, overId) => {
@@ -77,6 +79,7 @@ export const useProductStore = create<ProductState>()(
         set({
           categories: get().categories.filter((c) => c.id !== id),
         });
+        deleteCategoriesCloudIfEnabled([id]);
       },
     }),
     {

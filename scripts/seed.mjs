@@ -9,9 +9,15 @@
  */
 
 import 'dotenv/config';
+import { createHash } from 'node:crypto';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+// The app authenticates by comparing SHA-256(entered PIN) against the stored
+// value (see src/lib/hash.ts), so seeded PINs must be stored as hashes too —
+// storing them in plaintext makes the account impossible to log into.
+const hashPin = (pin) => createHash('sha256').update(pin).digest('hex');
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.error(
@@ -51,9 +57,9 @@ const CUSTOMERS = [
 ];
 
 const USER_ACCOUNTS = [
-  { id: 'user-admin',   name: 'Admin Manager',        role: 'admin',   pin: '1234', active: true, created_at: '2026-01-01T00:00:00.000Z' },
-  { id: 'user-manager', name: 'Sarah Store Manager',  role: 'manager', pin: '5555', active: true, created_at: '2026-01-10T00:00:00.000Z' },
-  { id: 'user-cashier', name: 'John Cashier',         role: 'cashier', pin: '0000', active: true, created_at: '2026-01-20T00:00:00.000Z' },
+  { id: 'user-admin',   name: 'Admin Manager',        role: 'admin',   pin: hashPin('1234'), active: true, created_at: '2026-01-01T00:00:00.000Z' },
+  { id: 'user-manager', name: 'Sarah Store Manager',  role: 'manager', pin: hashPin('5555'), active: true, created_at: '2026-01-10T00:00:00.000Z' },
+  { id: 'user-cashier', name: 'John Cashier',         role: 'cashier', pin: hashPin('0000'), active: true, created_at: '2026-01-20T00:00:00.000Z' },
 ];
 
 const SETTINGS_TAX_RATE = 8.5;

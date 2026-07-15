@@ -1,5 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Product, Category, Customer, SaleTransaction, UserAccount, OrderItem } from '../types';
+import { hashPin } from './hash';
+
+// A stored PIN is valid only if it is already a SHA-256 hex digest.
+const isHashedPin = (pin: string) => /^[a-f0-9]{64}$/i.test(pin);
 
 let supabaseInstance: SupabaseClient | null = null;
 let currentUrl = '';
@@ -107,8 +111,11 @@ ALTER TABLE customers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions DISABLE ROW LEVEL SECURITY;
 
 -- Insert default admin account if not existing (Default PIN: 1234)
+-- The PIN is stored as its SHA-256 hash because the app hashes the entered PIN
+-- before comparing (see src/lib/hash.ts). Storing plaintext here would make the
+-- account impossible to log into. Hash below = SHA-256('1234').
 INSERT INTO user_accounts (id, name, role, pin, active, created_at)
-VALUES ('admin-1', 'Default Administrator', 'admin', '1234', TRUE, NOW())
+VALUES ('admin-1', 'Default Administrator', 'admin', '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4', TRUE, NOW())
 ON CONFLICT (id) DO NOTHING;
 `;
 
@@ -282,18 +289,23 @@ export async function pushTransactions(
   }
 }
 
-// Delete transactions
-export async function deleteTransactionsSupabase(
+// Delete rows by id from any synced table. Used by the cloud delete-sync
+// wrappers so that local deletions are propagated instead of resurrecting on
+// the next Pull From Cloud.
+export type SyncTable = 'products' | 'categories' | 'customers' | 'transactions' | 'user_accounts';
+
+export async function deleteRowsSupabase(
   client: SupabaseClient,
+  table: SyncTable,
   ids: string[],
 ): Promise<boolean> {
   if (ids.length === 0) return true;
   try {
-    const { error } = await client.from('transactions').delete().in('id', ids);
+    const { error } = await client.from(table).delete().in('id', ids);
     if (error) throw error;
     return true;
   } catch (err) {
-    console.error('Failed deleting transactions:', err);
+    console.error(`Failed deleting ${table}:`, err);
     return false;
   }
 }
@@ -359,14 +371,19 @@ export async function pullUserAccounts(client: SupabaseClient): Promise<UserAcco
   try {
     const { data, error } = await client.from('user_accounts').select('*');
     if (error) throw error;
-    return (data || []).map((r) => ({
-      id: r.id,
-      name: r.name,
-      role: r.role as UserAccount['role'],
-      pin: r.pin,
-      active: !!r.active,
-      createdAt: r.created_at,
-    }));
+    // Older cloud data may hold plaintext PINs. The app authenticates against
+    // SHA-256 hashes, so re-hash anything that isn't already a hash — otherwise
+    // the pulled account can never log in and may lock the terminal out.
+    return await Promise.all(
+      (data || []).map(async (r) => ({
+        id: r.id,
+        name: r.name,
+        role: r.role as UserAccount['role'],
+        pin: isHashedPin(String(r.pin)) ? r.pin : await hashPin(String(r.pin)),
+        active: !!r.active,
+        createdAt: r.created_at,
+      })),
+    );
   } catch (err) {
     console.error('Failed pulling user accounts:', err);
     return null;

@@ -1,7 +1,18 @@
 // Minimal PostgREST-compatible test double for supabase-js v2.
-// Seeded user_accounts mirror the REAL cloud rows (plaintext PINs) pulled via MCP.
+// Used because the QA sandbox blocked egress to *.supabase.co; on an open
+// network point the app at your real project URL instead and skip this.
+// user_accounts are seeded from the repo's scripts/seed.mjs (same demo rows
+// that populate the cloud), so the mock mirrors real seed output — including
+// the SHA-256-hashed PINs.
 import express from 'express';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { createHash } from 'node:crypto';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const REPO = path.resolve(HERE, '..');
+const hashPin = (p) => createHash('sha256').update(p).digest('hex');
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -18,25 +29,27 @@ app.use((req, res, next) => {
 const TABLES = ['user_accounts', 'categories', 'products', 'customers', 'transactions'];
 const db = Object.fromEntries(TABLES.map((t) => [t, new Map()]));
 
-// Seed user_accounts from the repo's own scripts/seed.mjs (same demo rows that
-// populated the cloud project) — parsed from source so the mock mirrors what
-// `node scripts/seed.mjs` produces without copying live-DB output here.
-const seedSrc = fs.readFileSync('/home/user/POS/scripts/seed.mjs', 'utf8');
+// Seed user_accounts by parsing scripts/seed.mjs (id/name/role/active + the
+// plaintext inside hashPin('…'), which we hash to match the seeder's output).
+const seedSrc = fs.readFileSync(path.join(REPO, 'scripts/seed.mjs'), 'utf8');
 const userBlock = seedSrc.match(/const USER_ACCOUNTS = \[([\s\S]*?)\];/)[1];
 for (const line of userBlock.split('\n')) {
   const m = line.match(/\{([\s\S]*)\}/);
   if (!m) continue;
   const obj = {};
   for (const kv of m[1].matchAll(/(\w+):\s*(?:'([^']*)'|(true|false|\d+))/g)) {
-    obj[kv[1]] = kv[2] !== undefined ? kv[2] : kv[3] === 'true' ? true : kv[3] === 'false' ? false : Number(kv[3]);
+    obj[kv[1]] =
+      kv[2] !== undefined ? kv[2] : kv[3] === 'true' ? true : kv[3] === 'false' ? false : Number(kv[3]);
   }
+  const pinMatch = m[1].match(/pin:\s*hashPin\('([^']*)'\)/);
+  if (pinMatch) obj.pin = hashPin(pinMatch[1]);
   if (obj.id) db.user_accounts.set(obj.id, obj);
 }
 
 const log = [];
 function record(entry) {
   log.push({ ts: new Date().toISOString(), ...entry });
-  fs.writeFileSync('./mock-log.json', JSON.stringify(log, null, 2));
+  fs.writeFileSync(path.join(HERE, 'mock-log.json'), JSON.stringify(log, null, 2));
 }
 
 app.get('/rest/v1/:table', (req, res) => {

@@ -128,10 +128,10 @@ export default function Settings() {
   ] as const;
 
   return (
-    <div className="h-full flex flex-col bg-slate-50">
-      <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+    <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950">
+      <div className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
         <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
             <SettingsIcon className="text-emerald-500" />
             {t('settings.systemControlCenter')}
           </h2>
@@ -139,7 +139,7 @@ export default function Settings() {
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-        <div className="w-full md:w-64 bg-white border-e border-slate-200 shrink-0 p-4 overflow-y-auto">
+        <div className="w-full md:w-64 bg-white dark:bg-slate-900 border-e border-slate-200 dark:border-slate-800 shrink-0 p-4 overflow-y-auto">
           <nav className="space-y-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -150,8 +150,8 @@ export default function Settings() {
                   onClick={() => setActiveTab(tab.id as 'profile' | 'supabase')}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-start transition-colors ${
                     isActive
-                      ? 'bg-emerald-50 text-emerald-700 font-semibold'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <Icon size={18} className={isActive ? 'text-emerald-500' : 'text-slate-400'} />
@@ -162,12 +162,12 @@ export default function Settings() {
           </nav>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50 dark:bg-slate-950/50">
           <div className="max-w-3xl mx-auto">
             {activeTab === 'profile' && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                  <h3 className="font-semibold text-slate-900">{t('settings.title')}</h3>
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
+                  <h3 className="font-semibold text-slate-900 dark:text-white">{t('settings.title')}</h3>
                 </div>
                 <div className="p-6 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -179,7 +179,7 @@ export default function Settings() {
                         type="text"
                         value={settings.storeName}
                         onChange={(e) => handleUpdateSetting('storeName', e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
+                        className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
                       />
                     </div>
                     <div>
@@ -190,7 +190,7 @@ export default function Settings() {
                         type="text"
                         value={settings.storePhone}
                         onChange={(e) => handleUpdateSetting('storePhone', e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
+                        className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -201,7 +201,7 @@ export default function Settings() {
                         type="text"
                         value={settings.storeAddress}
                         onChange={(e) => handleUpdateSetting('storeAddress', e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
+                        className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -214,7 +214,7 @@ export default function Settings() {
                           placeholder="Image URL..."
                           value={settings.storeLogo || ''}
                           onChange={(e) => handleUpdateSetting('storeLogo', e.target.value)}
-                          className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
+                          className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
                         />
                         <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 flex items-center justify-center shrink-0">
                           {t('settings.uploadFile')}
@@ -253,7 +253,7 @@ export default function Settings() {
                         type="text"
                         value={settings.currency}
                         onChange={(e) => handleUpdateSetting('currency', e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
+                        className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
                       />
                     </div>
                     <div>
@@ -268,7 +268,7 @@ export default function Settings() {
                         onChange={(e) =>
                           handleUpdateSetting('taxRate', parseFloat(e.target.value) || 0)
                         }
-                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
+                        className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
                       />
                     </div>
                     <div>
@@ -278,7 +278,7 @@ export default function Settings() {
                       <select
                         value={language}
                         onChange={(e) => setLanguage(e.target.value as 'en' | 'ar')}
-                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden"
+                        className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
                       >
                         <option value="en">{t('settings.english')}</option>
                         <option value="ar">{t('settings.arabic')}</option>
@@ -289,9 +289,9 @@ export default function Settings() {
               </div>
             )}
             {activeTab === 'supabase' && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                  <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between">
+                  <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                     <Cloud size={18} className="text-emerald-500" />
                     {t('settings.supabaseConfig')}
                   </h3>
@@ -315,7 +315,7 @@ export default function Settings() {
                       placeholder="https://YOUR_PROJECT.supabase.co"
                       value={sbUrl}
                       onChange={(e) => setSbUrl(e.target.value)}
-                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden font-mono text-sm"
+                      className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100 font-mono text-sm"
                     />
                   </div>
 
@@ -329,11 +329,11 @@ export default function Settings() {
                       placeholder="eyJhbGciOi..."
                       value={sbKey}
                       onChange={(e) => setSbKey(e.target.value)}
-                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden font-mono text-sm"
+                      className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100 font-mono text-sm"
                     />
                   </div>
 
-                  <label className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer">
+                  <label className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer">
                     <input
                       type="checkbox"
                       checked={sbEnabled}
@@ -341,7 +341,7 @@ export default function Settings() {
                       className="mt-0.5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
                     />
                     <span>
-                      <span className="block text-sm font-semibold text-slate-800">
+                      <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">
                         {t('settings.enableSync')}
                       </span>
                       <span className="block text-xs text-slate-500 mt-0.5">
@@ -362,7 +362,7 @@ export default function Settings() {
                     <button
                       onClick={handleTest}
                       disabled={busy !== null}
-                      className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50 text-slate-700 text-sm font-semibold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                      className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                     >
                       <RefreshCw size={16} className={busy === 'test' ? 'animate-spin' : ''} />
                       {busy === 'test' ? t('settings.testing') : t('settings.testConnection')}
@@ -378,7 +378,7 @@ export default function Settings() {
                     <button
                       onClick={handlePull}
                       disabled={busy !== null}
-                      className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50 text-slate-700 text-sm font-semibold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                      className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                     >
                       <DownloadCloud size={16} />
                       {busy === 'pull' ? t('settings.pulling') : t('settings.pullFromCloud')}

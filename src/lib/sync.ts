@@ -11,7 +11,8 @@ import {
   pullTransactions,
   pullUserAccounts,
   testSupabaseConnection,
-  deleteTransactionsSupabase,
+  deleteRowsSupabase,
+  SyncTable,
 } from './supabase';
 import { useSettingsStore } from '../stores/settingsStore';
 import { Product, Category, Customer, SaleTransaction, UserAccount } from '../types';
@@ -99,16 +100,28 @@ export const pullAllFromCloud = async (
   return { categories, products, customers, users, transactions };
 };
 
-export const deleteTransactionsCloudIfEnabled = async (ids: string[]) => {
+// Propagates a local deletion to the cloud when live sync is enabled. Without
+// this, deleted rows survive in Supabase and reappear on the next Pull.
+const deleteFromCloudIfEnabled = async (table: SyncTable, ids: string[]) => {
   const { supabaseConfig } = useSettingsStore.getState();
   if (!supabaseConfig.enabled || !supabaseConfig.url || !supabaseConfig.anonKey) return;
+  if (!ids || ids.length === 0) return;
 
   const client = getSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
   if (!client) return;
 
   try {
-    if (ids && ids.length > 0) await deleteTransactionsSupabase(client, ids);
+    await deleteRowsSupabase(client, table, ids);
   } catch (err) {
     console.warn('Background live sync delete postponed:', err);
   }
 };
+
+export const deleteTransactionsCloudIfEnabled = (ids: string[]) =>
+  deleteFromCloudIfEnabled('transactions', ids);
+export const deleteProductsCloudIfEnabled = (ids: string[]) =>
+  deleteFromCloudIfEnabled('products', ids);
+export const deleteCategoriesCloudIfEnabled = (ids: string[]) =>
+  deleteFromCloudIfEnabled('categories', ids);
+export const deleteCustomersCloudIfEnabled = (ids: string[]) =>
+  deleteFromCloudIfEnabled('customers', ids);

@@ -18,6 +18,7 @@ import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useTransactionStore } from '../stores/transactionStore';
+import { useAuthStore } from '../stores/authStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +29,7 @@ export default function Register() {
   const { customers, handleAddCustomer, updateCustomerPoints } = useCustomerStore();
   const { settings, printerConfig } = useSettingsStore();
   const { transactions, addTransaction } = useTransactionStore();
+  const { currentUser } = useAuthStore();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -200,6 +202,8 @@ export default function Register() {
       cashChange: paymentMethod === 'cash' ? cashChangeDue : undefined,
       customerId: selectedCustomerId,
       customerName: activeCustomer?.name || null,
+      operatorId: currentUser?.id ?? null,
+      operatorName: currentUser?.name ?? null,
       status: 'completed',
     };
 
@@ -605,7 +609,7 @@ export default function Register() {
                     </div>
                     <div className="flex justify-between">
                       <span>{t('register.operator')}:</span>
-                      <span>Admin</span>
+                      <span>{activeReceipt.operatorName || '—'}</span>
                     </div>
                     {activeReceipt.customerName && (
                       <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold mt-1">
@@ -646,6 +650,13 @@ export default function Register() {
                         </span>
                       </div>
                     )}
+                    <div className="flex justify-between">
+                      <span>{t('register.tax').toUpperCase()}:</span>
+                      <span>
+                        {settings.currency}
+                        {activeReceipt.tax.toFixed(2)}
+                      </span>
+                    </div>
                     <div className="flex justify-between text-slate-900 dark:text-white font-bold pt-2 border-t border-slate-200 dark:border-slate-800 mt-2 text-sm">
                       <span>{t('register.totalPaid')}:</span>
                       <span>
