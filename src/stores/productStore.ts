@@ -34,7 +34,7 @@ export const useProductStore = create<ProductState>()(
       handleAddProduct: (payload) => {
         const newProduct: Product = {
           ...payload,
-          id: `prod-${Math.floor(1000 + Math.random() * 9000)}`,
+          id: `prod-${crypto.randomUUID().split('-')[0]}`,
         };
         set({ products: [...get().products, newProduct] });
         return newProduct;
@@ -67,7 +67,7 @@ export const useProductStore = create<ProductState>()(
 
       handleAddCategory: (name, color) => {
         const newCat: Category = {
-          id: `cat-${name.toLowerCase().replace(/\s+/g, '-').slice(0, 8)}-${Math.floor(10 + Math.random() * 90)}`,
+          id: `cat-${name.toLowerCase().replace(/\s+/g, '-').slice(0, 8)}-${crypto.randomUUID().split('-')[0]}`,
           name,
           color,
         };

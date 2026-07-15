@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import {
   ShoppingBag,
   Package,
@@ -9,21 +9,32 @@ import {
   Menu,
   X as XIcon,
   QrCode,
+  Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import Sidebar from './components/Sidebar';
 import Register from './components/Register';
-import Inventory from './components/Inventory';
-import History from './components/History';
-import Customers from './components/Customers';
-import Dashboard from './components/Dashboard';
-import Settings from './components/Settings';
 import Lockscreen from './components/Lockscreen';
-import QRMenu from './components/QRMenu';
+// Non-default screens are code-split so heavy deps (recharts, qrcode.react, …)
+// stay out of the initial bundle and load only when their screen is opened.
+const Inventory = lazy(() => import('./components/Inventory'));
+const History = lazy(() => import('./components/History'));
+const Customers = lazy(() => import('./components/Customers'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const Settings = lazy(() => import('./components/Settings'));
+const QRMenu = lazy(() => import('./components/QRMenu'));
 import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
+
+function ScreenLoader() {
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <Loader2 className="animate-spin text-emerald-500" size={28} />
+    </div>
+  );
+}
 
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -243,7 +254,7 @@ export default function App() {
           id="desktop-view-container"
           className="flex flex-1 min-w-0 min-h-0 bg-transparent relative overflow-hidden"
         >
-          {renderActiveScreen()}
+          <Suspense fallback={<ScreenLoader />}>{renderActiveScreen()}</Suspense>
         </main>
       </div>
     </div>

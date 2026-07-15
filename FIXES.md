@@ -87,10 +87,20 @@ in the browser with `qa/verify-fixes.mjs` (20/20 checks green).
   `import.meta.env.DEV`, so it shows during development but is dead-code-eliminated from
   production bundles (verified: the string is absent from `dist/`).
 
+## Performance & polish
+
+- **F10 — Collision-safe entity IDs. FIXED.** Products/customers/categories/users now use
+  `crypto.randomUUID()`-based suffixes instead of 2–4 digit random numbers.
+- **F19 — Low-stock badge contrast. FIXED.** The "Only X left" tile badge is now solid
+  amber with dark text (no shimmer/opacity wash) for readability.
+- **F21 — Bundle code-split. FIXED.** Non-default screens are `React.lazy`-loaded and large
+  vendors (`recharts` via the Dashboard chunk, plus `motion`/`supabase`/`i18n`/`dnd`) are
+  split out — the entry chunk dropped from **751 kB → 332 kB** and the >500 kB build
+  warning is gone.
+
 ## Deferred (need a product decision — not changed)
 
-- **F10** short random entity IDs; **F19** low-stock tile badge contrast; **F21** single
-  1.27 MB JS chunk (code-split).
+- **F1 live-RLS cutover** (needs the auth-enabled client deployed first — see F1 above).
 
 ## Verification
 

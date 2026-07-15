@@ -23,7 +23,7 @@ export const useCustomerStore = create<CustomerState>()(
 
       handleAddCustomer: (name, phone, email) => {
         const newCustomer: Customer = {
-          id: `cust-${Math.floor(100 + Math.random() * 900)}`,
+          id: `cust-${crypto.randomUUID().split('-')[0]}`,
           name,
           phone,
           email,

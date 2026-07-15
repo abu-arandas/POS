@@ -1,0 +1,32 @@
+[
+  {
+    "name": "F21: Dashboard (lazy recharts chunk) renders after navigation",
+    "ok": true,
+    "detail": "svg=3"
+  },
+  {
+    "name": "F21: QR Menu (lazy qrcode chunk) renders after navigation",
+    "ok": true,
+    "detail": "url=\"http://localhost:3001\" svg=7"
+  },
+  {
+    "name": "F10: new product ID is prod-<uuid8> (not prod-NNNN)",
+    "ok": true,
+    "detail": "inventory-row-prod-01c37ded"
+  },
+  {
+    "name": "F10: new customer ID is cust-<uuid8>",
+    "ok": true,
+    "detail": "[\"del-cust-cust-4\",\"del-cust-cust-2\",\"del-cust-cust-3\",\"del-cust-cust-fcbd9121\",\"del-cust-cust-1\"]"
+  },
+  {
+    "name": "F19: low-stock badge uses solid amber + dark text, no shimmer",
+    "ok": true,
+    "detail": "{\"color\":\"oklch(0.129 0.042 264.695)\",\"bg\":\"oklch(0.769 0.188 70.08)\",\"cls\":\"bg-amber-500 text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm\"}"
+  },
+  {
+    "name": "No app console/page errors during polish verification",
+    "ok": true,
+    "detail": ""
+  }
+]

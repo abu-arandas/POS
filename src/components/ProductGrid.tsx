@@ -84,7 +84,7 @@ function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories,
           </span>
         )}
         {!isOutOfStock && isLowStock && (
-          <span className="bg-amber-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm shimmer">
+          <span className="bg-amber-500 text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
             {t('register.onlyLeft', { count: prod.stock })}
           </span>
         )}

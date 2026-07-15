@@ -53,7 +53,7 @@ export const useAuthStore = create<AuthState>()(
 
       handleAddUser: (name, role, pinHash) => {
         const newUser: UserAccount = {
-          id: `user-${Math.floor(1000 + Math.random() * 9000)}`,
+          id: `user-${crypto.randomUUID().split('-')[0]}`,
           name,
           role,
           pin: pinHash,
