@@ -6,10 +6,25 @@ in the browser with `qa/verify-fixes.mjs` (20/20 checks green).
 
 ## Critical
 
-- **F1 — Public database (RLS off).** Left as a deployment decision (enabling RLS without
-  policies would break the anon-key app), but hardened around it: see F2. The canonical
-  `scripts/schema.sql` already documents the secure path (Supabase Auth + RLS policies).
-  The live project still needs RLS + auth before any real deployment.
+- **F1 — Public database (RLS off). ADDRESSED (secure schema shipped + verified).**
+  `scripts/schema.sql` (and the embedded DDL in `src/lib/supabase.ts`) are now **secure by
+  default**: RLS enabled on all tables, access granted only to the `authenticated` role, and
+  a `SECURITY DEFINER` `verify_login(name, pin_hash)` RPC that validates the PIN server-side
+  and returns only non-secret fields — so PIN hashes are never exposed to clients. A local
+  DEMO block (disable RLS) is included but clearly marked unsafe.
+  - **Verified on the live project** (real tables untouched): `verify_login` returns the
+    admin for the correct hash and nothing for a wrong one; a throwaway probe table proved
+    `anon` is fully blocked (0 rows) while `authenticated` reads (1) and the definer RPC
+    bypasses RLS for login (1). The `verify_login` function was added to the live DB
+    (additive/safe); the real tables' RLS was **not** flipped, because doing so without the
+    authenticated client deployed would break the current app's sync.
+  - **App hardening:** Pull From Cloud now refuses to overwrite a local table with an empty
+    result (`data.x?.length`), so an RLS-blocked or failed pull can no longer wipe the
+    catalog or delete every staff account and lock the terminal out.
+  - **Cutover (product decision):** to go live, deploy a build that signs the terminal in
+    with a Supabase Auth device account (`supabase.auth.signInWithPassword`) before syncing,
+    then run the secure `schema.sql`. Until then the live DB stays open by design so the
+    current anon-key build keeps working.
 - **F2 — Plaintext-PIN lockout. FIXED.**
   - `scripts/seed.mjs` now stores `hashPin(pin)` (SHA-256) instead of plaintext.
   - The embedded DDL in `src/lib/supabase.ts` inserts the hashed default-admin PIN.
@@ -60,13 +75,22 @@ in the browser with `qa/verify-fixes.mjs` (20/20 checks green).
   delete via `deleteUsersCloudIfEnabled`). Guards prevent deleting the signed-in account or
   the last active admin, and reject non-4-digit PINs.
 
+## Data integrity & security follow-ups
+
+- **F8 — Transaction ID collisions. FIXED.** Receipt IDs are now `TX-<8 hex>` from
+  `crypto.randomUUID()` instead of `TX-{max+1}`, so two terminals sharing one cloud no
+  longer mint the same ID and upsert-clobber each other's sales.
+- **F14 — $0.00 "card" sale. FIXED.** A sale fully covered by loyalty points is recorded
+  with payment method `loyalty` (added to the type + History icon) instead of a misleading
+  $0 card charge.
+- **F15 — Default PINs on the lockscreen. FIXED.** The hint is wrapped in
+  `import.meta.env.DEV`, so it shows during development but is dead-code-eliminated from
+  production bundles (verified: the string is absent from `dist/`).
+
 ## Deferred (need a product decision — not changed)
 
-- **F8** transaction IDs (`TX-{max+1}`) can collide across terminals sharing one cloud →
-  needs a UUID/per-terminal scheme (changes the user-facing receipt number).
-- **F10** short random entity IDs; **F14** loyalty can produce a $0.00 "card" sale;
-  **F15** default PINs printed on the lockscreen (demo only); **F19** low-stock tile badge
-  contrast; **F21** single 1.27 MB JS chunk (code-split).
+- **F10** short random entity IDs; **F19** low-stock tile badge contrast; **F21** single
+  1.27 MB JS chunk (code-split).
 
 ## Verification
 

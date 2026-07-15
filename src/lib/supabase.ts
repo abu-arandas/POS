@@ -103,12 +103,31 @@ CREATE TABLE IF NOT EXISTS transactions (
   refund_date TIMESTAMP WITH TIME ZONE
 );
 
--- Enable Row Level Security (RLS) - For demo/unauthenticated access, we can allow public read/write or configure policies
-ALTER TABLE user_accounts DISABLE ROW LEVEL SECURITY;
-ALTER TABLE categories DISABLE ROW LEVEL SECURITY;
-ALTER TABLE products DISABLE ROW LEVEL SECURITY;
-ALTER TABLE customers DISABLE ROW LEVEL SECURITY;
-ALTER TABLE transactions DISABLE ROW LEVEL SECURITY;
+-- Login RPC: SECURITY DEFINER so it validates credentials without exposing PIN
+-- hashes to clients (returns non-secret fields only). The client sends
+-- SHA-256(entered PIN) — see src/lib/hash.ts.
+CREATE OR REPLACE FUNCTION public.verify_login(p_name TEXT, p_pin_hash TEXT)
+RETURNS TABLE (id TEXT, name TEXT, role TEXT, active BOOLEAN, created_at TIMESTAMPTZ)
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $fn$
+  SELECT id, name, role, active, created_at FROM public.user_accounts
+  WHERE name = p_name AND pin = p_pin_hash AND active = TRUE LIMIT 1;
+$fn$;
+REVOKE ALL ON FUNCTION public.verify_login(TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.verify_login(TEXT, TEXT) TO anon, authenticated;
+
+-- Row Level Security (secure by default): only an authenticated terminal can
+-- read/write. The public anon key alone cannot touch any row. For a throwaway
+-- local demo you may DISABLE RLS instead, but never in production.
+ALTER TABLE user_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions  ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "staff full access" ON categories   FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "staff full access" ON products      FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "staff full access" ON customers     FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "staff full access" ON transactions  FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "staff manage users" ON user_accounts FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
 
 -- Insert default admin account if not existing (Default PIN: 1234)
 -- The PIN is stored as its SHA-256 hash because the app hashes the entered PIN

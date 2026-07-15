@@ -213,13 +213,15 @@ export default function Lockscreen() {
         </AnimatePresence>
       </div>
 
-      {/* Helper Footer Hint */}
-      <div className="mt-6 text-center text-slate-600 font-mono text-[10px] z-10 max-w-xs">
-        {t('lockscreen.defaultPins')} <br />
-        Admin: <strong className="text-slate-400 font-semibold">1234</strong> | Manager:{' '}
-        <strong className="text-slate-400 font-semibold">5555</strong> | Cashier:{' '}
-        <strong className="text-slate-400 font-semibold">0000</strong>
-      </div>
+      {/* Helper Footer Hint — dev builds only; never ship credentials in production */}
+      {import.meta.env.DEV && (
+        <div className="mt-6 text-center text-slate-600 font-mono text-[10px] z-10 max-w-xs">
+          {t('lockscreen.defaultPins')} <br />
+          Admin: <strong className="text-slate-400 font-semibold">1234</strong> | Manager:{' '}
+          <strong className="text-slate-400 font-semibold">5555</strong> | Cashier:{' '}
+          <strong className="text-slate-400 font-semibold">0000</strong>
+        </div>
+      )}
     </div>
   );
 }

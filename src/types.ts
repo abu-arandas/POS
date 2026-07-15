@@ -44,7 +44,7 @@ export interface SaleTransaction {
   discountValue: number;
   tax: number;
   total: number;
-  paymentMethod: 'cash' | 'card' | 'mobile' | 'gift';
+  paymentMethod: 'cash' | 'card' | 'mobile' | 'gift' | 'loyalty';
   cashPaid?: number;
   cashChange?: number;
   customerId: string | null;

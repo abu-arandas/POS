@@ -212,11 +212,15 @@ export default function Settings() {
       alert(t('settings.pullFailed'));
       return;
     }
-    if (data.categories) setCategories(data.categories);
-    if (data.products) setProducts(data.products);
-    if (data.customers) setCustomers(data.customers);
-    if (data.users) setUsers(data.users);
-    if (data.transactions) setTransactions(data.transactions);
+    // Only overwrite a local table when the cloud actually returned rows for it.
+    // An empty result usually means that table failed to load (e.g. RLS blocked
+    // the anon role) — replacing local data with [] would wipe the catalog or,
+    // worse, delete every staff account and lock the terminal out.
+    if (data.categories?.length) setCategories(data.categories);
+    if (data.products?.length) setProducts(data.products);
+    if (data.customers?.length) setCustomers(data.customers);
+    if (data.users?.length) setUsers(data.users);
+    if (data.transactions?.length) setTransactions(data.transactions);
     persistConfig('connected');
     alert(t('settings.pullSuccess'));
   };

@@ -1,7 +1,7 @@
 -- ============================================================
--- Supabase DDL Schema for POS Terminal System
--- Run this FIRST in your Supabase SQL Editor:
--- Dashboard → SQL Editor → New Query → Paste & Run
+-- Supabase DDL Schema for POS Terminal System  (secure by default)
+-- Run this in your Supabase SQL Editor:
+--   Dashboard → SQL Editor → New Query → Paste & Run
 -- ============================================================
 
 -- 1. Enable UUID Extension
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS user_accounts (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'cashier')),
-  pin TEXT NOT NULL,
+  pin TEXT NOT NULL,                       -- SHA-256 hash of the PIN, never plaintext
   active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
@@ -67,23 +67,65 @@ CREATE TABLE IF NOT EXISTS transactions (
   refund_date TIMESTAMP WITH TIME ZONE
 );
 
--- 7. Row Level Security
+-- 7. Login RPC
 -- ============================================================
--- ⚠️  SECURITY WARNING
--- The statements below DISABLE RLS so the app can read/write with only the
--- public anon key. This means ANYONE who obtains the anon key (it ships in the
--- client bundle) can read and modify EVERY row — including user_accounts and
--- their PIN hashes. This is acceptable ONLY for a local demo/prototype.
+-- SECURITY DEFINER so it can validate credentials even when RLS hides
+-- user_accounts from client roles. It returns only non-secret fields — the PIN
+-- hash never leaves the database. The client sends SHA-256(entered PIN); see
+-- src/lib/hash.ts. This lets you keep user_accounts unreadable by clients while
+-- still supporting the PIN lockscreen against the cloud copy.
+CREATE OR REPLACE FUNCTION public.verify_login(p_name TEXT, p_pin_hash TEXT)
+RETURNS TABLE (id TEXT, name TEXT, role TEXT, active BOOLEAN, created_at TIMESTAMPTZ)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT id, name, role, active, created_at
+  FROM public.user_accounts
+  WHERE name = p_name AND pin = p_pin_hash AND active = TRUE
+  LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION public.verify_login(TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.verify_login(TEXT, TEXT) TO anon, authenticated;
+
+-- 8. Row Level Security (RECOMMENDED — secure by default)
+-- ============================================================
+-- RLS is ENABLED and access is granted only to the `authenticated` role. The
+-- public `anon` key that ships in the client bundle therefore CANNOT read or
+-- write any row on its own. A terminal must establish an authenticated session
+-- (a Supabase Auth "device" account — supabase.auth.signInWithPassword) before
+-- syncing. Rotate/disable that account to cut off a compromised terminal.
 --
--- For any real deployment: adopt Supabase Auth, keep RLS ENABLED, and add
--- policies scoped to authenticated staff, e.g.
---     ALTER TABLE products ENABLE ROW LEVEL SECURITY;
---     CREATE POLICY "staff read"  ON products FOR SELECT TO authenticated USING (true);
---     CREATE POLICY "staff write" ON products FOR ALL    TO authenticated USING (true) WITH CHECK (true);
--- and NEVER expose user_accounts / PIN hashes to the anon role.
+-- Terminal PIN login still works offline against the locally persisted users;
+-- against the cloud it goes through verify_login() above, so PIN hashes are
+-- never exposed to clients.
 -- ============================================================
-ALTER TABLE user_accounts DISABLE ROW LEVEL SECURITY;
-ALTER TABLE categories    DISABLE ROW LEVEL SECURITY;
-ALTER TABLE products      DISABLE ROW LEVEL SECURITY;
-ALTER TABLE customers     DISABLE ROW LEVEL SECURITY;
-ALTER TABLE transactions  DISABLE ROW LEVEL SECURITY;
+ALTER TABLE user_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions  ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "staff full access" ON categories   FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "staff full access" ON products      FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "staff full access" ON customers     FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "staff full access" ON transactions  FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+-- user_accounts: manageable by authenticated staff; anon logs in via verify_login() only.
+CREATE POLICY "staff manage users" ON user_accounts FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+
+-- 8b. DEMO / PROTOTYPE ONLY — anon read/write without auth.
+-- ============================================================
+-- ⚠️  Uncommenting this exposes EVERY row (including PIN hashes) to anyone with
+-- the public anon key. Use only for a throwaway local demo, never in production.
+-- ------------------------------------------------------------
+-- ALTER TABLE user_accounts DISABLE ROW LEVEL SECURITY;
+-- ALTER TABLE categories    DISABLE ROW LEVEL SECURITY;
+-- ALTER TABLE products      DISABLE ROW LEVEL SECURITY;
+-- ALTER TABLE customers     DISABLE ROW LEVEL SECURITY;
+-- ALTER TABLE transactions  DISABLE ROW LEVEL SECURITY;
+
+-- 9. Seed the default admin (PIN 1234, stored as its SHA-256 hash)
+INSERT INTO user_accounts (id, name, role, pin, active, created_at)
+VALUES ('admin-1', 'Default Administrator', 'admin',
+        '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4', TRUE, NOW())
+ON CONFLICT (id) DO NOTHING;

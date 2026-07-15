@@ -10,6 +10,7 @@ import {
   DollarSign,
   Smartphone,
   Gift,
+  Award,
   X,
   Check,
   AlertTriangle,
@@ -542,6 +543,8 @@ export default function History() {
         return <Smartphone size={13} className="text-purple-500" />;
       case 'gift':
         return <Gift size={13} className="text-amber-500" />;
+      case 'loyalty':
+        return <Award size={13} className="text-emerald-500" />;
     }
   };
 
