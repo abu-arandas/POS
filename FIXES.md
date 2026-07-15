@@ -51,12 +51,19 @@ in the browser with `qa/verify-fixes.mjs` (20/20 checks green).
 - **F20 — Low-stock badge mismatch. FIXED.** The mobile and desktop nav badges now use the
   same definition (in-stock items at/below threshold).
 
+## Admin UIs
+
+- **F9 — User management + printer config. FIXED.** Settings gained a **Users** tab (list,
+  add, edit, delete staff; role + active toggle; PINs hashed via `hashPin`, so a new user
+  can log in immediately — verified end-to-end) and a **Printer** tab exposing every
+  `PrinterConfig` field. User CRUD syncs to the cloud (add/update via `syncToCloudIfEnabled`,
+  delete via `deleteUsersCloudIfEnabled`). Guards prevent deleting the signed-in account or
+  the last active admin, and reject non-4-digit PINs.
+
 ## Deferred (need a product decision — not changed)
 
 - **F8** transaction IDs (`TX-{max+1}`) can collide across terminals sharing one cloud →
   needs a UUID/per-terminal scheme (changes the user-facing receipt number).
-- **F9** no user-management or printer-config UI (the store actions/types exist but are
-  unused).
 - **F10** short random entity IDs; **F14** loyalty can produce a $0.00 "card" sale;
   **F15** default PINs printed on the lockscreen (demo only); **F19** low-stock tile badge
   contrast; **F21** single 1.27 MB JS chunk (code-split).

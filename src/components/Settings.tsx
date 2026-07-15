@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import {
   Settings as SettingsIcon,
   Cloud,
@@ -6,25 +6,136 @@ import {
   DownloadCloud,
   RefreshCw,
   Save,
+  Users,
+  Printer,
+  UserPlus,
+  Edit2,
+  Trash2,
+  Check,
+  X,
+  Shield,
 } from 'lucide-react';
-import { StoreSettings } from '../types';
+import { StoreSettings, UserAccount, PrinterConfig } from '../types';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
-import { testCloudConnection, pushAllToCloud, pullAllFromCloud } from '../lib/sync';
+import { hashPin } from '../lib/hash';
+import {
+  testCloudConnection,
+  pushAllToCloud,
+  pullAllFromCloud,
+  syncToCloudIfEnabled,
+  deleteUsersCloudIfEnabled,
+} from '../lib/sync';
+
+type SettingsTab = 'profile' | 'users' | 'printer' | 'supabase';
 
 export default function Settings() {
-  const { settings, setSettings, language, setLanguage, supabaseConfig, setSupabaseConfig } =
-    useSettingsStore();
+  const {
+    settings,
+    setSettings,
+    language,
+    setLanguage,
+    supabaseConfig,
+    setSupabaseConfig,
+    printerConfig,
+    setPrinterConfig,
+  } = useSettingsStore();
   const { products, categories, setProducts, setCategories } = useProductStore();
   const { customers, setCustomers } = useCustomerStore();
   const { transactions, setTransactions } = useTransactionStore();
-  const { users, setUsers } = useAuthStore();
+  const { users, setUsers, currentUser, handleAddUser, handleUpdateUser, handleDeleteUser } =
+    useAuthStore();
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'profile' | 'supabase'>('profile');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
+
+  // --- Staff account management state ---
+  const [userModalOpen, setUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
+  const [uName, setUName] = useState('');
+  const [uRole, setURole] = useState<UserAccount['role']>('cashier');
+  const [uPin, setUPin] = useState('');
+  const [uActive, setUActive] = useState(true);
+
+  // --- Printer config form state (seeded from persisted config) ---
+  const [printerForm, setPrinterForm] = useState<PrinterConfig>(printerConfig);
+
+  const openAddUser = () => {
+    setEditingUser(null);
+    setUName('');
+    setURole('cashier');
+    setUPin('');
+    setUActive(true);
+    setUserModalOpen(true);
+  };
+
+  const openEditUser = (u: UserAccount) => {
+    setEditingUser(u);
+    setUName(u.name);
+    setURole(u.role);
+    setUPin(''); // blank = keep current PIN
+    setUActive(u.active);
+    setUserModalOpen(true);
+  };
+
+  const handleSubmitUser = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!uName.trim()) return;
+    // PIN required for new users; optional (blank = unchanged) when editing.
+    if ((!editingUser || uPin) && !/^\d{4}$/.test(uPin)) {
+      alert(t('settings.pinMustBe4'));
+      return;
+    }
+
+    if (editingUser) {
+      const updated: UserAccount = {
+        ...editingUser,
+        name: uName.trim(),
+        role: uRole,
+        active: uActive,
+        pin: uPin ? await hashPin(uPin) : editingUser.pin,
+      };
+      handleUpdateUser(updated);
+      syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [updated]);
+    } else {
+      const pinHash = await hashPin(uPin);
+      handleAddUser(uName.trim(), uRole, pinHash);
+      const created = useAuthStore.getState().users.find((u) => u.name === uName.trim() && u.pin === pinHash);
+      if (created) {
+        if (!uActive) {
+          const deactivated = { ...created, active: false };
+          handleUpdateUser(deactivated);
+          syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [deactivated]);
+        } else {
+          syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [created]);
+        }
+      }
+    }
+    setUserModalOpen(false);
+  };
+
+  const handleRemoveUser = (u: UserAccount) => {
+    if (currentUser && u.id === currentUser.id) {
+      alert(t('settings.cannotDeleteSelf'));
+      return;
+    }
+    const activeAdmins = users.filter((x) => x.role === 'admin' && x.active);
+    if (u.role === 'admin' && u.active && activeAdmins.length <= 1) {
+      alert(t('settings.cannotDeleteLastAdmin'));
+      return;
+    }
+    if (!confirm(t('settings.deleteUserConfirm', { name: u.name }))) return;
+    handleDeleteUser(u.id);
+    deleteUsersCloudIfEnabled([u.id]);
+  };
+
+  const handleSavePrinter = () => {
+    setPrinterConfig(printerForm);
+    alert(t('settings.printerSaved'));
+  };
 
   // Supabase form state, seeded from the persisted config.
   const [sbUrl, setSbUrl] = useState(supabaseConfig.url);
@@ -124,8 +235,21 @@ export default function Settings() {
 
   const tabs = [
     { id: 'profile', label: t('settings.title'), icon: SettingsIcon },
+    { id: 'users', label: t('settings.usersTab'), icon: Users },
+    { id: 'printer', label: t('settings.printerTab'), icon: Printer },
     { id: 'supabase', label: t('settings.supabaseSync'), icon: Cloud },
   ] as const;
+
+  const roleLabel: Record<UserAccount['role'], string> = {
+    admin: t('settings.roleAdmin'),
+    manager: t('settings.roleManager'),
+    cashier: t('settings.roleCashier'),
+  };
+  const roleStyle: Record<UserAccount['role'], string> = {
+    admin: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300',
+    manager: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+    cashier: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+  };
 
   return (
     <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950">
@@ -147,7 +271,7 @@ export default function Settings() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as 'profile' | 'supabase')}
+                  onClick={() => setActiveTab(tab.id as SettingsTab)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-start transition-colors ${
                     isActive
                       ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold'
@@ -288,6 +412,217 @@ export default function Settings() {
                 </div>
               </div>
             )}
+            {activeTab === 'users' && (
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                      <Users size={18} className="text-emerald-500" />
+                      {t('settings.staffAccounts')}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      {t('settings.manageStaff')}
+                    </p>
+                  </div>
+                  <button
+                    id="add-user-btn"
+                    onClick={openAddUser}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                  >
+                    <UserPlus size={16} />
+                    {t('settings.addUser')}
+                  </button>
+                </div>
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {users.map((u) => (
+                    <div
+                      key={u.id}
+                      id={`user-row-${u.id}`}
+                      className="px-6 py-3.5 flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${roleStyle[u.role]}`}
+                        >
+                          <Shield size={16} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                              {u.name}
+                            </span>
+                            {currentUser?.id === u.id && (
+                              <span className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400">
+                                • you
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span
+                              className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${roleStyle[u.role]}`}
+                            >
+                              {roleLabel[u.role]}
+                            </span>
+                            <span
+                              className={`text-[10px] font-mono ${u.active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}
+                            >
+                              {u.active ? t('settings.statusActive') : t('settings.statusInactive')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => openEditUser(u)}
+                          title={t('settings.editUser')}
+                          className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/60 rounded-lg transition-colors"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          id={`del-user-${u.id}`}
+                          onClick={() => handleRemoveUser(u)}
+                          title="Delete"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100/60 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {activeTab === 'printer' && (
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
+                  <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Printer size={18} className="text-emerald-500" />
+                    {t('settings.printerConfig')}
+                  </h3>
+                </div>
+                <div className="p-6 space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                        {t('settings.connectionType')}
+                      </label>
+                      <select
+                        id="printer-type"
+                        value={printerForm.type}
+                        onChange={(e) =>
+                          setPrinterForm({ ...printerForm, type: e.target.value as PrinterConfig['type'] })
+                        }
+                        className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
+                      >
+                        <option value="system">{t('settings.printerSystem')}</option>
+                        <option value="serial">{t('settings.printerSerial')}</option>
+                        <option value="bluetooth">{t('settings.printerBluetooth')}</option>
+                        <option value="network">{t('settings.printerNetwork')}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                        {t('settings.paperSize')}
+                      </label>
+                      <select
+                        value={printerForm.paperSize}
+                        onChange={(e) =>
+                          setPrinterForm({ ...printerForm, paperSize: e.target.value as PrinterConfig['paperSize'] })
+                        }
+                        className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
+                      >
+                        <option value="58mm">58mm</option>
+                        <option value="80mm">80mm</option>
+                      </select>
+                    </div>
+                    {printerForm.type === 'network' && (
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                          {t('settings.ipAddress')}
+                        </label>
+                        <input
+                          type="text"
+                          dir="ltr"
+                          placeholder="192.168.1.50"
+                          value={printerForm.ipAddress || ''}
+                          onChange={(e) => setPrinterForm({ ...printerForm, ipAddress: e.target.value })}
+                          className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100 font-mono text-sm"
+                        />
+                      </div>
+                    )}
+                    {printerForm.type === 'serial' && (
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                          {t('settings.baudRate')}
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="9600"
+                          value={printerForm.baudRate ?? ''}
+                          onChange={(e) =>
+                            setPrinterForm({
+                              ...printerForm,
+                              baudRate: e.target.value ? parseInt(e.target.value) : undefined,
+                            })
+                          }
+                          className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100 font-mono text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                      {t('settings.footerMessage')}
+                    </label>
+                    <input
+                      type="text"
+                      value={printerForm.footerMessage}
+                      onChange={(e) => setPrinterForm({ ...printerForm, footerMessage: e.target.value })}
+                      className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
+                    />
+                  </div>
+
+                  <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={printerForm.showBarcode}
+                      onChange={(e) => setPrinterForm({ ...printerForm, showBarcode: e.target.checked })}
+                      className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                      {t('settings.showBarcode')}
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={printerForm.autoPrintOnCheckout}
+                      onChange={(e) =>
+                        setPrinterForm({ ...printerForm, autoPrintOnCheckout: e.target.checked })
+                      }
+                      className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                      {t('settings.autoPrint')}
+                    </span>
+                  </label>
+
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      id="save-printer-btn"
+                      onClick={handleSavePrinter}
+                      className="px-4 py-2.5 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 text-sm font-semibold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                    >
+                      <Save size={16} />
+                      {t('settings.savePrinter')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {activeTab === 'supabase' && (
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between">
@@ -390,6 +725,103 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      {/* Add / edit staff account modal */}
+      {userModalOpen && (
+        <div
+          id="user-modal"
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        >
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-sm w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <UserPlus size={18} className="text-emerald-500" />
+                {editingUser ? t('settings.editUser') : t('settings.newUser')}
+              </h3>
+              <button
+                onClick={() => setUserModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmitUser} className="p-6 space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  {t('settings.userName')}
+                </label>
+                <input
+                  id="user-name-input"
+                  type="text"
+                  required
+                  value={uName}
+                  onChange={(e) => setUName(e.target.value)}
+                  className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  {t('settings.userRole')}
+                </label>
+                <select
+                  id="user-role-select"
+                  value={uRole}
+                  onChange={(e) => setURole(e.target.value as UserAccount['role'])}
+                  className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
+                >
+                  <option value="admin">{t('settings.roleAdmin')}</option>
+                  <option value="manager">{t('settings.roleManager')}</option>
+                  <option value="cashier">{t('settings.roleCashier')}</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  {editingUser ? t('settings.userPinKeep') : t('settings.userPin')}
+                </label>
+                <input
+                  id="user-pin-input"
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="••••"
+                  value={uPin}
+                  onChange={(e) => setUPin(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100 font-mono tracking-[0.5em]"
+                />
+              </div>
+              <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer">
+                <input
+                  id="user-active-checkbox"
+                  type="checkbox"
+                  checked={uActive}
+                  onChange={(e) => setUActive(e.target.checked)}
+                  className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                />
+                <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                  {t('settings.statusActive')}
+                </span>
+              </label>
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setUserModalOpen(false)}
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                >
+                  {t('settings.cancel')}
+                </button>
+                <button
+                  id="user-save-btn"
+                  type="submit"
+                  className="px-5 py-2.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl flex items-center gap-1.5 shadow-sm transition-colors"
+                >
+                  <Check size={16} />
+                  {t('settings.saveUser')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

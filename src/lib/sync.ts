@@ -125,3 +125,5 @@ export const deleteCategoriesCloudIfEnabled = (ids: string[]) =>
   deleteFromCloudIfEnabled('categories', ids);
 export const deleteCustomersCloudIfEnabled = (ids: string[]) =>
   deleteFromCloudIfEnabled('customers', ids);
+export const deleteUsersCloudIfEnabled = (ids: string[]) =>
+  deleteFromCloudIfEnabled('user_accounts', ids);
