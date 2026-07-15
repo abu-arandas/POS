@@ -1,9 +1,15 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Product, Category, Customer, SaleTransaction, UserAccount, OrderItem } from '../types';
+import { hashPin } from './hash';
+
+// A stored PIN is valid only if it is already a SHA-256 hex digest.
+const isHashedPin = (pin: string) => /^[a-f0-9]{64}$/i.test(pin);
 
 let supabaseInstance: SupabaseClient | null = null;
 let currentUrl = '';
 let currentKey = '';
+// Email the current client instance is signed in as ('' = anonymous).
+let authedEmail = '';
 
 // Lazy initialization of Supabase client to avoid crashes on bad keys
 export function getSupabaseClient(url: string, anonKey: string): SupabaseClient | null {
@@ -19,6 +25,7 @@ export function getSupabaseClient(url: string, anonKey: string): SupabaseClient 
   try {
     currentUrl = url;
     currentKey = anonKey;
+    authedEmail = ''; // new client starts anonymous
     supabaseInstance = createClient(url, anonKey, {
       auth: {
         persistSession: false,
@@ -29,6 +36,33 @@ export function getSupabaseClient(url: string, anonKey: string): SupabaseClient 
     console.error('Failed to initialize Supabase client:', error);
     supabaseInstance = null;
     return null;
+  }
+}
+
+// Signs the client in with a Supabase Auth "device" account so it operates as an
+// authenticated role (required when RLS is enabled). No-op when no credentials
+// are configured — the client stays anonymous exactly as before. Cached per
+// client instance so we only hit the auth endpoint once.
+export async function signInDevice(
+  client: SupabaseClient,
+  email: string,
+  password: string,
+): Promise<boolean> {
+  if (!email || !password) return true; // anonymous mode
+  if (authedEmail === email) return true; // already signed in on this client
+  try {
+    const { error } = await client.auth.signInWithPassword({ email, password });
+    if (error) {
+      console.warn('Supabase device sign-in failed:', error.message);
+      authedEmail = '';
+      return false;
+    }
+    authedEmail = email;
+    return true;
+  } catch (err) {
+    console.error('Supabase device sign-in error:', err);
+    authedEmail = '';
+    return false;
   }
 }
 
@@ -99,16 +133,38 @@ CREATE TABLE IF NOT EXISTS transactions (
   refund_date TIMESTAMP WITH TIME ZONE
 );
 
--- Enable Row Level Security (RLS) - For demo/unauthenticated access, we can allow public read/write or configure policies
-ALTER TABLE user_accounts DISABLE ROW LEVEL SECURITY;
-ALTER TABLE categories DISABLE ROW LEVEL SECURITY;
-ALTER TABLE products DISABLE ROW LEVEL SECURITY;
-ALTER TABLE customers DISABLE ROW LEVEL SECURITY;
-ALTER TABLE transactions DISABLE ROW LEVEL SECURITY;
+-- Login RPC: SECURITY DEFINER so it validates credentials without exposing PIN
+-- hashes to clients (returns non-secret fields only). The client sends
+-- SHA-256(entered PIN) — see src/lib/hash.ts.
+CREATE OR REPLACE FUNCTION public.verify_login(p_name TEXT, p_pin_hash TEXT)
+RETURNS TABLE (id TEXT, name TEXT, role TEXT, active BOOLEAN, created_at TIMESTAMPTZ)
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $fn$
+  SELECT id, name, role, active, created_at FROM public.user_accounts
+  WHERE name = p_name AND pin = p_pin_hash AND active = TRUE LIMIT 1;
+$fn$;
+REVOKE ALL ON FUNCTION public.verify_login(TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.verify_login(TEXT, TEXT) TO anon, authenticated;
+
+-- Row Level Security (secure by default): only an authenticated terminal can
+-- read/write. The public anon key alone cannot touch any row. For a throwaway
+-- local demo you may DISABLE RLS instead, but never in production.
+ALTER TABLE user_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions  ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "staff full access" ON categories   FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "staff full access" ON products      FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "staff full access" ON customers     FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "staff full access" ON transactions  FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY "staff manage users" ON user_accounts FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
 
 -- Insert default admin account if not existing (Default PIN: 1234)
+-- The PIN is stored as its SHA-256 hash because the app hashes the entered PIN
+-- before comparing (see src/lib/hash.ts). Storing plaintext here would make the
+-- account impossible to log into. Hash below = SHA-256('1234').
 INSERT INTO user_accounts (id, name, role, pin, active, created_at)
-VALUES ('admin-1', 'Default Administrator', 'admin', '1234', TRUE, NOW())
+VALUES ('admin-1', 'Default Administrator', 'admin', '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4', TRUE, NOW())
 ON CONFLICT (id) DO NOTHING;
 `;
 
@@ -282,18 +338,23 @@ export async function pushTransactions(
   }
 }
 
-// Delete transactions
-export async function deleteTransactionsSupabase(
+// Delete rows by id from any synced table. Used by the cloud delete-sync
+// wrappers so that local deletions are propagated instead of resurrecting on
+// the next Pull From Cloud.
+export type SyncTable = 'products' | 'categories' | 'customers' | 'transactions' | 'user_accounts';
+
+export async function deleteRowsSupabase(
   client: SupabaseClient,
+  table: SyncTable,
   ids: string[],
 ): Promise<boolean> {
   if (ids.length === 0) return true;
   try {
-    const { error } = await client.from('transactions').delete().in('id', ids);
+    const { error } = await client.from(table).delete().in('id', ids);
     if (error) throw error;
     return true;
   } catch (err) {
-    console.error('Failed deleting transactions:', err);
+    console.error(`Failed deleting ${table}:`, err);
     return false;
   }
 }
@@ -359,14 +420,19 @@ export async function pullUserAccounts(client: SupabaseClient): Promise<UserAcco
   try {
     const { data, error } = await client.from('user_accounts').select('*');
     if (error) throw error;
-    return (data || []).map((r) => ({
-      id: r.id,
-      name: r.name,
-      role: r.role as UserAccount['role'],
-      pin: r.pin,
-      active: !!r.active,
-      createdAt: r.created_at,
-    }));
+    // Older cloud data may hold plaintext PINs. The app authenticates against
+    // SHA-256 hashes, so re-hash anything that isn't already a hash — otherwise
+    // the pulled account can never log in and may lock the terminal out.
+    return await Promise.all(
+      (data || []).map(async (r) => ({
+        id: r.id,
+        name: r.name,
+        role: r.role as UserAccount['role'],
+        pin: isHashedPin(String(r.pin)) ? r.pin : await hashPin(String(r.pin)),
+        active: !!r.active,
+        createdAt: r.created_at,
+      })),
+    );
   } catch (err) {
     console.error('Failed pulling user accounts:', err);
     return null;

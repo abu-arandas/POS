@@ -18,6 +18,7 @@ import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useTransactionStore } from '../stores/transactionStore';
+import { useAuthStore } from '../stores/authStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { useTranslation } from 'react-i18next';
@@ -27,7 +28,8 @@ export default function Register() {
   const { products, categories, handleUpdateProduct } = useProductStore();
   const { customers, handleAddCustomer, updateCustomerPoints } = useCustomerStore();
   const { settings, printerConfig } = useSettingsStore();
-  const { transactions, addTransaction } = useTransactionStore();
+  const { addTransaction } = useTransactionStore();
+  const { currentUser } = useAuthStore();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -174,13 +176,14 @@ export default function Register() {
       return;
     }
 
-    let nextId = 'TX-10001';
-    if (transactions.length > 0) {
-      const maxId = Math.max(
-        ...transactions.map((t) => parseInt(t.id.split('-').pop() || '10000')),
-      );
-      nextId = `TX-${maxId + 1}`;
-    }
+    // Globally-unique receipt ID: TX-<8 hex>. Avoids the previous TX-{max+1}
+    // scheme, which collided when two terminals shared one cloud database.
+    const nextId = `TX-${crypto.randomUUID().split('-')[0].toUpperCase()}`;
+
+    // A sale fully covered by loyalty points is a points redemption, not a $0
+    // card charge — record it as such so receipts and reports are honest.
+    const saleMethod: SaleTransaction['paymentMethod'] =
+      totalAmount <= 0 ? 'loyalty' : paymentMethod;
 
     const transaction: SaleTransaction = {
       id: nextId,
@@ -195,11 +198,13 @@ export default function Register() {
       discountValue,
       tax: taxAmount,
       total: totalAmount,
-      paymentMethod,
+      paymentMethod: saleMethod,
       cashPaid: paidValue,
-      cashChange: paymentMethod === 'cash' ? cashChangeDue : undefined,
+      cashChange: saleMethod === 'cash' ? cashChangeDue : undefined,
       customerId: selectedCustomerId,
       customerName: activeCustomer?.name || null,
+      operatorId: currentUser?.id ?? null,
+      operatorName: currentUser?.name ?? null,
       status: 'completed',
     };
 
@@ -605,7 +610,7 @@ export default function Register() {
                     </div>
                     <div className="flex justify-between">
                       <span>{t('register.operator')}:</span>
-                      <span>Admin</span>
+                      <span>{activeReceipt.operatorName || '—'}</span>
                     </div>
                     {activeReceipt.customerName && (
                       <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold mt-1">
@@ -646,6 +651,13 @@ export default function Register() {
                         </span>
                       </div>
                     )}
+                    <div className="flex justify-between">
+                      <span>{t('register.tax').toUpperCase()}:</span>
+                      <span>
+                        {settings.currency}
+                        {activeReceipt.tax.toFixed(2)}
+                      </span>
+                    </div>
                     <div className="flex justify-between text-slate-900 dark:text-white font-bold pt-2 border-t border-slate-200 dark:border-slate-800 mt-2 text-sm">
                       <span>{t('register.totalPaid')}:</span>
                       <span>

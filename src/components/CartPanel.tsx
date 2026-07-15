@@ -375,6 +375,18 @@ export default function CartPanel({
             </div>
           )}
 
+          {taxAmount > 0 && (
+            <div className="flex justify-between text-slate-500 dark:text-slate-400 text-xs">
+              <span>
+                {t('register.tax')} ({settings.taxRate}%)
+              </span>
+              <span className="font-mono">
+                {settings.currency}
+                {taxAmount.toFixed(2)}
+              </span>
+            </div>
+          )}
+
           <div className="flex justify-between text-slate-800 dark:text-slate-100 font-bold text-sm pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
             <span>{t('register.total')}</span>
             <span className="font-mono text-xl text-emerald-600 dark:text-emerald-400 tracking-tight">

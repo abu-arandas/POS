@@ -1,0 +1,27 @@
+[
+  {
+    "name": "FINDING: cart is component state — lost on reload/refresh mid-sale",
+    "ok": true,
+    "detail": "cart after reload: 🛒  CART IS EMPTY"
+  },
+  {
+    "name": "Clear cart empties items",
+    "ok": true,
+    "detail": "🛒  CART IS EMPTY"
+  },
+  {
+    "name": "FINDING: duplicate element IDs — every screen mounted twice (mobile + desktop shells)",
+    "ok": false,
+    "detail": "{\"register-root\":2,\"cart-section\":2,\"products-grid\":2,\"catalog-section\":2}"
+  },
+  {
+    "name": "No unexpected dialogs",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "No app console/page errors (excluding blocked image CDN)",
+    "ok": true,
+    "detail": ""
+  }
+]

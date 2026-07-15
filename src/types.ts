@@ -44,11 +44,13 @@ export interface SaleTransaction {
   discountValue: number;
   tax: number;
   total: number;
-  paymentMethod: 'cash' | 'card' | 'mobile' | 'gift';
+  paymentMethod: 'cash' | 'card' | 'mobile' | 'gift' | 'loyalty';
   cashPaid?: number;
   cashChange?: number;
   customerId: string | null;
   customerName?: string | null;
+  operatorId?: string | null; // staff member who rang up the sale
+  operatorName?: string | null;
   status: 'completed' | 'refunded';
   refundDate?: string | null;
 }
@@ -86,6 +88,11 @@ export interface PrinterConfig {
 export interface SupabaseConfig {
   url: string;
   anonKey: string;
+  // Optional Supabase Auth "device" account. When set, the sync client signs in
+  // with it so the terminal operates as an authenticated role — required once
+  // RLS is enabled (see scripts/schema.sql). Left blank = anonymous (demo mode).
+  authEmail?: string;
+  authPassword?: string;
   enabled: boolean;
   status: 'disconnected' | 'connected' | 'error';
 }

@@ -45,7 +45,14 @@ export const useSettingsStore = create<SettingsState>()(
       setSettings: (settings) => set({ settings }),
       setPrinterConfig: (printerConfig) => set({ printerConfig }),
       setSupabaseConfig: (supabaseConfig) => set({ supabaseConfig }),
-      setDarkMode: (darkMode) => set({ darkMode }),
+      setDarkMode: (darkMode) => {
+        // Apply the theme class immediately; without this the `dark:` variants
+        // only take effect after a reload (the class was set on rehydrate only).
+        if (typeof document !== 'undefined') {
+          document.documentElement.classList.toggle('dark', darkMode);
+        }
+        set({ darkMode });
+      },
       setLanguage: (language) => set({ language }),
     }),
     {

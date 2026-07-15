@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Lockscreen lists 3 default users (Admin/Manager/Cashier)",
+    "ok": true,
+    "detail": "[\"AdminRole: adminPIN Required\",\"ManagerRole: managerPIN Required\",\"CashierRole: cashierPIN Required\"]"
+  },
+  {
+    "name": "Default PINs are printed on lockscreen (finding: info disclosure)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "Wrong PIN (9999) shows error and stays locked",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "Admin login (1234) → all 7 nav items",
+    "ok": true,
+    "detail": "[\"nav-btn-register\",\"nav-btn-dashboard\",\"nav-btn-inventory\",\"nav-btn-history\",\"nav-btn-customers\",\"nav-btn-qrmenu\",\"nav-btn-settings\"]"
+  },
+  {
+    "name": "Cashier login (0000) → only register + transactions",
+    "ok": true,
+    "detail": "[\"nav-btn-register\",\"nav-btn-history\"]"
+  },
+  {
+    "name": "Manager login (5555) → 6 nav items, no settings",
+    "ok": true,
+    "detail": "[\"nav-btn-register\",\"nav-btn-dashboard\",\"nav-btn-inventory\",\"nav-btn-history\",\"nav-btn-customers\",\"nav-btn-qrmenu\"]"
+  },
+  {
+    "name": "Copy check: \"Dark Mode\" label spelled correctly",
+    "ok": false,
+    "detail": "found: DarkMode"
+  },
+  {
+    "name": "No console/page errors during lockscreen suite",
+    "ok": false,
+    "detail": "Failed to load resource: net::ERR_CONNECTION_RESET || Failed to load resource: the server responded with a status of 404 (Not Found) || Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED || Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED || Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+  }
+]

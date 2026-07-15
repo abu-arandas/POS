@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import {
   ShoppingBag,
   Package,
@@ -9,21 +9,32 @@ import {
   Menu,
   X as XIcon,
   QrCode,
+  Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import Sidebar from './components/Sidebar';
 import Register from './components/Register';
-import Inventory from './components/Inventory';
-import History from './components/History';
-import Customers from './components/Customers';
-import Dashboard from './components/Dashboard';
-import Settings from './components/Settings';
 import Lockscreen from './components/Lockscreen';
-import QRMenu from './components/QRMenu';
+// Non-default screens are code-split so heavy deps (recharts, qrcode.react, …)
+// stay out of the initial bundle and load only when their screen is opened.
+const Inventory = lazy(() => import('./components/Inventory'));
+const History = lazy(() => import('./components/History'));
+const Customers = lazy(() => import('./components/Customers'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const Settings = lazy(() => import('./components/Settings'));
+const QRMenu = lazy(() => import('./components/QRMenu'));
 import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
+
+function ScreenLoader() {
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <Loader2 className="animate-spin text-emerald-500" size={28} />
+    </div>
+  );
+}
 
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -49,7 +60,9 @@ export default function App() {
   // lowStockCount can be derived here, or passed.
   const products = useProductStore((state) => state.products);
   const categories = useProductStore((state) => state.categories);
-  const lowStockCount = products.filter((p) => p.stock <= p.minStock).length;
+  // Match the Sidebar's definition so the mobile and desktop badges agree
+  // (low = at/below threshold but still in stock; out-of-stock is shown separately).
+  const lowStockCount = products.filter((p) => p.stock <= p.minStock && p.stock > 0).length;
 
   useEffect(() => {
     // Keep the embedded QR-menu server in sync. No-op outside Electron.
@@ -147,11 +160,14 @@ export default function App() {
         <Sidebar currentScreen={currentScreen} setScreen={setScreen} />
       </div>
 
+      {/* Main column: mobile top bar (small screens only) plus the active screen.
+          The screen is mounted exactly once here so there is a single cart and no
+          duplicate element IDs across the mobile/desktop layouts. */}
       <div
-        id="mobile-navigation-shell"
-        className="lg:hidden flex flex-col w-full h-screen overflow-hidden"
+        id="app-shell"
+        className="relative flex flex-col flex-1 min-w-0 h-screen overflow-hidden"
       >
-        <header className="bg-slate-900 text-slate-100 px-4 py-3 flex items-center justify-between shadow-md shrink-0">
+        <header className="lg:hidden bg-slate-900 text-slate-100 px-4 py-3 flex items-center justify-between shadow-md shrink-0">
           <div className="flex items-center space-x-2">
             <div className="bg-emerald-500 text-slate-950 p-1.5 rounded-lg">
               <ShoppingBag size={16} className="stroke-[2.5]" />
@@ -200,7 +216,7 @@ export default function App() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="absolute top-[48px] inset-x-0 bg-slate-900 border-b border-slate-800 shadow-2xl z-40 p-4 space-y-2 flex flex-col"
+              className="lg:hidden absolute top-[48px] inset-x-0 bg-slate-900 border-b border-slate-800 shadow-2xl z-40 p-4 space-y-2 flex flex-col"
             >
               {allowedMobileItems.map((item) => {
                 const Icon = item.icon;
@@ -234,17 +250,13 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        <main className="flex-1 min-h-0 bg-transparent relative overflow-hidden">
-          {renderActiveScreen()}
+        <main
+          id="desktop-view-container"
+          className="flex flex-1 min-w-0 min-h-0 bg-transparent relative overflow-hidden"
+        >
+          <Suspense fallback={<ScreenLoader />}>{renderActiveScreen()}</Suspense>
         </main>
       </div>
-
-      <main
-        id="desktop-view-container"
-        className="hidden lg:flex flex-1 min-w-0 bg-transparent relative overflow-hidden h-screen"
-      >
-        {renderActiveScreen()}
-      </main>
     </div>
   );
 }

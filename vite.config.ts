@@ -7,6 +7,21 @@ export default defineConfig(() => {
   return {
     base: './',
     plugins: [react(), tailwindcss()],
+    build: {
+      rollupOptions: {
+        output: {
+          // Peel large eager vendors out of the entry chunk so they cache
+          // independently and the initial payload stays small. (recharts is not
+          // listed — it rides along in the lazily-loaded Dashboard chunk.)
+          manualChunks: {
+            motion: ['motion'],
+            supabase: ['@supabase/supabase-js'],
+            i18n: ['i18next', 'react-i18next'],
+            dnd: ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

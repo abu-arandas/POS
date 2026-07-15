@@ -10,6 +10,7 @@ import {
   DollarSign,
   Smartphone,
   Gift,
+  Award,
   X,
   Check,
   AlertTriangle,
@@ -235,6 +236,16 @@ export default function History() {
                 <span class="bold">${tx.id}</span>
               </div>
               ${
+                tx.operatorName
+                  ? `
+              <div class="flex-row">
+                <span>OPERATOR:</span>
+                <span>${tx.operatorName}</span>
+              </div>
+              `
+                  : ''
+              }
+              ${
                 tx.customerName
                   ? `
               <div class="flex-row bold">
@@ -275,6 +286,10 @@ export default function History() {
               `
                   : ''
               }
+              <div class="flex-row">
+                <span>TAX:</span>
+                <span>${settings.currency}${tx.tax.toFixed(2)}</span>
+              </div>
               <div class="flex-row text-lg">
                 <span>TOTAL PAID:</span>
                 <span>${settings.currency}${tx.total.toFixed(2)}</span>
@@ -528,6 +543,8 @@ export default function History() {
         return <Smartphone size={13} className="text-purple-500" />;
       case 'gift':
         return <Gift size={13} className="text-amber-500" />;
+      case 'loyalty':
+        return <Award size={13} className="text-emerald-500" />;
     }
   };
 
@@ -872,6 +889,12 @@ export default function History() {
                     <span>{t('history.receipt')}</span>
                     <span>{activeTransaction.id}</span>
                   </div>
+                  {activeTransaction.operatorName && (
+                    <div className="flex justify-between">
+                      <span>{t('history.operator')}</span>
+                      <span>{activeTransaction.operatorName}</span>
+                    </div>
+                  )}
                   {activeTransaction.customerName && (
                     <div className="flex justify-between text-emerald-600 font-bold">
                       <span>{t('history.member')}</span>
@@ -913,6 +936,13 @@ export default function History() {
                       </span>
                     </div>
                   )}
+                  <div className="flex justify-between text-slate-500">
+                    <span>{t('history.tax')}</span>
+                    <span>
+                      {settings.currency}
+                      {activeTransaction.tax.toFixed(2)}
+                    </span>
+                  </div>
                   <div className="flex justify-between text-slate-950 font-bold pt-1.5 border-t border-slate-100 text-sm">
                     <span>{t('history.totalPaid')}</span>
                     <span>

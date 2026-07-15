@@ -46,6 +46,7 @@ function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories,
   const isLowStock = prod.stock <= prod.minStock && prod.stock > 0;
   const isOutOfStock = prod.stock === 0;
   const isLimitReached = cartQty >= prod.stock;
+  const [imgError, setImgError] = useState(false);
   const { t } = useTranslation();
 
   return (
@@ -73,8 +74,8 @@ function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories,
               ? 'border-slate-200/50 dark:border-slate-700/50 hover:shadow-xl hover:shadow-emerald-500/10'
               : ''
       }`}
-      {...attributes}
-      {...listeners}
+      {...(isEditMode ? attributes : {})}
+      {...(isEditMode ? listeners : {})}
     >
       <div className="absolute top-2 inset-s-2 z-10 flex flex-col gap-1.5">
         {isOutOfStock && (
@@ -83,7 +84,7 @@ function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories,
           </span>
         )}
         {!isOutOfStock && isLowStock && (
-          <span className="bg-amber-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm shimmer">
+          <span className="bg-amber-500 text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
             {t('register.onlyLeft', { count: prod.stock })}
           </span>
         )}
@@ -101,12 +102,13 @@ function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories,
       )}
 
       <div className="relative aspect-square w-full bg-slate-100/50 dark:bg-slate-800/50 flex items-center justify-center overflow-hidden pointer-events-none">
-        {prod.image ? (
+        {prod.image && !imgError ? (
           <img
             src={prod.image}
             alt={prod.name}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             referrerPolicy="no-referrer"
+            onError={() => setImgError(true)}
           />
         ) : (
           <span className="text-4xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
@@ -158,12 +160,19 @@ export default function ProductGrid({
   const { t } = useTranslation();
 
   const [isEditMode, setIsEditMode] = useState(false);
+  const [search, setSearch] = useState('');
 
   const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return products.filter((prod) => {
-      return selectedCategory === 'all' || prod.category === selectedCategory;
+      const matchesCategory = selectedCategory === 'all' || prod.category === selectedCategory;
+      const matchesSearch =
+        q === '' ||
+        prod.name.toLowerCase().includes(q) ||
+        prod.sku.toLowerCase().includes(q);
+      return matchesCategory && matchesSearch;
     });
-  }, [products, selectedCategory]);
+  }, [products, selectedCategory, search]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -190,6 +199,31 @@ export default function ProductGrid({
         id="catalog-controls"
         className="glass dark:glass-dark p-4 rounded-2xl shadow-sm flex items-center justify-between mb-6 transition-all duration-300"
       >
+        {/* Product search */}
+        <div className="relative shrink-0 me-3">
+          <Search
+            size={14}
+            className="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+          />
+          <input
+            id="register-search-input"
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('register.searchProducts')}
+            className="w-32 sm:w-44 ps-8 pe-7 py-1.5 rounded-xl text-xs bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute inset-e-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              aria-label="Clear search"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+
         {/* Category Tabs */}
         <div
           id="category-pills"

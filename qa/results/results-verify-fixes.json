@@ -1,0 +1,102 @@
+[
+  {
+    "name": "F2: seed.mjs hashes PINs (hashPin used, no plaintext pin literals)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "F2: embedded DDL inserts hashed admin PIN (not plaintext 1234)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "F2: default hashed Admin still logs in",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "F16: sidebar reads \"Dark Mode\" (typo fixed)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "F5a: toggling Dark Mode applies .dark in-session (no reload)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "F6: each screen mounted once (unique IDs, one cart)",
+    "ok": true,
+    "detail": "{\"register-root\":1,\"cart-section\":1,\"products-grid\":1,\"catalog-section\":1}"
+  },
+  {
+    "name": "F11: broken images fall back to ☕ (onError handler)",
+    "ok": true,
+    "detail": "fallbacks=11"
+  },
+  {
+    "name": "F12: register search filters the grid",
+    "ok": true,
+    "detail": "count=1"
+  },
+  {
+    "name": "F13: product cards are not aria-disabled while browsing",
+    "ok": true,
+    "detail": "aria-disabled=0"
+  },
+  {
+    "name": "F4: cart summary itemizes Tax",
+    "ok": true,
+    "detail": "Subtotal $11.00 Tax (8.5%) $0.94 Total $11.94 Checkout"
+  },
+  {
+    "name": "F4: cart total still $11.94 (math intact)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "F4: register receipt itemizes TAX",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "F7: receipt operator = logged-in Admin",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "F7: cashier sale attributes operator = Cashier",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "F17: dashboard badge shows LOCAL DATA ONLY (sync disabled)",
+    "ok": true,
+    "detail": "LOCAL DATA ONLY"
+  },
+  {
+    "name": "F18: zero-price margin shows 0% (not NaN%)",
+    "ok": true,
+    "detail": "QA Zero Threshold Alert: 5 SKU-227270\tBeverages\t$0.00\t$0.00\t0%\t 3 LOW STOCK \t"
+  },
+  {
+    "name": "F3 setup: QA Zero present in cloud after push",
+    "ok": true,
+    "detail": "cloud=12"
+  },
+  {
+    "name": "F3: deleting a product removes it from the cloud (DELETE synced)",
+    "ok": true,
+    "detail": "cloud=11"
+  },
+  {
+    "name": "F5b: Settings card is dark (not white) in dark mode",
+    "ok": true,
+    "detail": "card bg=oklch(0.208 0.042 265.755)"
+  },
+  {
+    "name": "No app console/page errors during verification",
+    "ok": true,
+    "detail": ""
+  }
+]

@@ -1,0 +1,27 @@
+[
+  {
+    "name": "Recovery: hashed \"Admin\" account still logs in after pull",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "Cleanup pull succeeds",
+    "ok": true,
+    "detail": "alert: Local data replaced with the cloud copy."
+  },
+  {
+    "name": "Final: 11 catalog products, QA widget removed",
+    "ok": true,
+    "detail": "rows=11"
+  },
+  {
+    "name": "Final: espresso stock consistent (115)",
+    "ok": true,
+    "detail": "Classic Espresso Threshold Alert: 20 BEV-ESP-01\tBeverages\t$3.25\t$0.65\t80%\t 115 GOOD LEVEL \t"
+  },
+  {
+    "name": "Final: lockscreen back to 3 working profiles",
+    "ok": true,
+    "detail": "[\"AdminRole: adminPIN Required\",\"ManagerRole: managerPIN Required\",\"CashierRole: cashierPIN Required\"]"
+  }
+]
