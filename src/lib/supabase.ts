@@ -8,6 +8,8 @@ const isHashedPin = (pin: string) => /^[a-f0-9]{64}$/i.test(pin);
 let supabaseInstance: SupabaseClient | null = null;
 let currentUrl = '';
 let currentKey = '';
+// Email the current client instance is signed in as ('' = anonymous).
+let authedEmail = '';
 
 // Lazy initialization of Supabase client to avoid crashes on bad keys
 export function getSupabaseClient(url: string, anonKey: string): SupabaseClient | null {
@@ -23,6 +25,7 @@ export function getSupabaseClient(url: string, anonKey: string): SupabaseClient 
   try {
     currentUrl = url;
     currentKey = anonKey;
+    authedEmail = ''; // new client starts anonymous
     supabaseInstance = createClient(url, anonKey, {
       auth: {
         persistSession: false,
@@ -33,6 +36,33 @@ export function getSupabaseClient(url: string, anonKey: string): SupabaseClient 
     console.error('Failed to initialize Supabase client:', error);
     supabaseInstance = null;
     return null;
+  }
+}
+
+// Signs the client in with a Supabase Auth "device" account so it operates as an
+// authenticated role (required when RLS is enabled). No-op when no credentials
+// are configured — the client stays anonymous exactly as before. Cached per
+// client instance so we only hit the auth endpoint once.
+export async function signInDevice(
+  client: SupabaseClient,
+  email: string,
+  password: string,
+): Promise<boolean> {
+  if (!email || !password) return true; // anonymous mode
+  if (authedEmail === email) return true; // already signed in on this client
+  try {
+    const { error } = await client.auth.signInWithPassword({ email, password });
+    if (error) {
+      console.warn('Supabase device sign-in failed:', error.message);
+      authedEmail = '';
+      return false;
+    }
+    authedEmail = email;
+    return true;
+  } catch (err) {
+    console.error('Supabase device sign-in error:', err);
+    authedEmail = '';
+    return false;
   }
 }
 

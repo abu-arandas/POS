@@ -133,7 +133,7 @@ try {
   await page.getByRole('button', { name: /supabase/i }).first().click();
   await page.waitForTimeout(300);
   await page.locator('input[type="url"]').fill(MOCK);
-  await page.locator('input[type="password"]').fill('mock-anon-key');
+  await page.locator('input[placeholder="eyJhbGciOi..."]').fill('mock-anon-key');
   await page.locator('input[type="checkbox"]').check();
   await page.getByRole('button', { name: /save config/i }).click();
   await page.waitForTimeout(300);

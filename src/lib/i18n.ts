@@ -57,6 +57,10 @@ const en = {
       statusDisconnected: 'Disconnected',
       statusError: 'Error',
       syncSetupHint: 'Run scripts/schema.sql in your Supabase SQL editor before syncing.',
+      deviceAuthHint:
+        'Optional device sign-in. Required once Row Level Security is enabled: the terminal signs in with this Supabase Auth account so sync works. Leave blank for an open demo database.',
+      deviceEmail: 'Device Email',
+      devicePassword: 'Device Password',
       usersTab: 'Users',
       printerTab: 'Printer',
       staffAccounts: 'Staff Accounts',
@@ -428,6 +432,10 @@ const ar = {
       statusDisconnected: 'غير متصل',
       statusError: 'خطأ',
       syncSetupHint: 'شغّل scripts/schema.sql في محرر SQL الخاص بـ Supabase قبل المزامنة.',
+      deviceAuthHint:
+        'تسجيل دخول اختياري للجهاز. مطلوب عند تفعيل أمان مستوى الصفوف: يسجّل الطرفية الدخول بهذا الحساب لتعمل المزامنة. اتركه فارغًا لقاعدة بيانات تجريبية مفتوحة.',
+      deviceEmail: 'بريد الجهاز',
+      devicePassword: 'كلمة مرور الجهاز',
       usersTab: 'المستخدمون',
       printerTab: 'الطابعة',
       staffAccounts: 'حسابات الموظفين',

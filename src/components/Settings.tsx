@@ -140,6 +140,8 @@ export default function Settings() {
   // Supabase form state, seeded from the persisted config.
   const [sbUrl, setSbUrl] = useState(supabaseConfig.url);
   const [sbKey, setSbKey] = useState(supabaseConfig.anonKey);
+  const [sbAuthEmail, setSbAuthEmail] = useState(supabaseConfig.authEmail || '');
+  const [sbAuthPassword, setSbAuthPassword] = useState(supabaseConfig.authPassword || '');
   const [sbEnabled, setSbEnabled] = useState(supabaseConfig.enabled);
   const [busy, setBusy] = useState<null | 'test' | 'push' | 'pull'>(null);
 
@@ -147,13 +149,17 @@ export default function Settings() {
     setSettings({ ...settings, [key]: value });
   };
 
+  const buildConfig = (enabled: boolean, status: 'disconnected' | 'connected' | 'error') => ({
+    url: sbUrl.trim(),
+    anonKey: sbKey.trim(),
+    authEmail: sbAuthEmail.trim(),
+    authPassword: sbAuthPassword,
+    enabled,
+    status,
+  });
+
   const persistConfig = (status: 'disconnected' | 'connected' | 'error') => {
-    setSupabaseConfig({
-      url: sbUrl.trim(),
-      anonKey: sbKey.trim(),
-      enabled: sbEnabled,
-      status,
-    });
+    setSupabaseConfig(buildConfig(sbEnabled, status));
   };
 
   const hasCreds = () => {
@@ -169,12 +175,7 @@ export default function Settings() {
 
   const handleToggleEnabled = (value: boolean) => {
     setSbEnabled(value);
-    setSupabaseConfig({
-      url: sbUrl.trim(),
-      anonKey: sbKey.trim(),
-      enabled: value,
-      status: supabaseConfig.status,
-    });
+    setSupabaseConfig(buildConfig(value, supabaseConfig.status));
   };
 
   const handleTest = async () => {
@@ -670,6 +671,42 @@ export default function Settings() {
                       onChange={(e) => setSbKey(e.target.value)}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100 font-mono text-sm"
                     />
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3 bg-slate-50/50 dark:bg-slate-800/30">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {t('settings.deviceAuthHint')}
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+                          {t('settings.deviceEmail')}
+                        </label>
+                        <input
+                          type="email"
+                          dir="ltr"
+                          autoComplete="off"
+                          placeholder="terminal@store.com"
+                          value={sbAuthEmail}
+                          onChange={(e) => setSbAuthEmail(e.target.value)}
+                          className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100 font-mono text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+                          {t('settings.devicePassword')}
+                        </label>
+                        <input
+                          type="password"
+                          dir="ltr"
+                          autoComplete="new-password"
+                          placeholder="••••••••"
+                          value={sbAuthPassword}
+                          onChange={(e) => setSbAuthPassword(e.target.value)}
+                          className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100 font-mono text-sm"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <label className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer">

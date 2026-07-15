@@ -21,10 +21,20 @@ in the browser with `qa/verify-fixes.mjs` (20/20 checks green).
   - **App hardening:** Pull From Cloud now refuses to overwrite a local table with an empty
     result (`data.x?.length`), so an RLS-blocked or failed pull can no longer wipe the
     catalog or delete every staff account and lock the terminal out.
-  - **Cutover (product decision):** to go live, deploy a build that signs the terminal in
-    with a Supabase Auth device account (`supabase.auth.signInWithPassword`) before syncing,
-    then run the secure `schema.sql`. Until then the live DB stays open by design so the
-    current anon-key build keeps working.
+  - **Device-auth client SHIPPED:** the Supabase tab now has optional **Device Email /
+    Device Password** fields, and the sync client signs in with them
+    (`supabase.auth.signInWithPassword`) before every push/pull/test/delete so the terminal
+    operates as `authenticated` under RLS. It is **strictly gated** — with the fields blank
+    the behaviour is byte-identical to before (regression-verified: `qa/verify-fixes.mjs`
+    still 20/20, incl. the mock delete-sync path). ⚠️ The actual auth handshake could **not**
+    be exercised here (the QA sandbox has no network route to `supabase.co`); it uses the
+    standard supabase-js API and should be smoke-tested on a real network.
+  - **Remaining manual cutover steps (you run these):**
+    1. Create a Supabase Auth user for the terminal (Dashboard → Authentication → Add user).
+    2. Enter its email/password in Settings → Supabase Sync and Test Connection.
+    3. Run the secure `scripts/schema.sql` (enables RLS + policies). The live tables were
+       intentionally **not** flipped from here — doing so before the auth client is live
+       would break the current anon-key sync.
 - **F2 — Plaintext-PIN lockout. FIXED.**
   - `scripts/seed.mjs` now stores `hashPin(pin)` (SHA-256) instead of plaintext.
   - The embedded DDL in `src/lib/supabase.ts` inserts the hashed default-admin PIN.

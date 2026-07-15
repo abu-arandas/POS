@@ -12,10 +12,19 @@ import {
   pullUserAccounts,
   testSupabaseConnection,
   deleteRowsSupabase,
+  signInDevice,
   SyncTable,
 } from './supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { useSettingsStore } from '../stores/settingsStore';
 import { Product, Category, Customer, SaleTransaction, UserAccount } from '../types';
+
+// Signs the client in with the configured device account (no-op when none is
+// set). Call before any read/write so sync works once RLS is enabled.
+const ensureDeviceSession = async (client: SupabaseClient) => {
+  const { supabaseConfig } = useSettingsStore.getState();
+  await signInDevice(client, supabaseConfig.authEmail || '', supabaseConfig.authPassword || '');
+};
 
 export const syncToCloudIfEnabled = async (
   prods?: Product[],
@@ -31,6 +40,7 @@ export const syncToCloudIfEnabled = async (
   if (!client) return;
 
   try {
+    await ensureDeviceSession(client);
     // By passing only modified items as arrays to these functions, we do an incremental upsert!
     if (prods && prods.length > 0) await pushProducts(client, prods);
     if (cats && cats.length > 0) await pushCategories(client, cats);
@@ -42,9 +52,14 @@ export const syncToCloudIfEnabled = async (
   }
 };
 
-// Verifies credentials by attempting a lightweight query.
-export const testCloudConnection = (url: string, anonKey: string): Promise<boolean> =>
-  testSupabaseConnection(url, anonKey);
+// Verifies credentials by signing in (if a device account is set) and running a
+// lightweight query.
+export const testCloudConnection = async (url: string, anonKey: string): Promise<boolean> => {
+  const client = getSupabaseClient(url, anonKey);
+  if (!client) return false;
+  await ensureDeviceSession(client);
+  return testSupabaseConnection(url, anonKey);
+};
 
 export interface CloudSnapshot {
   products: Product[];
@@ -63,6 +78,7 @@ export const pushAllToCloud = async (
 ): Promise<boolean> => {
   const client = getSupabaseClient(url, anonKey);
   if (!client) return false;
+  await ensureDeviceSession(client);
 
   const results = await Promise.all([
     pushCategories(client, data.categories),
@@ -89,6 +105,7 @@ export const pullAllFromCloud = async (
 } | null> => {
   const client = getSupabaseClient(url, anonKey);
   if (!client) return null;
+  await ensureDeviceSession(client);
 
   const [categories, products, customers, users, transactions] = await Promise.all([
     pullCategories(client),
@@ -111,6 +128,7 @@ const deleteFromCloudIfEnabled = async (table: SyncTable, ids: string[]) => {
   if (!client) return;
 
   try {
+    await ensureDeviceSession(client);
     await deleteRowsSupabase(client, table, ids);
   } catch (err) {
     console.warn('Background live sync delete postponed:', err);

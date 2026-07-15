@@ -88,6 +88,11 @@ export interface PrinterConfig {
 export interface SupabaseConfig {
   url: string;
   anonKey: string;
+  // Optional Supabase Auth "device" account. When set, the sync client signs in
+  // with it so the terminal operates as an authenticated role — required once
+  // RLS is enabled (see scripts/schema.sql). Left blank = anonymous (demo mode).
+  authEmail?: string;
+  authPassword?: string;
   enabled: boolean;
   status: 'disconnected' | 'connected' | 'error';
 }

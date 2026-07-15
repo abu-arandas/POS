@@ -77,7 +77,7 @@
   {
     "name": "F18: zero-price margin shows 0% (not NaN%)",
     "ok": true,
-    "detail": "QA Zero Threshold Alert: 5 SKU-483200\tBeverages\t$0.00\t$0.00\t0%\t 3 LOW STOCK \t"
+    "detail": "QA Zero Threshold Alert: 5 SKU-227270\tBeverages\t$0.00\t$0.00\t0%\t 3 LOW STOCK \t"
   },
   {
     "name": "F3 setup: QA Zero present in cloud after push",
