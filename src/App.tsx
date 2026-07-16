@@ -27,7 +27,7 @@ const QRMenu = lazy(() => import('./components/QRMenu'));
 import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
-import { UserAccount } from './types';
+import { ScreenId, isScreenAllowed } from './lib/access';
 
 function ScreenLoader() {
   return (
@@ -35,21 +35,6 @@ function ScreenLoader() {
       <Loader2 className="animate-spin text-emerald-500" size={28} />
     </div>
   );
-}
-
-type ScreenId =
-  | 'register'
-  | 'inventory'
-  | 'history'
-  | 'customers'
-  | 'dashboard'
-  | 'settings'
-  | 'qrmenu';
-
-function isScreenAllowed(screen: ScreenId, role: UserAccount['role']): boolean {
-  if (role === 'admin') return true;
-  if (role === 'manager') return screen !== 'settings';
-  return screen === 'register' || screen === 'history';
 }
 
 export default function App() {
@@ -145,45 +130,23 @@ export default function App() {
     label: string;
     icon: typeof ShoppingBag;
     badge?: number;
-    allowedRoles: Array<UserAccount['role']>;
   }> = [
-    {
-      id: 'register',
-      label: t('sidebar.register'),
-      icon: ShoppingBag,
-      allowedRoles: ['admin', 'manager', 'cashier'],
-    },
-    {
-      id: 'dashboard',
-      label: t('sidebar.dashboard'),
-      icon: BarChart3,
-      allowedRoles: ['admin', 'manager'],
-    },
+    { id: 'register', label: t('sidebar.register'), icon: ShoppingBag },
+    { id: 'dashboard', label: t('sidebar.dashboard'), icon: BarChart3 },
     {
       id: 'inventory',
       label: t('sidebar.inventory'),
       icon: Package,
       badge: lowStockCount > 0 ? lowStockCount : undefined,
-      allowedRoles: ['admin', 'manager'],
     },
-    {
-      id: 'history',
-      label: t('sidebar.transactions'),
-      icon: HistoryIcon,
-      allowedRoles: ['admin', 'manager', 'cashier'],
-    },
-    {
-      id: 'customers',
-      label: t('sidebar.customers'),
-      icon: Users,
-      allowedRoles: ['admin', 'manager'],
-    },
-    { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode, allowedRoles: ['admin', 'manager'] },
-    { id: 'settings', label: t('sidebar.settings'), icon: SettingsIcon, allowedRoles: ['admin'] },
+    { id: 'history', label: t('sidebar.transactions'), icon: HistoryIcon },
+    { id: 'customers', label: t('sidebar.customers'), icon: Users },
+    { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode },
+    { id: 'settings', label: t('sidebar.settings'), icon: SettingsIcon },
   ];
 
   const allowedMobileItems = mobileMenuItems.filter((item) =>
-    item.allowedRoles.includes(currentUser.role),
+    isScreenAllowed(item.id, currentUser.role),
   );
 
   return (
@@ -231,7 +194,7 @@ export default function App() {
             </button>
             <button
               onClick={() => setCurrentUser(null)}
-              title="Lock Terminal"
+              title={t('sidebar.lockTerminal')}
               className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg focus:outline-none"
             >
               <XIcon size={16} />

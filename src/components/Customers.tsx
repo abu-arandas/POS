@@ -140,8 +140,10 @@ export default function Customers() {
 
   // Customer Loyalty Tier helper
   const getCustomerTier = (points: number) => {
-    if (points >= 200) return { name: t('customers.tierPlatinum'), style: 'bg-indigo-500 text-white' };
-    if (points >= 100) return { name: t('customers.tierGold'), style: 'bg-amber-500 text-slate-900' };
+    if (points >= 200)
+      return { name: t('customers.tierPlatinum'), style: 'bg-indigo-500 text-white' };
+    if (points >= 100)
+      return { name: t('customers.tierGold'), style: 'bg-amber-500 text-slate-900' };
     return { name: t('customers.tierSilver'), style: 'bg-slate-200 text-slate-700' };
   };
 

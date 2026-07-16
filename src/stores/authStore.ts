@@ -82,6 +82,13 @@ export const useAuthStore = create<AuthState>()(
       // The signed-in operator is intentionally NOT persisted: restarting the
       // terminal must always return to the lock screen.
       partialize: (state) => ({ users: state.users }),
+      // v1 strips currentUser from blobs written before partialize existed —
+      // otherwise an old install would auto-unlock once more after upgrading.
+      version: 1,
+      migrate: (persisted) => {
+        const state = (persisted ?? {}) as Partial<AuthState>;
+        return { users: state.users ?? DEFAULT_USERS };
+      },
     },
   ),
 );

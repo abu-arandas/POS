@@ -14,19 +14,15 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { UserAccount } from '../types';
+import { ScreenId, isScreenAllowed } from '../lib/access';
 
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
 
 interface SidebarProps {
-  currentScreen:
-    'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings' | 'qrmenu';
-  setScreen: (
-    screen:
-      'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings' | 'qrmenu',
-  ) => void;
+  currentScreen: ScreenId;
+  setScreen: (screen: ScreenId) => void;
 }
 
 export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
@@ -38,50 +34,28 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
   const lowStockCount = products.filter((p) => p.stock <= p.minStock && p.stock > 0).length;
   // Define full list of all available menu items
   const allMenuItems: Array<{
-    id: 'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings' | 'qrmenu';
+    id: ScreenId;
     label: string;
     icon: typeof ShoppingBag;
     badge?: number;
-    allowedRoles: Array<UserAccount['role']>;
   }> = [
-    {
-      id: 'register',
-      label: t('sidebar.register'),
-      icon: ShoppingBag,
-      allowedRoles: ['admin', 'manager', 'cashier'],
-    },
-    {
-      id: 'dashboard',
-      label: t('sidebar.dashboard'),
-      icon: BarChart3,
-      allowedRoles: ['admin', 'manager'],
-    },
+    { id: 'register', label: t('sidebar.register'), icon: ShoppingBag },
+    { id: 'dashboard', label: t('sidebar.dashboard'), icon: BarChart3 },
     {
       id: 'inventory',
       label: t('sidebar.inventory'),
       icon: Package,
       badge: lowStockCount > 0 ? lowStockCount : undefined,
-      allowedRoles: ['admin', 'manager'],
     },
-    {
-      id: 'history',
-      label: t('sidebar.transactions'),
-      icon: History,
-      allowedRoles: ['admin', 'manager', 'cashier'],
-    },
-    {
-      id: 'customers',
-      label: t('sidebar.customers'),
-      icon: Users,
-      allowedRoles: ['admin', 'manager'],
-    },
-    { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode, allowedRoles: ['admin', 'manager'] },
-    { id: 'settings', label: t('sidebar.settings'), icon: Settings, allowedRoles: ['admin'] },
+    { id: 'history', label: t('sidebar.transactions'), icon: History },
+    { id: 'customers', label: t('sidebar.customers'), icon: Users },
+    { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode },
+    { id: 'settings', label: t('sidebar.settings'), icon: Settings },
   ];
 
-  // Filter based on the logged-in staff member's role
+  // Filter based on the logged-in staff member's role (shared with App's guard)
   const allowedItems = allMenuItems.filter(
-    (item) => !currentUser || item.allowedRoles.includes(currentUser.role),
+    (item) => !currentUser || isScreenAllowed(item.id, currentUser.role),
   );
 
   return (
@@ -228,7 +202,7 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
 
           <button
             onClick={() => setCurrentUser(null)}
-            title="Lock POS Screen"
+            title={t('sidebar.lockTerminal')}
             className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors shrink-0 focus:outline-none"
           >
             <LogOut size={16} />

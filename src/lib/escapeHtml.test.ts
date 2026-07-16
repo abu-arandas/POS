@@ -3,9 +3,7 @@ import { escapeHtml } from './escapeHtml';
 
 describe('escapeHtml', () => {
   it('escapes markup-significant characters', () => {
-    expect(escapeHtml('<img src=x onerror=alert(1)>')).toBe(
-      '&lt;img src=x onerror=alert(1)&gt;',
-    );
+    expect(escapeHtml('<img src=x onerror=alert(1)>')).toBe('&lt;img src=x onerror=alert(1)&gt;');
     expect(escapeHtml(`"quoted" & 'single'`)).toBe('&quot;quoted&quot; &amp; &#39;single&#39;');
   });
 

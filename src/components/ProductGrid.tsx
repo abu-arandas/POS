@@ -182,9 +182,7 @@ export default function ProductGrid({
     return products.filter((prod) => {
       const matchesCategory = selectedCategory === 'all' || prod.category === selectedCategory;
       const matchesSearch =
-        q === '' ||
-        prod.name.toLowerCase().includes(q) ||
-        prod.sku.toLowerCase().includes(q);
+        q === '' || prod.name.toLowerCase().includes(q) || prod.sku.toLowerCase().includes(q);
       return matchesCategory && matchesSearch;
     });
   }, [products, selectedCategory, search]);
@@ -232,7 +230,7 @@ export default function ProductGrid({
             <button
               onClick={() => setSearch('')}
               className="absolute inset-e-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              aria-label="Clear search"
+              aria-label={t('register.clearSearch')}
             >
               <X size={13} />
             </button>

@@ -387,7 +387,8 @@ export default function Inventory() {
                     sortedAndFilteredProducts.map((prod) => {
                       const isLow = prod.stock <= prod.minStock && prod.stock > 0;
                       const isOut = prod.stock === 0;
-                      const margin = prod.price > 0 ? ((prod.price - prod.cost) / prod.price) * 100 : 0;
+                      const margin =
+                        prod.price > 0 ? ((prod.price - prod.cost) / prod.price) * 100 : 0;
 
                       return (
                         <tr
@@ -469,7 +470,7 @@ export default function Inventory() {
                               <button
                                 onClick={() => handleOpenEditProduct(prod)}
                                 className="p-1.5 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200/60 rounded-lg transition-colors"
-                                title="Edit product parameters"
+                                title={t('inventory.editCatalogProduct')}
                               >
                                 <Edit2 size={13} />
                               </button>
@@ -480,7 +481,7 @@ export default function Inventory() {
                                     handleDeleteProduct(prod.id);
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100/50 rounded-lg transition-colors"
-                                title="Delete product"
+                                title={t('inventory.deleteProduct')}
                               >
                                 <Trash2 size={13} />
                               </button>

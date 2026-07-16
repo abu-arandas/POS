@@ -175,7 +175,7 @@ export default function Register() {
     const paidValue = paymentMethod === 'cash' ? parseFloat(cashPaidText) || 0 : undefined;
     // A fully-discounted ($0) sale needs no tendered cash.
     if (paymentMethod === 'cash' && totalAmount > 0 && (paidValue ?? 0) < totalAmount) {
-      alert('Insufficient cash paid!');
+      alert(t('register.insufficientCash'));
       return;
     }
 
