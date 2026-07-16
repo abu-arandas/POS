@@ -70,7 +70,17 @@ export function buildReceiptHtml(
 
       <div class="flex-row"><span>METHOD:</span><span class="bold uppercase">${esc(tx.paymentMethod)}</span></div>
       ${
-        tx.paymentMethod === 'cash'
+        tx.payments && tx.payments.length > 1
+          ? tx.payments
+              .map(
+                (p) =>
+                  `<div class="flex-row"><span>&nbsp;&nbsp;${esc(p.method.toUpperCase())}</span><span>${cur}${p.amount.toFixed(2)}</span></div>`,
+              )
+              .join('')
+          : ''
+      }
+      ${
+        tx.paymentMethod === 'cash' || (tx.payments ?? []).some((p) => p.method === 'cash')
           ? `
       <div class="flex-row"><span>CASH PAID:</span><span>${cur}${(tx.cashPaid ?? 0).toFixed(2)}</span></div>
       <div class="flex-row bold"><span>CHANGE:</span><span>${cur}${(tx.cashChange ?? 0).toFixed(2)}</span></div>`

@@ -15,7 +15,7 @@ import {
   Play,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, SaleTransaction, HeldOrder } from '../types';
+import { Product, SaleTransaction, HeldOrder, Payment, PaymentMethod } from '../types';
 import ProductGrid from './ProductGrid';
 import CartPanel from './CartPanel';
 import { useProductStore } from '../stores/productStore';
@@ -63,6 +63,9 @@ export default function Register() {
 
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'mobile' | 'gift'>('card');
   const [cashPaidText, setCashPaidText] = useState<string>('');
+
+  const [splitMode, setSplitMode] = useState(false);
+  const [splitPayments, setSplitPayments] = useState<Payment[]>([]);
 
   const [heldModalOpen, setHeldModalOpen] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<{ ok: boolean; text: string } | null>(null);
@@ -252,25 +255,61 @@ export default function Register() {
     if (cart.length === 0) return;
     setPaymentMethod('card');
     setCashPaidText('');
+    setSplitMode(false);
+    setSplitPayments([]);
     setCheckoutModalOpen(true);
   };
 
+  const splitPaidTotal = useMemo(
+    () => splitPayments.reduce((s, p) => s + (p.amount || 0), 0),
+    [splitPayments],
+  );
+  const splitRemaining = Number((totalAmount - splitPaidTotal).toFixed(2));
+
+  const addSplitPayment = () => {
+    const remaining = Math.max(0, splitRemaining);
+    setSplitPayments((prev) => [...prev, { method: 'cash', amount: Number(remaining.toFixed(2)) }]);
+  };
+  const updateSplitPayment = (idx: number, patch: Partial<Payment>) =>
+    setSplitPayments((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
+  const removeSplitPayment = (idx: number) =>
+    setSplitPayments((prev) => prev.filter((_, i) => i !== idx));
+
   const handleCompletePayment = () => {
-    const paidValue = paymentMethod === 'cash' ? parseFloat(cashPaidText) || 0 : undefined;
-    // A fully-discounted ($0) sale needs no tendered cash.
-    if (paymentMethod === 'cash' && totalAmount > 0 && (paidValue ?? 0) < totalAmount) {
-      alert(t('register.insufficientCash'));
-      return;
+    let saleMethod: PaymentMethod;
+    let payments: Payment[] | undefined;
+    let paidValue: number | undefined;
+    let changeDue: number | undefined;
+
+    if (splitMode) {
+      const clean = splitPayments.filter((p) => (p.amount || 0) > 0);
+      if (clean.length === 0 || splitPaidTotal < totalAmount - 0.001) {
+        alert(t('register.splitIncomplete'));
+        return;
+      }
+      payments = clean;
+      // Dominant method = the largest single tender (used for reports/filtering).
+      saleMethod = [...clean].sort((a, b) => b.amount - a.amount)[0].method;
+      const hasCash = clean.some((p) => p.method === 'cash');
+      paidValue = hasCash ? Number(splitPaidTotal.toFixed(2)) : undefined;
+      // Overpayment is returned as change (only a cash tender can overpay).
+      changeDue = hasCash ? Number(Math.max(0, splitPaidTotal - totalAmount).toFixed(2)) : undefined;
+    } else {
+      paidValue = paymentMethod === 'cash' ? parseFloat(cashPaidText) || 0 : undefined;
+      // A fully-discounted ($0) sale needs no tendered cash.
+      if (paymentMethod === 'cash' && totalAmount > 0 && (paidValue ?? 0) < totalAmount) {
+        alert(t('register.insufficientCash'));
+        return;
+      }
+      // A sale fully covered by redeemed points is a points redemption, not a $0
+      // card charge. Any other $0 total (e.g. a 100% promo) keeps its chosen method.
+      saleMethod = totalAmount <= 0 && discountType === 'loyalty' ? 'loyalty' : paymentMethod;
+      changeDue = saleMethod === 'cash' ? cashChangeDue : undefined;
     }
 
     // Globally-unique receipt ID: TX-<8 hex>. Avoids the previous TX-{max+1}
     // scheme, which collided when two terminals shared one cloud database.
     const nextId = `TX-${shortId().toUpperCase()}`;
-
-    // A sale fully covered by redeemed points is a points redemption, not a $0
-    // card charge. Any other $0 total (e.g. a 100% promo) keeps its chosen method.
-    const saleMethod: SaleTransaction['paymentMethod'] =
-      totalAmount <= 0 && discountType === 'loyalty' ? 'loyalty' : paymentMethod;
 
     const pointsEarned = selectedCustomerId
       ? Math.floor(totalAmount * settings.loyaltyPointsRate)
@@ -290,8 +329,9 @@ export default function Register() {
       tax: taxAmount,
       total: totalAmount,
       paymentMethod: saleMethod,
+      payments: payments && payments.length > 1 ? payments : undefined,
       cashPaid: paidValue,
-      cashChange: saleMethod === 'cash' ? cashChangeDue : undefined,
+      cashChange: changeDue,
       customerId: selectedCustomerId,
       customerName: activeCustomer?.name || null,
       operatorId: currentUser?.id ?? null,
@@ -516,12 +556,33 @@ export default function Register() {
               </div>
 
               <div className="p-6 space-y-6">
-                <div className="grid grid-cols-4 gap-3">
-                  {(
-                    [
-                      {
-                        id: 'card',
-                        label: t('register.payCard'),
+                <button
+                  id="split-toggle-btn"
+                  onClick={() => {
+                    setSplitMode((m) => !m);
+                    if (!splitMode && splitPayments.length === 0) {
+                      setSplitPayments([
+                        { method: 'cash', amount: Number(Math.max(0, totalAmount).toFixed(2)) },
+                      ]);
+                    }
+                  }}
+                  className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                    splitMode
+                      ? 'bg-emerald-500 text-white border-emerald-500'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <CreditCard size={14} />
+                  {splitMode ? t('register.singlePayment') : t('register.splitPayment')}
+                </button>
+
+                {!splitMode && (
+                  <div className="grid grid-cols-4 gap-3">
+                    {(
+                      [
+                        {
+                          id: 'card',
+                          label: t('register.payCard'),
                         icon: CreditCard,
                         color: 'text-blue-600 dark:text-blue-400',
                         bg: 'bg-blue-50 dark:bg-blue-900/20',
@@ -571,10 +632,75 @@ export default function Register() {
                       </button>
                     );
                   })}
-                </div>
+                  </div>
+                )}
+
+                {splitMode && (
+                  <div className="space-y-3">
+                    {splitPayments.map((p, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <select
+                          value={p.method}
+                          onChange={(e) =>
+                            updateSplitPayment(idx, { method: e.target.value as PaymentMethod })
+                          }
+                          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold px-2 py-2 text-slate-700 dark:text-slate-200 focus:outline-none"
+                        >
+                          <option value="cash">{t('register.payCash')}</option>
+                          <option value="card">{t('register.payCard')}</option>
+                          <option value="mobile">{t('register.payMobile')}</option>
+                          <option value="gift">{t('register.payGift')}</option>
+                        </select>
+                        <div className="flex-1 flex items-center border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-950 px-2">
+                          <span className="font-mono text-slate-400 text-sm">
+                            {settings.currency}
+                          </span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={p.amount || ''}
+                            onChange={(e) =>
+                              updateSplitPayment(idx, { amount: parseFloat(e.target.value) || 0 })
+                            }
+                            className="flex-1 bg-transparent border-none text-slate-800 dark:text-slate-100 text-sm font-mono px-1 py-2 focus:outline-none w-full"
+                          />
+                        </div>
+                        <button
+                          onClick={() => removeSplitPayment(idx)}
+                          disabled={splitPayments.length <= 1}
+                          className="p-2 text-slate-400 hover:text-rose-500 disabled:opacity-30"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between pt-1">
+                      <button
+                        onClick={addSplitPayment}
+                        className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                      >
+                        + {t('register.addPayment')}
+                      </button>
+                      <span
+                        className={`text-xs font-mono font-bold ${
+                          Math.abs(splitRemaining) < 0.005
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-amber-600 dark:text-amber-400'
+                        }`}
+                      >
+                        {splitRemaining > 0.005
+                          ? `${t('register.remaining')}: ${settings.currency}${splitRemaining.toFixed(2)}`
+                          : splitRemaining < -0.005
+                            ? `${t('register.changeDue')}: ${settings.currency}${Math.abs(splitRemaining).toFixed(2)}`
+                            : t('register.splitBalanced')}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <AnimatePresence mode="wait">
-                  {paymentMethod === 'cash' && (
+                  {!splitMode && paymentMethod === 'cash' && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
@@ -650,9 +776,11 @@ export default function Register() {
                 <button
                   onClick={handleCompletePayment}
                   disabled={
-                    paymentMethod === 'cash' &&
-                    totalAmount > 0 &&
-                    (parseFloat(cashPaidText) || 0) < totalAmount
+                    splitMode
+                      ? splitPaidTotal < totalAmount - 0.005
+                      : paymentMethod === 'cash' &&
+                        totalAmount > 0 &&
+                        (parseFloat(cashPaidText) || 0) < totalAmount
                   }
                   className="px-8 py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:from-slate-400 disabled:to-slate-400 text-white font-sans font-bold text-sm rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/25 transition-all transform active:scale-95"
                 >

@@ -25,6 +25,8 @@ export interface Customer {
   createdAt: string;
 }
 
+export type PaymentMethod = 'cash' | 'card' | 'mobile' | 'gift' | 'loyalty';
+
 export interface OrderItem {
   productId: string;
   productName: string;
@@ -32,6 +34,19 @@ export interface OrderItem {
   cost: number; // Product cost at purchase time
   quantity: number;
   total: number;
+}
+
+// One tender line of a sale. A single-method sale has one entry; a split sale
+// has several whose amounts sum to the total (cash may overpay for change).
+export interface Payment {
+  method: PaymentMethod;
+  amount: number;
+}
+
+// Cumulative quantity of a line returned across one or more partial refunds.
+export interface RefundedItem {
+  productId: string;
+  quantity: number;
 }
 
 export interface SaleTransaction {
@@ -44,7 +59,8 @@ export interface SaleTransaction {
   discountValue: number;
   tax: number;
   total: number;
-  paymentMethod: 'cash' | 'card' | 'mobile' | 'gift' | 'loyalty';
+  paymentMethod: PaymentMethod; // dominant method (largest tender)
+  payments?: Payment[]; // full breakdown; present (length > 1) only for split sales
   cashPaid?: number;
   cashChange?: number;
   customerId: string | null;
@@ -54,7 +70,10 @@ export interface SaleTransaction {
   // Loyalty points awarded at sale time. Stored so a refund reverses exactly
   // what was earned even if the points rate changed since the sale.
   pointsEarned?: number;
-  status: 'completed' | 'refunded';
+  // 'completed' = no refund, 'partial' = some items returned, 'refunded' = fully returned.
+  status: 'completed' | 'partial' | 'refunded';
+  refundedItems?: RefundedItem[]; // cumulative returned quantities (partial refunds)
+  refundedAmount?: number; // cumulative currency refunded
   refundDate?: string | null;
   refundAuthorizedBy?: string | null; // staff member who authorized the refund
 }

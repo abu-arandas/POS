@@ -223,6 +223,7 @@ export async function pushTransactions(
       tax: t.tax,
       total: t.total,
       payment_method: t.paymentMethod,
+      payments: t.payments ?? null,
       cash_paid: t.cashPaid ?? null,
       cash_change: t.cashChange ?? null,
       customer_id: t.customerId || null,
@@ -231,6 +232,8 @@ export async function pushTransactions(
       operator_name: t.operatorName || null,
       points_earned: t.pointsEarned ?? null,
       status: t.status,
+      refunded_items: t.refundedItems ?? null,
+      refunded_amount: t.refundedAmount ?? null,
       refund_date: t.refundDate || null,
       refund_authorized_by: t.refundAuthorizedBy || null,
     }));
@@ -283,6 +286,7 @@ export async function pullTransactions(client: SupabaseClient): Promise<SaleTran
       tax: Number(r.tax),
       total: Number(r.total),
       paymentMethod: r.payment_method as SaleTransaction['paymentMethod'],
+      payments: (r.payments as SaleTransaction['payments']) ?? undefined,
       cashPaid: r.cash_paid != null ? Number(r.cash_paid) : undefined,
       cashChange: r.cash_change != null ? Number(r.cash_change) : undefined,
       customerId: r.customer_id,
@@ -291,6 +295,8 @@ export async function pullTransactions(client: SupabaseClient): Promise<SaleTran
       operatorName: r.operator_name ?? null,
       pointsEarned: r.points_earned != null ? Number(r.points_earned) : undefined,
       status: r.status as SaleTransaction['status'],
+      refundedItems: (r.refunded_items as SaleTransaction['refundedItems']) ?? undefined,
+      refundedAmount: r.refunded_amount != null ? Number(r.refunded_amount) : undefined,
       refundDate: r.refund_date,
       refundAuthorizedBy: r.refund_authorized_by ?? null,
     }));

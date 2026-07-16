@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   tax NUMERIC NOT NULL,
   total NUMERIC NOT NULL,
   payment_method TEXT NOT NULL,
+  payments JSONB,                          -- tender breakdown for split payments
   cash_paid NUMERIC,
   cash_change NUMERIC,
   customer_id TEXT,
@@ -66,7 +67,9 @@ CREATE TABLE IF NOT EXISTS transactions (
   operator_id TEXT,                        -- staff member who rang up the sale
   operator_name TEXT,
   points_earned NUMERIC,                   -- loyalty points awarded at sale time
-  status TEXT NOT NULL CHECK (status IN ('completed', 'refunded')),
+  status TEXT NOT NULL CHECK (status IN ('completed', 'partial', 'refunded')),
+  refunded_items JSONB,                    -- cumulative returned quantities (partial refunds)
+  refunded_amount NUMERIC,                 -- cumulative currency refunded
   refund_date TIMESTAMP WITH TIME ZONE,
   refund_authorized_by TEXT                -- staff member who authorized the refund
 );
@@ -77,6 +80,13 @@ ALTER TABLE transactions ADD COLUMN IF NOT EXISTS operator_id TEXT;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS operator_name TEXT;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS points_earned NUMERIC;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refund_authorized_by TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payments JSONB;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refunded_items JSONB;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refunded_amount NUMERIC;
+-- Allow the new 'partial' refund status (the CHECK is recreated to include it):
+ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_status_check;
+ALTER TABLE transactions ADD CONSTRAINT transactions_status_check
+  CHECK (status IN ('completed', 'partial', 'refunded'));
 
 -- 7. Login RPC
 -- ============================================================
