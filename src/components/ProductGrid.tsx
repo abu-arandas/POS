@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, X, LayoutGrid, GripHorizontal } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Product } from '../types';
+import { Product, Category, StoreSettings } from '../types';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
@@ -30,7 +30,23 @@ interface ProductGridProps {
   addToCart: (product: Product) => void;
 }
 
-function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories, settings }: any) {
+interface SortableProductCardProps {
+  prod: Product;
+  isEditMode: boolean;
+  addToCart: (product: Product) => void;
+  cartQty: number;
+  categories: Category[];
+  settings: StoreSettings;
+}
+
+function SortableProductCard({
+  prod,
+  isEditMode,
+  addToCart,
+  cartQty,
+  categories,
+  settings,
+}: SortableProductCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: prod.id,
     disabled: !isEditMode,
@@ -122,10 +138,9 @@ function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories,
         <div>
           <span className="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400 block uppercase tracking-wider mb-1">
             {t(
-              `categories.${categories.find((c: any) => c.id === prod.category)?.name?.toLowerCase() || 'general'}`,
+              `categories.${categories.find((c) => c.id === prod.category)?.name?.toLowerCase() || 'general'}`,
               {
-                defaultValue:
-                  categories.find((c: any) => c.id === prod.category)?.name || 'General',
+                defaultValue: categories.find((c) => c.id === prod.category)?.name || 'General',
               },
             )}
           </span>

@@ -5,19 +5,14 @@ import {
   Edit2,
   Trash2,
   ArrowUpDown,
-  Tag,
   AlertTriangle,
-  Settings,
   FolderPlus,
-  DollarSign,
-  BarChart,
-  Percent,
   Check,
   X,
   Layers,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, Category, StoreSettings } from '../types';
+import { Product } from '../types';
 
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -165,17 +160,14 @@ export default function Inventory() {
     });
 
     list.sort((a, b) => {
-      let valA: any = a[sortBy];
-      let valB: any = b[sortBy];
+      const dir = sortOrder === 'asc' ? 1 : -1;
+      const valA = a[sortBy];
+      const valB = b[sortBy];
 
-      if (typeof valA === 'string') {
-        valA = valA.toLowerCase();
-        valB = valB.toLowerCase();
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return valA.toLowerCase().localeCompare(valB.toLowerCase()) * dir;
       }
-
-      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
+      return ((valA as number) - (valB as number)) * dir;
     });
 
     return list;

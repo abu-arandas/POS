@@ -27,6 +27,7 @@ const QRMenu = lazy(() => import('./components/QRMenu'));
 import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
+import { UserAccount } from './types';
 
 function ScreenLoader() {
   return (
@@ -36,11 +37,24 @@ function ScreenLoader() {
   );
 }
 
+type ScreenId =
+  | 'register'
+  | 'inventory'
+  | 'history'
+  | 'customers'
+  | 'dashboard'
+  | 'settings'
+  | 'qrmenu';
+
+function isScreenAllowed(screen: ScreenId, role: UserAccount['role']): boolean {
+  if (role === 'admin') return true;
+  if (role === 'manager') return screen !== 'settings';
+  return screen === 'register' || screen === 'history';
+}
+
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentScreen, setScreen] = useState<
-    'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings' | 'qrmenu'
-  >('register');
+  const [currentScreen, setScreen] = useState<ScreenId>('register');
 
   const { currentUser, setCurrentUser } = useAuthStore();
   const { settings, darkMode, setDarkMode, language } = useSettingsStore();
@@ -66,23 +80,32 @@ export default function App() {
 
   useEffect(() => {
     // Keep the embedded QR-menu server in sync. No-op outside Electron.
-    window.electronAPI?.updateMenuData({ products, categories, settings });
+    // Only public menu fields cross into the LAN-exposed server — never
+    // cost, stock counts, or the rest of the store settings (see /api/menu).
+    window.electronAPI?.updateMenuData({
+      products: products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        category: p.category,
+        image: p.image,
+        inStock: p.stock > 0,
+      })),
+      categories: categories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+      settings: {
+        storeName: settings.storeName,
+        storeLogo: settings.storeLogo,
+        currency: settings.currency,
+      },
+    });
   }, [products, categories, settings]);
 
+  // Reset navigation state when the signed-in role cannot view the current
+  // screen (e.g. an admin locked the terminal on Settings and a cashier logs in).
   useEffect(() => {
-    if (currentUser) {
-      if (currentUser.role === 'cashier') {
-        const prohibitedScreens = ['inventory', 'customers', 'dashboard', 'settings', 'qrmenu'];
-        if (prohibitedScreens.includes(currentScreen)) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setScreen('register');
-        }
-      } else if (currentUser.role === 'manager') {
-        if (currentScreen === 'settings') {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setScreen('register');
-        }
-      }
+    if (currentUser && !isScreenAllowed(currentScreen, currentUser.role)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setScreen('register');
     }
   }, [currentUser, currentScreen]);
 
@@ -90,8 +113,14 @@ export default function App() {
     return <Lockscreen />;
   }
 
+  // Guard at render time too: effects run after paint, so relying on the
+  // effect alone would flash one frame of a prohibited screen.
+  const activeScreen: ScreenId = isScreenAllowed(currentScreen, currentUser.role)
+    ? currentScreen
+    : 'register';
+
   const renderActiveScreen = () => {
-    switch (currentScreen) {
+    switch (activeScreen) {
       case 'register':
         return <Register />;
       case 'inventory':
@@ -111,7 +140,13 @@ export default function App() {
     }
   };
 
-  const mobileMenuItems = [
+  const mobileMenuItems: Array<{
+    id: ScreenId;
+    label: string;
+    icon: typeof ShoppingBag;
+    badge?: number;
+    allowedRoles: Array<UserAccount['role']>;
+  }> = [
     {
       id: 'register',
       label: t('sidebar.register'),
@@ -157,7 +192,7 @@ export default function App() {
       className={`flex min-h-screen overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300 ${darkMode ? 'mesh-bg-dark' : 'mesh-bg'}`}
     >
       <div id="desktop-sidebar-rail" className="hidden lg:block shrink-0">
-        <Sidebar currentScreen={currentScreen} setScreen={setScreen} />
+        <Sidebar currentScreen={activeScreen} setScreen={setScreen} />
       </div>
 
       {/* Main column: mobile top bar (small screens only) plus the active screen.
@@ -220,12 +255,12 @@ export default function App() {
             >
               {allowedMobileItems.map((item) => {
                 const Icon = item.icon;
-                const isSel = currentScreen === item.id;
+                const isSel = activeScreen === item.id;
                 return (
                   <button
                     key={item.id}
                     onClick={() => {
-                      setScreen(item.id as any);
+                      setScreen(item.id);
                       setMobileMenuOpen(false);
                     }}
                     className={`flex items-center justify-between w-full p-3 rounded-xl text-xs font-semibold ${

@@ -2,14 +2,14 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { UserAccount } from '../types';
 import { idbStorage } from '../lib/idbStorage';
-import { hashPin } from '../lib/hash';
+import { shortId } from '../lib/ids';
 
 interface AuthState {
   users: UserAccount[];
   currentUser: UserAccount | null;
   setUsers: (users: UserAccount[]) => void;
   setCurrentUser: (user: UserAccount | null) => void;
-  handleAddUser: (name: string, role: UserAccount['role'], pinHash: string) => void;
+  handleAddUser: (name: string, role: UserAccount['role'], pinHash: string) => UserAccount;
   handleUpdateUser: (updatedUser: UserAccount) => void;
   handleDeleteUser: (id: string) => void;
 }
@@ -53,7 +53,7 @@ export const useAuthStore = create<AuthState>()(
 
       handleAddUser: (name, role, pinHash) => {
         const newUser: UserAccount = {
-          id: `user-${crypto.randomUUID().split('-')[0]}`,
+          id: `user-${shortId()}`,
           name,
           role,
           pin: pinHash,
@@ -61,6 +61,7 @@ export const useAuthStore = create<AuthState>()(
           createdAt: new Date().toISOString(),
         };
         set({ users: [...get().users, newUser] });
+        return newUser;
       },
 
       handleUpdateUser: (updatedUser) => {
@@ -78,6 +79,9 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'pos-auth-storage',
       storage: createJSONStorage(() => idbStorage),
+      // The signed-in operator is intentionally NOT persisted: restarting the
+      // terminal must always return to the lock screen.
+      partialize: (state) => ({ users: state.users }),
     },
   ),
 );

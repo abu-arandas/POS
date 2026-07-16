@@ -91,6 +91,17 @@ export default function Settings() {
     }
 
     if (editingUser) {
+      // Demoting or deactivating the last active admin would lock everyone out
+      // of Settings — the same rule already enforced for deletion.
+      const isLastActiveAdmin =
+        editingUser.role === 'admin' &&
+        editingUser.active &&
+        users.filter((x) => x.role === 'admin' && x.active).length <= 1;
+      if (isLastActiveAdmin && (uRole !== 'admin' || !uActive)) {
+        alert(t('settings.cannotDeleteLastAdmin'));
+        return;
+      }
+
       const updated: UserAccount = {
         ...editingUser,
         name: uName.trim(),
@@ -102,16 +113,13 @@ export default function Settings() {
       syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [updated]);
     } else {
       const pinHash = await hashPin(uPin);
-      handleAddUser(uName.trim(), uRole, pinHash);
-      const created = useAuthStore.getState().users.find((u) => u.name === uName.trim() && u.pin === pinHash);
-      if (created) {
-        if (!uActive) {
-          const deactivated = { ...created, active: false };
-          handleUpdateUser(deactivated);
-          syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [deactivated]);
-        } else {
-          syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [created]);
-        }
+      const created = handleAddUser(uName.trim(), uRole, pinHash);
+      if (!uActive) {
+        const deactivated = { ...created, active: false };
+        handleUpdateUser(deactivated);
+        syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [deactivated]);
+      } else {
+        syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [created]);
       }
     }
     setUserModalOpen(false);
@@ -458,7 +466,7 @@ export default function Settings() {
                             </span>
                             {currentUser?.id === u.id && (
                               <span className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400">
-                                • you
+                                • {t('settings.youBadge')}
                               </span>
                             )}
                           </div>

@@ -5,19 +5,23 @@ import { useTranslation } from 'react-i18next';
 
 export default function QRMenu() {
   const { t } = useTranslation();
-  const [localIp, setLocalIp] = useState<string>(() => typeof window !== 'undefined' ? window.location.hostname : 'localhost');
+  const [menuHost, setMenuHost] = useState<{ ip: string; port: number }>(() => ({
+    ip: typeof window !== 'undefined' ? window.location.hostname : 'localhost',
+    port: 3001,
+  }));
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    // Fetch the LAN IP from the Electron main process. No-op in a browser,
-    // where the default window.location.hostname is used instead.
+    // Fetch the LAN IP and the actual server port from the Electron main
+    // process (the server walks past 3001 when the port is taken). No-op in a
+    // browser, where window.location.hostname is used instead.
     window.electronAPI
-      ?.getLocalIp()
-      .then((ip) => setLocalIp(ip))
-      .catch((err: Error) => console.error('Failed to get local IP:', err));
+      ?.getMenuInfo()
+      .then((info) => setMenuHost(info))
+      .catch((err: Error) => console.error('Failed to get menu server info:', err));
   }, []);
 
-  const menuUrl = `http://${localIp}:3001`;
+  const menuUrl = `http://${menuHost.ip}:${menuHost.port}`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(menuUrl);

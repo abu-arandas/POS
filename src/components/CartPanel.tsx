@@ -109,7 +109,8 @@ export default function CartPanel({
                   {activeCustomer.name}
                 </p>
                 <p className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
-                  <span className="font-bold">{activeCustomer.points}</span> loyalty points
+                  <span className="font-bold">{activeCustomer.points}</span>{' '}
+                  {t('register.loyaltyPointsLabel')}
                 </p>
               </>
             ) : (

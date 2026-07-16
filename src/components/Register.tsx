@@ -21,11 +21,13 @@ import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
+import { shortId } from '../lib/ids';
+import { printTransactions } from '../lib/receiptPrinter';
 import { useTranslation } from 'react-i18next';
 
 export default function Register() {
   const { t } = useTranslation();
-  const { products, categories, handleUpdateProduct } = useProductStore();
+  const { handleUpdateProduct } = useProductStore();
   const { customers, handleAddCustomer, updateCustomerPoints } = useCustomerStore();
   const { settings, printerConfig } = useSettingsStore();
   const { addTransaction } = useTransactionStore();
@@ -171,19 +173,24 @@ export default function Register() {
 
   const handleCompletePayment = () => {
     const paidValue = paymentMethod === 'cash' ? parseFloat(cashPaidText) || 0 : undefined;
-    if (paymentMethod === 'cash' && (!paidValue || paidValue < totalAmount)) {
+    // A fully-discounted ($0) sale needs no tendered cash.
+    if (paymentMethod === 'cash' && totalAmount > 0 && (paidValue ?? 0) < totalAmount) {
       alert('Insufficient cash paid!');
       return;
     }
 
     // Globally-unique receipt ID: TX-<8 hex>. Avoids the previous TX-{max+1}
     // scheme, which collided when two terminals shared one cloud database.
-    const nextId = `TX-${crypto.randomUUID().split('-')[0].toUpperCase()}`;
+    const nextId = `TX-${shortId().toUpperCase()}`;
 
-    // A sale fully covered by loyalty points is a points redemption, not a $0
-    // card charge — record it as such so receipts and reports are honest.
+    // A sale fully covered by redeemed points is a points redemption, not a $0
+    // card charge. Any other $0 total (e.g. a 100% promo) keeps its chosen method.
     const saleMethod: SaleTransaction['paymentMethod'] =
-      totalAmount <= 0 ? 'loyalty' : paymentMethod;
+      totalAmount <= 0 && discountType === 'loyalty' ? 'loyalty' : paymentMethod;
+
+    const pointsEarned = selectedCustomerId
+      ? Math.floor(totalAmount * settings.loyaltyPointsRate)
+      : undefined;
 
     const transaction: SaleTransaction = {
       id: nextId,
@@ -205,13 +212,19 @@ export default function Register() {
       customerName: activeCustomer?.name || null,
       operatorId: currentUser?.id ?? null,
       operatorName: currentUser?.name ?? null,
+      pointsEarned,
       status: 'completed',
     };
 
-    // Update stocks
+    // Decrement stock on the LIVE product records. The cart holds snapshots
+    // from add-to-cart time; writing those back would silently revert any
+    // price/name/stock edit made while the sale was open.
+    const liveProducts = useProductStore.getState().products;
     const updatedProducts: Product[] = [];
     cart.forEach((item) => {
-      const updated = { ...item.product, stock: Math.max(0, item.product.stock - item.quantity) };
+      const live = liveProducts.find((p) => p.id === item.product.id);
+      if (!live) return; // product deleted mid-sale; nothing to decrement
+      const updated = { ...live, stock: Math.max(0, live.stock - item.quantity) };
       handleUpdateProduct(updated);
       updatedProducts.push(updated);
     });
@@ -219,8 +232,7 @@ export default function Register() {
     // Update customer points
     let updatedCustomer = null;
     if (selectedCustomerId) {
-      const pointsGained = Math.floor(totalAmount * settings.loyaltyPointsRate);
-      let pointsDelta = pointsGained;
+      let pointsDelta = pointsEarned ?? 0;
       if (discountType === 'loyalty') pointsDelta -= discountValue;
       updateCustomerPoints(selectedCustomerId, pointsDelta);
       updatedCustomer = useCustomerStore
@@ -240,6 +252,19 @@ export default function Register() {
     setCheckoutModalOpen(false);
     setReceiptModalOpen(true);
     clearCart();
+
+    if (printerConfig.autoPrintOnCheckout) {
+      const outcome = printTransactions([transaction], settings, printerConfig);
+      if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+    }
+  };
+
+  const handlePrintActiveReceipt = () => {
+    if (!activeReceipt) return;
+    const outcome = printTransactions([activeReceipt], settings, printerConfig);
+    if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+    else if (outcome === 'esc-pos')
+      alert(t('history.escPosPrintMessage', { type: printerConfig.type.toUpperCase() }));
   };
 
   return (
@@ -312,43 +337,45 @@ export default function Register() {
 
               <div className="p-6 space-y-6">
                 <div className="grid grid-cols-4 gap-3">
-                  {[
-                    {
-                      id: 'card',
-                      label: 'Card',
-                      icon: CreditCard,
-                      color: 'text-blue-600 dark:text-blue-400',
-                      bg: 'bg-blue-50 dark:bg-blue-900/20',
-                    },
-                    {
-                      id: 'cash',
-                      label: 'Cash',
-                      icon: DollarSign,
-                      color: 'text-emerald-600 dark:text-emerald-400',
-                      bg: 'bg-emerald-50 dark:bg-emerald-900/20',
-                    },
-                    {
-                      id: 'mobile',
-                      label: 'Mobile',
-                      icon: Smartphone,
-                      color: 'text-purple-600 dark:text-purple-400',
-                      bg: 'bg-purple-50 dark:bg-purple-900/20',
-                    },
-                    {
-                      id: 'gift',
-                      label: 'Gift Card',
-                      icon: Gift,
-                      color: 'text-amber-600 dark:text-amber-400',
-                      bg: 'bg-amber-50 dark:bg-amber-900/20',
-                    },
-                  ].map((m) => {
+                  {(
+                    [
+                      {
+                        id: 'card',
+                        label: t('register.payCard'),
+                        icon: CreditCard,
+                        color: 'text-blue-600 dark:text-blue-400',
+                        bg: 'bg-blue-50 dark:bg-blue-900/20',
+                      },
+                      {
+                        id: 'cash',
+                        label: t('register.payCash'),
+                        icon: DollarSign,
+                        color: 'text-emerald-600 dark:text-emerald-400',
+                        bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+                      },
+                      {
+                        id: 'mobile',
+                        label: t('register.payMobile'),
+                        icon: Smartphone,
+                        color: 'text-purple-600 dark:text-purple-400',
+                        bg: 'bg-purple-50 dark:bg-purple-900/20',
+                      },
+                      {
+                        id: 'gift',
+                        label: t('register.payGift'),
+                        icon: Gift,
+                        color: 'text-amber-600 dark:text-amber-400',
+                        bg: 'bg-amber-50 dark:bg-amber-900/20',
+                      },
+                    ] as const
+                  ).map((m) => {
                     const MIcon = m.icon;
                     const isSel = paymentMethod === m.id;
                     return (
                       <button
                         key={m.id}
                         id={`pay-method-${m.id}`}
-                        onClick={() => setPaymentMethod(m.id as any)}
+                        onClick={() => setPaymentMethod(m.id)}
                         className={`flex flex-col items-center justify-center p-4 rounded-2xl border text-center transition-all duration-200 ${
                           isSel
                             ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 transform scale-105'
@@ -444,7 +471,8 @@ export default function Register() {
                   onClick={handleCompletePayment}
                   disabled={
                     paymentMethod === 'cash' &&
-                    (!parseFloat(cashPaidText) || parseFloat(cashPaidText) < totalAmount)
+                    totalAmount > 0 &&
+                    (parseFloat(cashPaidText) || 0) < totalAmount
                   }
                   className="px-8 py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:from-slate-400 disabled:to-slate-400 text-white font-sans font-bold text-sm rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/25 transition-all transform active:scale-95"
                 >
@@ -700,7 +728,7 @@ export default function Register() {
 
               <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-4">
                 <button
-                  onClick={() => alert('Receipt printing is mock triggered!')}
+                  onClick={handlePrintActiveReceipt}
                   className="flex-1 flex justify-center items-center gap-2 px-4 py-3 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-semibold transition-colors shadow-sm"
                 >
                   <Printer size={16} />

@@ -51,8 +51,12 @@ export interface SaleTransaction {
   customerName?: string | null;
   operatorId?: string | null; // staff member who rang up the sale
   operatorName?: string | null;
+  // Loyalty points awarded at sale time. Stored so a refund reverses exactly
+  // what was earned even if the points rate changed since the sale.
+  pointsEarned?: number;
   status: 'completed' | 'refunded';
   refundDate?: string | null;
+  refundAuthorizedBy?: string | null; // staff member who authorized the refund
 }
 
 export interface StoreSettings {

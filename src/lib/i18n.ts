@@ -83,6 +83,7 @@ const en = {
       cannotDeleteLastAdmin: 'At least one active admin account is required.',
       statusActive: 'Active',
       statusInactive: 'Inactive',
+      youBadge: 'you',
       printerSetup: 'Printer & Receipt',
       printerConfig: 'Printer Configuration',
       connectionType: 'Connection Type',
@@ -183,6 +184,11 @@ const en = {
       tax: 'Tax',
       checkout: 'Checkout',
       selectPaymentMethod: 'Select Payment Method',
+      payCard: 'Card',
+      payCash: 'Cash',
+      payMobile: 'Mobile',
+      payGift: 'Gift Card',
+      loyaltyPointsLabel: 'loyalty points',
       amountToPay: 'Amount to pay:',
       quickCashPay: 'Quick Cash Pay',
       cashTendered: 'Cash Tendered',
@@ -304,6 +310,7 @@ const en = {
       cashPaid: 'CASH PAID:',
       cashChange: 'CASH CHANGE:',
       auth: 'AUTH:',
+      refundAuthBy: 'REFUND AUTH:',
       refundThisSale: 'Refund This Sale',
       returnedInventoryLocked: 'Returned Inventory Locked',
       returnedInventoryMsg:
@@ -327,7 +334,7 @@ const en = {
       standardPrintBlocked:
         'Standard Print Blocked: Please allow popups for direct hardware system receipts formatting!',
       escPosPrintMessage:
-        'ESC/POS receipt stream dispatched to active printer module. Cutting paper roll...',
+        'ESC/POS receipt stream dispatched to the {{type}} printer module. Cutting paper roll...',
     },
     customers: {
       customerLoyaltyCrm: 'Customer Loyalty CRM',
@@ -338,6 +345,9 @@ const en = {
       alphabetical: 'Alphabetical',
       loyaltyPoints: 'Loyalty Points',
       joinDate: 'Join Date',
+      tierPlatinum: 'Platinum VIP',
+      tierGold: 'Gold Club',
+      tierSilver: 'Silver Member',
       noCustomersMatching: 'NO CUSTOMERS MATCHING YOUR CRITERIA',
       noEmail: 'No email',
       noPhone: 'No phone',
@@ -458,6 +468,7 @@ const ar = {
       cannotDeleteLastAdmin: 'يجب توفر حساب مدير نظام واحد نشط على الأقل.',
       statusActive: 'نشط',
       statusInactive: 'غير نشط',
+      youBadge: 'أنت',
       printerSetup: 'الطابعة والإيصال',
       printerConfig: 'إعدادات الطابعة',
       connectionType: 'نوع الاتصال',
@@ -558,6 +569,11 @@ const ar = {
       tax: 'الضريبة',
       checkout: 'الدفع',
       selectPaymentMethod: 'حدد طريقة الدفع',
+      payCard: 'بطاقة',
+      payCash: 'نقدي',
+      payMobile: 'جوال',
+      payGift: 'بطاقة هدايا',
+      loyaltyPointsLabel: 'نقاط ولاء',
       amountToPay: 'المبلغ المطلوب دفعه:',
       quickCashPay: 'دفع نقدي سريع',
       cashTendered: 'المبلغ النقدي المدفوع',
@@ -680,6 +696,7 @@ const ar = {
       cashPaid: 'المبلغ المدفوع:',
       cashChange: 'الباقي:',
       auth: 'ترخيص:',
+      refundAuthBy: 'مفوض الاسترداد:',
       refundThisSale: 'استرداد هذه العملية',
       returnedInventoryLocked: 'تم قفل المخزون المرتجع',
       returnedInventoryMsg:
@@ -702,7 +719,7 @@ const ar = {
       standardPrintBlocked:
         'تم حظر الطباعة القياسية: يرجى السماح بالنوافذ المنبثقة لتنسيق إيصالات نظام الأجهزة المباشر!',
       escPosPrintMessage:
-        'تم إرسال تيار إيصال ESC/POS إلى وحدة الطابعة النشطة. جاري قطع لفة الورق...',
+        'تم إرسال تيار إيصال ESC/POS إلى وحدة الطابعة ({{type}}). جاري قطع لفة الورق...',
     },
     customers: {
       customerLoyaltyCrm: 'إدارة ولاء العملاء',
@@ -713,6 +730,9 @@ const ar = {
       alphabetical: 'أبجدي',
       loyaltyPoints: 'نقاط الولاء',
       joinDate: 'تاريخ الانضمام',
+      tierPlatinum: 'عضو بلاتيني VIP',
+      tierGold: 'نادي الذهب',
+      tierSilver: 'عضو فضي',
       noCustomersMatching: 'لا يوجد عملاء يطابقون معاييرك',
       noEmail: 'لا يوجد بريد إلكتروني',
       noPhone: 'لا يوجد هاتف',

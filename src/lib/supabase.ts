@@ -66,107 +66,8 @@ export async function signInDevice(
   }
 }
 
-// SQL DDL schema script that the user can execute in Supabase SQL Editor
-export const SUPABASE_SCHEMA_SQL = `-- Supabase DDL Schema for POS Terminal System
--- Copy and paste this script into your Supabase SQL Editor to set up tables.
-
--- 1. Enable UUID Extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- 2. Create User Accounts Table
-CREATE TABLE IF NOT EXISTS user_accounts (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'cashier')),
-  pin TEXT NOT NULL,
-  active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
-);
-
--- 3. Create Categories Table
-CREATE TABLE IF NOT EXISTS categories (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  color TEXT NOT NULL
-);
-
--- 4. Create Products Table
-CREATE TABLE IF NOT EXISTS products (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  price NUMERIC NOT NULL,
-  cost NUMERIC NOT NULL,
-  category TEXT REFERENCES categories(id) ON DELETE SET NULL,
-  sku TEXT NOT NULL,
-  stock INTEGER NOT NULL,
-  min_stock INTEGER NOT NULL,
-  image TEXT NOT NULL
-);
-
--- 5. Create Customers Table
-CREATE TABLE IF NOT EXISTS customers (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT,
-  phone TEXT,
-  points INTEGER DEFAULT 0,
-  created_at TEXT
-);
-
--- 6. Create Transactions Table
-CREATE TABLE IF NOT EXISTS transactions (
-  id TEXT PRIMARY KEY,
-  date TIMESTAMP WITH TIME ZONE NOT NULL,
-  items JSONB NOT NULL,
-  subtotal NUMERIC NOT NULL,
-  discount NUMERIC NOT NULL,
-  discount_type TEXT NOT NULL,
-  discount_value NUMERIC NOT NULL,
-  tax NUMERIC NOT NULL,
-  total NUMERIC NOT NULL,
-  payment_method TEXT NOT NULL,
-  cash_paid NUMERIC,
-  cash_change NUMERIC,
-  customer_id TEXT,
-  customer_name TEXT,
-  status TEXT NOT NULL CHECK (status IN ('completed', 'refunded')),
-  refund_date TIMESTAMP WITH TIME ZONE
-);
-
--- Login RPC: SECURITY DEFINER so it validates credentials without exposing PIN
--- hashes to clients (returns non-secret fields only). The client sends
--- SHA-256(entered PIN) — see src/lib/hash.ts.
-CREATE OR REPLACE FUNCTION public.verify_login(p_name TEXT, p_pin_hash TEXT)
-RETURNS TABLE (id TEXT, name TEXT, role TEXT, active BOOLEAN, created_at TIMESTAMPTZ)
-LANGUAGE sql SECURITY DEFINER SET search_path = public AS $fn$
-  SELECT id, name, role, active, created_at FROM public.user_accounts
-  WHERE name = p_name AND pin = p_pin_hash AND active = TRUE LIMIT 1;
-$fn$;
-REVOKE ALL ON FUNCTION public.verify_login(TEXT, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.verify_login(TEXT, TEXT) TO anon, authenticated;
-
--- Row Level Security (secure by default): only an authenticated terminal can
--- read/write. The public anon key alone cannot touch any row. For a throwaway
--- local demo you may DISABLE RLS instead, but never in production.
-ALTER TABLE user_accounts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE categories    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE products      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE customers     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE transactions  ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "staff full access" ON categories   FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
-CREATE POLICY "staff full access" ON products      FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
-CREATE POLICY "staff full access" ON customers     FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
-CREATE POLICY "staff full access" ON transactions  FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
-CREATE POLICY "staff manage users" ON user_accounts FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
-
--- Insert default admin account if not existing (Default PIN: 1234)
--- The PIN is stored as its SHA-256 hash because the app hashes the entered PIN
--- before comparing (see src/lib/hash.ts). Storing plaintext here would make the
--- account impossible to log into. Hash below = SHA-256('1234').
-INSERT INTO user_accounts (id, name, role, pin, active, created_at)
-VALUES ('admin-1', 'Default Administrator', 'admin', '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4', TRUE, NOW())
-ON CONFLICT (id) DO NOTHING;
-`;
+// The canonical DDL lives in scripts/schema.sql — run it in the Supabase SQL
+// editor before enabling sync.
 
 // Direct sync functions pushing local lists to Supabase and resolving updates
 export async function testSupabaseConnection(url: string, anonKey: string): Promise<boolean> {
@@ -322,12 +223,16 @@ export async function pushTransactions(
       tax: t.tax,
       total: t.total,
       payment_method: t.paymentMethod,
-      cash_paid: t.cashPaid || null,
-      cash_change: t.cashChange || null,
+      cash_paid: t.cashPaid ?? null,
+      cash_change: t.cashChange ?? null,
       customer_id: t.customerId || null,
       customer_name: t.customerName || null,
+      operator_id: t.operatorId || null,
+      operator_name: t.operatorName || null,
+      points_earned: t.pointsEarned ?? null,
       status: t.status,
       refund_date: t.refundDate || null,
+      refund_authorized_by: t.refundAuthorizedBy || null,
     }));
     const { error } = await client.from('transactions').upsert(records);
     if (error) throw error;
@@ -378,12 +283,16 @@ export async function pullTransactions(client: SupabaseClient): Promise<SaleTran
       tax: Number(r.tax),
       total: Number(r.total),
       paymentMethod: r.payment_method as SaleTransaction['paymentMethod'],
-      cashPaid: r.cash_paid ? Number(r.cash_paid) : undefined,
-      cashChange: r.cash_change ? Number(r.cash_change) : undefined,
+      cashPaid: r.cash_paid != null ? Number(r.cash_paid) : undefined,
+      cashChange: r.cash_change != null ? Number(r.cash_change) : undefined,
       customerId: r.customer_id,
       customerName: r.customer_name,
+      operatorId: r.operator_id ?? null,
+      operatorName: r.operator_name ?? null,
+      pointsEarned: r.points_earned != null ? Number(r.points_earned) : undefined,
       status: r.status as SaleTransaction['status'],
       refundDate: r.refund_date,
+      refundAuthorizedBy: r.refund_authorized_by ?? null,
     }));
   } catch (err) {
     console.error('Failed pulling transactions:', err);

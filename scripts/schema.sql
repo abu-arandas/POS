@@ -63,9 +63,20 @@ CREATE TABLE IF NOT EXISTS transactions (
   cash_change NUMERIC,
   customer_id TEXT,
   customer_name TEXT,
+  operator_id TEXT,                        -- staff member who rang up the sale
+  operator_name TEXT,
+  points_earned NUMERIC,                   -- loyalty points awarded at sale time
   status TEXT NOT NULL CHECK (status IN ('completed', 'refunded')),
-  refund_date TIMESTAMP WITH TIME ZONE
+  refund_date TIMESTAMP WITH TIME ZONE,
+  refund_authorized_by TEXT                -- staff member who authorized the refund
 );
+
+-- 6b. Upgrading an existing database? These add the columns introduced after
+--     the initial schema (no-ops on a fresh install):
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS operator_id TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS operator_name TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS points_earned NUMERIC;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refund_authorized_by TEXT;
 
 -- 7. Login RPC
 -- ============================================================
