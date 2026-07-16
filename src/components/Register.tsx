@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   CreditCard,
   DollarSign,
@@ -9,9 +9,13 @@ import {
   Printer,
   UserPlus,
   ShoppingBag,
+  ScanLine,
+  Clock,
+  Trash2,
+  Play,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, SaleTransaction } from '../types';
+import { Product, SaleTransaction, HeldOrder } from '../types';
 import ProductGrid from './ProductGrid';
 import CartPanel from './CartPanel';
 import { useProductStore } from '../stores/productStore';
@@ -19,10 +23,12 @@ import { useCustomerStore } from '../stores/customerStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
+import { useHeldOrderStore } from '../stores/heldOrderStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { shortId } from '../lib/ids';
 import { printTransactions } from '../lib/receiptPrinter';
+import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useTranslation } from 'react-i18next';
 
 export default function Register() {
@@ -32,6 +38,7 @@ export default function Register() {
   const { settings, printerConfig } = useSettingsStore();
   const { addTransaction } = useTransactionStore();
   const { currentUser } = useAuthStore();
+  const { heldOrders, holdOrder, removeHeldOrder } = useHeldOrderStore();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -56,6 +63,9 @@ export default function Register() {
 
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'mobile' | 'gift'>('card');
   const [cashPaidText, setCashPaidText] = useState<string>('');
+
+  const [heldModalOpen, setHeldModalOpen] = useState(false);
+  const [scanFeedback, setScanFeedback] = useState<{ ok: boolean; text: string } | null>(null);
 
   const activeCustomer = useMemo(
     () => customers.find((c) => c.id === selectedCustomerId) || null,
@@ -109,25 +119,24 @@ export default function Register() {
     return Number((paid - totalAmount).toFixed(2));
   }, [cashPaidText, totalAmount]);
 
-  const addToCart = (product: Product) => {
-    const existing = cart.find((item) => item.product.id === product.id);
+  // Functional updates so rapid clicks / scans never race on a stale cart.
+  const addToCart = useCallback((product: Product) => {
     if (product.stock <= 0) return;
-
-    if (existing) {
-      if (existing.quantity >= product.stock) return;
-      setCart(
-        cart.map((item) =>
+    setCart((prev) => {
+      const existing = prev.find((item) => item.product.id === product.id);
+      if (existing) {
+        if (existing.quantity >= product.stock) return prev;
+        return prev.map((item) =>
           item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item,
-        ),
-      );
-    } else {
-      setCart([...cart, { product, quantity: 1 }]);
-    }
-  };
+        );
+      }
+      return [...prev, { product, quantity: 1 }];
+    });
+  }, []);
 
   const updateCartQty = (productId: string, delta: number) => {
-    setCart(
-      cart
+    setCart((prev) =>
+      prev
         .map((item) => {
           if (item.product.id === productId) {
             const newQty = item.quantity + delta;
@@ -142,7 +151,7 @@ export default function Register() {
   };
 
   const removeFromCart = (productId: string) =>
-    setCart(cart.filter((item) => item.product.id !== productId));
+    setCart((prev) => prev.filter((item) => item.product.id !== productId));
 
   const clearCart = () => {
     setCart([]);
@@ -151,6 +160,81 @@ export default function Register() {
     setDiscountInput('');
     setLoyaltyPointsToUse(0);
     setShowPromoInput(false);
+  };
+
+  // Barcode scan: match a product by exact SKU and add it, with brief feedback.
+  const handleScan = useCallback(
+    (code: string) => {
+      const norm = code.trim().toLowerCase();
+      const product = useProductStore
+        .getState()
+        .products.find((p) => p.sku.toLowerCase() === norm);
+      if (!product) {
+        setScanFeedback({ ok: false, text: t('register.scanNotFound', { code }) });
+      } else if (product.stock <= 0) {
+        setScanFeedback({ ok: false, text: `${product.name} — ${t('register.outOfStock')}` });
+      } else {
+        addToCart(product);
+        setScanFeedback({ ok: true, text: product.name });
+      }
+    },
+    [addToCart, t],
+  );
+
+  useBarcodeScanner({
+    onScan: handleScan,
+    enabled: !checkoutModalOpen && !addCustomerOpen && !receiptModalOpen && !heldModalOpen,
+  });
+
+  useEffect(() => {
+    if (!scanFeedback) return;
+    const timer = setTimeout(() => setScanFeedback(null), 1800);
+    return () => clearTimeout(timer);
+  }, [scanFeedback]);
+
+  const handleHoldOrder = () => {
+    if (cart.length === 0) return;
+    const label = window
+      .prompt(t('register.holdLabelPrompt'), new Date().toLocaleTimeString())
+      ?.trim();
+    if (label === undefined || label === null) return; // cancelled
+    holdOrder({
+      label: label || new Date().toLocaleTimeString(),
+      items: cart.map((i) => ({
+        productId: i.product.id,
+        productName: i.product.name,
+        price: i.product.price,
+        cost: i.product.cost,
+        quantity: i.quantity,
+      })),
+      customerId: selectedCustomerId,
+      discountType,
+      discountInput,
+      loyaltyPointsToUse,
+      operatorName: currentUser?.name ?? null,
+    });
+    clearCart();
+  };
+
+  const resumeHeldOrder = (order: HeldOrder) => {
+    if (cart.length > 0 && !window.confirm(t('register.resumeReplaceWarning'))) return;
+    // Rebuild the cart from the current catalog so prices/stock are live; drop
+    // any line whose product no longer exists.
+    const liveProducts = useProductStore.getState().products;
+    const rebuilt = order.items
+      .map((i) => {
+        const product = liveProducts.find((p) => p.id === i.productId);
+        return product ? { product, quantity: Math.min(i.quantity, product.stock) } : null;
+      })
+      .filter((x): x is { product: Product; quantity: number } => x !== null && x.quantity > 0);
+    setCart(rebuilt);
+    setSelectedCustomerId(order.customerId);
+    setDiscountType(order.discountType);
+    setDiscountInput(order.discountInput);
+    setLoyaltyPointsToUse(order.loyaltyPointsToUse);
+    setShowPromoInput(false);
+    removeHeldOrder(order.id);
+    setHeldModalOpen(false);
   };
 
   const handleAddNewCustomer = (e: React.FormEvent) => {
@@ -300,7 +384,103 @@ export default function Register() {
         taxAmount={taxAmount}
         totalAmount={totalAmount}
         handleCheckoutClick={handleCheckoutClick}
+        onHoldOrder={handleHoldOrder}
+        heldCount={heldOrders.length}
+        onOpenHeldOrders={() => setHeldModalOpen(true)}
       />
+
+      {/* Barcode scan feedback toast */}
+      <AnimatePresence>
+        {scanFeedback && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-2xl text-sm font-semibold ${
+              scanFeedback.ok
+                ? 'bg-emerald-600 text-white'
+                : 'bg-rose-600 text-white'
+            }`}
+          >
+            <ScanLine size={16} />
+            <span>{scanFeedback.text}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Held orders modal */}
+      <AnimatePresence>
+        {heldModalOpen && (
+          <div
+            id="held-orders-modal"
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800 max-h-[80vh]"
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+                <h3 className="font-sans font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
+                  <Clock size={20} className="text-emerald-500" />
+                  {t('register.heldOrders')} ({heldOrders.length})
+                </h3>
+                <button
+                  onClick={() => setHeldModalOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto space-y-2">
+                {heldOrders.length === 0 ? (
+                  <p className="text-center text-slate-400 font-mono text-xs py-10">
+                    {t('register.noHeldOrders')}
+                  </p>
+                ) : (
+                  heldOrders.map((order) => {
+                    const itemCount = order.items.reduce((s, i) => s + i.quantity, 0);
+                    const orderTotal = order.items.reduce((s, i) => s + i.price * i.quantity, 0);
+                    return (
+                      <div
+                        key={order.id}
+                        className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-sans font-semibold text-slate-800 dark:text-slate-100 text-sm truncate">
+                            {order.label}
+                          </p>
+                          <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
+                            {itemCount} {t('register.itemsLower')} • {settings.currency}
+                            {orderTotal.toFixed(2)}
+                            {order.operatorName ? ` • ${order.operatorName}` : ''}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => resumeHeldOrder(order)}
+                            className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors"
+                          >
+                            <Play size={13} /> {t('register.resume')}
+                          </button>
+                          <button
+                            onClick={() => removeHeldOrder(order.id)}
+                            className="p-2 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                            title={t('register.deleteHeld')}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {checkoutModalOpen && (

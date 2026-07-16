@@ -59,6 +59,28 @@ export interface SaleTransaction {
   refundAuthorizedBy?: string | null; // staff member who authorized the refund
 }
 
+// A cart parked for later (the "hold order" workflow). Product snapshots mirror
+// the live cart; stock is re-validated from the catalog when the sale completes.
+export interface HeldOrderItem {
+  productId: string;
+  productName: string;
+  price: number;
+  cost: number;
+  quantity: number;
+}
+
+export interface HeldOrder {
+  id: string;
+  label: string; // operator-supplied name, e.g. "Table 4" (defaults to a time)
+  createdAt: string;
+  items: HeldOrderItem[];
+  customerId: string | null;
+  discountType: 'none' | 'percentage' | 'fixed' | 'loyalty';
+  discountInput: string;
+  loyaltyPointsToUse: number;
+  operatorName?: string | null;
+}
+
 export interface StoreSettings {
   storeName: string;
   storeAddress: string;
