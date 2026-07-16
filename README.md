@@ -71,6 +71,52 @@ npm run build
 ```
 The static files will be located in the `dist/` directory.
 
+> **Serve over HTTPS (or localhost).** The app prefers the browser's WebCrypto
+> APIs, which only exist in secure contexts. Pure-JS fallbacks keep login and
+> checkout working on a plain-`http://` LAN deploy, but HTTPS is still the
+> recommended setup for anything beyond a trusted local network.
+
+## 🔐 Default Logins
+
+A fresh install seeds three staff accounts — **change these PINs immediately**
+(Settings → Users) before using the app with real data, since they are public
+in this repository:
+
+| Account | Role    | PIN    |
+| ------- | ------- | ------ |
+| Admin   | admin   | `1234` |
+| Manager | manager | `5555` |
+| Cashier | cashier | `0000` |
+
+## ☁️ Cloud Sync (Supabase, optional)
+
+The app runs fully offline by default (IndexedDB). To sync terminals through
+[Supabase](https://supabase.com):
+
+1. Create a Supabase project and run `scripts/schema.sql` in the SQL Editor
+   (Dashboard → SQL Editor). The schema is **secure by default**: Row Level
+   Security is enabled, so the public anon key alone cannot read or write.
+2. Create a Supabase Auth "device" user (Authentication → Users) for the
+   terminal to sign in with.
+3. In the app, open **Settings → Supabase Sync**, enter the Project URL, anon
+   key, and the device account's email/password, then **Test Connection**.
+4. Optionally seed demo data first: copy `.env.example` to `.env`, fill in
+   `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (the anon key cannot insert
+   once RLS is on), and run `node scripts/seed.mjs`.
+
+Upgrading an existing database? Re-run `scripts/schema.sql` — the
+`ALTER TABLE … ADD COLUMN IF NOT EXISTS` block adds the newer transaction
+columns (operator, points earned, refund authorizer) without touching data.
+
+## 🧪 Tests
+
+```bash
+npm test
+```
+Unit tests (Vitest) cover the pricing engine, the HTML-escaping used for
+printed receipts and the QR menu, and the SHA-256 fallback used on insecure
+origins.
+
 ## 🛠️ Tech Stack
 
 - **Framework:** React 19 + Vite

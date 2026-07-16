@@ -1,27 +1,31 @@
 /**
  * Supabase Seeder Script
- * Creates the schema tables and seeds all initial data.
+ * Seeds all initial data (run scripts/schema.sql in the SQL editor first).
  * Run with: node scripts/seed.mjs
  *
- * Requires SUPABASE_URL and SUPABASE_ANON_KEY, provided via environment
- * variables or a local .env file (see .env.example). Credentials must never
- * be committed to source control.
+ * Requires SUPABASE_URL and a key, provided via environment variables or a
+ * local .env file (see .env.example). The recommended schema enables Row
+ * Level Security with authenticated-only policies, so the public anon key
+ * CANNOT insert rows — use SUPABASE_SERVICE_ROLE_KEY (server-side only,
+ * never ship it in the app). SUPABASE_ANON_KEY works only if you disabled
+ * RLS for a throwaway demo. Credentials must never be committed.
  */
 
 import 'dotenv/config';
 import { createHash } from 'node:crypto';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+const usingServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 // The app authenticates by comparing SHA-256(entered PIN) against the stored
 // value (see src/lib/hash.ts), so seeded PINs must be stored as hashes too —
 // storing them in plaintext makes the account impossible to log into.
 const hashPin = (pin) => createHash('sha256').update(pin).digest('hex');
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error(
-    '❌ Missing SUPABASE_URL or SUPABASE_ANON_KEY. Set them in a .env file (see .env.example) or export them before running.',
+    '❌ Missing SUPABASE_URL or a key. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (preferred) in a .env file (see .env.example) or export them before running.',
   );
   process.exit(1);
 }
@@ -179,8 +183,8 @@ async function supabaseUpsert(table, records) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
       'Prefer': 'resolution=merge-duplicates,return=minimal',
     },
     body: JSON.stringify(records),
@@ -188,32 +192,24 @@ async function supabaseUpsert(table, records) {
 
   if (!res.ok) {
     const body = await res.text();
+    if ((res.status === 401 || res.status === 403) && !usingServiceRole) {
+      throw new Error(
+        `[${table}] HTTP ${res.status}: ${body}\n` +
+          '   ℹ️  The anon key cannot write when RLS is enabled (the default schema). ' +
+          'Set SUPABASE_SERVICE_ROLE_KEY in .env and re-run.',
+      );
+    }
     throw new Error(`[${table}] HTTP ${res.status}: ${body}`);
   }
   return true;
-}
-
-// ─── Schema creation via Supabase SQL REST endpoint ───────────────────────────
-
-async function runSQL(sql) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify({ query: sql }),
-  });
-  // This may 404 if the function doesn't exist; that's OK — tables may already be created
-  return res.ok;
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
   console.log('🚀 Starting Supabase seeder...\n');
-  console.log(`📡 Target: ${SUPABASE_URL}\n`);
+  console.log(`📡 Target: ${SUPABASE_URL}`);
+  console.log(`🔑 Key: ${usingServiceRole ? 'service role' : 'anon (works only without RLS)'}\n`);
 
   // Step 1 — Upsert categories
   process.stdout.write('📦 Seeding categories... ');

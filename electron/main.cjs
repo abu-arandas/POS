@@ -6,7 +6,9 @@ const os = require('os');
 
 let menuData = { products: [], categories: [], settings: {} };
 
-// Setup Express Server
+// Setup Express Server (serves the customer-facing QR digital menu).
+// The renderer only ever sends customer-safe fields here (no cost/stock
+// counts) — see App.tsx / preload.cjs.
 const expressApp = express();
 expressApp.use(cors());
 
@@ -18,11 +20,27 @@ expressApp.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'menu.html'));
 });
 
-// Use 3001 or fallback to another port if needed
-let serverPort = 3001;
-expressApp.listen(serverPort, '0.0.0.0', () => {
-  console.log(`Menu Express server listening on port ${serverPort}`);
-});
+// The port actually bound (null until the server is up). Starts at 3001 and
+// walks forward when the port is taken — an unhandled 'listen' error would
+// otherwise crash the whole app (EADDRINUSE is an async 'error' event).
+let serverPort = null;
+
+function startMenuServer(port, attemptsLeft) {
+  const server = expressApp.listen(port, '0.0.0.0', () => {
+    serverPort = port;
+    console.log(`Menu Express server listening on port ${port}`);
+  });
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE' && attemptsLeft > 0) {
+      console.warn(`Port ${port} in use, trying ${port + 1}…`);
+      startMenuServer(port + 1, attemptsLeft - 1);
+    } else {
+      console.error('Menu server failed to start:', err.message);
+    }
+  });
+}
+
+startMenuServer(3001, 10);
 
 function getLocalIp() {
   const interfaces = os.networkInterfaces();
@@ -37,8 +55,8 @@ function getLocalIp() {
   return 'localhost';
 }
 
-ipcMain.handle('get-local-ip', () => {
-  return getLocalIp();
+ipcMain.handle('get-menu-info', () => {
+  return { ip: getLocalIp(), port: serverPort ?? 3001 };
 });
 
 ipcMain.on('update-menu-data', (event, data) => {
@@ -54,14 +72,14 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    title: "EA POS",
+    title: 'EA POS',
     autoHideMenuBar: true,
     icon: path.join(__dirname, 'icon.ico'), // Ensure you have an icon, or this is ignored
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
-    }
+    },
   });
 
   // Completely remove the default menu bar (File, Edit, View, etc.)

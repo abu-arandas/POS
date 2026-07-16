@@ -91,6 +91,17 @@ export default function Settings() {
     }
 
     if (editingUser) {
+      // Demoting or deactivating the last active admin would lock everyone out
+      // of Settings — the same rule already enforced for deletion.
+      const isLastActiveAdmin =
+        editingUser.role === 'admin' &&
+        editingUser.active &&
+        users.filter((x) => x.role === 'admin' && x.active).length <= 1;
+      if (isLastActiveAdmin && (uRole !== 'admin' || !uActive)) {
+        alert(t('settings.cannotDeleteLastAdmin'));
+        return;
+      }
+
       const updated: UserAccount = {
         ...editingUser,
         name: uName.trim(),
@@ -102,16 +113,13 @@ export default function Settings() {
       syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [updated]);
     } else {
       const pinHash = await hashPin(uPin);
-      handleAddUser(uName.trim(), uRole, pinHash);
-      const created = useAuthStore.getState().users.find((u) => u.name === uName.trim() && u.pin === pinHash);
-      if (created) {
-        if (!uActive) {
-          const deactivated = { ...created, active: false };
-          handleUpdateUser(deactivated);
-          syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [deactivated]);
-        } else {
-          syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [created]);
-        }
+      const created = handleAddUser(uName.trim(), uRole, pinHash);
+      if (!uActive) {
+        const deactivated = { ...created, active: false };
+        handleUpdateUser(deactivated);
+        syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [deactivated]);
+      } else {
+        syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [created]);
       }
     }
     setUserModalOpen(false);
@@ -296,7 +304,9 @@ export default function Settings() {
             {activeTab === 'profile' && (
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
-                  <h3 className="font-semibold text-slate-900 dark:text-white">{t('settings.title')}</h3>
+                  <h3 className="font-semibold text-slate-900 dark:text-white">
+                    {t('settings.title')}
+                  </h3>
                 </div>
                 <div className="p-6 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -458,7 +468,7 @@ export default function Settings() {
                             </span>
                             {currentUser?.id === u.id && (
                               <span className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400">
-                                • you
+                                • {t('settings.youBadge')}
                               </span>
                             )}
                           </div>
@@ -487,7 +497,7 @@ export default function Settings() {
                         <button
                           id={`del-user-${u.id}`}
                           onClick={() => handleRemoveUser(u)}
-                          title="Delete"
+                          title={t('settings.deleteUser')}
                           className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100/60 rounded-lg transition-colors"
                         >
                           <Trash2 size={13} />
@@ -516,7 +526,10 @@ export default function Settings() {
                         id="printer-type"
                         value={printerForm.type}
                         onChange={(e) =>
-                          setPrinterForm({ ...printerForm, type: e.target.value as PrinterConfig['type'] })
+                          setPrinterForm({
+                            ...printerForm,
+                            type: e.target.value as PrinterConfig['type'],
+                          })
                         }
                         className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
                       >
@@ -533,7 +546,10 @@ export default function Settings() {
                       <select
                         value={printerForm.paperSize}
                         onChange={(e) =>
-                          setPrinterForm({ ...printerForm, paperSize: e.target.value as PrinterConfig['paperSize'] })
+                          setPrinterForm({
+                            ...printerForm,
+                            paperSize: e.target.value as PrinterConfig['paperSize'],
+                          })
                         }
                         className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
                       >
@@ -551,7 +567,9 @@ export default function Settings() {
                           dir="ltr"
                           placeholder="192.168.1.50"
                           value={printerForm.ipAddress || ''}
-                          onChange={(e) => setPrinterForm({ ...printerForm, ipAddress: e.target.value })}
+                          onChange={(e) =>
+                            setPrinterForm({ ...printerForm, ipAddress: e.target.value })
+                          }
                           className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100 font-mono text-sm"
                         />
                       </div>
@@ -584,7 +602,9 @@ export default function Settings() {
                     <input
                       type="text"
                       value={printerForm.footerMessage}
-                      onChange={(e) => setPrinterForm({ ...printerForm, footerMessage: e.target.value })}
+                      onChange={(e) =>
+                        setPrinterForm({ ...printerForm, footerMessage: e.target.value })
+                      }
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
                     />
                   </div>
@@ -593,7 +613,9 @@ export default function Settings() {
                     <input
                       type="checkbox"
                       checked={printerForm.showBarcode}
-                      onChange={(e) => setPrinterForm({ ...printerForm, showBarcode: e.target.checked })}
+                      onChange={(e) =>
+                        setPrinterForm({ ...printerForm, showBarcode: e.target.checked })
+                      }
                       className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
                     />
                     <span className="text-sm font-medium text-slate-800 dark:text-slate-100">

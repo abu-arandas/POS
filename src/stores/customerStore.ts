@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { Customer } from '../types';
 import { INITIAL_CUSTOMERS } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
+import { shortId } from '../lib/ids';
 import { deleteCustomersCloudIfEnabled } from '../lib/sync';
 
 interface CustomerState {
@@ -23,7 +24,7 @@ export const useCustomerStore = create<CustomerState>()(
 
       handleAddCustomer: (name, phone, email) => {
         const newCustomer: Customer = {
-          id: `cust-${crypto.randomUUID().split('-')[0]}`,
+          id: `cust-${shortId()}`,
           name,
           phone,
           email,

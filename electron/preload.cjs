@@ -4,8 +4,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 // nodeIntegration. This keeps contextIsolation on so a compromised renderer
 // (e.g. via a malicious image/logo URL) cannot reach Node.js/Electron internals.
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Returns the machine's LAN IPv4 address for the QR digital-menu link.
-  getLocalIp: () => ipcRenderer.invoke('get-local-ip'),
-  // Pushes the latest catalog/settings snapshot to the embedded menu server.
+  // Returns the machine's LAN IPv4 address and the actual port the embedded
+  // QR digital-menu server bound to (it falls back past 3001 when taken).
+  getMenuInfo: () => ipcRenderer.invoke('get-menu-info'),
+  // Pushes the latest public catalog/settings snapshot to the embedded menu
+  // server. The renderer sends only customer-safe fields (no cost/stock).
   updateMenuData: (data) => ipcRenderer.send('update-menu-data', data),
 });

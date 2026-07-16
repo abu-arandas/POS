@@ -27,6 +27,7 @@ const QRMenu = lazy(() => import('./components/QRMenu'));
 import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
+import { ScreenId, isScreenAllowed } from './lib/access';
 
 function ScreenLoader() {
   return (
@@ -38,9 +39,7 @@ function ScreenLoader() {
 
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentScreen, setScreen] = useState<
-    'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings' | 'qrmenu'
-  >('register');
+  const [currentScreen, setScreen] = useState<ScreenId>('register');
 
   const { currentUser, setCurrentUser } = useAuthStore();
   const { settings, darkMode, setDarkMode, language } = useSettingsStore();
@@ -66,23 +65,32 @@ export default function App() {
 
   useEffect(() => {
     // Keep the embedded QR-menu server in sync. No-op outside Electron.
-    window.electronAPI?.updateMenuData({ products, categories, settings });
+    // Only public menu fields cross into the LAN-exposed server — never
+    // cost, stock counts, or the rest of the store settings (see /api/menu).
+    window.electronAPI?.updateMenuData({
+      products: products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        category: p.category,
+        image: p.image,
+        inStock: p.stock > 0,
+      })),
+      categories: categories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+      settings: {
+        storeName: settings.storeName,
+        storeLogo: settings.storeLogo,
+        currency: settings.currency,
+      },
+    });
   }, [products, categories, settings]);
 
+  // Reset navigation state when the signed-in role cannot view the current
+  // screen (e.g. an admin locked the terminal on Settings and a cashier logs in).
   useEffect(() => {
-    if (currentUser) {
-      if (currentUser.role === 'cashier') {
-        const prohibitedScreens = ['inventory', 'customers', 'dashboard', 'settings', 'qrmenu'];
-        if (prohibitedScreens.includes(currentScreen)) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setScreen('register');
-        }
-      } else if (currentUser.role === 'manager') {
-        if (currentScreen === 'settings') {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setScreen('register');
-        }
-      }
+    if (currentUser && !isScreenAllowed(currentScreen, currentUser.role)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setScreen('register');
     }
   }, [currentUser, currentScreen]);
 
@@ -90,8 +98,14 @@ export default function App() {
     return <Lockscreen />;
   }
 
+  // Guard at render time too: effects run after paint, so relying on the
+  // effect alone would flash one frame of a prohibited screen.
+  const activeScreen: ScreenId = isScreenAllowed(currentScreen, currentUser.role)
+    ? currentScreen
+    : 'register';
+
   const renderActiveScreen = () => {
-    switch (currentScreen) {
+    switch (activeScreen) {
       case 'register':
         return <Register />;
       case 'inventory':
@@ -111,44 +125,28 @@ export default function App() {
     }
   };
 
-  const mobileMenuItems = [
-    {
-      id: 'register',
-      label: t('sidebar.register'),
-      icon: ShoppingBag,
-      allowedRoles: ['admin', 'manager', 'cashier'],
-    },
-    {
-      id: 'dashboard',
-      label: t('sidebar.dashboard'),
-      icon: BarChart3,
-      allowedRoles: ['admin', 'manager'],
-    },
+  const mobileMenuItems: Array<{
+    id: ScreenId;
+    label: string;
+    icon: typeof ShoppingBag;
+    badge?: number;
+  }> = [
+    { id: 'register', label: t('sidebar.register'), icon: ShoppingBag },
+    { id: 'dashboard', label: t('sidebar.dashboard'), icon: BarChart3 },
     {
       id: 'inventory',
       label: t('sidebar.inventory'),
       icon: Package,
       badge: lowStockCount > 0 ? lowStockCount : undefined,
-      allowedRoles: ['admin', 'manager'],
     },
-    {
-      id: 'history',
-      label: t('sidebar.transactions'),
-      icon: HistoryIcon,
-      allowedRoles: ['admin', 'manager', 'cashier'],
-    },
-    {
-      id: 'customers',
-      label: t('sidebar.customers'),
-      icon: Users,
-      allowedRoles: ['admin', 'manager'],
-    },
-    { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode, allowedRoles: ['admin', 'manager'] },
-    { id: 'settings', label: t('sidebar.settings'), icon: SettingsIcon, allowedRoles: ['admin'] },
+    { id: 'history', label: t('sidebar.transactions'), icon: HistoryIcon },
+    { id: 'customers', label: t('sidebar.customers'), icon: Users },
+    { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode },
+    { id: 'settings', label: t('sidebar.settings'), icon: SettingsIcon },
   ];
 
   const allowedMobileItems = mobileMenuItems.filter((item) =>
-    item.allowedRoles.includes(currentUser.role),
+    isScreenAllowed(item.id, currentUser.role),
   );
 
   return (
@@ -157,7 +155,7 @@ export default function App() {
       className={`flex min-h-screen overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300 ${darkMode ? 'mesh-bg-dark' : 'mesh-bg'}`}
     >
       <div id="desktop-sidebar-rail" className="hidden lg:block shrink-0">
-        <Sidebar currentScreen={currentScreen} setScreen={setScreen} />
+        <Sidebar currentScreen={activeScreen} setScreen={setScreen} />
       </div>
 
       {/* Main column: mobile top bar (small screens only) plus the active screen.
@@ -196,7 +194,7 @@ export default function App() {
             </button>
             <button
               onClick={() => setCurrentUser(null)}
-              title="Lock Terminal"
+              title={t('sidebar.lockTerminal')}
               className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg focus:outline-none"
             >
               <XIcon size={16} />
@@ -220,12 +218,12 @@ export default function App() {
             >
               {allowedMobileItems.map((item) => {
                 const Icon = item.icon;
-                const isSel = currentScreen === item.id;
+                const isSel = activeScreen === item.id;
                 return (
                   <button
                     key={item.id}
                     onClick={() => {
-                      setScreen(item.id as any);
+                      setScreen(item.id);
                       setMobileMenuOpen(false);
                     }}
                     className={`flex items-center justify-between w-full p-3 rounded-xl text-xs font-semibold ${

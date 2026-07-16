@@ -109,7 +109,8 @@ export default function CartPanel({
                   {activeCustomer.name}
                 </p>
                 <p className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
-                  <span className="font-bold">{activeCustomer.points}</span> loyalty points
+                  <span className="font-bold">{activeCustomer.points}</span>{' '}
+                  {t('register.loyaltyPointsLabel')}
                 </p>
               </>
             ) : (
@@ -133,7 +134,7 @@ export default function CartPanel({
                 setDiscountType('none');
               }}
               className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors"
-              title="Remove customer"
+              title={t('register.removeCustomer')}
             >
               <X size={14} />
             </button>
@@ -154,7 +155,7 @@ export default function CartPanel({
               <button
                 onClick={() => setAddCustomerOpen(true)}
                 className="p-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 rounded-lg transition-colors"
-                title="Add customer shortcut"
+                title={t('register.newCustomer')}
               >
                 <UserPlus size={14} />
               </button>
@@ -244,12 +245,14 @@ export default function CartPanel({
               <div className="text-[11px] text-emerald-800 dark:text-emerald-200">
                 <span className="font-bold">{t('register.loyaltyPointsAvail')}</span>
                 <p className="text-[10px] text-emerald-600/80 dark:text-emerald-300/80 mt-0.5">
+                  {/* Same cap as pricing.ts: the redemption never exceeds the subtotal */}
                   {t('register.save')} {settings.currency}
-                  {(
+                  {Math.min(
                     Math.min(
                       activeCustomer.points,
                       Math.ceil(subtotal / settings.loyaltyPointValue),
-                    ) * settings.loyaltyPointValue
+                    ) * settings.loyaltyPointValue,
+                    subtotal,
                   ).toFixed(2)}
                 </p>
               </div>
@@ -401,7 +404,7 @@ export default function CartPanel({
             onClick={clearCart}
             disabled={cart.length === 0}
             className="px-3 py-3 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-slate-500 dark:text-slate-400 rounded-xl transition-colors shrink-0"
-            title="Clear entire cart"
+            title={t('register.clearCart')}
           >
             <Trash2 size={16} />
           </button>

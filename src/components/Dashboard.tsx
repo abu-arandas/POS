@@ -64,7 +64,8 @@ export default function Dashboard() {
     const totalHistoricalRevenue = completedTransactions.reduce((sum, t) => sum + t.total, 0);
     const avgDailyRevenue = totalHistoricalRevenue / daysCount;
 
-    const lowStockItems = products.filter((p) => p.stock <= p.minStock).length;
+    // Same definition as the sidebar badge: at/below threshold but still in stock.
+    const lowStockItems = products.filter((p) => p.stock <= p.minStock && p.stock > 0).length;
 
     return {
       revenueToday: Number(revenueToday.toFixed(2)),
@@ -98,8 +99,10 @@ export default function Dashboard() {
         const entry = datesMap.get(txKey)!;
         entry.revenue += tx.total;
 
+        // Raw (unclamped) profit so loss days show as negative — matching the
+        // "Net Profit Today" KPI, which uses the same formula.
         const cost = tx.items.reduce((sum, item) => sum + item.cost * item.quantity, 0);
-        entry.profit += Math.max(0, tx.subtotal - tx.discount - cost);
+        entry.profit += tx.subtotal - tx.discount - cost;
 
         datesMap.set(txKey, entry);
       }
@@ -167,10 +170,15 @@ export default function Dashboard() {
   }, [completedTransactions, products, categories, t]);
 
   const paymentMethodsData = useMemo(() => {
-    const counts = { cash: 0, card: 0, mobile: 0, gift: 0 };
+    const counts: Record<'cash' | 'card' | 'mobile' | 'gift', number> = {
+      cash: 0,
+      card: 0,
+      mobile: 0,
+      gift: 0,
+    };
     completedTransactions.forEach((tx) => {
-      if (counts[tx.paymentMethod] !== undefined) {
-        counts[tx.paymentMethod] += tx.total;
+      if (tx.paymentMethod in counts) {
+        counts[tx.paymentMethod as keyof typeof counts] += tx.total;
       }
     });
 
@@ -185,9 +193,11 @@ export default function Dashboard() {
       .filter((item) => item.value > 0);
   }, [completedTransactions]);
 
+  // Denominator over the same buckets shown in the cards, so the percentages
+  // always sum to 100 (loyalty redemptions are $0 sales and are not a bucket).
   const totalSalesVolume = useMemo(() => {
-    return completedTransactions.reduce((sum, tx) => sum + tx.total, 0);
-  }, [completedTransactions]);
+    return paymentMethodsData.reduce((sum, d) => sum + d.value, 0);
+  }, [paymentMethodsData]);
 
   return (
     <div

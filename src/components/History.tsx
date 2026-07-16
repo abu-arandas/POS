@@ -2,10 +2,8 @@ import React, { useState, useMemo } from 'react';
 import {
   Search,
   History as HistoryIcon,
-  Calendar,
   Printer,
   RotateCcw,
-  ChevronRight,
   CreditCard,
   DollarSign,
   Smartphone,
@@ -14,7 +12,6 @@ import {
   X,
   Check,
   AlertTriangle,
-  ShieldCheck,
   Lock,
   ShoppingBag,
   Trash2,
@@ -28,6 +25,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
+import { printTransactions } from '../lib/receiptPrinter';
 import { useTranslation } from 'react-i18next';
 
 export default function History() {
@@ -61,8 +59,12 @@ export default function History() {
   const [overridePin, setOverridePin] = useState('');
   const [overrideError, setOverrideError] = useState('');
 
+  // Cashiers may view and print history, but destructive bulk deletion is
+  // reserved for managers/admins (refunds already require an override).
+  const canDelete = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+
   const activeTransaction = useMemo(() => {
-    return transactions.find((t) => t.id === selectedTxId) || null;
+    return transactions.find((tx) => tx.id === selectedTxId) || null;
   }, [transactions, selectedTxId]);
 
   // Filters logic
@@ -112,7 +114,7 @@ export default function History() {
 
   // Processes a refund: marks the transaction refunded, returns items to stock,
   // reverses the loyalty points that were awarded/redeemed, and syncs the changes.
-  const processRefund = (tx: SaleTransaction) => {
+  const processRefund = (tx: SaleTransaction, authorizedBy: string) => {
     if (tx.status === 'refunded') return;
 
     // Return purchased quantities back to catalog stock levels.
@@ -128,9 +130,11 @@ export default function History() {
 
     // Reverse the loyalty-point movement from the original sale: remove the
     // points earned and refund the points that were redeemed as a discount.
+    // Prefer the points recorded at sale time — recomputing from today's
+    // settings would be wrong if the points rate changed since the sale.
     let updatedCustomer: Customer | undefined;
     if (tx.customerId) {
-      const pointsEarned = Math.floor(tx.total * settings.loyaltyPointsRate);
+      const pointsEarned = tx.pointsEarned ?? Math.floor(tx.total * settings.loyaltyPointsRate);
       let reverseDelta = -pointsEarned;
       if (tx.discountType === 'loyalty') reverseDelta += tx.discountValue;
       if (reverseDelta !== 0) updateCustomerPoints(tx.customerId, reverseDelta);
@@ -138,19 +142,19 @@ export default function History() {
     }
 
     const refundDate = new Date().toISOString();
-    refundTransaction(tx.id, refundDate);
+    refundTransaction(tx.id, refundDate, authorizedBy);
 
     syncToCloudIfEnabled(
       updatedProducts.length > 0 ? updatedProducts : undefined,
       undefined,
       updatedCustomer ? [updatedCustomer] : undefined,
-      [{ ...tx, status: 'refunded', refundDate }],
+      [{ ...tx, status: 'refunded', refundDate, refundAuthorizedBy: authorizedBy }],
     );
   };
 
   // Refund handler
   const handleRefundClick = (tx: SaleTransaction) => {
-    if (currentUser?.role === 'cashier') {
+    if (!currentUser || currentUser.role === 'cashier') {
       // Cashiers require manager override passcode
       setPendingRefundTxId(tx.id);
       setOverridePin('');
@@ -158,7 +162,7 @@ export default function History() {
       setShowOverrideModal(true);
     } else {
       if (confirm(t('history.refundConfirm', { id: tx.id }))) {
-        processRefund(tx);
+        processRefund(tx, `${currentUser.name} (${currentUser.role})`);
       }
     }
   };
@@ -174,7 +178,7 @@ export default function History() {
     if (authorizedUser) {
       const pendingTx = transactions.find((tx) => tx.id === pendingRefundTxId);
       if (pendingTx) {
-        processRefund(pendingTx);
+        processRefund(pendingTx, `${authorizedUser.name} (${authorizedUser.role})`);
         alert(
           t('history.refundAuthorized', { name: authorizedUser.name, role: authorizedUser.role }),
         );
@@ -189,161 +193,10 @@ export default function History() {
   };
 
   const handlePrintReceipt = (tx: SaleTransaction) => {
-    if (printerConfig.type === 'system') {
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        const rollWidth = printerConfig.paperSize === '58mm' ? '58mm' : '80mm';
-
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>POS Receipt ${tx.id}</title>
-              <style>
-                body {
-                  font-family: 'Courier New', Courier, monospace;
-                  width: ${rollWidth};
-                  padding: 8px;
-                  margin: 0;
-                  font-size: 11px;
-                  color: #000;
-                  line-height: 1.3;
-                }
-                .center { text-align: center; }
-                .bold { font-weight: bold; }
-                .text-lg { font-size: 14px; font-weight: bold; }
-                .divider { border-top: 1px dashed #000; margin: 8px 0; }
-                .logo { text-align: center; margin-bottom: 8px; }
-                .logo svg { width: 32px; height: 32px; }
-                .flex-row { display: flex; justify-content: space-between; }
-                .mt-1 { margin-top: 4px; }
-              </style>
-            </head>
-            <body onload="window.print(); window.close();">
-              <div class="logo">
-                ${settings.storeLogo ? `<img src="${settings.storeLogo}" style="max-height: 40px; width: auto;" />` : `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`}
-              </div>
-              <div class="center bold">${settings.storeName}</div>
-              <div class="center">${settings.storeAddress}</div>
-              <div class="center">Phone: ${settings.storePhone}</div>
-              <div class="divider"></div>
-              
-              <div class="flex-row">
-                <span>DATE:</span>
-                <span>${new Date(tx.date).toLocaleString()}</span>
-              </div>
-              <div class="flex-row">
-                <span>RECEIPT:</span>
-                <span class="bold">${tx.id}</span>
-              </div>
-              ${
-                tx.operatorName
-                  ? `
-              <div class="flex-row">
-                <span>OPERATOR:</span>
-                <span>${tx.operatorName}</span>
-              </div>
-              `
-                  : ''
-              }
-              ${
-                tx.customerName
-                  ? `
-              <div class="flex-row bold">
-                <span>MEMBER:</span>
-                <span>${tx.customerName}</span>
-              </div>
-              `
-                  : ''
-              }
-              
-              <div class="divider"></div>
-              
-              <div class="bold">ITEMS:</div>
-              ${tx.items
-                .map(
-                  (item) => `
-                <div class="flex-row">
-                  <span>${item.quantity}x ${item.productName}</span>
-                  <span>${settings.currency}${item.total.toFixed(2)}</span>
-                </div>
-              `,
-                )
-                .join('')}
-              
-              <div class="divider"></div>
-              
-              <div class="flex-row">
-                <span>SUBTOTAL:</span>
-                <span>${settings.currency}${tx.subtotal.toFixed(2)}</span>
-              </div>
-              ${
-                tx.discount > 0
-                  ? `
-              <div class="flex-row">
-                <span>DISCOUNT:</span>
-                <span>-${settings.currency}${tx.discount.toFixed(2)}</span>
-              </div>
-              `
-                  : ''
-              }
-              <div class="flex-row">
-                <span>TAX:</span>
-                <span>${settings.currency}${tx.tax.toFixed(2)}</span>
-              </div>
-              <div class="flex-row text-lg">
-                <span>TOTAL PAID:</span>
-                <span>${settings.currency}${tx.total.toFixed(2)}</span>
-              </div>
-              
-              <div class="divider"></div>
-              
-              <div class="flex-row">
-                <span>METHOD:</span>
-                <span class="bold uppercase">${tx.paymentMethod}</span>
-              </div>
-              ${
-                tx.paymentMethod === 'cash'
-                  ? `
-              <div class="flex-row">
-                <span>CASH PAID:</span>
-                <span>${settings.currency}${tx.cashPaid?.toFixed(2)}</span>
-              </div>
-              <div class="flex-row bold">
-                <span>CHANGE:</span>
-                <span>${settings.currency}${tx.cashChange?.toFixed(2)}</span>
-              </div>
-              `
-                  : ''
-              }
-              
-              <div class="divider"></div>
-              
-              <div class="center bold uppercase">${tx.status}</div>
-              ${
-                tx.refundDate
-                  ? `
-              <div class="center text-rose-600">REFUND: ${new Date(tx.refundDate).toLocaleDateString()}</div>
-              `
-                  : ''
-              }
-              
-              <div class="divider"></div>
-              
-              <div class="center">${printerConfig.footerMessage || 'Thank you for your business!'}</div>
-              <div class="center mt-1" style="font-size: 8px; letter-spacing: 2px; color: #444;">
-                ||||| ||| ||| |||| | | |||| |||
-              </div>
-              <div class="center" style="font-size: 8px;">* AUTH-${tx.id} *</div>
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-      } else {
-        alert(t('history.standardPrintBlocked'));
-      }
-    } else {
+    const outcome = printTransactions([tx], settings, printerConfig);
+    if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+    else if (outcome === 'esc-pos')
       alert(t('history.escPosPrintMessage', { type: printerConfig.type.toUpperCase() }));
-    }
   };
 
   const handleToggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -375,162 +228,11 @@ export default function History() {
   };
 
   const handleBulkPrint = () => {
-    if (printerConfig.type === 'system') {
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        const rollWidth = printerConfig.paperSize === '58mm' ? '58mm' : '80mm';
-        const txsToPrint = transactions.filter((t) => selectedTxIds.includes(t.id));
-
-        const receiptsHtml = txsToPrint
-          .map(
-            (tx) => `
-          <div class="receipt">
-            <div class="logo">
-              ${settings.storeLogo ? `<img src="${settings.storeLogo}" style="max-height: 40px; width: auto;" />` : `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`}
-            </div>
-            <div class="center bold">${settings.storeName}</div>
-            <div class="center">${settings.storeAddress}</div>
-            <div class="center">Phone: ${settings.storePhone}</div>
-            <div class="divider"></div>
-            
-            <div class="flex-row">
-              <span>DATE:</span>
-              <span>${new Date(tx.date).toLocaleString()}</span>
-            </div>
-            <div class="flex-row">
-              <span>RECEIPT:</span>
-              <span class="bold">${tx.id}</span>
-            </div>
-            ${
-              tx.customerName
-                ? `
-            <div class="flex-row bold">
-              <span>MEMBER:</span>
-              <span>${tx.customerName}</span>
-            </div>
-            `
-                : ''
-            }
-            
-            <div class="divider"></div>
-            
-            <div class="bold">ITEMS:</div>
-            ${tx.items
-              .map(
-                (item) => `
-              <div class="flex-row">
-                <span>${item.quantity}x ${item.productName}</span>
-                <span>${settings.currency}${item.total.toFixed(2)}</span>
-              </div>
-            `,
-              )
-              .join('')}
-            
-            <div class="divider"></div>
-            
-            <div class="flex-row">
-              <span>SUBTOTAL:</span>
-              <span>${settings.currency}${tx.subtotal.toFixed(2)}</span>
-            </div>
-            ${
-              tx.discount > 0
-                ? `
-            <div class="flex-row">
-              <span>DISCOUNT:</span>
-              <span>-${settings.currency}${tx.discount.toFixed(2)}</span>
-            </div>
-            `
-                : ''
-            }
-            <div class="flex-row text-lg">
-              <span>TOTAL PAID:</span>
-              <span>${settings.currency}${tx.total.toFixed(2)}</span>
-            </div>
-            
-            <div class="divider"></div>
-            
-            <div class="flex-row">
-              <span>METHOD:</span>
-              <span class="bold uppercase">${tx.paymentMethod}</span>
-            </div>
-            ${
-              tx.paymentMethod === 'cash'
-                ? `
-            <div class="flex-row">
-              <span>CASH PAID:</span>
-              <span>${settings.currency}${tx.cashPaid?.toFixed(2)}</span>
-            </div>
-            <div class="flex-row bold">
-              <span>CHANGE:</span>
-              <span>${settings.currency}${tx.cashChange?.toFixed(2)}</span>
-            </div>
-            `
-                : ''
-            }
-            
-            <div class="divider"></div>
-            
-            <div class="center bold uppercase">${tx.status}</div>
-            ${
-              tx.refundDate
-                ? `
-            <div class="center text-rose-600">REFUND: ${new Date(tx.refundDate).toLocaleDateString()}</div>
-            `
-                : ''
-            }
-            
-            <div class="divider"></div>
-            
-            <div class="center">${printerConfig.footerMessage || 'Thank you for your business!'}</div>
-            <div class="center mt-1" style="font-size: 8px; letter-spacing: 2px; color: #444;">
-              ||||| ||| ||| |||| | | |||| |||
-            </div>
-            <div class="center" style="font-size: 8px;">* AUTH-${tx.id} *</div>
-          </div>
-        `,
-          )
-          .join('<div class="page-break"></div>');
-
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>POS Bulk Receipts</title>
-              <style>
-                body {
-                  font-family: 'Courier New', Courier, monospace;
-                  width: ${rollWidth};
-                  padding: 8px;
-                  margin: 0;
-                  font-size: 11px;
-                  color: #000;
-                  line-height: 1.3;
-                }
-                .receipt { margin-bottom: 20px; }
-                .center { text-align: center; }
-                .bold { font-weight: bold; }
-                .text-lg { font-size: 14px; font-weight: bold; }
-                .divider { border-top: 1px dashed #000; margin: 8px 0; }
-                .logo { text-align: center; margin-bottom: 8px; }
-                .logo svg { width: 32px; height: 32px; }
-                .flex-row { display: flex; justify-content: space-between; }
-                .mt-1 { margin-top: 4px; }
-                @media print {
-                  .page-break { page-break-after: always; }
-                }
-              </style>
-            </head>
-            <body onload="window.print(); window.close();">
-              ${receiptsHtml}
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-      } else {
-        alert(t('history.standardPrintBlocked'));
-      }
-    } else {
+    const txsToPrint = transactions.filter((tx) => selectedTxIds.includes(tx.id));
+    const outcome = printTransactions(txsToPrint, settings, printerConfig);
+    if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+    else if (outcome === 'esc-pos')
       alert(t('history.escPosPrintMessage', { type: printerConfig.type.toUpperCase() }));
-    }
   };
 
   const getPaymentIcon = (method: SaleTransaction['paymentMethod']) => {
@@ -586,15 +288,17 @@ export default function History() {
             </div>
 
             <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
-              {[
-                { id: 'all', label: t('history.allDates') },
-                { id: 'today', label: t('history.today') },
-                { id: 'yesterday', label: t('history.yesterday') },
-                { id: '7days', label: t('history.last7Days') },
-              ].map((opt) => (
+              {(
+                [
+                  { id: 'all', label: t('history.allDates') },
+                  { id: 'today', label: t('history.today') },
+                  { id: 'yesterday', label: t('history.yesterday') },
+                  { id: '7days', label: t('history.last7Days') },
+                ] as const
+              ).map((opt) => (
                 <button
                   key={opt.id}
-                  onClick={() => setDateFilter(opt.id as any)}
+                  onClick={() => setDateFilter(opt.id)}
                   className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0 ${
                     dateFilter === opt.id
                       ? 'bg-white text-slate-900 shadow-xs'
@@ -609,7 +313,7 @@ export default function History() {
             <select
               id="history-status-select"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'completed' | 'refunded')}
               className="bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold px-3 py-1.5 text-slate-600 focus:outline-none focus:border-emerald-500 shrink-0"
             >
               <option value="all">{t('history.allStatuses')}</option>
@@ -674,12 +378,14 @@ export default function History() {
               >
                 <Printer size={14} /> {t('history.printSelected')}
               </button>
-              <button
-                onClick={handleBulkDelete}
-                className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 transition-colors"
-              >
-                <Trash2 size={14} /> {t('history.deleteSelected')}
-              </button>
+              {canDelete && (
+                <button
+                  onClick={handleBulkDelete}
+                  className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 transition-colors"
+                >
+                  <Trash2 size={14} /> {t('history.deleteSelected')}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -805,7 +511,7 @@ export default function History() {
             <span>
               {t('history.totalValue')} {settings.currency}
               {filteredTransactions
-                .reduce((sum, t) => sum + (t.status === 'completed' ? t.total : 0), 0)
+                .reduce((sum, tx) => sum + (tx.status === 'completed' ? tx.total : 0), 0)
                 .toFixed(2)}
             </span>
           </div>
@@ -885,6 +591,15 @@ export default function History() {
                       <span>{new Date(activeTransaction.refundDate).toLocaleDateString()}</span>
                     </div>
                   )}
+                  {activeTransaction.status === 'refunded' &&
+                    activeTransaction.refundAuthorizedBy && (
+                      <div className="flex justify-between text-rose-600">
+                        <span>{t('history.refundAuthBy')}</span>
+                        <span className="truncate max-w-[150px]">
+                          {activeTransaction.refundAuthorizedBy}
+                        </span>
+                      </div>
+                    )}
                   <div className="flex justify-between">
                     <span>{t('history.receipt')}</span>
                     <span>{activeTransaction.id}</span>

@@ -16,13 +16,19 @@ export function calculateOrderTotals(
 ) {
   const subtotal = Number(items.reduce((sum, i) => sum + i.price * i.quantity, 0).toFixed(2));
 
+  // Every discount is clamped so the recorded discount can never exceed the
+  // order value (and a typo like "150%" can never go negative).
   let discountAmount = 0;
   if (discountType === 'percentage') {
-    discountAmount = Number(((subtotal * discountValue) / 100).toFixed(2));
+    const pct = Math.min(100, Math.max(0, discountValue));
+    discountAmount = Number(((subtotal * pct) / 100).toFixed(2));
   } else if (discountType === 'fixed') {
-    discountAmount = Math.min(discountValue, subtotal);
+    discountAmount = Math.min(Math.max(0, discountValue), subtotal);
   } else if (discountType === 'loyalty') {
-    discountAmount = Number((discountValue * settings.loyaltyPointValue).toFixed(2));
+    discountAmount = Math.min(
+      Number((discountValue * settings.loyaltyPointValue).toFixed(2)),
+      subtotal,
+    );
   }
 
   const taxableAmount = Math.max(0, subtotal - discountAmount);

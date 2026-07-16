@@ -7,9 +7,14 @@ import { deleteTransactionsCloudIfEnabled } from '../lib/sync';
 
 interface TransactionState {
   transactions: SaleTransaction[];
+  // True once demo data has been seeded (or the install already had data).
+  // Guards against re-seeding: "list is empty" alone would resurrect fake
+  // sales after a user deliberately deletes all history — and live sync would
+  // then push those fakes to the cloud.
+  demoSeeded: boolean;
   setTransactions: (transactions: SaleTransaction[]) => void;
   addTransaction: (transaction: SaleTransaction) => void;
-  refundTransaction: (id: string, refundDate: string) => void;
+  refundTransaction: (id: string, refundDate: string, authorizedBy?: string | null) => void;
   deleteTransactions: (ids: string[]) => void;
 }
 
@@ -17,6 +22,7 @@ export const useTransactionStore = create<TransactionState>()(
   persist(
     (set, get) => ({
       transactions: [],
+      demoSeeded: false,
 
       setTransactions: (transactions) => set({ transactions }),
 
@@ -24,10 +30,12 @@ export const useTransactionStore = create<TransactionState>()(
         set({ transactions: [transaction, ...get().transactions] });
       },
 
-      refundTransaction: (id, refundDate) => {
+      refundTransaction: (id, refundDate, authorizedBy = null) => {
         set({
           transactions: get().transactions.map((t) =>
-            t.id === id ? { ...t, status: 'refunded', refundDate } : t,
+            t.id === id
+              ? { ...t, status: 'refunded' as const, refundDate, refundAuthorizedBy: authorizedBy }
+              : t,
           ),
         });
       },
@@ -43,9 +51,12 @@ export const useTransactionStore = create<TransactionState>()(
       name: 'pos-transaction-storage',
       storage: createJSONStorage(() => idbStorage),
       onRehydrateStorage: () => (state) => {
-        // If state is empty on initial load, populate with demo data
-        if (state && state.transactions.length === 0) {
-          state.setTransactions(generatePastTransactions());
+        // Populate demo data exactly once per install (see demoSeeded above).
+        if (state && !state.demoSeeded) {
+          if (state.transactions.length === 0) {
+            state.setTransactions(generatePastTransactions());
+          }
+          useTransactionStore.setState({ demoSeeded: true });
         }
       },
     },

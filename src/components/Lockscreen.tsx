@@ -203,7 +203,7 @@ export default function Lockscreen() {
                 <button
                   onClick={handleBackspace}
                   className="h-12 bg-slate-950/20 hover:bg-slate-800 text-slate-500 hover:text-white flex items-center justify-center rounded-2xl transition-all"
-                  aria-label="Backspace"
+                  aria-label={t('lockscreen.backspace')}
                 >
                   <Delete size={18} />
                 </button>

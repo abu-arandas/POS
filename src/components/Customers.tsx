@@ -5,19 +5,15 @@ import {
   UserPlus,
   Edit2,
   Trash2,
-  Award,
   Calendar,
   Phone,
   Mail,
-  ChevronRight,
   X,
   Check,
   ShoppingBag,
-  Plus,
-  Minus,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Customer, SaleTransaction, StoreSettings } from '../types';
+import { Customer } from '../types';
 
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
@@ -39,7 +35,7 @@ export default function Customers() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   // Customer Form Modal State
-  const [customerModalOpen, setProductModalOpen] = useState(false);
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
   // Customer Form Fields
@@ -105,7 +101,7 @@ export default function Customers() {
     setCustPhone('');
     setCustEmail('');
     setCustPoints('0');
-    setProductModalOpen(true);
+    setCustomerModalOpen(true);
   };
 
   const handleOpenEditCustomer = (cust: Customer) => {
@@ -114,7 +110,7 @@ export default function Customers() {
     setCustPhone(cust.phone);
     setCustEmail(cust.email);
     setCustPoints(cust.points.toString());
-    setProductModalOpen(true);
+    setCustomerModalOpen(true);
   };
 
   const handleSubmitCustomer = (e: React.FormEvent) => {
@@ -139,14 +135,16 @@ export default function Customers() {
       const added = handleAddCustomer(payload.name, payload.phone, payload.email);
       syncToCloudIfEnabled(undefined, undefined, [added]);
     }
-    setProductModalOpen(false);
+    setCustomerModalOpen(false);
   };
 
   // Customer Loyalty Tier helper
   const getCustomerTier = (points: number) => {
-    if (points >= 200) return { name: 'Platinum VIP', style: 'bg-indigo-500 text-white' };
-    if (points >= 100) return { name: 'Gold Club', style: 'bg-amber-500 text-slate-900' };
-    return { name: 'Silver Member', style: 'bg-slate-200 text-slate-700' };
+    if (points >= 200)
+      return { name: t('customers.tierPlatinum'), style: 'bg-indigo-500 text-white' };
+    if (points >= 100)
+      return { name: t('customers.tierGold'), style: 'bg-amber-500 text-slate-900' };
+    return { name: t('customers.tierSilver'), style: 'bg-slate-200 text-slate-700' };
   };
 
   return (
@@ -201,14 +199,16 @@ export default function Customers() {
 
             {/* Sorting buttons */}
             <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
-              {[
-                { id: 'name', label: t('customers.alphabetical') },
-                { id: 'points', label: t('customers.loyaltyPoints') },
-                { id: 'date', label: t('customers.joinDate') },
-              ].map((opt) => (
+              {(
+                [
+                  { id: 'name', label: t('customers.alphabetical') },
+                  { id: 'points', label: t('customers.loyaltyPoints') },
+                  { id: 'date', label: t('customers.joinDate') },
+                ] as const
+              ).map((opt) => (
                 <button
                   key={opt.id}
-                  onClick={() => setSortBy(opt.id as any)}
+                  onClick={() => setSortBy(opt.id)}
                   className={`px-3.5 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0 ${
                     sortBy === opt.id
                       ? 'bg-white text-slate-900 shadow-xs'
@@ -449,7 +449,7 @@ export default function Customers() {
                     : t('customers.registerNewCustomer')}
                 </h3>
                 <button
-                  onClick={() => setProductModalOpen(false)}
+                  onClick={() => setCustomerModalOpen(false)}
                   className="p-1.5 text-slate-400 hover:text-slate-600 bg-white border border-slate-200 rounded-lg shadow-sm"
                 >
                   <X size={16} />
@@ -521,7 +521,7 @@ export default function Customers() {
                 <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
                   <button
                     type="button"
-                    onClick={() => setProductModalOpen(false)}
+                    onClick={() => setCustomerModalOpen(false)}
                     className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50"
                   >
                     {t('customers.cancel')}

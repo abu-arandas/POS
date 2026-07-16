@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, X, LayoutGrid, GripHorizontal } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Product } from '../types';
+import { Product, Category, StoreSettings } from '../types';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
@@ -30,7 +30,23 @@ interface ProductGridProps {
   addToCart: (product: Product) => void;
 }
 
-function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories, settings }: any) {
+interface SortableProductCardProps {
+  prod: Product;
+  isEditMode: boolean;
+  addToCart: (product: Product) => void;
+  cartQty: number;
+  categories: Category[];
+  settings: StoreSettings;
+}
+
+function SortableProductCard({
+  prod,
+  isEditMode,
+  addToCart,
+  cartQty,
+  categories,
+  settings,
+}: SortableProductCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: prod.id,
     disabled: !isEditMode,
@@ -122,10 +138,9 @@ function SortableProductCard({ prod, isEditMode, addToCart, cartQty, categories,
         <div>
           <span className="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400 block uppercase tracking-wider mb-1">
             {t(
-              `categories.${categories.find((c: any) => c.id === prod.category)?.name?.toLowerCase() || 'general'}`,
+              `categories.${categories.find((c) => c.id === prod.category)?.name?.toLowerCase() || 'general'}`,
               {
-                defaultValue:
-                  categories.find((c: any) => c.id === prod.category)?.name || 'General',
+                defaultValue: categories.find((c) => c.id === prod.category)?.name || 'General',
               },
             )}
           </span>
@@ -167,9 +182,7 @@ export default function ProductGrid({
     return products.filter((prod) => {
       const matchesCategory = selectedCategory === 'all' || prod.category === selectedCategory;
       const matchesSearch =
-        q === '' ||
-        prod.name.toLowerCase().includes(q) ||
-        prod.sku.toLowerCase().includes(q);
+        q === '' || prod.name.toLowerCase().includes(q) || prod.sku.toLowerCase().includes(q);
       return matchesCategory && matchesSearch;
     });
   }, [products, selectedCategory, search]);
@@ -217,7 +230,7 @@ export default function ProductGrid({
             <button
               onClick={() => setSearch('')}
               className="absolute inset-e-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              aria-label="Clear search"
+              aria-label={t('register.clearSearch')}
             >
               <X size={13} />
             </button>

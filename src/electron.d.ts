@@ -1,17 +1,39 @@
-import type { Product, Category, StoreSettings } from './types';
-
 export {};
+
+// Public (customer-safe) shape pushed to the LAN-exposed QR-menu server.
+// Deliberately excludes cost, stock counts, and non-menu settings.
+export interface PublicMenuProduct {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  image: string;
+  inStock: boolean;
+}
+
+export interface PublicMenuCategory {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface PublicMenuSettings {
+  storeName: string;
+  storeLogo?: string;
+  currency: string;
+}
 
 declare global {
   interface Window {
     // Injected by electron/preload.cjs when running inside Electron.
     // Undefined in a plain browser.
     electronAPI?: {
-      getLocalIp: () => Promise<string>;
+      // LAN address + actual port of the embedded QR-menu server.
+      getMenuInfo: () => Promise<{ ip: string; port: number }>;
       updateMenuData: (data: {
-        products: Product[];
-        categories: Category[];
-        settings: StoreSettings;
+        products: PublicMenuProduct[];
+        categories: PublicMenuCategory[];
+        settings: PublicMenuSettings;
       }) => void;
     };
   }
