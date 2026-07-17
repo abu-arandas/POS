@@ -10,12 +10,16 @@ import {
   Check,
   X,
   Layers,
+  Truck,
+  PackagePlus,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '../types';
 
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useSupplyStore } from '../stores/supplyStore';
+import { useAuthStore } from '../stores/authStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { useTranslation } from 'react-i18next';
 
@@ -31,9 +35,69 @@ export default function Inventory() {
     handleDeleteCategory,
   } = useProductStore();
   const { settings } = useSettingsStore();
+  const { suppliers, adjustments, addSupplier, removeSupplier, logAdjustment } = useSupplyStore();
+  const currentUser = useAuthStore((s) => s.currentUser);
 
-  // Tab control: 'products' or 'categories'
-  const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
+  // Tab control
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'suppliers' | 'log'>(
+    'products',
+  );
+
+  // Receive-stock (lightweight purchase order) modal
+  const [receiveOpen, setReceiveOpen] = useState(false);
+  const [recvProductId, setRecvProductId] = useState('');
+  const [recvQty, setRecvQty] = useState('');
+  const [recvSupplierId, setRecvSupplierId] = useState('');
+  const [recvNote, setRecvNote] = useState('');
+
+  // Supplier form
+  const [supplierModalOpen, setSupplierModalOpen] = useState(false);
+  const [supName, setSupName] = useState('');
+  const [supContact, setSupContact] = useState('');
+  const [supPhone, setSupPhone] = useState('');
+  const [supEmail, setSupEmail] = useState('');
+
+  const handleReceiveStock = () => {
+    const product = products.find((p) => p.id === recvProductId);
+    const qty = parseInt(recvQty);
+    if (!product || !qty || qty <= 0) return;
+    const updated = { ...product, stock: product.stock + qty };
+    handleUpdateProduct(updated);
+    syncToCloudIfEnabled([updated]);
+    const supplier = suppliers.find((s) => s.id === recvSupplierId);
+    logAdjustment({
+      productId: product.id,
+      productName: product.name,
+      delta: qty,
+      newStock: updated.stock,
+      reason: 'received',
+      note: recvNote || null,
+      supplierId: supplier?.id ?? null,
+      supplierName: supplier?.name ?? null,
+      operatorName: currentUser?.name ?? null,
+    });
+    setReceiveOpen(false);
+    setRecvProductId('');
+    setRecvQty('');
+    setRecvSupplierId('');
+    setRecvNote('');
+  };
+
+  const handleAddSupplier = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supName.trim()) return;
+    addSupplier({
+      name: supName.trim(),
+      contact: supContact.trim(),
+      phone: supPhone.trim(),
+      email: supEmail.trim(),
+    });
+    setSupName('');
+    setSupContact('');
+    setSupPhone('');
+    setSupEmail('');
+    setSupplierModalOpen(false);
+  };
 
   // Products Table / List State
   const [searchQuery, setSearchQuery] = useState('');
@@ -125,6 +189,17 @@ export default function Inventory() {
       const updated = { ...productPayload, id: editingProduct.id };
       handleUpdateProduct(updated);
       syncToCloudIfEnabled([updated]);
+      // Record a manual stock correction in the audit log when it changed.
+      if (updated.stock !== editingProduct.stock) {
+        logAdjustment({
+          productId: updated.id,
+          productName: updated.name,
+          delta: updated.stock - editingProduct.stock,
+          newStock: updated.stock,
+          reason: 'correction',
+          operatorName: currentUser?.name ?? null,
+        });
+      }
     } else {
       const added = handleAddProduct(productPayload);
       syncToCloudIfEnabled([added]);
@@ -213,44 +288,67 @@ export default function Inventory() {
         <div className="flex items-center space-x-3">
           {/* Subscreen Tabs */}
           <div className="bg-slate-200/60 p-1 rounded-xl flex">
-            <button
-              onClick={() => setActiveTab('products')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'products'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {t('inventory.products')}
-            </button>
-            <button
-              onClick={() => setActiveTab('categories')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'categories'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {t('inventory.categories')}
-            </button>
+            {(
+              [
+                { id: 'products', label: t('inventory.products') },
+                { id: 'categories', label: t('inventory.categories') },
+                { id: 'suppliers', label: t('inventory.suppliers') },
+                { id: 'log', label: t('inventory.stockLog') },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          <button
-            id="add-item-trigger-btn"
-            onClick={
-              activeTab === 'products' ? handleOpenAddProduct : () => setCategoryModalOpen(true)
-            }
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-sans font-bold text-xs sm:text-sm px-4 py-2 rounded-xl flex items-center space-x-1.5 shadow-lg shadow-emerald-600/10"
-          >
-            <Plus size={16} />
-            <span>
-              {activeTab === 'products' ? t('inventory.addProduct') : t('inventory.addCategory')}
-            </span>
-          </button>
+          {activeTab === 'products' && (
+            <button
+              id="receive-stock-btn"
+              onClick={() => {
+                setRecvProductId(products[0]?.id || '');
+                setReceiveOpen(true);
+              }}
+              className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-sans font-bold text-xs sm:text-sm px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm"
+            >
+              <PackagePlus size={16} /> <span className="hidden sm:inline">{t('inventory.receiveStock')}</span>
+            </button>
+          )}
+
+          {activeTab !== 'log' && (
+            <button
+              id="add-item-trigger-btn"
+              onClick={
+                activeTab === 'products'
+                  ? handleOpenAddProduct
+                  : activeTab === 'categories'
+                    ? () => setCategoryModalOpen(true)
+                    : () => setSupplierModalOpen(true)
+              }
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-sans font-bold text-xs sm:text-sm px-4 py-2 rounded-xl flex items-center space-x-1.5 shadow-lg shadow-emerald-600/10"
+            >
+              <Plus size={16} />
+              <span>
+                {activeTab === 'products'
+                  ? t('inventory.addProduct')
+                  : activeTab === 'categories'
+                    ? t('inventory.addCategory')
+                    : t('inventory.addSupplier')}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
-      {activeTab === 'products' ? (
+      {activeTab === 'products' && (
         /* PRODUCTS TAB */
         <>
           {/* Filter Bar */}
@@ -511,7 +609,9 @@ export default function Inventory() {
             </div>
           </div>
         </>
-      ) : (
+      )}
+
+      {activeTab === 'categories' && (
         /* CATEGORIES TAB */
         <div
           id="categories-tab-content"
@@ -562,6 +662,113 @@ export default function Inventory() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {activeTab === 'suppliers' && (
+        /* SUPPLIERS TAB */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {suppliers.length === 0 ? (
+            <div className="col-span-full glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-2xl p-12 text-center text-slate-400 font-mono text-xs">
+              {t('inventory.noSuppliers')}
+            </div>
+          ) : (
+            suppliers.map((sup) => (
+              <div
+                key={sup.id}
+                className="glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-2xl p-5 shadow-lg flex items-start justify-between card-hover"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Truck size={16} className="text-emerald-500 shrink-0" />
+                    <h4 className="font-sans font-bold text-slate-800 dark:text-slate-100 text-sm truncate">
+                      {sup.name}
+                    </h4>
+                  </div>
+                  <div className="mt-2 space-y-1 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                    {sup.contact && <p className="truncate">{sup.contact}</p>}
+                    {sup.phone && <p className="truncate">{sup.phone}</p>}
+                    {sup.email && <p className="truncate">{sup.email}</p>}
+                  </div>
+                </div>
+                <button
+                  onClick={() => removeSupplier(sup.id)}
+                  className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100/50 rounded-lg transition-colors shrink-0"
+                  title={t('inventory.deleteSupplier')}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'log' && (
+        /* STOCK ADJUSTMENT LOG */
+        <div className="flex-1 glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-2xl shadow-lg overflow-hidden flex flex-col backdrop-blur-md">
+          <div className="flex-1 overflow-y-auto">
+            {adjustments.length === 0 ? (
+              <div className="py-16 text-center text-slate-400 font-mono text-xs">
+                {t('inventory.noAdjustments')}
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-white/40 dark:bg-slate-900/40 text-slate-500 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider font-mono border-b border-slate-200/50 dark:border-slate-700/50 sticky top-0 backdrop-blur-sm">
+                    <th className="py-3 px-4">{t('inventory.logWhen')}</th>
+                    <th className="py-3 px-4">{t('inventory.productDetails')}</th>
+                    <th className="py-3 px-4 text-center">{t('inventory.logReason')}</th>
+                    <th className="py-3 px-4 text-right">{t('inventory.logChange')}</th>
+                    <th className="py-3 px-4 text-right">{t('inventory.stock')}</th>
+                    <th className="py-3 px-4">{t('inventory.logBy')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200/50 dark:divide-slate-700/50 text-xs text-slate-700 dark:text-slate-200">
+                  {adjustments.map((a) => (
+                    <tr key={a.id} className="hover:bg-white/30 dark:hover:bg-slate-800/30">
+                      <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                        {new Date(a.createdAt).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4 font-semibold truncate max-w-[160px]">
+                        {a.productName}
+                        {a.supplierName && (
+                          <span className="block text-[10px] text-slate-400 font-normal">
+                            {a.supplierName}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            a.reason === 'received'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : a.reason === 'waste'
+                                ? 'bg-rose-100 text-rose-700'
+                                : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {t(`inventory.reason_${a.reason}`)}
+                        </span>
+                      </td>
+                      <td
+                        className={`py-3 px-4 text-right font-mono font-bold ${
+                          a.delta >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                        }`}
+                      >
+                        {a.delta >= 0 ? '+' : ''}
+                        {a.delta}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono">{a.newStock}</td>
+                      <td className="py-3 px-4 text-slate-500 truncate max-w-[100px]">
+                        {a.operatorName || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       )}
 
@@ -829,6 +1036,178 @@ export default function Inventory() {
                     className="px-4 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-sm"
                   >
                     {t('inventory.saveCategory')}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: Receive Stock (lightweight purchase order) */}
+      <AnimatePresence>
+        {receiveOpen && (
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-sm w-full border border-slate-200 dark:border-slate-800 overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between">
+                <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                  <PackagePlus size={18} className="text-emerald-500" /> {t('inventory.receiveStock')}
+                </h3>
+                <button
+                  onClick={() => setReceiveOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    {t('inventory.products')}
+                  </label>
+                  <select
+                    value={recvProductId}
+                    onChange={(e) => setRecvProductId(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                  >
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.stock})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      {t('inventory.quantityReceived')}
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={recvQty}
+                      onChange={(e) => setRecvQty(e.target.value)}
+                      placeholder="0"
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-mono dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      {t('inventory.suppliers')}
+                    </label>
+                    <select
+                      value={recvSupplierId}
+                      onChange={(e) => setRecvSupplierId(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                    >
+                      <option value="">—</option>
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  value={recvNote}
+                  onChange={(e) => setRecvNote(e.target.value)}
+                  placeholder={t('inventory.noteOptional')}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex justify-end gap-2">
+                <button
+                  onClick={() => setReceiveOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                >
+                  {t('inventory.cancel')}
+                </button>
+                <button
+                  onClick={handleReceiveStock}
+                  disabled={!recvProductId || !(parseInt(recvQty) > 0)}
+                  className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-lg flex items-center gap-1.5"
+                >
+                  <Check size={14} /> {t('inventory.confirmReceive')}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: Add Supplier */}
+      <AnimatePresence>
+        {supplierModalOpen && (
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-sm w-full border border-slate-200 dark:border-slate-800 overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between">
+                <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                  <Truck size={18} className="text-emerald-500" /> {t('inventory.addSupplier')}
+                </h3>
+                <button
+                  onClick={() => setSupplierModalOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <form onSubmit={handleAddSupplier} className="p-6 space-y-3">
+                <input
+                  type="text"
+                  required
+                  value={supName}
+                  onChange={(e) => setSupName(e.target.value)}
+                  placeholder={t('inventory.supplierName')}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                />
+                <input
+                  type="text"
+                  value={supContact}
+                  onChange={(e) => setSupContact(e.target.value)}
+                  placeholder={t('inventory.supplierContact')}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="tel"
+                    value={supPhone}
+                    onChange={(e) => setSupPhone(e.target.value)}
+                    placeholder={t('inventory.phoneNumber')}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-mono dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                  />
+                  <input
+                    type="email"
+                    value={supEmail}
+                    onChange={(e) => setSupEmail(e.target.value)}
+                    placeholder={t('inventory.emailAddress')}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setSupplierModalOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                  >
+                    {t('inventory.cancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg"
+                  >
+                    {t('inventory.saveSupplier')}
                   </button>
                 </div>
               </form>

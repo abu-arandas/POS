@@ -79,6 +79,31 @@ export interface SaleTransaction {
   shiftId?: string | null; // the register shift this sale belongs to
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  contact?: string;
+  phone?: string;
+  email?: string;
+  createdAt: string;
+}
+
+// One entry in the stock audit log. Every stock change — receiving a shipment,
+// a manual correction, waste — is recorded with who/why for traceability.
+export interface StockAdjustment {
+  id: string;
+  productId: string;
+  productName: string;
+  delta: number; // +received, -waste/correction
+  newStock: number;
+  reason: 'received' | 'correction' | 'waste' | 'other';
+  note?: string | null;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  operatorName?: string | null;
+  createdAt: string;
+}
+
 // A register/drawer session between an open (starting float) and close (counted
 // cash → variance). Shifts are terminal-local: they describe one physical drawer.
 export interface Shift {
