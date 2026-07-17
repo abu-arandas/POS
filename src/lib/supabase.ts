@@ -69,6 +69,40 @@ export async function signInDevice(
 // The canonical DDL lives in scripts/schema.sql — run it in the Supabase SQL
 // editor before enabling sync.
 
+// Validates a staff login against the cloud via the SECURITY DEFINER
+// verify_login RPC (see scripts/schema.sql). Returns the account's non-secret
+// fields on success, or null. The PIN hash never leaves the database on the
+// return path — only the caller's SHA-256(entered PIN) is sent.
+export async function verifyLoginCloud(
+  client: SupabaseClient,
+  name: string,
+  pinHash: string,
+): Promise<UserAccount | null> {
+  try {
+    const { data, error } = await client.rpc('verify_login', {
+      p_name: name,
+      p_pin_hash: pinHash,
+    });
+    if (error) {
+      console.warn('Cloud verify_login failed:', error.message);
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      role: row.role as UserAccount['role'],
+      active: !!row.active,
+      createdAt: row.created_at,
+      pin: pinHash, // keep the verified hash so the local record can log in offline next time
+    };
+  } catch (err) {
+    console.error('Cloud verify_login error:', err);
+    return null;
+  }
+}
+
 // Direct sync functions pushing local lists to Supabase and resolving updates
 export async function testSupabaseConnection(url: string, anonKey: string): Promise<boolean> {
   const client = getSupabaseClient(url, anonKey);
@@ -223,6 +257,7 @@ export async function pushTransactions(
       tax: t.tax,
       total: t.total,
       payment_method: t.paymentMethod,
+      payments: t.payments ?? null,
       cash_paid: t.cashPaid ?? null,
       cash_change: t.cashChange ?? null,
       customer_id: t.customerId || null,
@@ -231,8 +266,11 @@ export async function pushTransactions(
       operator_name: t.operatorName || null,
       points_earned: t.pointsEarned ?? null,
       status: t.status,
+      refunded_items: t.refundedItems ?? null,
+      refunded_amount: t.refundedAmount ?? null,
       refund_date: t.refundDate || null,
       refund_authorized_by: t.refundAuthorizedBy || null,
+      shift_id: t.shiftId || null,
     }));
     const { error } = await client.from('transactions').upsert(records);
     if (error) throw error;
@@ -283,6 +321,7 @@ export async function pullTransactions(client: SupabaseClient): Promise<SaleTran
       tax: Number(r.tax),
       total: Number(r.total),
       paymentMethod: r.payment_method as SaleTransaction['paymentMethod'],
+      payments: (r.payments as SaleTransaction['payments']) ?? undefined,
       cashPaid: r.cash_paid != null ? Number(r.cash_paid) : undefined,
       cashChange: r.cash_change != null ? Number(r.cash_change) : undefined,
       customerId: r.customer_id,
@@ -291,8 +330,11 @@ export async function pullTransactions(client: SupabaseClient): Promise<SaleTran
       operatorName: r.operator_name ?? null,
       pointsEarned: r.points_earned != null ? Number(r.points_earned) : undefined,
       status: r.status as SaleTransaction['status'],
+      refundedItems: (r.refunded_items as SaleTransaction['refundedItems']) ?? undefined,
+      refundedAmount: r.refunded_amount != null ? Number(r.refunded_amount) : undefined,
       refundDate: r.refund_date,
       refundAuthorizedBy: r.refund_authorized_by ?? null,
+      shiftId: r.shift_id ?? null,
     }));
   } catch (err) {
     console.error('Failed pulling transactions:', err);

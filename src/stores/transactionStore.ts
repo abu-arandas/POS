@@ -1,9 +1,17 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { SaleTransaction } from '../types';
+import { SaleTransaction, RefundedItem } from '../types';
 import { generatePastTransactions } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
 import { deleteTransactionsCloudIfEnabled } from '../lib/sync';
+
+export interface RefundPatch {
+  refundedItems: RefundedItem[];
+  refundedAmount: number;
+  status: 'partial' | 'refunded';
+  refundDate: string;
+  authorizedBy: string | null;
+}
 
 interface TransactionState {
   transactions: SaleTransaction[];
@@ -14,7 +22,7 @@ interface TransactionState {
   demoSeeded: boolean;
   setTransactions: (transactions: SaleTransaction[]) => void;
   addTransaction: (transaction: SaleTransaction) => void;
-  refundTransaction: (id: string, refundDate: string, authorizedBy?: string | null) => void;
+  applyRefund: (id: string, patch: RefundPatch) => void;
   deleteTransactions: (ids: string[]) => void;
 }
 
@@ -30,11 +38,18 @@ export const useTransactionStore = create<TransactionState>()(
         set({ transactions: [transaction, ...get().transactions] });
       },
 
-      refundTransaction: (id, refundDate, authorizedBy = null) => {
+      applyRefund: (id, patch) => {
         set({
           transactions: get().transactions.map((t) =>
             t.id === id
-              ? { ...t, status: 'refunded' as const, refundDate, refundAuthorizedBy: authorizedBy }
+              ? {
+                  ...t,
+                  status: patch.status,
+                  refundedItems: patch.refundedItems,
+                  refundedAmount: patch.refundedAmount,
+                  refundDate: patch.refundDate,
+                  refundAuthorizedBy: patch.authorizedBy,
+                }
               : t,
           ),
         });

@@ -11,6 +11,7 @@ import {
   Sun,
   Moon,
   QrCode,
+  Clock,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
@@ -49,6 +50,7 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
     },
     { id: 'history', label: t('sidebar.transactions'), icon: History },
     { id: 'customers', label: t('sidebar.customers'), icon: Users },
+    { id: 'shift', label: t('sidebar.shift'), icon: Clock },
     { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode },
     { id: 'settings', label: t('sidebar.settings'), icon: Settings },
   ];

@@ -9,6 +9,7 @@ import {
   Menu,
   X as XIcon,
   QrCode,
+  Clock,
   Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -24,10 +25,12 @@ const Customers = lazy(() => import('./components/Customers'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const Settings = lazy(() => import('./components/Settings'));
 const QRMenu = lazy(() => import('./components/QRMenu'));
+const ShiftScreen = lazy(() => import('./components/ShiftScreen'));
 import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
 import { ScreenId, isScreenAllowed } from './lib/access';
+import { startRealtimeSync, stopRealtimeSync } from './lib/realtimeSync';
 
 function ScreenLoader() {
   return (
@@ -42,8 +45,19 @@ export default function App() {
   const [currentScreen, setScreen] = useState<ScreenId>('register');
 
   const { currentUser, setCurrentUser } = useAuthStore();
-  const { settings, darkMode, setDarkMode, language } = useSettingsStore();
+  const { settings, darkMode, setDarkMode, language, supabaseConfig } = useSettingsStore();
   const { t, i18n } = useTranslation();
+
+  // Live multi-terminal sync: subscribe to cloud changes while sync is
+  // connected, so another register's writes appear here automatically.
+  const syncEnabled = supabaseConfig.enabled;
+  const syncConnected = supabaseConfig.status === 'connected';
+  useEffect(() => {
+    if (syncEnabled && syncConnected) {
+      startRealtimeSync();
+      return () => stopRealtimeSync();
+    }
+  }, [syncEnabled, syncConnected]);
 
   useEffect(() => {
     i18n.changeLanguage(language);
@@ -116,6 +130,8 @@ export default function App() {
         return <Customers />;
       case 'dashboard':
         return <Dashboard />;
+      case 'shift':
+        return <ShiftScreen />;
       case 'qrmenu':
         return <QRMenu />;
       case 'settings':
@@ -141,6 +157,7 @@ export default function App() {
     },
     { id: 'history', label: t('sidebar.transactions'), icon: HistoryIcon },
     { id: 'customers', label: t('sidebar.customers'), icon: Users },
+    { id: 'shift', label: t('sidebar.shift'), icon: Clock },
     { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode },
     { id: 'settings', label: t('sidebar.settings'), icon: SettingsIcon },
   ];

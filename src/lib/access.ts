@@ -1,7 +1,14 @@
 import { UserAccount } from '../types';
 
 export type ScreenId =
-  'register' | 'inventory' | 'history' | 'customers' | 'dashboard' | 'settings' | 'qrmenu';
+  | 'register'
+  | 'inventory'
+  | 'history'
+  | 'customers'
+  | 'dashboard'
+  | 'shift'
+  | 'settings'
+  | 'qrmenu';
 
 // Single source of truth for which roles may open which screen. The sidebar,
 // the mobile menu, and the App-level render guard all read from this map so
@@ -12,6 +19,7 @@ export const SCREEN_ROLES: Record<ScreenId, ReadonlyArray<UserAccount['role']>> 
   inventory: ['admin', 'manager'],
   history: ['admin', 'manager', 'cashier'],
   customers: ['admin', 'manager'],
+  shift: ['admin', 'manager', 'cashier'],
   qrmenu: ['admin', 'manager'],
   settings: ['admin'],
 };

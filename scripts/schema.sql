@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   tax NUMERIC NOT NULL,
   total NUMERIC NOT NULL,
   payment_method TEXT NOT NULL,
+  payments JSONB,                          -- tender breakdown for split payments
   cash_paid NUMERIC,
   cash_change NUMERIC,
   customer_id TEXT,
@@ -66,9 +67,12 @@ CREATE TABLE IF NOT EXISTS transactions (
   operator_id TEXT,                        -- staff member who rang up the sale
   operator_name TEXT,
   points_earned NUMERIC,                   -- loyalty points awarded at sale time
-  status TEXT NOT NULL CHECK (status IN ('completed', 'refunded')),
+  status TEXT NOT NULL CHECK (status IN ('completed', 'partial', 'refunded')),
+  refunded_items JSONB,                    -- cumulative returned quantities (partial refunds)
+  refunded_amount NUMERIC,                 -- cumulative currency refunded
   refund_date TIMESTAMP WITH TIME ZONE,
-  refund_authorized_by TEXT                -- staff member who authorized the refund
+  refund_authorized_by TEXT,               -- staff member who authorized the refund
+  shift_id TEXT                            -- the register shift this sale belongs to
 );
 
 -- 6b. Upgrading an existing database? These add the columns introduced after
@@ -77,6 +81,14 @@ ALTER TABLE transactions ADD COLUMN IF NOT EXISTS operator_id TEXT;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS operator_name TEXT;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS points_earned NUMERIC;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refund_authorized_by TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payments JSONB;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refunded_items JSONB;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refunded_amount NUMERIC;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS shift_id TEXT;
+-- Allow the new 'partial' refund status (the CHECK is recreated to include it):
+ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_status_check;
+ALTER TABLE transactions ADD CONSTRAINT transactions_status_check
+  CHECK (status IN ('completed', 'partial', 'refunded'));
 
 -- 7. Login RPC
 -- ============================================================
@@ -134,6 +146,23 @@ CREATE POLICY "staff manage users" ON user_accounts FOR ALL TO authenticated USI
 -- ALTER TABLE products      DISABLE ROW LEVEL SECURITY;
 -- ALTER TABLE customers     DISABLE ROW LEVEL SECURITY;
 -- ALTER TABLE transactions  DISABLE ROW LEVEL SECURITY;
+
+-- 8c. Realtime (optional but recommended for multi-terminal live sync)
+-- ============================================================
+-- Add the synced tables to the supabase_realtime publication so the app's
+-- realtime subscription (src/lib/realtimeSync.ts) receives change events and
+-- mirrors another terminal's writes automatically. Safe to re-run.
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE products;
+  ALTER PUBLICATION supabase_realtime ADD TABLE categories;
+  ALTER PUBLICATION supabase_realtime ADD TABLE customers;
+  ALTER PUBLICATION supabase_realtime ADD TABLE transactions;
+  ALTER PUBLICATION supabase_realtime ADD TABLE user_accounts;
+EXCEPTION WHEN duplicate_object THEN
+  -- Tables already in the publication; nothing to do.
+  NULL;
+END $$;
 
 -- 9. Seed the default admin (PIN 1234, stored as its SHA-256 hash)
 INSERT INTO user_accounts (id, name, role, pin, active, created_at)

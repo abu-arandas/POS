@@ -11,6 +11,8 @@ import {
   Info,
   X,
   UserPlus,
+  PauseCircle,
+  Clock,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Product, Customer } from '../types';
@@ -40,6 +42,9 @@ interface CartPanelProps {
   taxAmount: number;
   totalAmount: number;
   handleCheckoutClick: () => void;
+  onHoldOrder: () => void;
+  heldCount: number;
+  onOpenHeldOrders: () => void;
 }
 
 export default function CartPanel({
@@ -64,6 +69,9 @@ export default function CartPanel({
   taxAmount,
   totalAmount,
   handleCheckoutClick,
+  onHoldOrder,
+  heldCount,
+  onOpenHeldOrders,
 }: CartPanelProps) {
   const { customers } = useCustomerStore();
   const { settings } = useSettingsStore();
@@ -409,6 +417,16 @@ export default function CartPanel({
             <Trash2 size={16} />
           </button>
           <button
+            id="hold-order-btn"
+            onClick={onHoldOrder}
+            disabled={cart.length === 0}
+            className="px-3 py-3 border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 disabled:opacity-40 text-amber-700 dark:text-amber-400 rounded-xl transition-colors shrink-0 flex items-center gap-1.5"
+            title={t('register.holdOrder')}
+          >
+            <PauseCircle size={16} />
+            <span className="text-xs font-bold hidden sm:inline">{t('register.hold')}</span>
+          </button>
+          <button
             onClick={handleCheckoutClick}
             disabled={cart.length === 0}
             className="flex-1 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:from-slate-400 disabled:to-slate-400 text-white font-sans font-bold text-sm py-3 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/25 transition-all transform active:scale-95"
@@ -417,6 +435,17 @@ export default function CartPanel({
             <span>{t('register.checkout')}</span>
           </button>
         </div>
+
+        {heldCount > 0 && (
+          <button
+            id="open-held-orders-btn"
+            onClick={onOpenHeldOrders}
+            className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors"
+          >
+            <Clock size={14} />
+            {t('register.resumeHeld', { count: heldCount })}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -15,6 +15,9 @@ import {
   Lock,
   ShoppingBag,
   Trash2,
+  Share2,
+  Mail,
+  Download,
 } from 'lucide-react';
 import { SaleTransaction, Product, Customer } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -26,15 +29,20 @@ import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { printTransactions } from '../lib/receiptPrinter';
+import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
+import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
+import { computeRefund, refundableQuantities } from '../lib/refunds';
+import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
+import type { RefundPatch } from '../stores/transactionStore';
 import { useTranslation } from 'react-i18next';
 
 export default function History() {
   const { t } = useTranslation();
-  const { transactions, refundTransaction, deleteTransactions } = useTransactionStore();
+  const { transactions, applyRefund, deleteTransactions } = useTransactionStore();
   const { settings, printerConfig } = useSettingsStore();
   const { currentUser, users } = useAuthStore();
   const { handleUpdateProduct } = useProductStore();
-  const { updateCustomerPoints } = useCustomerStore();
+  const { updateCustomerPoints, customers } = useCustomerStore();
 
   // Filters & Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,9 +61,12 @@ export default function History() {
   const [selectedTxIds, setSelectedTxIds] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  // Refund selection modal (line-item / partial refunds)
+  const [refundModalTx, setRefundModalTx] = useState<SaleTransaction | null>(null);
+  const [refundSelection, setRefundSelection] = useState<Record<string, number>>({});
+
   // Passcode Challenge Modal for Refunds
   const [showOverrideModal, setShowOverrideModal] = useState(false);
-  const [pendingRefundTxId, setPendingRefundTxId] = useState<string | null>(null);
   const [overridePin, setOverridePin] = useState('');
   const [overrideError, setOverrideError] = useState('');
 
@@ -77,7 +88,10 @@ export default function History() {
         tx.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase());
 
       // Status matches
-      const matchesStatus = statusFilter === 'all' || tx.status === statusFilter;
+      // The "refunded" filter includes partially-refunded sales (any refund activity).
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'refunded' ? tx.status !== 'completed' : tx.status === 'completed');
 
       // Date matches
       let matchesDate = true;
@@ -112,58 +126,89 @@ export default function History() {
     });
   }, [transactions, searchQuery, dateFilter, statusFilter, customStartDate, customEndDate]);
 
-  // Processes a refund: marks the transaction refunded, returns items to stock,
-  // reverses the loyalty points that were awarded/redeemed, and syncs the changes.
-  const processRefund = (tx: SaleTransaction, authorizedBy: string) => {
-    if (tx.status === 'refunded') return;
+  // Opens the refund selection modal, defaulting to returning every remaining
+  // (not-yet-refunded) unit — i.e. a full refund unless the operator narrows it.
+  const openRefundModal = (tx: SaleTransaction) => {
+    setRefundSelection({ ...refundableQuantities(tx) });
+    setRefundModalTx(tx);
+  };
 
-    // Return purchased quantities back to catalog stock levels.
+  // Applies a (possibly partial) refund: returns the selected quantities to
+  // stock, reverses the proportional loyalty points, records the cumulative
+  // refund on the transaction, and syncs. Reads points earned from the sale so
+  // a later rate change never distorts the reversal.
+  const applyRefundWithSelection = (
+    tx: SaleTransaction,
+    selection: Record<string, number>,
+    authorizedBy: string,
+  ) => {
+    const result = computeRefund(tx, selection, settings.loyaltyPointsRate);
+    if (!result) return;
+
     const updatedProducts: Product[] = [];
-    tx.items.forEach((item) => {
-      const prod = useProductStore.getState().products.find((p) => p.id === item.productId);
+    for (const [productId, qty] of Object.entries(selection)) {
+      if (qty <= 0) continue;
+      const prod = useProductStore.getState().products.find((p) => p.id === productId);
       if (prod) {
-        const updated = { ...prod, stock: prod.stock + item.quantity };
+        const updated = { ...prod, stock: prod.stock + qty };
         handleUpdateProduct(updated);
         updatedProducts.push(updated);
       }
-    });
+    }
 
-    // Reverse the loyalty-point movement from the original sale: remove the
-    // points earned and refund the points that were redeemed as a discount.
-    // Prefer the points recorded at sale time — recomputing from today's
-    // settings would be wrong if the points rate changed since the sale.
     let updatedCustomer: Customer | undefined;
-    if (tx.customerId) {
-      const pointsEarned = tx.pointsEarned ?? Math.floor(tx.total * settings.loyaltyPointsRate);
-      let reverseDelta = -pointsEarned;
-      if (tx.discountType === 'loyalty') reverseDelta += tx.discountValue;
-      if (reverseDelta !== 0) updateCustomerPoints(tx.customerId, reverseDelta);
+    if (tx.customerId && result.pointsReversal !== 0) {
+      updateCustomerPoints(tx.customerId, result.pointsReversal);
       updatedCustomer = useCustomerStore.getState().customers.find((c) => c.id === tx.customerId);
     }
 
     const refundDate = new Date().toISOString();
-    refundTransaction(tx.id, refundDate, authorizedBy);
+    const patch: RefundPatch = {
+      refundedItems: result.refundedItems,
+      refundedAmount: result.refundedAmount,
+      status: result.status,
+      refundDate,
+      authorizedBy,
+    };
+    applyRefund(tx.id, patch);
 
     syncToCloudIfEnabled(
       updatedProducts.length > 0 ? updatedProducts : undefined,
       undefined,
       updatedCustomer ? [updatedCustomer] : undefined,
-      [{ ...tx, status: 'refunded', refundDate, refundAuthorizedBy: authorizedBy }],
+      [
+        {
+          ...tx,
+          status: result.status,
+          refundedItems: result.refundedItems,
+          refundedAmount: result.refundedAmount,
+          refundDate,
+          refundAuthorizedBy: authorizedBy,
+        },
+      ],
     );
   };
 
-  // Refund handler
-  const handleRefundClick = (tx: SaleTransaction) => {
+  // Refund entry point — opens the line-item selection modal.
+  const handleRefundClick = (tx: SaleTransaction) => openRefundModal(tx);
+
+  // From the refund modal: process the current selection. Cashiers must pass a
+  // manager/admin override first; managers/admins confirm inline.
+  const handleProcessRefund = () => {
+    if (!refundModalTx) return;
+    const totalQty = Object.values(refundSelection).reduce((s, q) => s + Math.max(0, q), 0);
+    if (totalQty <= 0) return;
     if (!currentUser || currentUser.role === 'cashier') {
-      // Cashiers require manager override passcode
-      setPendingRefundTxId(tx.id);
       setOverridePin('');
       setOverrideError('');
       setShowOverrideModal(true);
     } else {
-      if (confirm(t('history.refundConfirm', { id: tx.id }))) {
-        processRefund(tx, `${currentUser.name} (${currentUser.role})`);
-      }
+      applyRefundWithSelection(
+        refundModalTx,
+        refundSelection,
+        `${currentUser.name} (${currentUser.role})`,
+      );
+      setRefundModalTx(null);
     }
   };
 
@@ -175,28 +220,34 @@ export default function History() {
     const authorizedUser = users.find(
       (u) => u.pin === hashedPin && u.active && (u.role === 'manager' || u.role === 'admin'),
     );
-    if (authorizedUser) {
-      const pendingTx = transactions.find((tx) => tx.id === pendingRefundTxId);
-      if (pendingTx) {
-        processRefund(pendingTx, `${authorizedUser.name} (${authorizedUser.role})`);
-        alert(
-          t('history.refundAuthorized', { name: authorizedUser.name, role: authorizedUser.role }),
-        );
-      }
+    if (authorizedUser && refundModalTx) {
+      applyRefundWithSelection(
+        refundModalTx,
+        refundSelection,
+        `${authorizedUser.name} (${authorizedUser.role})`,
+      );
+      alert(
+        t('history.refundAuthorized', { name: authorizedUser.name, role: authorizedUser.role }),
+      );
       setShowOverrideModal(false);
-      setPendingRefundTxId(null);
       setOverridePin('');
+      setRefundModalTx(null);
     } else {
       setOverrideError(t('history.invalidPasscode'));
       setOverridePin('');
     }
   };
 
-  const handlePrintReceipt = (tx: SaleTransaction) => {
-    const outcome = printTransactions([tx], settings, printerConfig);
+  const notifyPrint = (outcome: HardwarePrintOutcome) => {
     if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
-    else if (outcome === 'esc-pos')
-      alert(t('history.escPosPrintMessage', { type: printerConfig.type.toUpperCase() }));
+    else if (outcome === 'unsupported')
+      alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
+    else if (outcome === 'no-device') alert(t('print.noDevice'));
+    else if (outcome === 'error') alert(t('print.error'));
+  };
+
+  const handlePrintReceipt = async (tx: SaleTransaction) => {
+    notifyPrint(await printReceipt(tx, settings, printerConfig));
   };
 
   const handleToggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -227,12 +278,22 @@ export default function History() {
     setShowDeleteModal(false);
   };
 
-  const handleBulkPrint = () => {
+  const handleBulkPrint = async () => {
     const txsToPrint = transactions.filter((tx) => selectedTxIds.includes(tx.id));
-    const outcome = printTransactions(txsToPrint, settings, printerConfig);
-    if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
-    else if (outcome === 'esc-pos')
-      alert(t('history.escPosPrintMessage', { type: printerConfig.type.toUpperCase() }));
+    // System (browser) printing batches every receipt into one print window;
+    // hardware transports stream them one at a time.
+    if (printerConfig.type === 'system') {
+      const outcome = printTransactions(txsToPrint, settings, printerConfig);
+      if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+      return;
+    }
+    for (const tx of txsToPrint) {
+      const outcome = await printReceipt(tx, settings, printerConfig);
+      if (outcome !== 'printed') {
+        notifyPrint(outcome);
+        break;
+      }
+    }
   };
 
   const getPaymentIcon = (method: SaleTransaction['paymentMethod']) => {
@@ -261,11 +322,26 @@ export default function History() {
         className="flex-1 flex flex-col min-w-0 pe-6 overflow-hidden"
       >
         {/* Header */}
-        <div id="history-header" className="mb-6 shrink-0">
-          <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
-            <HistoryIcon className="text-emerald-500" /> {t('history.transactionLogs')}
-          </h2>
-          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">{t('history.auditPastOrders')}</p>
+        <div id="history-header" className="mb-6 shrink-0 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
+              <HistoryIcon className="text-emerald-500" /> {t('history.transactionLogs')}
+            </h2>
+            <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
+              {t('history.auditPastOrders')}
+            </p>
+          </div>
+          <button
+            id="export-csv-btn"
+            onClick={() => {
+              const rows = transactionsToCsvRows(filteredTransactions);
+              downloadCsv(`transactions-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
+            }}
+            disabled={filteredTransactions.length === 0}
+            className="shrink-0 flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl shadow-sm transition-colors"
+          >
+            <Download size={14} /> {t('history.exportCsv')}
+          </button>
         </div>
 
         {/* Filters */}
@@ -432,6 +508,7 @@ export default function History() {
                 ) : (
                   filteredTransactions.map((tx) => {
                     const isRefunded = tx.status === 'refunded';
+                    const isPartial = tx.status === 'partial';
                     const isSelected = tx.id === selectedTxId;
 
                     return (
@@ -490,10 +567,16 @@ export default function History() {
                             className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                               isRefunded
                                 ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : isPartial
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                             }`}
                           >
-                            {isRefunded ? t('history.refunded') : t('history.paid')}
+                            {isRefunded
+                              ? t('history.refunded')
+                              : isPartial
+                                ? t('history.partial')
+                                : t('history.paid')}
                           </span>
                         </td>
                       </tr>
@@ -511,7 +594,12 @@ export default function History() {
             <span>
               {t('history.totalValue')} {settings.currency}
               {filteredTransactions
-                .reduce((sum, tx) => sum + (tx.status === 'completed' ? tx.total : 0), 0)
+                .reduce(
+                  (sum, tx) =>
+                    // Net of any refunds: full refund contributes 0, partial nets out.
+                    sum + (tx.status === 'refunded' ? 0 : tx.total - (tx.refundedAmount ?? 0)),
+                  0,
+                )
                 .toFixed(2)}
             </span>
           </div>
@@ -530,20 +618,28 @@ export default function History() {
               className={`p-4 border-b flex items-center justify-between ${
                 activeTransaction.status === 'refunded'
                   ? 'bg-rose-50 border-rose-100 text-rose-800'
-                  : 'bg-emerald-50 border-emerald-100 text-emerald-800'
+                  : activeTransaction.status === 'partial'
+                    ? 'bg-amber-50 border-amber-100 text-amber-800'
+                    : 'bg-emerald-50 border-emerald-100 text-emerald-800'
               }`}
             >
               <div className="flex items-center space-x-2">
                 <Check
                   size={16}
                   className={
-                    activeTransaction.status === 'refunded' ? 'text-rose-600' : 'text-emerald-600'
+                    activeTransaction.status === 'refunded'
+                      ? 'text-rose-600'
+                      : activeTransaction.status === 'partial'
+                        ? 'text-amber-600'
+                        : 'text-emerald-600'
                   }
                 />
                 <span className="font-sans font-bold text-xs">
                   {activeTransaction.status === 'refunded'
                     ? t('history.transactionRefunded')
-                    : t('history.transactionPaid')}
+                    : activeTransaction.status === 'partial'
+                      ? t('history.transactionPartial')
+                      : t('history.transactionPaid')}
                 </span>
               </div>
               <button
@@ -705,15 +801,28 @@ export default function History() {
               </div>
 
               {/* Refund trigger */}
-              <div className="pt-4 mt-auto">
-                {activeTransaction.status === 'completed' ? (
+              <div className="pt-4 mt-auto space-y-2">
+                {activeTransaction.refundedAmount ? (
+                  <div className="flex justify-between text-[11px] font-mono text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
+                    <span className="font-bold">{t('history.alreadyRefunded')}</span>
+                    <span>
+                      {settings.currency}
+                      {activeTransaction.refundedAmount.toFixed(2)}
+                    </span>
+                  </div>
+                ) : null}
+                {activeTransaction.status !== 'refunded' ? (
                   <button
                     id="refund-action-btn"
                     onClick={() => handleRefundClick(activeTransaction)}
                     className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-sans font-bold text-xs py-2.5 rounded-xl flex items-center justify-center space-x-1.5 transition-colors shadow-sm"
                   >
                     <RotateCcw size={14} />
-                    <span>{t('history.refundThisSale')}</span>
+                    <span>
+                      {activeTransaction.status === 'partial'
+                        ? t('history.refundRemaining')
+                        : t('history.refundThisSale')}
+                    </span>
                   </button>
                 ) : (
                   <div className="bg-rose-50 border border-rose-100 p-3 rounded-xl flex items-start gap-2">
@@ -727,14 +836,35 @@ export default function History() {
               </div>
             </div>
 
-            {/* Print trigger footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-100">
+            {/* Print / share footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
               <button
                 onClick={() => handlePrintReceipt(activeTransaction)}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold text-xs py-2.5 rounded-xl flex items-center justify-center space-x-1.5 transition-colors shadow-md shadow-slate-900/10"
+                className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold text-xs py-2.5 rounded-xl flex items-center justify-center space-x-1.5 transition-colors shadow-md shadow-slate-900/10"
               >
                 <Printer size={14} />
                 <span>{t('history.printCopyReceipt')}</span>
+              </button>
+              <button
+                onClick={() => shareReceipt(activeTransaction, settings)}
+                title={t('register.share')}
+                className="px-3 py-2.5 border border-slate-200 hover:bg-white text-slate-600 rounded-xl transition-colors shadow-sm"
+              >
+                <Share2 size={14} />
+              </button>
+              <button
+                onClick={() =>
+                  emailReceipt(
+                    activeTransaction,
+                    settings,
+                    customers.find((c) => c.id === activeTransaction.customerId)?.email ||
+                      undefined,
+                  )
+                }
+                title={t('register.email')}
+                className="px-3 py-2.5 border border-slate-200 hover:bg-white text-slate-600 rounded-xl transition-colors shadow-sm"
+              >
+                <Mail size={14} />
               </button>
             </div>
           </>
@@ -750,6 +880,129 @@ export default function History() {
           </div>
         )}
       </div>
+
+      {/* REFUND SELECTION MODAL (line-item / partial) */}
+      <AnimatePresence>
+        {refundModalTx &&
+          (() => {
+            const remaining = refundableQuantities(refundModalTx);
+            const preview = computeRefund(
+              refundModalTx,
+              refundSelection,
+              settings.loyaltyPointsRate,
+            );
+            const anySelected = Object.values(refundSelection).some((q) => q > 0);
+            return (
+              <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 max-w-md w-full rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+                >
+                  <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between">
+                    <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                      <RotateCcw size={18} className="text-rose-500" />
+                      {t('history.refundItems')} — {refundModalTx.id}
+                    </h3>
+                    <button
+                      onClick={() => setRefundModalTx(null)}
+                      className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <div className="p-4 overflow-y-auto space-y-2">
+                    {refundModalTx.items.map((item) => {
+                      const rem = remaining[item.productId] ?? 0;
+                      const sel = refundSelection[item.productId] ?? 0;
+                      return (
+                        <div
+                          key={item.productId}
+                          className={`flex items-center justify-between gap-3 rounded-xl p-3 border ${
+                            rem === 0
+                              ? 'opacity-50 border-slate-200 dark:border-slate-700'
+                              : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                              {item.productName}
+                            </p>
+                            <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                              {settings.currency}
+                              {item.price.toFixed(2)} · {t('history.refundable')}: {rem}/
+                              {item.quantity}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              disabled={sel <= 0}
+                              onClick={() =>
+                                setRefundSelection((s) => ({
+                                  ...s,
+                                  [item.productId]: Math.max(0, (s[item.productId] ?? 0) - 1),
+                                }))
+                              }
+                              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 flex items-center justify-center"
+                            >
+                              −
+                            </button>
+                            <span className="w-8 text-center font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
+                              {sel}
+                            </span>
+                            <button
+                              disabled={sel >= rem}
+                              onClick={() =>
+                                setRefundSelection((s) => ({
+                                  ...s,
+                                  [item.productId]: Math.min(rem, (s[item.productId] ?? 0) + 1),
+                                }))
+                              }
+                              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 flex items-center justify-center"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">
+                        {t('history.refundTotal')}
+                      </span>
+                      <span className="font-mono font-extrabold text-lg text-rose-600 dark:text-rose-400">
+                        {settings.currency}
+                        {(preview?.refundAmount ?? 0).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex gap-2.5">
+                      <button
+                        onClick={() => setRefundModalTx(null)}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+                      >
+                        {t('history.cancel')}
+                      </button>
+                      <button
+                        onClick={handleProcessRefund}
+                        disabled={!anySelected}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white transition-colors"
+                      >
+                        {preview?.fullyRefunded
+                          ? t('history.processFullRefund')
+                          : t('history.processRefund')}
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            );
+          })()}
+      </AnimatePresence>
 
       {/* BULK DELETE CONFIRMATION MODAL */}
       <AnimatePresence>
@@ -836,10 +1089,7 @@ export default function History() {
                 <div className="flex gap-2.5 pt-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowOverrideModal(false);
-                      setPendingRefundTxId(null);
-                    }}
+                    onClick={() => setShowOverrideModal(false)}
                     className="flex-1 bg-slate-800 hover:bg-slate-750 text-slate-400 hover:text-white font-sans font-semibold text-xs py-2.5 rounded-xl transition-colors"
                   >
                     {t('history.cancel')}

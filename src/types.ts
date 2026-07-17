@@ -25,6 +25,8 @@ export interface Customer {
   createdAt: string;
 }
 
+export type PaymentMethod = 'cash' | 'card' | 'mobile' | 'gift' | 'loyalty';
+
 export interface OrderItem {
   productId: string;
   productName: string;
@@ -32,6 +34,19 @@ export interface OrderItem {
   cost: number; // Product cost at purchase time
   quantity: number;
   total: number;
+}
+
+// One tender line of a sale. A single-method sale has one entry; a split sale
+// has several whose amounts sum to the total (cash may overpay for change).
+export interface Payment {
+  method: PaymentMethod;
+  amount: number;
+}
+
+// Cumulative quantity of a line returned across one or more partial refunds.
+export interface RefundedItem {
+  productId: string;
+  quantity: number;
 }
 
 export interface SaleTransaction {
@@ -44,7 +59,8 @@ export interface SaleTransaction {
   discountValue: number;
   tax: number;
   total: number;
-  paymentMethod: 'cash' | 'card' | 'mobile' | 'gift' | 'loyalty';
+  paymentMethod: PaymentMethod; // dominant method (largest tender)
+  payments?: Payment[]; // full breakdown; present (length > 1) only for split sales
   cashPaid?: number;
   cashChange?: number;
   customerId: string | null;
@@ -54,9 +70,73 @@ export interface SaleTransaction {
   // Loyalty points awarded at sale time. Stored so a refund reverses exactly
   // what was earned even if the points rate changed since the sale.
   pointsEarned?: number;
-  status: 'completed' | 'refunded';
+  // 'completed' = no refund, 'partial' = some items returned, 'refunded' = fully returned.
+  status: 'completed' | 'partial' | 'refunded';
+  refundedItems?: RefundedItem[]; // cumulative returned quantities (partial refunds)
+  refundedAmount?: number; // cumulative currency refunded
   refundDate?: string | null;
   refundAuthorizedBy?: string | null; // staff member who authorized the refund
+  shiftId?: string | null; // the register shift this sale belongs to
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contact?: string;
+  phone?: string;
+  email?: string;
+  createdAt: string;
+}
+
+// One entry in the stock audit log. Every stock change — receiving a shipment,
+// a manual correction, waste — is recorded with who/why for traceability.
+export interface StockAdjustment {
+  id: string;
+  productId: string;
+  productName: string;
+  delta: number; // +received, -waste/correction
+  newStock: number;
+  reason: 'received' | 'correction' | 'waste' | 'other';
+  note?: string | null;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  operatorName?: string | null;
+  createdAt: string;
+}
+
+// A register/drawer session between an open (starting float) and close (counted
+// cash → variance). Shifts are terminal-local: they describe one physical drawer.
+export interface Shift {
+  id: string;
+  openedAt: string;
+  openedBy: string; // operator name
+  openingFloat: number; // starting cash in the drawer
+  closedAt?: string | null;
+  closedBy?: string | null;
+  countedCash?: number | null; // physically counted at close
+  note?: string | null;
+}
+
+// A cart parked for later (the "hold order" workflow). Product snapshots mirror
+// the live cart; stock is re-validated from the catalog when the sale completes.
+export interface HeldOrderItem {
+  productId: string;
+  productName: string;
+  price: number;
+  cost: number;
+  quantity: number;
+}
+
+export interface HeldOrder {
+  id: string;
+  label: string; // operator-supplied name, e.g. "Table 4" (defaults to a time)
+  createdAt: string;
+  items: HeldOrderItem[];
+  customerId: string | null;
+  discountType: 'none' | 'percentage' | 'fixed' | 'loyalty';
+  discountInput: string;
+  loyaltyPointsToUse: number;
+  operatorName?: string | null;
 }
 
 export interface StoreSettings {

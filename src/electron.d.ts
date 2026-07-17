@@ -35,6 +35,8 @@ declare global {
         categories: PublicMenuCategory[];
         settings: PublicMenuSettings;
       }) => void;
+      // Streams raw ESC/POS bytes to a network printer over TCP; resolves true on success.
+      printEscpos?: (payload: { ip: string; port: number; data: number[] }) => Promise<boolean>;
     };
   }
 }
