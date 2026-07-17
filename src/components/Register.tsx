@@ -30,6 +30,7 @@ import { useShiftStore } from '../stores/shiftStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { shortId } from '../lib/ids';
+import { summarizeTenders } from '../lib/payments';
 import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
@@ -288,17 +289,17 @@ export default function Register() {
 
     if (splitMode) {
       const clean = splitPayments.filter((p) => (p.amount || 0) > 0);
-      if (clean.length === 0 || splitPaidTotal < totalAmount - 0.001) {
+      const tenders = summarizeTenders(clean, totalAmount);
+      if (clean.length === 0 || !tenders.coversTotal) {
         alert(t('register.splitIncomplete'));
         return;
       }
       payments = clean;
-      // Dominant method = the largest single tender (used for reports/filtering).
-      saleMethod = [...clean].sort((a, b) => b.amount - a.amount)[0].method;
-      const hasCash = clean.some((p) => p.method === 'cash');
-      paidValue = hasCash ? Number(splitPaidTotal.toFixed(2)) : undefined;
-      // Overpayment is returned as change (only a cash tender can overpay).
-      changeDue = hasCash ? Number(Math.max(0, splitPaidTotal - totalAmount).toFixed(2)) : undefined;
+      saleMethod = tenders.dominantMethod;
+      // cashPaid is the CASH tender only (not the card/mobile lines), so the
+      // receipt's "cash paid" and the Z-report drawer math stay correct.
+      paidValue = tenders.cashTendered > 0 ? tenders.cashTendered : undefined;
+      changeDue = tenders.cashTendered > 0 ? tenders.cashChange : undefined;
     } else {
       paidValue = paymentMethod === 'cash' ? parseFloat(cashPaidText) || 0 : undefined;
       // A fully-discounted ($0) sale needs no tendered cash.
