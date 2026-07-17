@@ -144,18 +144,19 @@ export default function Register() {
   }, []);
 
   const updateCartQty = (productId: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((item) => {
-          if (item.product.id === productId) {
-            const newQty = item.quantity + delta;
-            if (newQty <= 0) return null;
-            if (newQty > item.product.stock) return item;
-            return { ...item, quantity: newQty };
-          }
-          return item;
-        })
-        .filter(Boolean) as Array<{ product: Product; quantity: number }>,
+    setCart(
+      (prev) =>
+        prev
+          .map((item) => {
+            if (item.product.id === productId) {
+              const newQty = item.quantity + delta;
+              if (newQty <= 0) return null;
+              if (newQty > item.product.stock) return item;
+              return { ...item, quantity: newQty };
+            }
+            return item;
+          })
+          .filter(Boolean) as Array<{ product: Product; quantity: number }>,
     );
   };
 
@@ -175,9 +176,7 @@ export default function Register() {
   const handleScan = useCallback(
     (code: string) => {
       const norm = code.trim().toLowerCase();
-      const product = useProductStore
-        .getState()
-        .products.find((p) => p.sku.toLowerCase() === norm);
+      const product = useProductStore.getState().products.find((p) => p.sku.toLowerCase() === norm);
       if (!product) {
         setScanFeedback({ ok: false, text: t('register.scanNotFound', { code }) });
       } else if (product.stock <= 0) {
@@ -448,9 +447,7 @@ export default function Register() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-2xl text-sm font-semibold ${
-              scanFeedback.ok
-                ? 'bg-emerald-600 text-white'
-                : 'bg-rose-600 text-white'
+              scanFeedback.ok ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
             }`}
           >
             <ScanLine size={16} />
@@ -594,55 +591,55 @@ export default function Register() {
                         {
                           id: 'card',
                           label: t('register.payCard'),
-                        icon: CreditCard,
-                        color: 'text-blue-600 dark:text-blue-400',
-                        bg: 'bg-blue-50 dark:bg-blue-900/20',
-                      },
-                      {
-                        id: 'cash',
-                        label: t('register.payCash'),
-                        icon: DollarSign,
-                        color: 'text-emerald-600 dark:text-emerald-400',
-                        bg: 'bg-emerald-50 dark:bg-emerald-900/20',
-                      },
-                      {
-                        id: 'mobile',
-                        label: t('register.payMobile'),
-                        icon: Smartphone,
-                        color: 'text-purple-600 dark:text-purple-400',
-                        bg: 'bg-purple-50 dark:bg-purple-900/20',
-                      },
-                      {
-                        id: 'gift',
-                        label: t('register.payGift'),
-                        icon: Gift,
-                        color: 'text-amber-600 dark:text-amber-400',
-                        bg: 'bg-amber-50 dark:bg-amber-900/20',
-                      },
-                    ] as const
-                  ).map((m) => {
-                    const MIcon = m.icon;
-                    const isSel = paymentMethod === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        id={`pay-method-${m.id}`}
-                        onClick={() => setPaymentMethod(m.id)}
-                        className={`flex flex-col items-center justify-center p-4 rounded-2xl border text-center transition-all duration-200 ${
-                          isSel
-                            ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 transform scale-105'
-                            : `border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 ${m.bg} ${m.color}`
-                        }`}
-                      >
-                        <MIcon size={24} className={isSel ? 'text-white' : m.color} />
-                        <span
-                          className={`text-xs font-semibold mt-2 ${isSel ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}
+                          icon: CreditCard,
+                          color: 'text-blue-600 dark:text-blue-400',
+                          bg: 'bg-blue-50 dark:bg-blue-900/20',
+                        },
+                        {
+                          id: 'cash',
+                          label: t('register.payCash'),
+                          icon: DollarSign,
+                          color: 'text-emerald-600 dark:text-emerald-400',
+                          bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+                        },
+                        {
+                          id: 'mobile',
+                          label: t('register.payMobile'),
+                          icon: Smartphone,
+                          color: 'text-purple-600 dark:text-purple-400',
+                          bg: 'bg-purple-50 dark:bg-purple-900/20',
+                        },
+                        {
+                          id: 'gift',
+                          label: t('register.payGift'),
+                          icon: Gift,
+                          color: 'text-amber-600 dark:text-amber-400',
+                          bg: 'bg-amber-50 dark:bg-amber-900/20',
+                        },
+                      ] as const
+                    ).map((m) => {
+                      const MIcon = m.icon;
+                      const isSel = paymentMethod === m.id;
+                      return (
+                        <button
+                          key={m.id}
+                          id={`pay-method-${m.id}`}
+                          onClick={() => setPaymentMethod(m.id)}
+                          className={`flex flex-col items-center justify-center p-4 rounded-2xl border text-center transition-all duration-200 ${
+                            isSel
+                              ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 transform scale-105'
+                              : `border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 ${m.bg} ${m.color}`
+                          }`}
                         >
-                          {m.label}
-                        </span>
-                      </button>
-                    );
-                  })}
+                          <MIcon size={24} className={isSel ? 'text-white' : m.color} />
+                          <span
+                            className={`text-xs font-semibold mt-2 ${isSel ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}
+                          >
+                            {m.label}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 

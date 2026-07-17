@@ -1,6 +1,14 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Clock, DollarSign, LockKeyhole, Unlock, Printer, AlertTriangle, Check } from 'lucide-react';
+import {
+  Clock,
+  DollarSign,
+  LockKeyhole,
+  Unlock,
+  Printer,
+  AlertTriangle,
+  Check,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useShiftStore } from '../stores/shiftStore';
 import { useTransactionStore } from '../stores/transactionStore';
@@ -29,7 +37,8 @@ export default function ShiftScreen() {
   );
   const summary = useMemo(() => summarizeShift(shiftTxns), [shiftTxns]);
   const expectedCash = currentShift ? summary.expectedCash(currentShift.openingFloat) : 0;
-  const variance = countedCash !== '' ? Number((parseFloat(countedCash) - expectedCash).toFixed(2)) : null;
+  const variance =
+    countedCash !== '' ? Number((parseFloat(countedCash) - expectedCash).toFixed(2)) : null;
 
   const handleOpen = () => {
     const float = parseFloat(openFloat) || 0;
@@ -106,7 +115,9 @@ export default function ShiftScreen() {
             <div className="mx-auto w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-4">
               <Unlock size={26} />
             </div>
-            <h3 className="font-bold text-lg text-slate-800 dark:text-white">{t('shift.noOpenShift')}</h3>
+            <h3 className="font-bold text-lg text-slate-800 dark:text-white">
+              {t('shift.noOpenShift')}
+            </h3>
             <p className="text-xs text-slate-500 mt-1 mb-5">{t('shift.openHint')}</p>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 text-start">
               {t('shift.openingFloat')}
@@ -138,7 +149,9 @@ export default function ShiftScreen() {
             <div className="lg:col-span-2 glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-3xl p-6 shadow-lg space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-800 dark:text-white">{t('shift.currentShift')}</h3>
+                  <h3 className="font-bold text-slate-800 dark:text-white">
+                    {t('shift.currentShift')}
+                  </h3>
                   <p className="text-[11px] font-mono text-slate-500 mt-0.5">
                     {t('shift.openedBy')} {currentShift.openedBy} •{' '}
                     {new Date(currentShift.openedAt).toLocaleString()}
@@ -251,7 +264,9 @@ export default function ShiftScreen() {
         {/* Past shifts */}
         {closedShifts.length > 0 && (
           <div className="glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-3xl p-6 shadow-lg">
-            <h3 className="font-bold text-slate-800 dark:text-white mb-4">{t('shift.pastShifts')}</h3>
+            <h3 className="font-bold text-slate-800 dark:text-white mb-4">
+              {t('shift.pastShifts')}
+            </h3>
             <div className="space-y-2">
               {closedShifts.map((shift) => {
                 const s = summarizeShift(transactions.filter((tx) => tx.shiftId === shift.id));

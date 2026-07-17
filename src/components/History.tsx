@@ -857,7 +857,8 @@ export default function History() {
                   emailReceipt(
                     activeTransaction,
                     settings,
-                    customers.find((c) => c.id === activeTransaction.customerId)?.email || undefined,
+                    customers.find((c) => c.id === activeTransaction.customerId)?.email ||
+                      undefined,
                   )
                 }
                 title={t('register.email')}

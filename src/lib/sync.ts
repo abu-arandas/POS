@@ -56,10 +56,7 @@ export const syncToCloudIfEnabled = async (
 // Validates a staff PIN against the cloud (verify_login RPC). Returns the
 // account on success — used by the lockscreen as a fallback when the local PIN
 // check fails, so a PIN changed on another terminal still works here.
-export const cloudLogin = async (
-  name: string,
-  pinHash: string,
-): Promise<UserAccount | null> => {
+export const cloudLogin = async (name: string, pinHash: string): Promise<UserAccount | null> => {
   const { supabaseConfig } = useSettingsStore.getState();
   if (!supabaseConfig.enabled || !supabaseConfig.url || !supabaseConfig.anonKey) return null;
   const client = getSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);

@@ -319,7 +319,8 @@ export default function Inventory() {
               }}
               className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-sans font-bold text-xs sm:text-sm px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm"
             >
-              <PackagePlus size={16} /> <span className="hidden sm:inline">{t('inventory.receiveStock')}</span>
+              <PackagePlus size={16} />{' '}
+              <span className="hidden sm:inline">{t('inventory.receiveStock')}</span>
             </button>
           )}
 
@@ -1056,7 +1057,8 @@ export default function Inventory() {
             >
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between">
                 <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                  <PackagePlus size={18} className="text-emerald-500" /> {t('inventory.receiveStock')}
+                  <PackagePlus size={18} className="text-emerald-500" />{' '}
+                  {t('inventory.receiveStock')}
                 </h3>
                 <button
                   onClick={() => setReceiveOpen(false)}

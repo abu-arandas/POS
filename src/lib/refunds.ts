@@ -51,7 +51,8 @@ export function computeRefund(
 
   // Merge into cumulative refunded-items.
   const merged: Record<string, number> = {};
-  for (const r of tx.refundedItems ?? []) merged[r.productId] = (merged[r.productId] ?? 0) + r.quantity;
+  for (const r of tx.refundedItems ?? [])
+    merged[r.productId] = (merged[r.productId] ?? 0) + r.quantity;
   for (const [pid, qty] of Object.entries(clean)) merged[pid] = (merged[pid] ?? 0) + qty;
   const refundedItems: RefundedItem[] = Object.entries(merged).map(([productId, quantity]) => ({
     productId,
@@ -59,9 +60,7 @@ export function computeRefund(
   }));
 
   // Fully refunded once every original line is covered.
-  const fullyRefunded = tx.items.every(
-    (item) => (merged[item.productId] ?? 0) >= item.quantity,
-  );
+  const fullyRefunded = tx.items.every((item) => (merged[item.productId] ?? 0) >= item.quantity);
 
   const earned = tx.pointsEarned ?? Math.floor(tx.total * loyaltyPointsRate);
   let pointsReversal = -Math.round(earned * proportion);

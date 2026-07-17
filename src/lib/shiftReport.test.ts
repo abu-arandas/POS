@@ -20,9 +20,9 @@ const sale = (over: Partial<SaleTransaction>): SaleTransaction => ({
 
 describe('cashKept', () => {
   it('is the total for a single cash sale (change nets out)', () => {
-    expect(cashKept(sale({ paymentMethod: 'cash', total: 13.75, cashPaid: 20, cashChange: 6.25 }))).toBe(
-      13.75,
-    );
+    expect(
+      cashKept(sale({ paymentMethod: 'cash', total: 13.75, cashPaid: 20, cashChange: 6.25 })),
+    ).toBe(13.75);
   });
   it('is zero for card/mobile/gift', () => {
     expect(cashKept(sale({ paymentMethod: 'card', total: 10 }))).toBe(0);
@@ -59,8 +59,24 @@ describe('summarizeShift', () => {
 
   it('nets refunds out of gross and removes cash refunds from the drawer', () => {
     const txns = [
-      sale({ id: 'A', paymentMethod: 'cash', total: 50, cashPaid: 50, cashChange: 0, status: 'partial', refundedAmount: 20 }),
-      sale({ id: 'B', paymentMethod: 'cash', total: 10, cashPaid: 10, cashChange: 0, status: 'refunded', refundedAmount: 10 }),
+      sale({
+        id: 'A',
+        paymentMethod: 'cash',
+        total: 50,
+        cashPaid: 50,
+        cashChange: 0,
+        status: 'partial',
+        refundedAmount: 20,
+      }),
+      sale({
+        id: 'B',
+        paymentMethod: 'cash',
+        total: 10,
+        cashPaid: 10,
+        cashChange: 0,
+        status: 'refunded',
+        refundedAmount: 10,
+      }),
     ];
     const s = summarizeShift(txns);
     // gross: A nets 30 (50-20), B fully refunded nets 0 → 30

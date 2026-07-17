@@ -67,9 +67,9 @@ describe('encodeReceipt', () => {
 
   it('kicks the drawer only when autoPrintOnCheckout is on', () => {
     const kick = [0x1b, 0x70, 0x00];
-    expect(findSeq(encodeReceipt(tx, settings, { ...printer, autoPrintOnCheckout: true }), kick)).toBe(
-      true,
-    );
+    expect(
+      findSeq(encodeReceipt(tx, settings, { ...printer, autoPrintOnCheckout: true }), kick),
+    ).toBe(true);
     expect(findSeq(encodeReceipt(tx, settings, printer), kick)).toBe(false);
   });
 

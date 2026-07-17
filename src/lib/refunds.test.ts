@@ -70,7 +70,11 @@ describe('computeRefund', () => {
   });
 
   it('clamps a selection to what is still refundable', () => {
-    const tx = { ...baseTx, refundedItems: [{ productId: 'latte', quantity: 2 }], status: 'partial' as const };
+    const tx = {
+      ...baseTx,
+      refundedItems: [{ productId: 'latte', quantity: 2 }],
+      status: 'partial' as const,
+    };
     // Asking to refund 2 more lattes (none left) + the muffin → only the muffin.
     const r = computeRefund(tx, { latte: 2, muffin: 1 }, 1)!;
     expect(r.refundedItems.find((i) => i.productId === 'latte')?.quantity).toBe(2);

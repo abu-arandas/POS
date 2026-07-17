@@ -3,11 +3,7 @@ import { encodeReceipt } from './escpos';
 import { printTransactions } from './receiptPrinter';
 
 export type HardwarePrintOutcome =
-  | 'printed'
-  | 'popup-blocked'
-  | 'unsupported'
-  | 'no-device'
-  | 'error';
+  'printed' | 'popup-blocked' | 'unsupported' | 'no-device' | 'error';
 
 interface WebSerialPort {
   open(options: { baudRate: number }): Promise<void>;

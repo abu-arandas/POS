@@ -24,7 +24,8 @@ export function receiptPlainText(tx: SaleTransaction, settings: StoreSettings): 
   lines.push(`Total: ${cur}${tx.total.toFixed(2)}`);
   lines.push(`Paid via: ${tx.paymentMethod.toUpperCase()}`);
   if (tx.payments && tx.payments.length > 1) {
-    for (const p of tx.payments) lines.push(`  ${p.method.toUpperCase()}: ${cur}${p.amount.toFixed(2)}`);
+    for (const p of tx.payments)
+      lines.push(`  ${p.method.toUpperCase()}: ${cur}${p.amount.toFixed(2)}`);
   }
   if (tx.refundedAmount) lines.push(`Refunded: ${cur}${tx.refundedAmount.toFixed(2)}`);
   lines.push('');

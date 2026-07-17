@@ -88,14 +88,18 @@ export function encodeReceipt(
   b.line('-'.repeat(width));
 
   for (const item of tx.items) {
-    b.line(twoCol(`${item.quantity}x ${item.productName}`, `${cur}${item.total.toFixed(2)}`, width));
+    b.line(
+      twoCol(`${item.quantity}x ${item.productName}`, `${cur}${item.total.toFixed(2)}`, width),
+    );
   }
   b.line('-'.repeat(width));
 
   b.line(twoCol('SUBTOTAL', `${cur}${tx.subtotal.toFixed(2)}`, width));
   if (tx.discount > 0) b.line(twoCol('DISCOUNT', `-${cur}${tx.discount.toFixed(2)}`, width));
   b.line(twoCol('TAX', `${cur}${tx.tax.toFixed(2)}`, width));
-  b.bold(true).line(twoCol('TOTAL', `${cur}${tx.total.toFixed(2)}`, width)).bold(false);
+  b.bold(true)
+    .line(twoCol('TOTAL', `${cur}${tx.total.toFixed(2)}`, width))
+    .bold(false);
   b.line(twoCol('METHOD', tx.paymentMethod.toUpperCase(), width));
   if (tx.payments && tx.payments.length > 1) {
     for (const p of tx.payments) {
