@@ -17,6 +17,7 @@ import {
   Trash2,
   Share2,
   Mail,
+  Download,
 } from 'lucide-react';
 import { SaleTransaction, Product, Customer } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -31,6 +32,7 @@ import { printTransactions } from '../lib/receiptPrinter';
 import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { computeRefund, refundableQuantities } from '../lib/refunds';
+import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
 import type { RefundPatch } from '../stores/transactionStore';
 import { useTranslation } from 'react-i18next';
 
@@ -320,11 +322,26 @@ export default function History() {
         className="flex-1 flex flex-col min-w-0 pe-6 overflow-hidden"
       >
         {/* Header */}
-        <div id="history-header" className="mb-6 shrink-0">
-          <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
-            <HistoryIcon className="text-emerald-500" /> {t('history.transactionLogs')}
-          </h2>
-          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">{t('history.auditPastOrders')}</p>
+        <div id="history-header" className="mb-6 shrink-0 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
+              <HistoryIcon className="text-emerald-500" /> {t('history.transactionLogs')}
+            </h2>
+            <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
+              {t('history.auditPastOrders')}
+            </p>
+          </div>
+          <button
+            id="export-csv-btn"
+            onClick={() => {
+              const rows = transactionsToCsvRows(filteredTransactions);
+              downloadCsv(`transactions-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
+            }}
+            disabled={filteredTransactions.length === 0}
+            className="shrink-0 flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl shadow-sm transition-colors"
+          >
+            <Download size={14} /> {t('history.exportCsv')}
+          </button>
         </div>
 
         {/* Filters */}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   TrendingUp,
   ShoppingBag,
@@ -8,6 +8,8 @@ import {
   ArrowDownRight,
   Package,
   AlertTriangle,
+  Download,
+  Users,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -27,6 +29,7 @@ import { motion } from 'motion/react';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
 import { useTranslation } from 'react-i18next';
 
 export default function Dashboard() {
@@ -47,6 +50,18 @@ export default function Dashboard() {
       (tx) => new Date(tx.date).toDateString() === todayDateString,
     );
   }, [completedTransactions, todayDateString]);
+
+  // Reporting date range (drives the charts, breakdowns, and export).
+  const [range, setRange] = useState<'today' | '7d' | '30d' | 'all'>('7d');
+  const rangeDays = range === 'today' ? 1 : range === '7d' ? 7 : range === '30d' ? 30 : 30;
+
+  const rangeTxns = useMemo(() => {
+    if (range === 'all') return completedTransactions;
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (rangeDays - 1));
+    return completedTransactions.filter((tx) => new Date(tx.date) >= start);
+  }, [completedTransactions, range, rangeDays]);
 
   const kpis = useMemo(() => {
     const revenueToday = todayTransactions.reduce((sum, t) => sum + t.total, 0);
@@ -80,20 +95,22 @@ export default function Dashboard() {
   const salesTrendData = useMemo(() => {
     const datesMap = new Map<string, { label: string; revenue: number; profit: number }>();
     const today = new Date();
+    // Daily buckets across the selected range (capped so the axis stays legible).
+    const buckets = Math.min(range === 'all' ? 30 : rangeDays, 31);
 
-    for (let i = 6; i >= 0; i--) {
+    for (let i = buckets - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
       const key = d.toDateString();
       const label = d.toLocaleDateString(i18n.language === 'ar' ? 'ar' : 'en', {
-        weekday: 'short',
+        weekday: buckets <= 7 ? 'short' : undefined,
         month: 'numeric',
         day: 'numeric',
       });
       datesMap.set(key, { label, revenue: 0, profit: 0 });
     }
 
-    completedTransactions.forEach((tx) => {
+    rangeTxns.forEach((tx) => {
       const txKey = new Date(tx.date).toDateString();
       if (datesMap.has(txKey)) {
         const entry = datesMap.get(txKey)!;
@@ -113,12 +130,12 @@ export default function Dashboard() {
       revenue: Number(v.revenue.toFixed(2)),
       profit: Number(v.profit.toFixed(2)),
     }));
-  }, [completedTransactions, i18n.language]);
+  }, [rangeTxns, range, rangeDays, i18n.language]);
 
   const topProductsData = useMemo(() => {
     const productSalesMap = new Map<string, { name: string; quantity: number; revenue: number }>();
 
-    completedTransactions.forEach((tx) => {
+    rangeTxns.forEach((tx) => {
       tx.items.forEach((item) => {
         const current = productSalesMap.get(item.productId) || {
           name: item.productName,
@@ -138,12 +155,12 @@ export default function Dashboard() {
         ...v,
         revenue: Number(v.revenue.toFixed(2)),
       }));
-  }, [completedTransactions]);
+  }, [rangeTxns]);
 
   const categoryShareData = useMemo(() => {
     const catSalesMap = new Map<string, number>();
 
-    completedTransactions.forEach((tx) => {
+    rangeTxns.forEach((tx) => {
       tx.items.forEach((item) => {
         const prod = products.find((p) => p.id === item.productId);
         const catId = prod?.category || 'general';
@@ -167,7 +184,7 @@ export default function Dashboard() {
         };
       })
       .sort((a, b) => b.value - a.value);
-  }, [completedTransactions, products, categories, t]);
+  }, [rangeTxns, products, categories, t]);
 
   const paymentMethodsData = useMemo(() => {
     const counts: Record<'cash' | 'card' | 'mobile' | 'gift', number> = {
@@ -176,7 +193,7 @@ export default function Dashboard() {
       mobile: 0,
       gift: 0,
     };
-    completedTransactions.forEach((tx) => {
+    rangeTxns.forEach((tx) => {
       if (tx.paymentMethod in counts) {
         counts[tx.paymentMethod as keyof typeof counts] += tx.total;
       }
@@ -191,13 +208,35 @@ export default function Dashboard() {
         color: colors[method as keyof typeof colors],
       }))
       .filter((item) => item.value > 0);
-  }, [completedTransactions]);
+  }, [rangeTxns]);
 
   // Denominator over the same buckets shown in the cards, so the percentages
   // always sum to 100 (loyalty redemptions are $0 sales and are not a bucket).
   const totalSalesVolume = useMemo(() => {
     return paymentMethodsData.reduce((sum, d) => sum + d.value, 0);
   }, [paymentMethodsData]);
+
+  // Per-operator sales for the selected range (staff performance report).
+  const operatorBreakdown = useMemo(() => {
+    const map = new Map<string, { name: string; orders: number; revenue: number }>();
+    rangeTxns.forEach((tx) => {
+      const key = tx.operatorId ?? tx.operatorName ?? 'unknown';
+      const current = map.get(key) || { name: tx.operatorName ?? '—', orders: 0, revenue: 0 };
+      current.orders += 1;
+      current.revenue += tx.total;
+      map.set(key, current);
+    });
+    return Array.from(map.values())
+      .map((v) => ({ ...v, revenue: Number(v.revenue.toFixed(2)) }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [rangeTxns]);
+
+  const exportRange = () => {
+    downloadCsv(
+      `sales-${range}-${new Date().toISOString().slice(0, 10)}.csv`,
+      toCsv(transactionsToCsvRows(rangeTxns)),
+    );
+  };
 
   return (
     <div
@@ -215,25 +254,60 @@ export default function Dashboard() {
           </p>
         </motion.div>
 
-        {/* Sync Indicator — reflects whether cloud sync is actually connected */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className={`flex items-center space-x-2 border px-3 py-1.5 rounded-xl font-mono text-[10px] font-bold shadow-inner ${
-            cloudLive
-              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-              : 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400'
-          }`}
-        >
-          <span
-            className={`w-2 h-2 rounded-full ${
+        <div className="flex items-center gap-3">
+          {/* Date-range selector — drives the charts, breakdowns, and export. */}
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
+            {(
+              [
+                { id: 'today', label: t('dashboard.rangeToday') },
+                { id: '7d', label: t('dashboard.range7d') },
+                { id: '30d', label: t('dashboard.range30d') },
+                { id: 'all', label: t('dashboard.rangeAll') },
+              ] as const
+            ).map((r) => (
+              <button
+                key={r.id}
+                onClick={() => setRange(r.id)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${
+                  range === r.id
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <button
+            id="dashboard-export-btn"
+            onClick={exportRange}
+            disabled={rangeTxns.length === 0}
+            className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 text-slate-700 dark:text-slate-200 text-[10px] font-bold uppercase px-2.5 py-1.5 rounded-xl shadow-sm transition-colors"
+            title={t('dashboard.exportRange')}
+          >
+            <Download size={13} />
+          </button>
+
+          {/* Sync Indicator — reflects whether cloud sync is actually connected */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`flex items-center space-x-2 border px-3 py-1.5 rounded-xl font-mono text-[10px] font-bold shadow-inner ${
               cloudLive
-                ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]'
-                : 'bg-slate-400'
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+                : 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400'
             }`}
-          />
-          <span>{cloudLive ? t('dashboard.sync') : t('dashboard.syncOff')}</span>
-        </motion.div>
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                cloudLive
+                  ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]'
+                  : 'bg-slate-400'
+              }`}
+            />
+            <span>{cloudLive ? t('dashboard.sync') : t('dashboard.syncOff')}</span>
+          </motion.div>
+        </div>
       </div>
 
       {/* Main dashboard content container */}
@@ -672,6 +746,55 @@ export default function Dashboard() {
               );
             })}
           </div>
+        </motion.div>
+
+        {/* Per-operator sales report */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-sans font-bold text-slate-800 dark:text-white text-base flex items-center gap-2">
+                <Users size={18} className="text-emerald-500" /> {t('dashboard.byOperator')}
+              </h3>
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">
+                {t('dashboard.byOperatorSub')}
+              </p>
+            </div>
+          </div>
+          {operatorBreakdown.length === 0 ? (
+            <div className="font-mono text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 py-8 text-center">
+              {t('dashboard.noSales')}
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {operatorBreakdown.map((op, idx) => {
+                const max = operatorBreakdown[0].revenue || 1;
+                return (
+                  <div key={idx} className="flex items-center gap-3">
+                    <span className="w-28 truncate text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      {op.name}
+                    </span>
+                    <div className="flex-1 h-6 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
+                      <div
+                        className="h-full bg-linear-to-r from-emerald-500 to-emerald-400 rounded-lg"
+                        style={{ width: `${Math.max(4, (op.revenue / max) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="w-16 text-right font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                      {op.orders} {t('dashboard.ordersShort')}
+                    </span>
+                    <span className="w-24 text-right font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
+                      {settings.currency}
+                      {op.revenue.toFixed(2)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </motion.div>
       </div>
     </div>
