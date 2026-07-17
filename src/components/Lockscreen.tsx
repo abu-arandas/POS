@@ -4,40 +4,54 @@ import { ShieldAlert, User, Delete, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { hashPin } from '../lib/hash';
+import { cloudLogin } from '../lib/sync';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useTranslation } from 'react-i18next';
 
 export default function Lockscreen() {
-  const { users, setCurrentUser } = useAuthStore();
+  const { users, setUsers, setCurrentUser } = useAuthStore();
   const { settings } = useSettingsStore();
   const storeName = settings.storeName;
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<boolean>(false);
+  const [checking, setChecking] = useState<boolean>(false);
   const { t } = useTranslation();
 
   const activeUsers = users.filter((u) => u.active);
 
+  const rejectPin = () => {
+    setError(true);
+    setPin('');
+    setTimeout(() => setError(false), 800);
+  };
+
   const handleKeyPress = async (num: string) => {
     if (error) setError(false);
+    if (checking) return;
     if (pin.length < 4) {
       const nextPin = pin + num;
       setPin(nextPin);
 
       // Automatically check pin once 4 digits are entered
-      if (nextPin.length === 4) {
-        if (selectedUser) {
-          const hashedNextPin = await hashPin(nextPin);
-          if (selectedUser.pin === hashedNextPin) {
-            setCurrentUser(selectedUser);
-          } else {
-            // Play mistake state
-            setError(true);
-            setPin('');
-            // Clear error vibration/shake after a split-second
-            setTimeout(() => setError(false), 800);
-          }
+      if (nextPin.length === 4 && selectedUser) {
+        const hashedNextPin = await hashPin(nextPin);
+        if (selectedUser.pin === hashedNextPin) {
+          setCurrentUser(selectedUser);
+          return;
+        }
+        // Local check failed — try the cloud (verify_login) so a PIN changed on
+        // another terminal still works. No-op when sync is disabled/offline.
+        setChecking(true);
+        const cloudUser = await cloudLogin(selectedUser.name, hashedNextPin);
+        setChecking(false);
+        if (cloudUser) {
+          // Refresh the local record with the verified account, then sign in.
+          setUsers(users.map((u) => (u.id === cloudUser.id ? { ...u, ...cloudUser } : u)));
+          setCurrentUser(cloudUser);
+        } else {
+          rejectPin();
         }
       }
     }

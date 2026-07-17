@@ -30,6 +30,7 @@ import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
 import { ScreenId, isScreenAllowed } from './lib/access';
+import { startRealtimeSync, stopRealtimeSync } from './lib/realtimeSync';
 
 function ScreenLoader() {
   return (
@@ -44,8 +45,19 @@ export default function App() {
   const [currentScreen, setScreen] = useState<ScreenId>('register');
 
   const { currentUser, setCurrentUser } = useAuthStore();
-  const { settings, darkMode, setDarkMode, language } = useSettingsStore();
+  const { settings, darkMode, setDarkMode, language, supabaseConfig } = useSettingsStore();
   const { t, i18n } = useTranslation();
+
+  // Live multi-terminal sync: subscribe to cloud changes while sync is
+  // connected, so another register's writes appear here automatically.
+  const syncEnabled = supabaseConfig.enabled;
+  const syncConnected = supabaseConfig.status === 'connected';
+  useEffect(() => {
+    if (syncEnabled && syncConnected) {
+      startRealtimeSync();
+      return () => stopRealtimeSync();
+    }
+  }, [syncEnabled, syncConnected]);
 
   useEffect(() => {
     i18n.changeLanguage(language);

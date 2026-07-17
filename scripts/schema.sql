@@ -147,6 +147,23 @@ CREATE POLICY "staff manage users" ON user_accounts FOR ALL TO authenticated USI
 -- ALTER TABLE customers     DISABLE ROW LEVEL SECURITY;
 -- ALTER TABLE transactions  DISABLE ROW LEVEL SECURITY;
 
+-- 8c. Realtime (optional but recommended for multi-terminal live sync)
+-- ============================================================
+-- Add the synced tables to the supabase_realtime publication so the app's
+-- realtime subscription (src/lib/realtimeSync.ts) receives change events and
+-- mirrors another terminal's writes automatically. Safe to re-run.
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE products;
+  ALTER PUBLICATION supabase_realtime ADD TABLE categories;
+  ALTER PUBLICATION supabase_realtime ADD TABLE customers;
+  ALTER PUBLICATION supabase_realtime ADD TABLE transactions;
+  ALTER PUBLICATION supabase_realtime ADD TABLE user_accounts;
+EXCEPTION WHEN duplicate_object THEN
+  -- Tables already in the publication; nothing to do.
+  NULL;
+END $$;
+
 -- 9. Seed the default admin (PIN 1234, stored as its SHA-256 hash)
 INSERT INTO user_accounts (id, name, role, pin, active, created_at)
 VALUES ('admin-1', 'Default Administrator', 'admin',

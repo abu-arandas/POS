@@ -13,6 +13,7 @@ import {
   testSupabaseConnection,
   deleteRowsSupabase,
   signInDevice,
+  verifyLoginCloud,
   SyncTable,
 } from './supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -50,6 +51,21 @@ export const syncToCloudIfEnabled = async (
   } catch (err) {
     console.warn('Background live sync push postponed:', err);
   }
+};
+
+// Validates a staff PIN against the cloud (verify_login RPC). Returns the
+// account on success — used by the lockscreen as a fallback when the local PIN
+// check fails, so a PIN changed on another terminal still works here.
+export const cloudLogin = async (
+  name: string,
+  pinHash: string,
+): Promise<UserAccount | null> => {
+  const { supabaseConfig } = useSettingsStore.getState();
+  if (!supabaseConfig.enabled || !supabaseConfig.url || !supabaseConfig.anonKey) return null;
+  const client = getSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
+  if (!client) return null;
+  await ensureDeviceSession(client);
+  return verifyLoginCloud(client, name, pinHash);
 };
 
 // Verifies credentials by signing in (if a device account is set) and running a
