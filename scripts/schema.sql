@@ -71,7 +71,8 @@ CREATE TABLE IF NOT EXISTS transactions (
   refunded_items JSONB,                    -- cumulative returned quantities (partial refunds)
   refunded_amount NUMERIC,                 -- cumulative currency refunded
   refund_date TIMESTAMP WITH TIME ZONE,
-  refund_authorized_by TEXT                -- staff member who authorized the refund
+  refund_authorized_by TEXT,               -- staff member who authorized the refund
+  shift_id TEXT                            -- the register shift this sale belongs to
 );
 
 -- 6b. Upgrading an existing database? These add the columns introduced after
@@ -83,6 +84,7 @@ ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refund_authorized_by TEXT;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payments JSONB;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refunded_items JSONB;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refunded_amount NUMERIC;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS shift_id TEXT;
 -- Allow the new 'partial' refund status (the CHECK is recreated to include it):
 ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_status_check;
 ALTER TABLE transactions ADD CONSTRAINT transactions_status_check

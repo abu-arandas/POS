@@ -15,6 +15,8 @@ import {
   Lock,
   ShoppingBag,
   Trash2,
+  Share2,
+  Mail,
 } from 'lucide-react';
 import { SaleTransaction, Product, Customer } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -26,6 +28,8 @@ import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { printTransactions } from '../lib/receiptPrinter';
+import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
+import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { computeRefund, refundableQuantities } from '../lib/refunds';
 import type { RefundPatch } from '../stores/transactionStore';
 import { useTranslation } from 'react-i18next';
@@ -36,7 +40,7 @@ export default function History() {
   const { settings, printerConfig } = useSettingsStore();
   const { currentUser, users } = useAuthStore();
   const { handleUpdateProduct } = useProductStore();
-  const { updateCustomerPoints } = useCustomerStore();
+  const { updateCustomerPoints, customers } = useCustomerStore();
 
   // Filters & Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -232,11 +236,16 @@ export default function History() {
     }
   };
 
-  const handlePrintReceipt = (tx: SaleTransaction) => {
-    const outcome = printTransactions([tx], settings, printerConfig);
+  const notifyPrint = (outcome: HardwarePrintOutcome) => {
     if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
-    else if (outcome === 'esc-pos')
-      alert(t('history.escPosPrintMessage', { type: printerConfig.type.toUpperCase() }));
+    else if (outcome === 'unsupported')
+      alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
+    else if (outcome === 'no-device') alert(t('print.noDevice'));
+    else if (outcome === 'error') alert(t('print.error'));
+  };
+
+  const handlePrintReceipt = async (tx: SaleTransaction) => {
+    notifyPrint(await printReceipt(tx, settings, printerConfig));
   };
 
   const handleToggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -267,12 +276,22 @@ export default function History() {
     setShowDeleteModal(false);
   };
 
-  const handleBulkPrint = () => {
+  const handleBulkPrint = async () => {
     const txsToPrint = transactions.filter((tx) => selectedTxIds.includes(tx.id));
-    const outcome = printTransactions(txsToPrint, settings, printerConfig);
-    if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
-    else if (outcome === 'esc-pos')
-      alert(t('history.escPosPrintMessage', { type: printerConfig.type.toUpperCase() }));
+    // System (browser) printing batches every receipt into one print window;
+    // hardware transports stream them one at a time.
+    if (printerConfig.type === 'system') {
+      const outcome = printTransactions(txsToPrint, settings, printerConfig);
+      if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+      return;
+    }
+    for (const tx of txsToPrint) {
+      const outcome = await printReceipt(tx, settings, printerConfig);
+      if (outcome !== 'printed') {
+        notifyPrint(outcome);
+        break;
+      }
+    }
   };
 
   const getPaymentIcon = (method: SaleTransaction['paymentMethod']) => {
@@ -800,14 +819,34 @@ export default function History() {
               </div>
             </div>
 
-            {/* Print trigger footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-100">
+            {/* Print / share footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
               <button
                 onClick={() => handlePrintReceipt(activeTransaction)}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold text-xs py-2.5 rounded-xl flex items-center justify-center space-x-1.5 transition-colors shadow-md shadow-slate-900/10"
+                className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold text-xs py-2.5 rounded-xl flex items-center justify-center space-x-1.5 transition-colors shadow-md shadow-slate-900/10"
               >
                 <Printer size={14} />
                 <span>{t('history.printCopyReceipt')}</span>
+              </button>
+              <button
+                onClick={() => shareReceipt(activeTransaction, settings)}
+                title={t('register.share')}
+                className="px-3 py-2.5 border border-slate-200 hover:bg-white text-slate-600 rounded-xl transition-colors shadow-sm"
+              >
+                <Share2 size={14} />
+              </button>
+              <button
+                onClick={() =>
+                  emailReceipt(
+                    activeTransaction,
+                    settings,
+                    customers.find((c) => c.id === activeTransaction.customerId)?.email || undefined,
+                  )
+                }
+                title={t('register.email')}
+                className="px-3 py-2.5 border border-slate-200 hover:bg-white text-slate-600 rounded-xl transition-colors shadow-sm"
+              >
+                <Mail size={14} />
               </button>
             </div>
           </>

@@ -10,4 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Pushes the latest public catalog/settings snapshot to the embedded menu
   // server. The renderer sends only customer-safe fields (no cost/stock).
   updateMenuData: (data) => ipcRenderer.send('update-menu-data', data),
+  // Streams a raw ESC/POS byte array to a network thermal printer over TCP.
+  // Resolves true on success. { ip, port, data:number[] }.
+  printEscpos: (payload) => ipcRenderer.invoke('print-escpos', payload),
 });

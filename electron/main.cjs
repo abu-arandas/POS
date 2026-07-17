@@ -3,6 +3,7 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const os = require('os');
+const net = require('net');
 
 let menuData = { products: [], categories: [], settings: {} };
 
@@ -61,6 +62,35 @@ ipcMain.handle('get-menu-info', () => {
 
 ipcMain.on('update-menu-data', (event, data) => {
   menuData = data;
+});
+
+// Streams raw ESC/POS bytes to a network thermal printer (RAW/JetDirect on TCP
+// 9100). Resolves true on a clean write, false on any socket error/timeout.
+ipcMain.handle('print-escpos', (event, payload) => {
+  const { ip, port = 9100, data } = payload || {};
+  return new Promise((resolve) => {
+    if (!ip || !Array.isArray(data)) {
+      resolve(false);
+      return;
+    }
+    const socket = new net.Socket();
+    let settled = false;
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(ok);
+    };
+    socket.setTimeout(5000);
+    socket.on('timeout', () => done(false));
+    socket.on('error', (err) => {
+      console.error('ESC/POS network print error:', err.message);
+      done(false);
+    });
+    socket.connect(port, ip, () => {
+      socket.write(Buffer.from(data), () => socket.end(() => done(true)));
+    });
+  });
 });
 
 // Keep a global reference of the window object, if you don't, the window will

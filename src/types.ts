@@ -76,6 +76,20 @@ export interface SaleTransaction {
   refundedAmount?: number; // cumulative currency refunded
   refundDate?: string | null;
   refundAuthorizedBy?: string | null; // staff member who authorized the refund
+  shiftId?: string | null; // the register shift this sale belongs to
+}
+
+// A register/drawer session between an open (starting float) and close (counted
+// cash → variance). Shifts are terminal-local: they describe one physical drawer.
+export interface Shift {
+  id: string;
+  openedAt: string;
+  openedBy: string; // operator name
+  openingFloat: number; // starting cash in the drawer
+  closedAt?: string | null;
+  closedBy?: string | null;
+  countedCash?: number | null; // physically counted at close
+  note?: string | null;
 }
 
 // A cart parked for later (the "hold order" workflow). Product snapshots mirror

@@ -13,6 +13,8 @@ import {
   Clock,
   Trash2,
   Play,
+  Share2,
+  Mail,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, SaleTransaction, HeldOrder, Payment, PaymentMethod } from '../types';
@@ -24,10 +26,12 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { useHeldOrderStore } from '../stores/heldOrderStore';
+import { useShiftStore } from '../stores/shiftStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { shortId } from '../lib/ids';
-import { printTransactions } from '../lib/receiptPrinter';
+import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
+import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useTranslation } from 'react-i18next';
 
@@ -39,6 +43,7 @@ export default function Register() {
   const { addTransaction } = useTransactionStore();
   const { currentUser } = useAuthStore();
   const { heldOrders, holdOrder, removeHeldOrder } = useHeldOrderStore();
+  const currentShiftId = useShiftStore((s) => s.currentShiftId);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -338,6 +343,7 @@ export default function Register() {
       operatorName: currentUser?.name ?? null,
       pointsEarned,
       status: 'completed',
+      shiftId: currentShiftId,
     };
 
     // Decrement stock on the LIVE product records. The cart holds snapshots
@@ -378,17 +384,21 @@ export default function Register() {
     clearCart();
 
     if (printerConfig.autoPrintOnCheckout) {
-      const outcome = printTransactions([transaction], settings, printerConfig);
-      if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+      printReceipt(transaction, settings, printerConfig).then(notifyPrint);
     }
   };
 
-  const handlePrintActiveReceipt = () => {
-    if (!activeReceipt) return;
-    const outcome = printTransactions([activeReceipt], settings, printerConfig);
+  const notifyPrint = (outcome: HardwarePrintOutcome) => {
     if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
-    else if (outcome === 'esc-pos')
-      alert(t('history.escPosPrintMessage', { type: printerConfig.type.toUpperCase() }));
+    else if (outcome === 'unsupported')
+      alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
+    else if (outcome === 'no-device') alert(t('print.noDevice'));
+    else if (outcome === 'error') alert(t('print.error'));
+  };
+
+  const handlePrintActiveReceipt = async () => {
+    if (!activeReceipt) return;
+    notifyPrint(await printReceipt(activeReceipt, settings, printerConfig));
   };
 
   return (
@@ -1034,17 +1044,38 @@ export default function Register() {
                 </div>
               </div>
 
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-4">
-                <button
-                  onClick={handlePrintActiveReceipt}
-                  className="flex-1 flex justify-center items-center gap-2 px-4 py-3 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-semibold transition-colors shadow-sm"
-                >
-                  <Printer size={16} />
-                  <span>{t('register.print')}</span>
-                </button>
+              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePrintActiveReceipt}
+                    className="flex-1 flex justify-center items-center gap-2 px-3 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-colors shadow-sm"
+                  >
+                    <Printer size={15} />
+                    <span>{t('register.print')}</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const r = await shareReceipt(activeReceipt, settings);
+                      if (r === 'copied') setScanFeedback({ ok: true, text: t('register.copied') });
+                    }}
+                    className="flex-1 flex justify-center items-center gap-2 px-3 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-colors shadow-sm"
+                  >
+                    <Share2 size={15} />
+                    <span>{t('register.share')}</span>
+                  </button>
+                  <button
+                    onClick={() =>
+                      emailReceipt(activeReceipt, settings, activeCustomer?.email || undefined)
+                    }
+                    className="flex-1 flex justify-center items-center gap-2 px-3 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-colors shadow-sm"
+                  >
+                    <Mail size={15} />
+                    <span>{t('register.email')}</span>
+                  </button>
+                </div>
                 <button
                   onClick={() => setReceiptModalOpen(false)}
-                  className="flex-1 px-4 py-3 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl text-sm font-bold shadow-md shadow-slate-900/10 transition-colors"
+                  className="w-full px-4 py-3 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl text-sm font-bold shadow-md shadow-slate-900/10 transition-colors"
                 >
                   {t('register.newSale')}
                 </button>

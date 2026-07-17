@@ -236,6 +236,7 @@ export async function pushTransactions(
       refunded_amount: t.refundedAmount ?? null,
       refund_date: t.refundDate || null,
       refund_authorized_by: t.refundAuthorizedBy || null,
+      shift_id: t.shiftId || null,
     }));
     const { error } = await client.from('transactions').upsert(records);
     if (error) throw error;
@@ -299,6 +300,7 @@ export async function pullTransactions(client: SupabaseClient): Promise<SaleTran
       refundedAmount: r.refunded_amount != null ? Number(r.refunded_amount) : undefined,
       refundDate: r.refund_date,
       refundAuthorizedBy: r.refund_authorized_by ?? null,
+      shiftId: r.shift_id ?? null,
     }));
   } catch (err) {
     console.error('Failed pulling transactions:', err);

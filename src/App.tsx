@@ -9,6 +9,7 @@ import {
   Menu,
   X as XIcon,
   QrCode,
+  Clock,
   Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -24,6 +25,7 @@ const Customers = lazy(() => import('./components/Customers'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const Settings = lazy(() => import('./components/Settings'));
 const QRMenu = lazy(() => import('./components/QRMenu'));
+const ShiftScreen = lazy(() => import('./components/ShiftScreen'));
 import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
@@ -116,6 +118,8 @@ export default function App() {
         return <Customers />;
       case 'dashboard':
         return <Dashboard />;
+      case 'shift':
+        return <ShiftScreen />;
       case 'qrmenu':
         return <QRMenu />;
       case 'settings':
@@ -141,6 +145,7 @@ export default function App() {
     },
     { id: 'history', label: t('sidebar.transactions'), icon: HistoryIcon },
     { id: 'customers', label: t('sidebar.customers'), icon: Users },
+    { id: 'shift', label: t('sidebar.shift'), icon: Clock },
     { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode },
     { id: 'settings', label: t('sidebar.settings'), icon: SettingsIcon },
   ];
