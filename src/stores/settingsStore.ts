@@ -21,6 +21,7 @@ interface SettingsState {
 const DEFAULT_PRINTER: PrinterConfig = {
   type: 'system',
   paperSize: '80mm',
+  codepage: 'ascii',
   showBarcode: true,
   footerMessage: 'Thank you for shopping with us!',
   autoPrintOnCheckout: true,

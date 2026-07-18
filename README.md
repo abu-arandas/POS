@@ -14,7 +14,7 @@ A modern, high-performance, cross-platform Point of Sale (POS) system built with
 - **Split Payments:** Settle one sale across multiple tenders (cash + card + mobile + gift) with live change.
 - **Partial & Line-Item Refunds:** Return specific items/quantities; tax and loyalty points are prorated automatically, with a manager override for cashiers.
 - **Shifts & Cash Drawer:** Open/close register shifts with a starting float and a reconciled Z-report (expected vs. counted cash).
-- **Receipts, Your Way:** On-screen thermal receipts, **real ESC/POS printing** (Web Serial or a network TCP printer), plus **digital delivery** (share / email).
+- **Receipts, Your Way:** On-screen thermal receipts, **real ESC/POS printing** (Web Serial or a network TCP printer) with selectable ASCII / Latin-1 character encoding (accents fold to their base letter in ASCII mode; use the System printer type for Arabic receipts), plus **digital delivery** (share / email).
 - **Drag & Drop Customization:** Rearrange products on the register screen using an intuitive drag-and-drop edit mode.
 - **QR Menu Generator:** Automatically generate and print digital QR codes so customers can browse your menu on their phones.
 - **Customer Loyalty System:** Link customers to transactions to award or deduct loyalty points directly at checkout.

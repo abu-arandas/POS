@@ -7,20 +7,71 @@ import { SaleTransaction, StoreSettings, PrinterConfig } from '../types';
 const ESC = 0x1b;
 const GS = 0x1d;
 
+export type EscPosCodepage = 'ascii' | 'latin1';
+
+// Windows-1252 bytes for the characters that sit outside Latin-1's 0xA0–0xFF
+// block (the 0x80–0x9F range CP1252 repurposes). Everything in 0xA0–0xFF maps
+// 1:1 from the Unicode code point.
+const CP1252_EXTRAS: Record<number, number> = {
+  0x20ac: 0x80, // €
+  0x201a: 0x82, // ‚
+  0x0192: 0x83, // ƒ
+  0x201e: 0x84, // „
+  0x2026: 0x85, // …
+  0x2020: 0x86, // †
+  0x2021: 0x87, // ‡
+  0x2030: 0x89, // ‰
+  0x0160: 0x8a, // Š
+  0x2039: 0x8b, // ‹
+  0x0152: 0x8c, // Œ
+  0x017d: 0x8e, // Ž
+  0x2018: 0x91, // '
+  0x2019: 0x92, // '
+  0x201c: 0x93, // "
+  0x201d: 0x94, // "
+  0x2022: 0x95, // •
+  0x2013: 0x96, // –
+  0x2014: 0x97, // —
+  0x2122: 0x99, // ™
+  0x0161: 0x9a, // š
+  0x203a: 0x9b, // ›
+  0x0153: 0x9c, // œ
+  0x017e: 0x9e, // ž
+  0x0178: 0x9f, // Ÿ
+};
+
 class EscPosBuilder {
   private chunks: number[] = [];
   private enc = new TextEncoder();
+
+  constructor(private codepage: EscPosCodepage = 'ascii') {}
 
   raw(...bytes: number[]) {
     this.chunks.push(...bytes);
     return this;
   }
-  text(s: string) {
-    // Latin-1-ish: printers choke on multibyte; strip to ASCII-safe bytes.
-    for (const ch of s) {
-      const code = ch.codePointAt(0) ?? 63;
-      this.chunks.push(code > 0x7f ? 0x3f /* '?' */ : code);
+  // Encodes one character for the active codepage. ASCII passes through;
+  // in 'latin1' mode accented Latin and CP1252 punctuation/€ print natively;
+  // anything else has its diacritics folded away (é→e) and finally becomes
+  // '?'. Arabic (and other non-Latin scripts) cannot be rendered by ESC/POS
+  // text mode — the system printer type handles those receipts.
+  private encodeChar(ch: string): number {
+    const code = ch.codePointAt(0) ?? 0x3f;
+    if (code >= 0x20 && code <= 0x7e) return code;
+    if (this.codepage === 'latin1') {
+      if (code >= 0xa0 && code <= 0xff) return code;
+      const extra = CP1252_EXTRAS[code];
+      if (extra !== undefined) return extra;
     }
+    const folded = ch.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (folded !== ch && folded.length === 1) {
+      const base = folded.codePointAt(0)!;
+      if (base >= 0x20 && base <= 0x7e) return base;
+    }
+    return 0x3f; // '?'
+  }
+  text(s: string) {
+    for (const ch of s) this.chunks.push(this.encodeChar(ch));
     return this;
   }
   line(s = '') {
@@ -28,8 +79,11 @@ class EscPosBuilder {
     return this;
   }
   init() {
-    return this.raw(ESC, 0x40);
-  } // ESC @  (reset)
+    this.raw(ESC, 0x40); // ESC @  (reset)
+    // ESC t 16 selects the WPC1252 character code table (Epson-compatible).
+    if (this.codepage === 'latin1') this.raw(ESC, 0x74, 16);
+    return this;
+  }
   align(a: 'left' | 'center' | 'right') {
     return this.raw(ESC, 0x61, a === 'center' ? 1 : a === 'right' ? 2 : 0);
   }
@@ -79,7 +133,7 @@ export function encodeReceipt(
 ): Uint8Array {
   const width = printerConfig.paperSize === '58mm' ? 32 : 48;
   const cur = settings.currency;
-  const b = new EscPosBuilder();
+  const b = new EscPosBuilder(printerConfig.codepage ?? 'ascii');
 
   b.init().align('center').bold(true).doubleHeight(true).line(settings.storeName);
   b.doubleHeight(false).bold(false);

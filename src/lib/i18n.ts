@@ -126,6 +126,11 @@ const en = {
       paperSize: 'Paper Width',
       ipAddress: 'Printer IP Address',
       baudRate: 'Baud Rate',
+      charEncoding: 'Character Encoding',
+      encodingAscii: 'ASCII (safest — accents folded, é→e)',
+      encodingLatin1: 'Latin-1 / Windows-1252 (accents and € print natively)',
+      encodingHint:
+        'Thermal printers cannot render Arabic text in ESC/POS mode — use the System (browser) printer type for Arabic receipts.',
       showBarcode: 'Print barcode on receipts',
       autoPrint: 'Auto-print receipt on checkout',
       footerMessage: 'Receipt Footer Message',
@@ -614,6 +619,11 @@ const ar = {
       paperSize: 'عرض الورق',
       ipAddress: 'عنوان IP للطابعة',
       baudRate: 'معدل الباود',
+      charEncoding: 'ترميز الأحرف',
+      encodingAscii: 'ASCII (الأكثر توافقًا — تُبسَّط الحروف المُشكَّلة، é→e)',
+      encodingLatin1: 'لاتيني-1 / Windows-1252 (تُطبع الحروف الأوروبية و€ كما هي)',
+      encodingHint:
+        'الطابعات الحرارية لا تستطيع طباعة النص العربي في وضع ESC/POS — استخدم نوع طابعة النظام (المتصفح) لإيصالات بالعربية.',
       showBarcode: 'طباعة الباركود على الإيصالات',
       autoPrint: 'طباعة الإيصال تلقائيًا عند الدفع',
       footerMessage: 'رسالة تذييل الإيصال',

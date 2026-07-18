@@ -75,13 +75,39 @@ describe('encodeReceipt', () => {
     ).toBe(false);
   });
 
-  it('replaces multibyte characters with ASCII (no raw high bytes from text)', () => {
+  it('folds accents to their base letter in ASCII mode (é→e, not ?)', () => {
     const out = encodeReceipt({ ...tx, customerName: 'Café Zoë ☕' }, settings, printer);
-    // The name becomes '?' placeholders; ensure it did not crash and stays byte-safe.
     const ascii = bytes(out)
       .filter((b) => b >= 32 && b < 127)
       .map((b) => String.fromCharCode(b))
       .join('');
     expect(ascii).toContain('MEMBER');
+    expect(ascii).toContain('Cafe Zoe ?'); // accents folded; the emoji stays '?'
+    // Nothing outside printable ASCII / control bytes leaks from text.
+    expect(bytes(out).every((b) => b <= 0x7e || b === 0xfa)).toBe(true); // 0xfa = drawer pulse arg
+  });
+
+  it('selects WPC1252 and prints accents/€ natively in latin1 mode', () => {
+    const out = encodeReceipt(
+      { ...tx, customerName: 'Café' },
+      { ...settings, currency: '€' },
+      { ...printer, codepage: 'latin1' },
+    );
+    expect(findSeq(out, [0x1b, 0x74, 16])).toBe(true); // ESC t 16 after init
+    expect(bytes(out)).toContain(0xe9); // é
+    expect(bytes(out)).toContain(0x80); // € (CP1252)
+  });
+
+  it('still folds unmappable characters in latin1 mode', () => {
+    const out = encodeReceipt({ ...tx, customerName: 'Škoda ☕' }, settings, {
+      ...printer,
+      codepage: 'latin1',
+    });
+    expect(bytes(out)).toContain(0x8a); // Š maps via the CP1252 extras table
+    const ascii = bytes(out)
+      .filter((b) => b >= 32 && b < 127)
+      .map((b) => String.fromCharCode(b))
+      .join('');
+    expect(ascii).toContain('koda ?'); // the emoji still degrades to '?'
   });
 });

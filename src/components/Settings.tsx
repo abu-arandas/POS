@@ -596,6 +596,30 @@ export default function Settings() {
                         />
                       </div>
                     )}
+                    {printerForm.type !== 'system' && (
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                          {t('settings.charEncoding')}
+                        </label>
+                        <select
+                          id="printer-codepage"
+                          value={printerForm.codepage ?? 'ascii'}
+                          onChange={(e) =>
+                            setPrinterForm({
+                              ...printerForm,
+                              codepage: e.target.value as PrinterConfig['codepage'],
+                            })
+                          }
+                          className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
+                        >
+                          <option value="ascii">{t('settings.encodingAscii')}</option>
+                          <option value="latin1">{t('settings.encodingLatin1')}</option>
+                        </select>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">
+                          {t('settings.encodingHint')}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div>

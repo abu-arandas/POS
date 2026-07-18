@@ -164,6 +164,11 @@ export interface PrinterConfig {
   paperSize: '58mm' | '80mm';
   ipAddress?: string;
   baudRate?: number;
+  // ESC/POS character handling: 'ascii' (default, safest — accents folded to
+  // their base letter) or 'latin1' (selects the printer's Windows-1252 table,
+  // so Western European accents and € print natively). Arabic text cannot be
+  // rendered by ESC/POS text mode — use the 'system' printer type for that.
+  codepage?: 'ascii' | 'latin1';
   showBarcode: boolean;
   footerMessage: string;
   autoPrintOnCheckout: boolean;
