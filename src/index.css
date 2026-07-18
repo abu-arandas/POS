@@ -261,6 +261,16 @@
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
 
+/* In dark mode every .glass panel adopts the dark treatment. The markup's
+   `dark:glass-dark` pattern is inert — Tailwind variants only apply to real
+   utilities, not plain CSS classes — so this override is what actually
+   switches the panels; without it they stay frosted-white on the dark theme. */
+.dark .glass {
+  background: rgba(15, 23, 42, 0.5);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
 /* ─── Gradient Text ──────────────────────────────────────────────────────── */
 .text-gradient-emerald {
   background: linear-gradient(135deg, #10b981, #34d399);
