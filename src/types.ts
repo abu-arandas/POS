@@ -50,7 +50,11 @@ export interface RefundedItem {
 }
 
 export interface SaleTransaction {
-  id: string; // Receipt number (e.g., TX-10001)
+  id: string; // Receipt number (e.g., TX-10001) — globally unique, for audit
+  // Daily order number (1, 2, 3…) printed big on receipts and kitchen
+  // tickets for calling out orders. Resets automatically every day — it is
+  // derived from the highest number among today's sales (see lib/checkout.ts).
+  orderNumber?: number;
   date: string;
   items: OrderItem[];
   subtotal: number;
@@ -157,6 +161,18 @@ export interface UserAccount {
   pin: string; // 4-digit entry passcode
   active: boolean;
   createdAt: string;
+}
+
+// Second printer for the kitchen: automatically prints a prep ticket (order
+// number + items, no prices) for every completed sale, alongside the customer
+// receipt on the main printer (e.g. front thermal + kitchen LAN printer).
+export interface KitchenPrinterConfig {
+  enabled: boolean;
+  type: 'system' | 'serial' | 'network';
+  paperSize: '58mm' | '80mm';
+  ipAddress?: string;
+  baudRate?: number;
+  codepage?: 'ascii' | 'latin1';
 }
 
 export interface PrinterConfig {

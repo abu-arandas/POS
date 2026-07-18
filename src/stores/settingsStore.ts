@@ -1,18 +1,20 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { StoreSettings, PrinterConfig, SupabaseConfig } from '../types';
+import { StoreSettings, PrinterConfig, KitchenPrinterConfig, SupabaseConfig } from '../types';
 import { INITIAL_SETTINGS } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
 
 interface SettingsState {
   settings: StoreSettings;
   printerConfig: PrinterConfig;
+  kitchenPrinterConfig: KitchenPrinterConfig;
   supabaseConfig: SupabaseConfig;
   darkMode: boolean;
   language: 'en' | 'ar';
 
   setSettings: (settings: StoreSettings) => void;
   setPrinterConfig: (config: PrinterConfig) => void;
+  setKitchenPrinterConfig: (config: KitchenPrinterConfig) => void;
   setSupabaseConfig: (config: SupabaseConfig) => void;
   setDarkMode: (darkMode: boolean) => void;
   setLanguage: (lang: 'en' | 'ar') => void;
@@ -27,6 +29,13 @@ const DEFAULT_PRINTER: PrinterConfig = {
   autoPrintOnCheckout: true,
 };
 
+const DEFAULT_KITCHEN_PRINTER: KitchenPrinterConfig = {
+  enabled: false,
+  type: 'network',
+  paperSize: '80mm',
+  codepage: 'ascii',
+};
+
 const DEFAULT_SUPABASE: SupabaseConfig = {
   url: '',
   anonKey: '',
@@ -39,12 +48,14 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       settings: INITIAL_SETTINGS,
       printerConfig: DEFAULT_PRINTER,
+      kitchenPrinterConfig: DEFAULT_KITCHEN_PRINTER,
       supabaseConfig: DEFAULT_SUPABASE,
       darkMode: false,
       language: 'en',
 
       setSettings: (settings) => set({ settings }),
       setPrinterConfig: (printerConfig) => set({ printerConfig }),
+      setKitchenPrinterConfig: (kitchenPrinterConfig) => set({ kitchenPrinterConfig }),
       setSupabaseConfig: (supabaseConfig) => set({ supabaseConfig }),
       setDarkMode: (darkMode) => {
         // Apply the theme class immediately; without this the `dark:` variants

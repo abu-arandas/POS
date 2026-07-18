@@ -29,6 +29,7 @@ export function downloadCsv(filename: string, csv: string): void {
 export function transactionsToCsvRows(txns: SaleTransaction[]): Array<Record<string, unknown>> {
   return txns.map((t) => ({
     id: t.id,
+    order_number: t.orderNumber ?? '',
     date: new Date(t.date).toISOString(),
     status: t.status,
     items: t.items.reduce((n, i) => n + i.quantity, 0),

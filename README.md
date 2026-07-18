@@ -15,6 +15,8 @@ A modern, high-performance, cross-platform Point of Sale (POS) system built with
 - **Partial & Line-Item Refunds:** Return specific items/quantities; tax and loyalty points are prorated automatically, with a manager override for cashiers.
 - **Shifts & Cash Drawer:** Open/close register shifts with a starting float and a reconciled Z-report (expected vs. counted cash).
 - **Receipts, Your Way:** On-screen thermal receipts, **real ESC/POS printing** (Web Serial or a network TCP printer) with selectable ASCII / Latin-1 character encoding (accents fold to their base letter in ASCII mode; use the System printer type for Arabic receipts), plus **digital delivery** (share / email).
+- **Daily Order Numbers:** Every sale gets a big, easy-to-call order number that automatically resets to 1 at the start of each day — printed on the customer receipt and the kitchen ticket.
+- **Dual Printers (front + kitchen):** A second, independently-configured kitchen printer auto-prints a prep ticket (order number + items, no prices) for every sale, alongside the customer receipt on the front printer.
 - **Drag & Drop Customization:** Rearrange products on the register screen using an intuitive drag-and-drop edit mode.
 - **QR Menu Generator:** Automatically generate and print digital QR codes so customers can browse your menu on their phones.
 - **Customer Loyalty System:** Link customers to transactions to award or deduct loyalty points directly at checkout.

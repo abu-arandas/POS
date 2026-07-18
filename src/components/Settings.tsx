@@ -15,7 +15,7 @@ import {
   X,
   Shield,
 } from 'lucide-react';
-import { StoreSettings, UserAccount, PrinterConfig } from '../types';
+import { StoreSettings, UserAccount, PrinterConfig, KitchenPrinterConfig } from '../types';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
@@ -44,6 +44,8 @@ export default function Settings() {
     setSupabaseConfig,
     printerConfig,
     setPrinterConfig,
+    kitchenPrinterConfig,
+    setKitchenPrinterConfig,
   } = useSettingsStore();
   const { products, categories, setProducts, setCategories } = useProductStore();
   const { customers, setCustomers } = useCustomerStore();
@@ -63,6 +65,7 @@ export default function Settings() {
 
   // --- Printer config form state (seeded from persisted config) ---
   const [printerForm, setPrinterForm] = useState<PrinterConfig>(printerConfig);
+  const [kitchenForm, setKitchenForm] = useState<KitchenPrinterConfig>(kitchenPrinterConfig);
 
   const openAddUser = () => {
     setEditingUser(null);
@@ -145,6 +148,7 @@ export default function Settings() {
 
   const handleSavePrinter = () => {
     setPrinterConfig(printerForm);
+    setKitchenPrinterConfig(kitchenForm);
     alert(t('settings.printerSaved'));
   };
 
@@ -663,6 +667,110 @@ export default function Settings() {
                       {t('settings.autoPrint')}
                     </span>
                   </label>
+
+                  {/* Kitchen printer — a second printer that auto-prints a prep
+                      ticket (order number + items, no prices) for every sale. */}
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                    <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer">
+                      <input
+                        id="kitchen-enabled"
+                        type="checkbox"
+                        checked={kitchenForm.enabled}
+                        onChange={(e) =>
+                          setKitchenForm({ ...kitchenForm, enabled: e.target.checked })
+                        }
+                        className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                      />
+                      <span>
+                        <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">
+                          {t('settings.kitchenPrinter')}
+                        </span>
+                        <span className="block text-xs text-slate-500 mt-0.5">
+                          {t('settings.kitchenPrinterHint')}
+                        </span>
+                      </span>
+                    </label>
+
+                    {kitchenForm.enabled && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pl-1">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                            {t('settings.connectionType')}
+                          </label>
+                          <select
+                            id="kitchen-type"
+                            value={kitchenForm.type}
+                            onChange={(e) =>
+                              setKitchenForm({
+                                ...kitchenForm,
+                                type: e.target.value as KitchenPrinterConfig['type'],
+                              })
+                            }
+                            className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
+                          >
+                            <option value="network">{t('settings.printerNetwork')}</option>
+                            <option value="serial">{t('settings.printerSerial')}</option>
+                            <option value="system">{t('settings.printerSystem')}</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                            {t('settings.paperSize')}
+                          </label>
+                          <select
+                            value={kitchenForm.paperSize}
+                            onChange={(e) =>
+                              setKitchenForm({
+                                ...kitchenForm,
+                                paperSize: e.target.value as KitchenPrinterConfig['paperSize'],
+                              })
+                            }
+                            className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
+                          >
+                            <option value="58mm">58mm</option>
+                            <option value="80mm">80mm</option>
+                          </select>
+                        </div>
+                        {kitchenForm.type === 'network' && (
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                              {t('settings.ipAddress')}
+                            </label>
+                            <input
+                              id="kitchen-ip"
+                              type="text"
+                              dir="ltr"
+                              placeholder="192.168.1.51"
+                              value={kitchenForm.ipAddress || ''}
+                              onChange={(e) =>
+                                setKitchenForm({ ...kitchenForm, ipAddress: e.target.value })
+                              }
+                              className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100 font-mono text-sm"
+                            />
+                          </div>
+                        )}
+                        {kitchenForm.type === 'serial' && (
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                              {t('settings.baudRate')}
+                            </label>
+                            <input
+                              type="number"
+                              placeholder="9600"
+                              value={kitchenForm.baudRate ?? ''}
+                              onChange={(e) =>
+                                setKitchenForm({
+                                  ...kitchenForm,
+                                  baudRate: e.target.value ? parseInt(e.target.value) : undefined,
+                                })
+                              }
+                              className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100 font-mono text-sm"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encodeReceipt } from './escpos';
+import { encodeReceipt, encodeKitchenTicket } from './escpos';
 import { SaleTransaction, StoreSettings, PrinterConfig } from '../types';
 
 const settings: StoreSettings = {
@@ -20,6 +20,7 @@ const printer: PrinterConfig = {
 };
 const tx: SaleTransaction = {
   id: 'TX-1',
+  orderNumber: 7,
   date: '2026-07-16T10:00:00.000Z',
   items: [{ productId: 'p', productName: 'Latte', price: 4.5, cost: 0.9, quantity: 2, total: 9 }],
   subtotal: 9,
@@ -63,6 +64,7 @@ describe('encodeReceipt', () => {
     expect(ascii).toContain('Test Store');
     expect(ascii).toContain('2x Latte');
     expect(ascii).toContain('TX-1');
+    expect(ascii).toContain('ORDER #7'); // daily order number printed on the receipt
   });
 
   it('kicks the drawer only when the caller asks for it (cash checkout, not reprints)', () => {
@@ -109,5 +111,32 @@ describe('encodeReceipt', () => {
       .map((b) => String.fromCharCode(b))
       .join('');
     expect(ascii).toContain('koda ?'); // the emoji still degrades to '?'
+  });
+});
+
+describe('encodeKitchenTicket', () => {
+  const ascii = (u: Uint8Array) =>
+    bytes(u)
+      .filter((b) => b >= 32 && b < 127)
+      .map((b) => String.fromCharCode(b))
+      .join('');
+
+  it('prints the order number and items but never prices or totals', () => {
+    const out = encodeKitchenTicket(tx, { paperSize: '80mm' });
+    const text = ascii(out);
+    expect(text).toContain('KITCHEN');
+    expect(text).toContain('ORDER #7');
+    expect(text).toContain('2x Latte');
+    // No monetary figures leak onto the kitchen ticket.
+    expect(text).not.toContain('9.00');
+    expect(text).not.toContain('TOTAL');
+    expect(text).not.toContain('$');
+  });
+
+  it('starts with ESC @ init and ends with a full cut', () => {
+    const out = encodeKitchenTicket(tx, { paperSize: '58mm' });
+    expect(out[0]).toBe(0x1b);
+    expect(out[1]).toBe(0x40);
+    expect(findSeq(out, [0x1d, 0x56, 0x00])).toBe(true);
   });
 });

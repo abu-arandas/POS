@@ -30,8 +30,8 @@ import { useShiftStore } from '../stores/shiftStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { shortId } from '../lib/ids';
-import { buildSaleTransaction } from '../lib/checkout';
-import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
+import { buildSaleTransaction, nextDailyOrderNumber } from '../lib/checkout';
+import { printReceipt, printKitchenTicket, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useTranslation } from 'react-i18next';
@@ -40,7 +40,7 @@ export default function Register() {
   const { t } = useTranslation();
   const { handleUpdateProduct } = useProductStore();
   const { customers, handleAddCustomer, updateCustomerPoints } = useCustomerStore();
-  const { settings, printerConfig } = useSettingsStore();
+  const { settings, printerConfig, kitchenPrinterConfig } = useSettingsStore();
   const { addTransaction } = useTransactionStore();
   const { currentUser } = useAuthStore();
   const { heldOrders, holdOrder, removeHeldOrder } = useHeldOrderStore();
@@ -296,6 +296,8 @@ export default function Register() {
       // Globally-unique receipt ID: TX-<8 hex>. Avoids the previous TX-{max+1}
       // scheme, which collided when two terminals shared one cloud database.
       id: `TX-${shortId().toUpperCase()}`,
+      // Daily order number, reset automatically each day from today's sales.
+      orderNumber: nextDailyOrderNumber(useTransactionStore.getState().transactions),
       date: new Date().toISOString(),
       items: cartItems,
       totals: { subtotal, discountAmount, taxAmount, totalAmount },
@@ -372,6 +374,13 @@ export default function Register() {
       printReceipt(transaction, settings, printerConfig, { openDrawer: tookCash }).then(
         notifyPrint,
       );
+    }
+    // Kitchen prep ticket, fired for every sale when the kitchen printer is on.
+    // No-op when disabled; a kitchen-printer failure never blocks the sale.
+    if (kitchenPrinterConfig.enabled) {
+      printKitchenTicket(transaction, settings, kitchenPrinterConfig).then((outcome) => {
+        if (outcome !== 'printed') console.warn('Kitchen ticket print outcome:', outcome);
+      });
     }
   };
 
@@ -929,6 +938,14 @@ export default function Register() {
                       {settings.storePhone}
                     </p>
                   </div>
+
+                  {activeReceipt.orderNumber !== undefined && (
+                    <div className="text-center border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
+                      <span className="font-bold text-slate-900 dark:text-white text-2xl tracking-wide">
+                        {t('register.orderNumber')} #{activeReceipt.orderNumber}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="space-y-1.5 text-[10px] border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
                     <div className="flex justify-between">

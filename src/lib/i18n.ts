@@ -136,6 +136,9 @@ const en = {
       footerMessage: 'Receipt Footer Message',
       savePrinter: 'Save Printer Settings',
       printerSaved: 'Printer settings saved.',
+      kitchenPrinter: 'Kitchen Printer',
+      kitchenPrinterHint:
+        'Auto-print a prep ticket (order number + items, no prices) to a second printer for every sale.',
       cancel: 'Cancel',
     },
     lockscreen: {
@@ -273,6 +276,7 @@ const en = {
       saveLink: 'Save & Link',
       paymentSuccessful: 'Payment Successful!',
       receipt: 'Receipt',
+      orderNumber: 'ORDER',
       operator: 'OPERATOR',
       member: 'MEMBER',
       totalPaid: 'TOTAL PAID',
@@ -629,6 +633,9 @@ const ar = {
       footerMessage: 'رسالة تذييل الإيصال',
       savePrinter: 'حفظ إعدادات الطابعة',
       printerSaved: 'تم حفظ إعدادات الطابعة.',
+      kitchenPrinter: 'طابعة المطبخ',
+      kitchenPrinterHint:
+        'طباعة تذكرة تحضير تلقائيًا (رقم الطلب + الأصناف، بدون أسعار) على طابعة ثانية لكل عملية بيع.',
       cancel: 'إلغاء',
     },
     lockscreen: {
@@ -766,6 +773,7 @@ const ar = {
       saveLink: 'حفظ وربط',
       paymentSuccessful: 'تم الدفع بنجاح!',
       receipt: 'إيصال',
+      orderNumber: 'طلب',
       operator: 'الموظف',
       member: 'العضو',
       totalPaid: 'إجمالي المدفوع',

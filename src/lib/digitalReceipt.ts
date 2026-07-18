@@ -9,6 +9,7 @@ export function receiptPlainText(tx: SaleTransaction, settings: StoreSettings): 
   if (settings.storeAddress) lines.push(settings.storeAddress);
   if (settings.storePhone) lines.push(settings.storePhone);
   lines.push('');
+  if (tx.orderNumber !== undefined) lines.push(`Order #${tx.orderNumber}`);
   lines.push(`Receipt: ${tx.id}`);
   lines.push(`Date: ${new Date(tx.date).toLocaleString()}`);
   if (tx.operatorName) lines.push(`Served by: ${tx.operatorName}`);

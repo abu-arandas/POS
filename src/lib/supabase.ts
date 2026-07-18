@@ -249,6 +249,7 @@ export async function pushTransactions(
   try {
     const records = transactions.map((t) => ({
       id: t.id,
+      order_number: t.orderNumber ?? null,
       date: t.date,
       items: t.items, // JSONB structure
       subtotal: t.subtotal,
@@ -313,6 +314,7 @@ export async function pullTransactions(client: SupabaseClient): Promise<SaleTran
     if (error) throw error;
     return (data || []).map((r) => ({
       id: r.id,
+      orderNumber: r.order_number != null ? Number(r.order_number) : undefined,
       date: r.date,
       items: r.items as OrderItem[],
       subtotal: Number(r.subtotal),

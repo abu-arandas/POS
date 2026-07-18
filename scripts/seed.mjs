@@ -154,6 +154,7 @@ function generateTransactions() {
 
       transactions.push({
         id: `TX-${txCounter++}`,
+        order_number: s + 1, // resets to 1 at the first sale of each day
         date: txDate.toISOString(),
         items: items,
         subtotal,

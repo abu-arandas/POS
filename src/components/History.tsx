@@ -711,6 +711,12 @@ export default function History() {
                         </span>
                       </div>
                     )}
+                  {activeTransaction.orderNumber !== undefined && (
+                    <div className="flex justify-between font-bold text-slate-900 dark:text-white">
+                      <span>{t('register.orderNumber')}</span>
+                      <span>#{activeTransaction.orderNumber}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span>{t('history.receipt')}</span>
                     <span>{activeTransaction.id}</span>

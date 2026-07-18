@@ -1,4 +1,4 @@
-import { SaleTransaction, StoreSettings, PrinterConfig } from '../types';
+import { SaleTransaction, StoreSettings, PrinterConfig, KitchenPrinterConfig } from '../types';
 import { escapeHtml as esc } from './escapeHtml';
 
 export type PrintOutcome = 'printed' | 'popup-blocked' | 'esc-pos';
@@ -28,6 +28,12 @@ export function buildReceiptHtml(
       <div class="center">${esc(settings.storeAddress)}</div>
       <div class="center">Phone: ${esc(settings.storePhone)}</div>
       <div class="divider"></div>
+
+      ${
+        tx.orderNumber
+          ? `<div class="center order-number">ORDER #${esc(tx.orderNumber)}</div><div class="divider"></div>`
+          : ''
+      }
 
       <div class="flex-row"><span>DATE:</span><span>${esc(new Date(tx.date).toLocaleString())}</span></div>
       <div class="flex-row"><span>RECEIPT:</span><span class="bold">${esc(tx.id)}</span></div>
@@ -154,6 +160,7 @@ export function printTransactions(
           .bold { font-weight: bold; }
           .uppercase { text-transform: uppercase; }
           .text-lg { font-size: 14px; font-weight: bold; }
+          .order-number { font-size: 22px; font-weight: bold; letter-spacing: 1px; }
           .divider { border-top: 1px dashed #000; margin: 8px 0; }
           .logo { text-align: center; margin-bottom: 8px; }
           .logo svg { width: 32px; height: 32px; }
@@ -166,6 +173,57 @@ export function printTransactions(
       </head>
       <body onload="window.print(); window.close();">
         ${receiptsHtml}
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+  return 'printed';
+}
+
+// Kitchen prep ticket for the 'system' printer type: order number + items,
+// no prices. All dynamic values are HTML-escaped.
+export function printKitchenTicketSystem(
+  tx: SaleTransaction,
+  settings: StoreSettings,
+  kitchenConfig: Pick<KitchenPrinterConfig, 'paperSize'>,
+): PrintOutcome {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return 'popup-blocked';
+
+  const rollWidth = kitchenConfig.paperSize === '58mm' ? '58mm' : '80mm';
+  const items = tx.items
+    .map((item) => `<div class="item">${esc(item.quantity)}x ${esc(item.productName)}</div>`)
+    .join('');
+
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>Kitchen Ticket ${esc(tx.id)}</title>
+        <style>
+          body {
+            font-family: 'Courier New', Courier, monospace;
+            width: ${rollWidth};
+            padding: 8px;
+            margin: 0;
+            color: #000;
+          }
+          .center { text-align: center; }
+          .head { font-size: 18px; font-weight: bold; }
+          .order { font-size: 26px; font-weight: bold; margin: 4px 0; }
+          .meta { font-size: 11px; margin-bottom: 8px; }
+          .divider { border-top: 1px dashed #000; margin: 8px 0; }
+          .item { font-size: 18px; font-weight: bold; margin: 4px 0; }
+        </style>
+      </head>
+      <body onload="window.print(); window.close();">
+        <div class="center head">*** KITCHEN ***</div>
+        ${tx.orderNumber ? `<div class="center order">ORDER #${esc(tx.orderNumber)}</div>` : ''}
+        <div class="center meta">
+          ${esc(new Date(tx.date).toLocaleTimeString())}${tx.operatorName ? ` &bull; ${esc(tx.operatorName)}` : ''}
+        </div>
+        <div class="divider"></div>
+        ${items}
+        <div class="divider"></div>
       </body>
     </html>
   `);

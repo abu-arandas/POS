@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { buildSaleTransaction, CheckoutInput } from './checkout';
+import { buildSaleTransaction, nextDailyOrderNumber, CheckoutInput } from './checkout';
+import { SaleTransaction } from '../types';
 
 // $25 cart: 2x10 + 1x5. 10% tax on the (undiscounted) subtotal → total 27.50.
 const base: CheckoutInput = {
   id: 'TX-TEST',
   date: '2026-07-18T10:00:00.000Z',
+  orderNumber: 1,
   items: [
     { productId: 'a', productName: 'A', price: 10, cost: 4, quantity: 2 },
     { productId: 'b', productName: 'B', price: 5, cost: 2, quantity: 1 },
@@ -37,6 +39,7 @@ describe('buildSaleTransaction — single tender', () => {
     expect(tx.operatorName).toBe('Admin');
     expect(tx.shiftId).toBe('shift-1');
     expect(tx.status).toBe('completed');
+    expect(tx.orderNumber).toBe(1);
   });
 
   it('rejects insufficient cash and accepts exact/over tender with change', () => {
@@ -147,5 +150,52 @@ describe('buildSaleTransaction — split tenders', () => {
     expect(tx.payments).toBeUndefined();
     expect(tx.paymentMethod).toBe('cash');
     expect(tx.cashChange).toBe(2.5);
+  });
+});
+
+describe('nextDailyOrderNumber', () => {
+  const sale = (
+    date: string,
+    orderNumber?: number,
+  ): Pick<SaleTransaction, 'date' | 'orderNumber'> => ({
+    date,
+    orderNumber,
+  });
+  const now = new Date('2026-07-18T15:00:00');
+
+  it('starts at 1 with no prior sales', () => {
+    expect(nextDailyOrderNumber([], now)).toBe(1);
+  });
+
+  it('increments past the highest order number used today', () => {
+    const txns = [
+      sale('2026-07-18T08:00:00', 1),
+      sale('2026-07-18T09:30:00', 2),
+      sale('2026-07-18T11:00:00', 3),
+    ];
+    expect(nextDailyOrderNumber(txns, now)).toBe(4);
+  });
+
+  it('resets to 1 on a new day — ignoring yesterday and out-of-order numbers', () => {
+    const txns = [
+      sale('2026-07-17T20:00:00', 42), // yesterday: high number, must be ignored
+      sale('2026-07-16T10:00:00', 99),
+    ];
+    expect(nextDailyOrderNumber(txns, now)).toBe(1);
+  });
+
+  it('uses today’s max even when the array is unsorted and mixes days', () => {
+    const txns = [
+      sale('2026-07-17T20:00:00', 50),
+      sale('2026-07-18T09:00:00', 5),
+      sale('2026-07-18T07:00:00', 8),
+      sale('2026-07-18T12:00:00', 3),
+    ];
+    expect(nextDailyOrderNumber(txns, now)).toBe(9); // 1 + max(5,8,3) today
+  });
+
+  it('ignores sales that predate the feature (no order number)', () => {
+    const txns = [sale('2026-07-18T08:00:00', undefined), sale('2026-07-18T09:00:00', 2)];
+    expect(nextDailyOrderNumber(txns, now)).toBe(3);
   });
 });

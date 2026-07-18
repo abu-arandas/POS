@@ -1,6 +1,6 @@
-import { SaleTransaction, StoreSettings, PrinterConfig } from '../types';
-import { encodeReceipt, EncodeReceiptOptions } from './escpos';
-import { printTransactions } from './receiptPrinter';
+import { SaleTransaction, StoreSettings, PrinterConfig, KitchenPrinterConfig } from '../types';
+import { encodeReceipt, encodeKitchenTicket, EncodeReceiptOptions } from './escpos';
+import { printTransactions, printKitchenTicketSystem } from './receiptPrinter';
 
 export type HardwarePrintOutcome =
   'printed' | 'popup-blocked' | 'unsupported' | 'no-device' | 'error';
@@ -69,5 +69,28 @@ export async function printReceipt(
     return printNetwork(bytes, printerConfig.ipAddress);
   }
   // Bluetooth ESC/POS pairing is device-specific and not implemented here.
+  return 'unsupported';
+}
+
+// Sends the kitchen prep ticket to the configured kitchen printer. No-op (and
+// no outcome surfaced) when the kitchen printer is disabled. The 'system'
+// transport opens a browser print window; hardware transports stream ESC/POS.
+export async function printKitchenTicket(
+  tx: SaleTransaction,
+  settings: StoreSettings,
+  kitchenConfig: KitchenPrinterConfig,
+): Promise<HardwarePrintOutcome> {
+  if (!kitchenConfig.enabled) return 'printed';
+  if (kitchenConfig.type === 'system') {
+    const outcome = printKitchenTicketSystem(tx, settings, kitchenConfig);
+    return outcome === 'popup-blocked' ? 'popup-blocked' : 'printed';
+  }
+
+  const bytes = encodeKitchenTicket(tx, kitchenConfig);
+  if (kitchenConfig.type === 'serial') return printSerial(bytes, kitchenConfig.baudRate);
+  if (kitchenConfig.type === 'network') {
+    if (!kitchenConfig.ipAddress) return 'no-device';
+    return printNetwork(bytes, kitchenConfig.ipAddress);
+  }
   return 'unsupported';
 }

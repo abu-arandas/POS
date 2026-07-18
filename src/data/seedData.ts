@@ -1,4 +1,7 @@
 import { Product, Category, Customer, SaleTransaction, StoreSettings } from '../types';
+// Brand logo bundled with the app (used as the default store logo on the
+// sidebar and receipts; replaceable per-store in Settings).
+import brandLogoUrl from '../assets/logo.png';
 
 export const INITIAL_CATEGORIES: Category[] = [
   { id: 'cat-bev', name: 'Beverages', color: 'bg-blue-100 text-blue-800 border-blue-200' },
@@ -185,7 +188,7 @@ export const INITIAL_SETTINGS: StoreSettings = {
   storeName: 'EA POS',
   storeAddress: '123 Tech Boulevard, Suite 400, WA 98101',
   storePhone: '206-555-0100',
-  storeLogo: '',
+  storeLogo: brandLogoUrl,
   taxRate: 8.5, // 8.5% Seattle tax
   currency: '$',
   loyaltyPointsRate: 1, // 1 point per $1
@@ -294,6 +297,7 @@ export function generatePastTransactions(): SaleTransaction[] {
 
       transactions.push({
         id: `TX-${txCounter++}`,
+        orderNumber: s + 1, // resets to 1 at the first sale of each day
         date: saleDate.toISOString(),
         items,
         subtotal,

@@ -1,4 +1,4 @@
-import { SaleTransaction, StoreSettings, PrinterConfig } from '../types';
+import { SaleTransaction, StoreSettings, PrinterConfig, KitchenPrinterConfig } from '../types';
 
 // Minimal ESC/POS command encoder. Produces the raw byte stream a thermal
 // printer understands, independent of transport (Web Serial, network socket,
@@ -141,6 +141,12 @@ export function encodeReceipt(
   if (settings.storePhone) b.line(settings.storePhone);
   b.line('-'.repeat(width));
 
+  // Daily order number, printed large and centered so it can be called out.
+  if (tx.orderNumber) {
+    b.align('center').bold(true).doubleHeight(true).line(`ORDER #${tx.orderNumber}`);
+    b.doubleHeight(false).bold(false).align('left');
+  }
+
   b.align('left');
   b.line(twoCol('DATE', new Date(tx.date).toLocaleString(), width));
   b.line(twoCol('RECEIPT', tx.id, width));
@@ -176,5 +182,36 @@ export function encodeReceipt(
   b.align('center').line(printerConfig.footerMessage || 'Thank you!');
   b.feed(3).cut();
   if (options.openDrawer) b.drawerKick();
+  return b.build();
+}
+
+// Kitchen prep ticket: order number + item lines only, no prices, no totals,
+// no payment info. Bigger type so it reads across a busy kitchen. Encoded from
+// the same transaction so the order number matches the customer receipt.
+export function encodeKitchenTicket(
+  tx: SaleTransaction,
+  kitchenConfig: Pick<KitchenPrinterConfig, 'paperSize' | 'codepage'>,
+): Uint8Array {
+  const width = kitchenConfig.paperSize === '58mm' ? 32 : 48;
+  const b = new EscPosBuilder(kitchenConfig.codepage ?? 'ascii');
+
+  b.init().align('center').bold(true).doubleHeight(true);
+  b.line('*** KITCHEN ***');
+  if (tx.orderNumber) b.line(`ORDER #${tx.orderNumber}`);
+  b.doubleHeight(false).bold(false);
+  b.line(new Date(tx.date).toLocaleTimeString());
+  if (tx.operatorName) b.line(tx.operatorName);
+  b.align('left').line('-'.repeat(width));
+
+  // Items in double-height for legibility on the line.
+  for (const item of tx.items) {
+    b.doubleHeight(true)
+      .bold(true)
+      .line(`${item.quantity}x ${item.productName}`)
+      .doubleHeight(false)
+      .bold(false);
+  }
+  b.line('-'.repeat(width));
+  b.feed(3).cut();
   return b.build();
 }

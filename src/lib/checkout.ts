@@ -27,6 +27,7 @@ export type CheckoutPayment =
 export interface CheckoutInput {
   id: string;
   date: string; // ISO timestamp
+  orderNumber: number; // daily order number (see nextDailyOrderNumber)
   items: CheckoutItem[];
   totals: CheckoutTotals;
   discountType: SaleTransaction['discountType'];
@@ -36,6 +37,28 @@ export interface CheckoutInput {
   operator: { id: string; name: string } | null;
   shiftId: string | null;
   settings: { loyaltyPointsRate: number; loyaltyPointValue: number };
+}
+
+// The next daily order number: 1 + the highest order number already used for a
+// sale made on the same calendar day as `now`. Because the count is scoped to
+// today's sales, it starts back at 1 automatically at the first sale of each
+// new day — no nightly reset job is needed. Uses local calendar days so the
+// rollover matches the store's midnight, not UTC.
+export function nextDailyOrderNumber(
+  transactions: Array<Pick<SaleTransaction, 'date' | 'orderNumber'>>,
+  now: Date = new Date(),
+): number {
+  const sameDay = (d: Date) =>
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  let max = 0;
+  for (const tx of transactions) {
+    if (tx.orderNumber && tx.orderNumber > max && sameDay(new Date(tx.date))) {
+      max = tx.orderNumber;
+    }
+  }
+  return max + 1;
 }
 
 export type CheckoutResult =
@@ -95,6 +118,7 @@ export function buildSaleTransaction(input: CheckoutInput): CheckoutResult {
     ok: true,
     transaction: {
       id: input.id,
+      orderNumber: input.orderNumber,
       date: input.date,
       items: input.items.map((item) => ({
         ...item,

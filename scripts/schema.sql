@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS customers (
 -- 6. Create Transactions Table
 CREATE TABLE IF NOT EXISTS transactions (
   id TEXT PRIMARY KEY,
+  order_number INTEGER,                    -- daily order number (resets per day, client-derived)
   date TIMESTAMP WITH TIME ZONE NOT NULL,
   items JSONB NOT NULL,
   subtotal NUMERIC NOT NULL,
@@ -85,6 +86,7 @@ ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payments JSONB;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refunded_items JSONB;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refunded_amount NUMERIC;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS shift_id TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS order_number INTEGER;
 -- Allow the new 'partial' refund status (the CHECK is recreated to include it):
 ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_status_check;
 ALTER TABLE transactions ADD CONSTRAINT transactions_status_check
