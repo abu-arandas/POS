@@ -22,7 +22,8 @@ import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
-import { hashPin } from '../lib/hash';
+import { hashUserPin } from '../lib/hash';
+import { shortId } from '../lib/ids';
 import {
   testCloudConnection,
   pushAllToCloud,
@@ -107,13 +108,15 @@ export default function Settings() {
         name: uName.trim(),
         role: uRole,
         active: uActive,
-        pin: uPin ? await hashPin(uPin) : editingUser.pin,
+        pin: uPin ? await hashUserPin(editingUser.id, uPin) : editingUser.pin,
       };
       handleUpdateUser(updated);
       syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [updated]);
     } else {
-      const pinHash = await hashPin(uPin);
-      const created = handleAddUser(uName.trim(), uRole, pinHash);
+      // The PIN hash is salted with the account id, so generate the id first.
+      const id = `user-${shortId()}`;
+      const pinHash = await hashUserPin(id, uPin);
+      const created = handleAddUser(uName.trim(), uRole, pinHash, id);
       if (!uActive) {
         const deactivated = { ...created, active: false };
         handleUpdateUser(deactivated);

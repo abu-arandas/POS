@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS user_accounts (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'cashier')),
-  pin TEXT NOT NULL,                       -- SHA-256 hash of the PIN, never plaintext
+  pin TEXT NOT NULL,                       -- SHA-256("<id>:<PIN>") (id-salted), never plaintext
   active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
@@ -94,7 +94,8 @@ ALTER TABLE transactions ADD CONSTRAINT transactions_status_check
 -- ============================================================
 -- SECURITY DEFINER so it can validate credentials even when RLS hides
 -- user_accounts from client roles. It returns only non-secret fields — the PIN
--- hash never leaves the database. The client sends SHA-256(entered PIN); see
+-- hash never leaves the database. The client sends SHA-256("<id>:<entered PIN>")
+-- (falling back to the legacy unsalted SHA-256 for older records); see
 -- src/lib/hash.ts. This lets you keep user_accounts unreadable by clients while
 -- still supporting the PIN lockscreen against the cloud copy.
 CREATE OR REPLACE FUNCTION public.verify_login(p_name TEXT, p_pin_hash TEXT)
@@ -164,8 +165,8 @@ EXCEPTION WHEN duplicate_object THEN
   NULL;
 END $$;
 
--- 9. Seed the default admin (PIN 1234, stored as its SHA-256 hash)
+-- 9. Seed the default admin (PIN 1234, stored as SHA-256('admin-1:1234'))
 INSERT INTO user_accounts (id, name, role, pin, active, created_at)
 VALUES ('admin-1', 'Default Administrator', 'admin',
-        '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4', TRUE, NOW())
+        '2b2aa6698b009065652d34c08b24aa244edc29e5a737d090f80f3b46505a5001', TRUE, NOW())
 ON CONFLICT (id) DO NOTHING;

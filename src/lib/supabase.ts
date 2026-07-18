@@ -72,7 +72,8 @@ export async function signInDevice(
 // Validates a staff login against the cloud via the SECURITY DEFINER
 // verify_login RPC (see scripts/schema.sql). Returns the account's non-secret
 // fields on success, or null. The PIN hash never leaves the database on the
-// return path — only the caller's SHA-256(entered PIN) is sent.
+// return path — only the caller's computed hash of the entered PIN is sent
+// (id-salted SHA-256, or the legacy unsalted digest for older records).
 export async function verifyLoginCloud(
   client: SupabaseClient,
   name: string,

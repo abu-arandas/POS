@@ -190,7 +190,7 @@ export default function Customers() {
         >
           <div className="flex flex-col md:flex-row gap-3">
             {/* Search */}
-            <div className="flex-1 flex items-center space-x-2 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200/40">
+            <div className="flex-1 flex items-center space-x-2 bg-slate-100 dark:bg-slate-800/60 px-3 py-2 rounded-xl border border-slate-200/40 dark:border-slate-700/40">
               <Search size={16} className="text-slate-400" />
               <input
                 id="customer-search-input"
@@ -198,12 +198,12 @@ export default function Customers() {
                 placeholder={t('customers.searchCrm')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent border-none text-slate-800 text-xs focus:outline-none placeholder-slate-400"
+                className="flex-1 bg-transparent border-none text-slate-800 dark:text-slate-100 text-xs focus:outline-none placeholder-slate-400"
               />
             </div>
 
             {/* Sorting buttons */}
-            <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
+            <div className="flex bg-slate-100 dark:bg-slate-800/60 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
               {(
                 [
                   { id: 'name', label: t('customers.alphabetical') },
@@ -216,8 +216,8 @@ export default function Customers() {
                   onClick={() => setSortBy(opt.id)}
                   className={`px-3.5 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0 ${
                     sortBy === opt.id
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
                   {opt.label}
@@ -230,7 +230,7 @@ export default function Customers() {
         {/* Directory Grid */}
         <div id="crm-grid-container" className="flex-1 overflow-y-auto pe-1">
           {sortedAndFilteredCustomers.length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center text-slate-400 font-mono text-xs border border-slate-200">
+            <div className="bg-white dark:bg-slate-900/60 rounded-2xl p-12 text-center text-slate-400 font-mono text-xs border border-slate-200 dark:border-slate-700">
               {t('customers.noCustomersMatching')}
             </div>
           ) : (
@@ -253,7 +253,7 @@ export default function Customers() {
                   >
                     <div className="space-y-3 min-w-0 flex-1 pe-3">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-sans font-bold text-slate-800 text-sm leading-tight truncate max-w-[150px]">
+                        <h4 className="font-sans font-bold text-slate-800 dark:text-slate-100 text-sm leading-tight truncate max-w-[150px]">
                           {cust.name}
                         </h4>
                         <span
@@ -263,7 +263,7 @@ export default function Customers() {
                         </span>
                       </div>
 
-                      <div className="space-y-1 font-sans text-[11px] text-slate-500">
+                      <div className="space-y-1 font-sans text-[11px] text-slate-500 dark:text-slate-400">
                         <p className="flex items-center gap-1.5 truncate">
                           <Mail size={12} /> {cust.email || t('customers.noEmail')}
                         </p>
@@ -278,10 +278,10 @@ export default function Customers() {
 
                     <div className="flex flex-col items-end justify-between h-full space-y-4 shrink-0">
                       <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-1.5 text-center shadow-inner">
-                        <span className="text-[10px] text-emerald-600 font-bold block uppercase tracking-wider font-mono">
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block uppercase tracking-wider font-mono">
                           {t('customers.points')}
                         </span>
-                        <span className="font-mono font-extrabold text-sm text-emerald-700">
+                        <span className="font-mono font-extrabold text-sm text-emerald-700 dark:text-emerald-300">
                           {cust.points}
                         </span>
                       </div>
@@ -292,7 +292,7 @@ export default function Customers() {
                             e.stopPropagation();
                             handleOpenEditCustomer(cust);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200/60 rounded-lg transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/60 dark:hover:bg-slate-700 rounded-lg transition-colors"
                           title={t('customers.editCustomerDetails')}
                         >
                           <Edit2 size={12} />
@@ -306,7 +306,7 @@ export default function Customers() {
                               if (selectedCustomerId === cust.id) setSelectedCustomerId(null);
                             }
                           }}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100/50 rounded-lg transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100/50 dark:hover:bg-rose-500/20 rounded-lg transition-colors"
                           title={t('customers.deleteCustomerRecord')}
                         >
                           <Trash2 size={12} />
@@ -331,7 +331,7 @@ export default function Customers() {
             {/* Header Profiler */}
             <div className="p-5 border-b border-slate-200/50 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/40 flex items-center justify-between">
               <div>
-                <h3 className="font-sans font-bold text-slate-800 text-sm">
+                <h3 className="font-sans font-bold text-slate-800 dark:text-white text-sm">
                   {activeCustomer.name}
                 </h3>
                 <span className="text-[10px] font-mono text-slate-400">
@@ -340,7 +340,7 @@ export default function Customers() {
               </div>
               <button
                 onClick={() => setSelectedCustomerId(null)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 bg-white border border-slate-200 rounded-lg shadow-sm"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm"
               >
                 <X size={14} />
               </button>
@@ -354,7 +354,7 @@ export default function Customers() {
                   <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider font-mono">
                     {t('customers.totalSpent')}
                   </span>
-                  <p className="font-mono font-extrabold text-sm text-slate-800 mt-1">
+                  <p className="font-mono font-extrabold text-sm text-slate-800 dark:text-slate-100 mt-1">
                     {settings.currency}
                     {activeCustomerStats.totalSpent.toFixed(2)}
                   </p>
@@ -363,11 +363,11 @@ export default function Customers() {
                   <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider font-mono">
                     {t('customers.orderCount')}
                   </span>
-                  <p className="font-mono font-extrabold text-sm text-slate-800 mt-1">
+                  <p className="font-mono font-extrabold text-sm text-slate-800 dark:text-slate-100 mt-1">
                     {activeCustomerStats.totalVisits} {t('customers.visits')}
                   </p>
                 </div>
-                <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center shadow-xs col-span-2">
+                <div className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl p-3 text-center shadow-xs col-span-2">
                   <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider font-mono">
                     {t('customers.averageTicketValue')}
                   </span>
@@ -385,7 +385,7 @@ export default function Customers() {
                 </h4>
 
                 {activeCustomerTransactions.length === 0 ? (
-                  <p className="text-[10px] font-mono text-slate-400 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200">
+                  <p className="text-[10px] font-mono text-slate-400 text-center py-6 bg-white dark:bg-slate-900/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
                     {t('customers.noLinkedSales')}
                   </p>
                 ) : (
@@ -396,13 +396,15 @@ export default function Customers() {
                         className="bg-white/60 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-2.5 flex items-center justify-between shadow-sm text-[11px]"
                       >
                         <div>
-                          <span className="font-mono font-bold text-slate-800 block">{tx.id}</span>
+                          <span className="font-mono font-bold text-slate-800 dark:text-slate-100 block">
+                            {tx.id}
+                          </span>
                           <span className="text-[10px] text-slate-400 font-mono mt-0.5">
                             {new Date(tx.date).toLocaleDateString()}
                           </span>
                         </div>
                         <div className="text-right">
-                          <span className="font-mono font-extrabold block text-slate-900">
+                          <span className="font-mono font-extrabold block text-slate-900 dark:text-white">
                             {settings.currency}
                             {tx.total.toFixed(2)}
                           </span>
@@ -432,7 +434,7 @@ export default function Customers() {
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 bg-slate-50/20">
             <span className="text-4xl mb-2">🏅</span>
-            <h4 className="font-sans font-bold text-slate-700 text-sm">
+            <h4 className="font-sans font-bold text-slate-700 dark:text-slate-200 text-sm">
               {t('customers.crmProfileOffline')}
             </h4>
             <p className="text-xs text-slate-400 max-w-[200px] mt-1">

@@ -30,7 +30,7 @@ import { useShiftStore } from '../stores/shiftStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { shortId } from '../lib/ids';
-import { summarizeTenders } from '../lib/payments';
+import { buildSaleTransaction } from '../lib/checkout';
 import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
@@ -289,85 +289,43 @@ export default function Register() {
     setSplitPayments((prev) => prev.filter((_, i) => i !== idx));
 
   const handleCompletePayment = () => {
-    let saleMethod: PaymentMethod;
-    let payments: Payment[] | undefined;
-    let paidValue: number | undefined;
-    let changeDue: number | undefined;
-
-    if (splitMode) {
-      const clean = splitPayments.filter((p) => (p.amount || 0) > 0);
-      const tenders = summarizeTenders(clean, totalAmount);
-      if (clean.length === 0 || !tenders.coversTotal) {
-        alert(t('register.splitIncomplete'));
-        return;
-      }
-      // Change can only be given for cash, so the non-cash tenders must not
-      // exceed the total — otherwise the customer is silently overcharged.
-      if (tenders.paidTotal - tenders.cashTendered > totalAmount + 0.005) {
-        alert(t('register.splitOverpayNonCash'));
-        return;
-      }
-      payments = clean;
-      saleMethod = tenders.dominantMethod;
-      // cashPaid is the CASH tender only (not the card/mobile lines), so the
-      // receipt's "cash paid" and the Z-report drawer math stay correct.
-      paidValue = tenders.cashTendered > 0 ? tenders.cashTendered : undefined;
-      changeDue = tenders.cashTendered > 0 ? tenders.cashChange : undefined;
-    } else {
-      paidValue = paymentMethod === 'cash' ? parseFloat(cashPaidText) || 0 : undefined;
-      // A fully-discounted ($0) sale needs no tendered cash.
-      if (paymentMethod === 'cash' && totalAmount > 0 && (paidValue ?? 0) < totalAmount) {
-        alert(t('register.insufficientCash'));
-        return;
-      }
-      // A sale fully covered by redeemed points is a points redemption, not a $0
-      // card charge. Any other $0 total (e.g. a 100% promo) keeps its chosen method.
-      saleMethod = totalAmount <= 0 && discountType === 'loyalty' ? 'loyalty' : paymentMethod;
-      changeDue = saleMethod === 'cash' ? cashChangeDue : undefined;
-    }
-
-    // Globally-unique receipt ID: TX-<8 hex>. Avoids the previous TX-{max+1}
-    // scheme, which collided when two terminals shared one cloud database.
-    const nextId = `TX-${shortId().toUpperCase()}`;
-
-    const pointsEarned = selectedCustomerId
-      ? Math.floor(totalAmount * settings.loyaltyPointsRate)
-      : undefined;
-
-    // For a loyalty sale, record only the points actually redeemed: the
-    // discount is clamped to the subtotal (pricing.ts), so a stale
-    // loyaltyPointsToUse from a since-shrunk cart must not burn — or later
-    // refund — more points than the value the customer actually received.
-    const effectiveDiscountValue =
-      discountType === 'loyalty' && settings.loyaltyPointValue > 0
-        ? Math.min(discountValue, Math.ceil(discountAmount / settings.loyaltyPointValue))
-        : discountValue;
-
-    const transaction: SaleTransaction = {
-      id: nextId,
+    // All tender validation and payment/loyalty math lives in the pure
+    // buildSaleTransaction (lib/checkout.ts) so it stays unit-tested; this
+    // handler maps errors to alerts and applies the side effects.
+    const result = buildSaleTransaction({
+      // Globally-unique receipt ID: TX-<8 hex>. Avoids the previous TX-{max+1}
+      // scheme, which collided when two terminals shared one cloud database.
+      id: `TX-${shortId().toUpperCase()}`,
       date: new Date().toISOString(),
-      items: cartItems.map((item) => ({
-        ...item,
-        total: Number((item.price * item.quantity).toFixed(2)),
-      })),
-      subtotal,
-      discount: discountAmount,
+      items: cartItems,
+      totals: { subtotal, discountAmount, taxAmount, totalAmount },
       discountType,
-      discountValue: effectiveDiscountValue,
-      tax: taxAmount,
-      total: totalAmount,
-      paymentMethod: saleMethod,
-      payments: payments && payments.length > 1 ? payments : undefined,
-      cashPaid: paidValue,
-      cashChange: changeDue,
-      customerId: selectedCustomerId,
-      customerName: activeCustomer?.name || null,
-      operatorId: currentUser?.id ?? null,
-      operatorName: currentUser?.name ?? null,
-      pointsEarned,
-      status: 'completed',
+      discountValue,
+      payment: splitMode
+        ? { mode: 'split', payments: splitPayments }
+        : { mode: 'single', method: paymentMethod, cashPaid: parseFloat(cashPaidText) || 0 },
+      customer: selectedCustomerId
+        ? { id: selectedCustomerId, name: activeCustomer?.name || null }
+        : null,
+      operator: currentUser ? { id: currentUser.id, name: currentUser.name } : null,
       shiftId: currentShiftId,
-    };
+      settings: {
+        loyaltyPointsRate: settings.loyaltyPointsRate,
+        loyaltyPointValue: settings.loyaltyPointValue,
+      },
+    });
+
+    if (!result.ok) {
+      alert(
+        result.error === 'insufficient-cash'
+          ? t('register.insufficientCash')
+          : result.error === 'split-overpay-noncash'
+            ? t('register.splitOverpayNonCash')
+            : t('register.splitIncomplete'),
+      );
+      return;
+    }
+    const transaction = result.transaction;
 
     // Decrement stock on the LIVE product records. The cart holds snapshots
     // from add-to-cart time; writing those back would silently revert any
@@ -385,8 +343,8 @@ export default function Register() {
     // Update customer points
     let updatedCustomer = null;
     if (selectedCustomerId) {
-      let pointsDelta = pointsEarned ?? 0;
-      if (discountType === 'loyalty') pointsDelta -= effectiveDiscountValue;
+      let pointsDelta = transaction.pointsEarned ?? 0;
+      if (discountType === 'loyalty') pointsDelta -= transaction.discountValue;
       updateCustomerPoints(selectedCustomerId, pointsDelta);
       updatedCustomer = useCustomerStore
         .getState()

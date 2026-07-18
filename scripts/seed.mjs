@@ -18,10 +18,11 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const usingServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-// The app authenticates by comparing SHA-256(entered PIN) against the stored
-// value (see src/lib/hash.ts), so seeded PINs must be stored as hashes too —
-// storing them in plaintext makes the account impossible to log into.
-const hashPin = (pin) => createHash('sha256').update(pin).digest('hex');
+// The app authenticates by comparing SHA-256("<id>:<entered PIN>") against the
+// stored value (id-salted; see src/lib/hash.ts), so seeded PINs must be stored
+// as the same salted hashes — plaintext (or a mismatched salt) makes the
+// account impossible to log into.
+const hashUserPin = (id, pin) => createHash('sha256').update(`${id}:${pin}`).digest('hex');
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error(
@@ -61,9 +62,9 @@ const CUSTOMERS = [
 ];
 
 const USER_ACCOUNTS = [
-  { id: 'user-admin',   name: 'Admin Manager',        role: 'admin',   pin: hashPin('1234'), active: true, created_at: '2026-01-01T00:00:00.000Z' },
-  { id: 'user-manager', name: 'Sarah Store Manager',  role: 'manager', pin: hashPin('5555'), active: true, created_at: '2026-01-10T00:00:00.000Z' },
-  { id: 'user-cashier', name: 'John Cashier',         role: 'cashier', pin: hashPin('0000'), active: true, created_at: '2026-01-20T00:00:00.000Z' },
+  { id: 'user-admin',   name: 'Admin Manager',        role: 'admin',   pin: hashUserPin('user-admin', '1234'),   active: true, created_at: '2026-01-01T00:00:00.000Z' },
+  { id: 'user-manager', name: 'Sarah Store Manager',  role: 'manager', pin: hashUserPin('user-manager', '5555'), active: true, created_at: '2026-01-10T00:00:00.000Z' },
+  { id: 'user-cashier', name: 'John Cashier',         role: 'cashier', pin: hashUserPin('user-cashier', '0000'), active: true, created_at: '2026-01-20T00:00:00.000Z' },
 ];
 
 const SETTINGS_TAX_RATE = 8.5;

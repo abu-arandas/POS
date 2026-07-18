@@ -83,3 +83,25 @@ export async function hashPin(pin: string): Promise<string> {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 }
+
+// Current PIN scheme: SHA-256("<userId>:<PIN>"). Salting with the stable
+// account id means identical PINs no longer share a hash and the well-known
+// default-PIN digests are unrecognizable, while the stored value stays a
+// plain 64-hex SHA-256 — so cloud sync, verify_login, and legacy records all
+// keep working unchanged. (A 4-digit PIN is always brute-forceable by whoever
+// holds the hash; the salt only defeats precomputed/rainbow lookups.)
+export function hashUserPin(userId: string, pin: string): Promise<string> {
+  return hashPin(`${userId}:${pin}`);
+}
+
+// Checks an entered PIN against a stored hash, accepting both the current
+// salted scheme and the legacy unsalted one. Returns which scheme matched so
+// callers can transparently upgrade legacy records on a successful login.
+export async function verifyUserPin(
+  user: { id: string; pin: string },
+  pin: string,
+): Promise<'salted' | 'legacy' | null> {
+  if ((await hashUserPin(user.id, pin)) === user.pin) return 'salted';
+  if ((await hashPin(pin)) === user.pin) return 'legacy';
+  return null;
+}

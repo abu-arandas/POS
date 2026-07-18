@@ -19,9 +19,9 @@ import {
   Mail,
   Download,
 } from 'lucide-react';
-import { SaleTransaction, Product, Customer } from '../types';
+import { SaleTransaction, Product, Customer, UserAccount } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { hashPin } from '../lib/hash';
+import { hashPin, hashUserPin } from '../lib/hash';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
@@ -223,10 +223,16 @@ export default function History() {
     e.preventDefault();
     setOverrideError('');
 
-    const hashedPin = await hashPin(overridePin);
-    const authorizedUser = users.find(
-      (u) => u.pin === hashedPin && u.active && (u.role === 'manager' || u.role === 'admin'),
-    );
+    // Accept both the current (id-salted) and legacy PIN hash schemes.
+    const legacyHash = await hashPin(overridePin);
+    let authorizedUser: UserAccount | undefined;
+    for (const u of users) {
+      if (!u.active || (u.role !== 'manager' && u.role !== 'admin')) continue;
+      if (u.pin === legacyHash || u.pin === (await hashUserPin(u.id, overridePin))) {
+        authorizedUser = u;
+        break;
+      }
+    }
     if (authorizedUser && refundModalTx) {
       applyRefundWithSelection(
         refundModalTx,
@@ -358,7 +364,7 @@ export default function History() {
         >
           <div className="flex flex-col md:flex-row gap-3">
             {/* Search */}
-            <div className="flex-1 flex items-center space-x-2 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200/40">
+            <div className="flex-1 flex items-center space-x-2 bg-slate-100 dark:bg-slate-800/60 px-3 py-2 rounded-xl border border-slate-200/40 dark:border-slate-700/40">
               <Search size={16} className="text-slate-400" />
               <input
                 id="history-search-input"
@@ -366,11 +372,11 @@ export default function History() {
                 placeholder={t('history.searchReceipts')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent border-none text-slate-800 text-xs focus:outline-none placeholder-slate-400"
+                className="flex-1 bg-transparent border-none text-slate-800 dark:text-slate-100 text-xs focus:outline-none placeholder-slate-400"
               />
             </div>
 
-            <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
+            <div className="flex bg-slate-100 dark:bg-slate-800/60 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
               {(
                 [
                   { id: 'all', label: t('history.allDates') },
@@ -384,8 +390,8 @@ export default function History() {
                   onClick={() => setDateFilter(opt.id)}
                   className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0 ${
                     dateFilter === opt.id
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
                   {opt.label}
@@ -397,7 +403,7 @@ export default function History() {
               id="history-status-select"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as 'all' | 'completed' | 'refunded')}
-              className="bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold px-3 py-1.5 text-slate-600 focus:outline-none focus:border-emerald-500 shrink-0"
+              className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold px-3 py-1.5 text-slate-600 dark:text-slate-300 focus:outline-none focus:border-emerald-500 shrink-0"
             >
               <option value="all">{t('history.allStatuses')}</option>
               <option value="completed">{t('history.paidCompleted')}</option>
@@ -415,7 +421,7 @@ export default function History() {
                   type="datetime-local"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="bg-transparent border-none text-xs text-slate-700 focus:outline-none font-mono"
+                  className="bg-transparent border-none text-xs text-slate-700 dark:text-slate-200 focus:outline-none font-mono"
                 />
               </div>
 
@@ -431,7 +437,7 @@ export default function History() {
                   type="datetime-local"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="bg-transparent border-none text-xs text-slate-700 focus:outline-none font-mono"
+                  className="bg-transparent border-none text-xs text-slate-700 dark:text-slate-200 focus:outline-none font-mono"
                 />
               </div>
             </div>
@@ -450,8 +456,8 @@ export default function History() {
         </div>
 
         {selectedTxIds.length > 0 && (
-          <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex justify-between items-center mb-6 shrink-0 shadow-sm transition-all animate-in fade-in slide-in-from-top-2">
-            <span className="text-emerald-800 font-bold text-xs px-2">
+          <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 p-3 rounded-2xl flex justify-between items-center mb-6 shrink-0 shadow-sm transition-all animate-in fade-in slide-in-from-top-2">
+            <span className="text-emerald-800 dark:text-emerald-300 font-bold text-xs px-2">
               {selectedTxIds.length} {t('history.transactionsSelected')}
             </span>
             <div className="flex gap-2">
@@ -523,9 +529,9 @@ export default function History() {
                         key={tx.id}
                         id={`history-row-${tx.id}`}
                         onClick={() => setSelectedTxId(tx.id)}
-                        className={`hover:bg-slate-50/50 transition-colors cursor-pointer ${
+                        className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer ${
                           isSelected
-                            ? 'bg-slate-100/80 hover:bg-slate-100/80'
+                            ? 'bg-slate-100/80 dark:bg-slate-800/60 hover:bg-slate-100/80 dark:hover:bg-slate-800/60'
                             : isRefunded
                               ? 'opacity-70'
                               : ''
@@ -541,7 +547,9 @@ export default function History() {
                             }}
                           />
                         </td>
-                        <td className="py-3 px-2 font-mono font-bold text-slate-900">{tx.id}</td>
+                        <td className="py-3 px-2 font-mono font-bold text-slate-900 dark:text-slate-100">
+                          {tx.id}
+                        </td>
                         <td className="py-3 px-4 text-slate-500 font-mono">
                           {new Date(tx.date).toLocaleDateString()} &bull;{' '}
                           {new Date(tx.date).toLocaleTimeString([], {
@@ -549,17 +557,17 @@ export default function History() {
                             minute: '2-digit',
                           })}
                         </td>
-                        <td className="py-3 px-4 font-semibold text-slate-700 truncate">
+                        <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-200 truncate">
                           {tx.customerName || (
                             <span className="text-slate-400 font-normal">
                               {t('history.walkIn')}
                             </span>
                           )}
                         </td>
-                        <td className="py-3 px-3 text-center font-mono font-bold bg-slate-50/40">
+                        <td className="py-3 px-3 text-center font-mono font-bold bg-slate-50/40 dark:bg-slate-900/40">
                           {tx.items.reduce((sum, item) => sum + item.quantity, 0)}
                         </td>
-                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
+                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
                           {settings.currency}
                           {tx.total.toFixed(2)}
                         </td>
@@ -878,7 +886,7 @@ export default function History() {
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
             <span className="text-4xl mb-2">🧾</span>
-            <h4 className="font-sans font-bold text-slate-700 text-sm">
+            <h4 className="font-sans font-bold text-slate-700 dark:text-slate-200 text-sm">
               {t('history.noReceiptSelected')}
             </h4>
             <p className="text-xs text-slate-400 max-w-[200px] mt-1">

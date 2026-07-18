@@ -3,8 +3,8 @@ import { UserAccount } from '../types';
 import { ShieldAlert, User, Delete, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-import { hashPin } from '../lib/hash';
-import { cloudLogin } from '../lib/sync';
+import { hashPin, hashUserPin, verifyUserPin } from '../lib/hash';
+import { cloudLogin, syncToCloudIfEnabled } from '../lib/sync';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useTranslation } from 'react-i18next';
@@ -36,15 +36,26 @@ export default function Lockscreen() {
 
       // Automatically check pin once 4 digits are entered
       if (nextPin.length === 4 && selectedUser) {
-        const hashedNextPin = await hashPin(nextPin);
-        if (selectedUser.pin === hashedNextPin) {
-          setCurrentUser(selectedUser);
+        const scheme = await verifyUserPin(selectedUser, nextPin);
+        if (scheme) {
+          let user = selectedUser;
+          if (scheme === 'legacy') {
+            // Transparently upgrade the record to the salted scheme — this is
+            // the one moment the plain PIN is available to re-hash.
+            user = { ...selectedUser, pin: await hashUserPin(selectedUser.id, nextPin) };
+            setUsers(users.map((u) => (u.id === user.id ? user : u)));
+            syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [user]);
+          }
+          setCurrentUser(user);
           return;
         }
         // Local check failed — try the cloud (verify_login) so a PIN changed on
-        // another terminal still works. No-op when sync is disabled/offline.
+        // another terminal still works. The cloud copy may be salted or legacy.
+        // No-op when sync is disabled/offline.
         setChecking(true);
-        const cloudUser = await cloudLogin(selectedUser.name, hashedNextPin);
+        const cloudUser =
+          (await cloudLogin(selectedUser.name, await hashUserPin(selectedUser.id, nextPin))) ??
+          (await cloudLogin(selectedUser.name, await hashPin(nextPin)));
         setChecking(false);
         if (cloudUser) {
           // Refresh the local record with the verified account, then sign in.

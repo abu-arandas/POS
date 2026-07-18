@@ -298,7 +298,7 @@ export default function Inventory() {
 
         <div className="flex items-center space-x-3">
           {/* Subscreen Tabs */}
-          <div className="bg-slate-200/60 p-1 rounded-xl flex">
+          <div className="bg-slate-200/60 dark:bg-slate-800/60 p-1 rounded-xl flex">
             {(
               [
                 { id: 'products', label: t('inventory.products') },
@@ -312,8 +312,8 @@ export default function Inventory() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   activeTab === tab.id
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 {tab.label}
@@ -328,7 +328,7 @@ export default function Inventory() {
                 setRecvProductId(products[0]?.id || '');
                 setReceiveOpen(true);
               }}
-              className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-sans font-bold text-xs sm:text-sm px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm"
+              className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-sans font-bold text-xs sm:text-sm px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm"
             >
               <PackagePlus size={16} />{' '}
               <span className="hidden sm:inline">{t('inventory.receiveStock')}</span>
@@ -370,7 +370,7 @@ export default function Inventory() {
           >
             <div className="flex flex-col md:flex-row gap-4">
               {/* Search */}
-              <div className="flex-1 flex items-center space-x-2 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200/40">
+              <div className="flex-1 flex items-center space-x-2 bg-slate-100 dark:bg-slate-800/60 px-3 py-2 rounded-xl border border-slate-200/40 dark:border-slate-700/40">
                 <Search size={16} className="text-slate-400" />
                 <input
                   id="inventory-search-input"
@@ -378,7 +378,7 @@ export default function Inventory() {
                   placeholder={t('inventory.searchProducts')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 bg-transparent border-none text-slate-800 text-xs focus:outline-none placeholder-slate-400"
+                  className="flex-1 bg-transparent border-none text-slate-800 dark:text-slate-100 text-xs focus:outline-none placeholder-slate-400"
                 />
               </div>
 
@@ -391,7 +391,7 @@ export default function Inventory() {
                   id="filter-category-select"
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold px-3 py-1.5 text-slate-600 focus:outline-none focus:border-emerald-500"
+                  className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold px-3 py-1.5 text-slate-600 dark:text-slate-300 focus:outline-none focus:border-emerald-500"
                 >
                   <option value="all">{t('inventory.allCategories')}</option>
                   {categories.map((c) => (
@@ -407,13 +407,13 @@ export default function Inventory() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
                   {t('inventory.stockLevel')}
                 </span>
-                <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                <div className="flex bg-slate-100 dark:bg-slate-800/60 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
                   <button
                     onClick={() => setStockFilter('all')}
                     className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${
                       stockFilter === 'all'
-                        ? 'bg-white text-slate-800 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
                     {t('inventory.all')}
@@ -423,7 +423,7 @@ export default function Inventory() {
                     className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${
                       stockFilter === 'low'
                         ? 'bg-amber-500 text-white shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
                     {t('inventory.low')}
@@ -433,7 +433,7 @@ export default function Inventory() {
                     className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${
                       stockFilter === 'out'
                         ? 'bg-rose-500 text-white shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
                     {t('inventory.out')}
@@ -579,7 +579,7 @@ export default function Inventory() {
                             <div className="flex items-center justify-center space-x-1.5">
                               <button
                                 onClick={() => handleOpenEditProduct(prod)}
-                                className="p-1.5 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200/60 rounded-lg transition-colors"
+                                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/60 dark:hover:bg-slate-700 rounded-lg transition-colors"
                                 title={t('inventory.editCatalogProduct')}
                               >
                                 <Edit2 size={13} />
@@ -590,7 +590,7 @@ export default function Inventory() {
                                   if (confirm(t('inventory.deleteConfirm', { name: prod.name })))
                                     handleDeleteProduct(prod.id);
                                 }}
-                                className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100/50 rounded-lg transition-colors"
+                                className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100/50 dark:hover:bg-rose-500/20 rounded-lg transition-colors"
                                 title={t('inventory.deleteProduct')}
                               >
                                 <Trash2 size={13} />
@@ -663,7 +663,7 @@ export default function Inventory() {
                   </p>
                 </div>
 
-                <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                <div className="flex justify-between items-center pt-3 border-t border-slate-100 dark:border-slate-800">
                   <span className="text-xs text-slate-500 font-medium">
                     {t('inventory.linkedProducts')}
                   </span>
