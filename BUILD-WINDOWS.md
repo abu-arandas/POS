@@ -20,9 +20,10 @@ runners or your own PC.
 ## Option A — Build on GitHub Actions (no local setup)
 
 A workflow at `.github/workflows/build-windows.yml` builds the installer on a
-`windows-latest` runner. Trigger it manually from
-**Actions → Build Windows Installer → Run workflow** (available once the
-workflow file is on the default branch).
+`windows-latest` runner. It runs on every push to the
+`claude/review-everything-aa1ab3` development branch, and can also be triggered
+manually from **Actions → Build Windows Installer → Run workflow** once the
+workflow file is on the default branch.
 
 Each run:
 

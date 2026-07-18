@@ -7,7 +7,11 @@ name: Build Windows Installer
 # when the token allows, published as a GitHub Release asset for direct download.
 
 on:
+  # Manual dispatch works once this file lands on the default branch; until
+  # then, pushes to the development branch below build the installer directly.
   workflow_dispatch:
+  push:
+    branches: [claude/review-everything-aa1ab3]
 
 permissions:
   contents: write
