@@ -26,11 +26,18 @@ import {
   Pie,
 } from 'recharts';
 import { motion } from 'motion/react';
+import { SaleTransaction } from '../types';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
 import { useTranslation } from 'react-i18next';
+
+// A partially-refunded sale still counts toward every report, net of what was
+// already returned; only fully-refunded sales drop out. This matches the
+// History footer and the shift Z-report.
+const netTotal = (tx: SaleTransaction) => tx.total - (tx.refundedAmount ?? 0);
+const netFraction = (tx: SaleTransaction) => (tx.total > 0 ? netTotal(tx) / tx.total : 1);
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
@@ -40,7 +47,7 @@ export default function Dashboard() {
   const cloudLive = supabaseConfig.enabled && supabaseConfig.status === 'connected';
 
   const completedTransactions = useMemo(() => {
-    return transactions.filter((t) => t.status === 'completed');
+    return transactions.filter((t) => t.status !== 'refunded');
   }, [transactions]);
 
   const todayDateString = useMemo(() => new Date().toDateString(), []);
@@ -64,19 +71,20 @@ export default function Dashboard() {
   }, [completedTransactions, range, rangeDays]);
 
   const kpis = useMemo(() => {
-    const revenueToday = todayTransactions.reduce((sum, t) => sum + t.total, 0);
+    const revenueToday = todayTransactions.reduce((sum, t) => sum + netTotal(t), 0);
     const ordersToday = todayTransactions.length;
     const aovToday = ordersToday > 0 ? revenueToday / ordersToday : 0;
 
     const profitToday = todayTransactions.reduce((sum, tx) => {
       const transactionCost = tx.items.reduce((cSum, item) => cSum + item.cost * item.quantity, 0);
       const transactionRevenue = tx.subtotal - tx.discount;
-      return sum + (transactionRevenue - transactionCost);
+      // Refunds are prorated across the sale, so profit scales the same way.
+      return sum + (transactionRevenue - transactionCost) * netFraction(tx);
     }, 0);
 
     const uniqueDays = new Set(completedTransactions.map((tx) => new Date(tx.date).toDateString()));
     const daysCount = Math.max(1, uniqueDays.size);
-    const totalHistoricalRevenue = completedTransactions.reduce((sum, t) => sum + t.total, 0);
+    const totalHistoricalRevenue = completedTransactions.reduce((sum, t) => sum + netTotal(t), 0);
     const avgDailyRevenue = totalHistoricalRevenue / daysCount;
 
     // Same definition as the sidebar badge: at/below threshold but still in stock.
@@ -114,12 +122,12 @@ export default function Dashboard() {
       const txKey = new Date(tx.date).toDateString();
       if (datesMap.has(txKey)) {
         const entry = datesMap.get(txKey)!;
-        entry.revenue += tx.total;
+        entry.revenue += netTotal(tx);
 
         // Raw (unclamped) profit so loss days show as negative — matching the
         // "Net Profit Today" KPI, which uses the same formula.
         const cost = tx.items.reduce((sum, item) => sum + item.cost * item.quantity, 0);
-        entry.profit += tx.subtotal - tx.discount - cost;
+        entry.profit += (tx.subtotal - tx.discount - cost) * netFraction(tx);
 
         datesMap.set(txKey, entry);
       }
@@ -136,14 +144,18 @@ export default function Dashboard() {
     const productSalesMap = new Map<string, { name: string; quantity: number; revenue: number }>();
 
     rangeTxns.forEach((tx) => {
+      // Returned units don't count toward best-sellers.
+      const returned = new Map((tx.refundedItems ?? []).map((r) => [r.productId, r.quantity]));
       tx.items.forEach((item) => {
+        const qty = item.quantity - (returned.get(item.productId) ?? 0);
+        if (qty <= 0) return;
         const current = productSalesMap.get(item.productId) || {
           name: item.productName,
           quantity: 0,
           revenue: 0,
         };
-        current.quantity += item.quantity;
-        current.revenue += item.total;
+        current.quantity += qty;
+        current.revenue += item.price * qty;
         productSalesMap.set(item.productId, current);
       });
     });
@@ -161,11 +173,14 @@ export default function Dashboard() {
     const catSalesMap = new Map<string, number>();
 
     rangeTxns.forEach((tx) => {
+      const returned = new Map((tx.refundedItems ?? []).map((r) => [r.productId, r.quantity]));
       tx.items.forEach((item) => {
+        const qty = item.quantity - (returned.get(item.productId) ?? 0);
+        if (qty <= 0) return;
         const prod = products.find((p) => p.id === item.productId);
         const catId = prod?.category || 'general';
         const current = catSalesMap.get(catId) || 0;
-        catSalesMap.set(catId, current + item.total);
+        catSalesMap.set(catId, current + item.price * qty);
       });
     });
 
@@ -195,7 +210,7 @@ export default function Dashboard() {
     };
     rangeTxns.forEach((tx) => {
       if (tx.paymentMethod in counts) {
-        counts[tx.paymentMethod as keyof typeof counts] += tx.total;
+        counts[tx.paymentMethod as keyof typeof counts] += netTotal(tx);
       }
     });
 
@@ -223,7 +238,7 @@ export default function Dashboard() {
       const key = tx.operatorId ?? tx.operatorName ?? 'unknown';
       const current = map.get(key) || { name: tx.operatorName ?? '—', orders: 0, revenue: 0 };
       current.orders += 1;
-      current.revenue += tx.total;
+      current.revenue += netTotal(tx);
       map.set(key, current);
     });
     return Array.from(map.values())

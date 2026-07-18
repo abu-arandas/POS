@@ -59,11 +59,7 @@ export default function QRMenu() {
                   <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shrink-0">
                     1
                   </div>
-                  <p
-                    dangerouslySetInnerHTML={{
-                      __html: t('qrmenu.step1'),
-                    }}
-                  />
+                  <p>{t('qrmenu.step1')}</p>
                 </li>
                 <li className="flex gap-3">
                   <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold shrink-0">

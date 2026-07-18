@@ -65,10 +65,17 @@ function twoCol(left: string, right: string, width: number): string {
   return left + ' '.repeat(space) + right;
 }
 
+export interface EncodeReceiptOptions {
+  // Pulse the cash drawer after the cut. Callers set this for the checkout
+  // print of a cash sale only — reprints from history must never pop the drawer.
+  openDrawer?: boolean;
+}
+
 export function encodeReceipt(
   tx: SaleTransaction,
   settings: StoreSettings,
   printerConfig: PrinterConfig,
+  options: EncodeReceiptOptions = {},
 ): Uint8Array {
   const width = printerConfig.paperSize === '58mm' ? 32 : 48;
   const cur = settings.currency;
@@ -114,6 +121,6 @@ export function encodeReceipt(
 
   b.align('center').line(printerConfig.footerMessage || 'Thank you!');
   b.feed(3).cut();
-  if (printerConfig.autoPrintOnCheckout) b.drawerKick();
+  if (options.openDrawer) b.drawerKick();
   return b.build();
 }

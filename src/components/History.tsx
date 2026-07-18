@@ -142,24 +142,31 @@ export default function History() {
     selection: Record<string, number>,
     authorizedBy: string,
   ) => {
-    const result = computeRefund(tx, selection, settings.loyaltyPointsRate);
+    // Re-read the live record: the modal holds a snapshot, and the same sale
+    // may have been refunded on another terminal (realtime sync) meanwhile.
+    // computeRefund clamps the selection against the live refundable state.
+    const liveTx = useTransactionStore.getState().transactions.find((x) => x.id === tx.id) ?? tx;
+    const result = computeRefund(liveTx, selection, settings.loyaltyPointsRate);
     if (!result) return;
 
     const updatedProducts: Product[] = [];
-    for (const [productId, qty] of Object.entries(selection)) {
-      if (qty <= 0) continue;
+    // Restore stock from the clamped quantities the refund actually covers,
+    // never the raw selection — the two differ when the snapshot was stale.
+    for (const { productId, quantity } of result.appliedItems) {
       const prod = useProductStore.getState().products.find((p) => p.id === productId);
       if (prod) {
-        const updated = { ...prod, stock: prod.stock + qty };
+        const updated = { ...prod, stock: prod.stock + quantity };
         handleUpdateProduct(updated);
         updatedProducts.push(updated);
       }
     }
 
     let updatedCustomer: Customer | undefined;
-    if (tx.customerId && result.pointsReversal !== 0) {
-      updateCustomerPoints(tx.customerId, result.pointsReversal);
-      updatedCustomer = useCustomerStore.getState().customers.find((c) => c.id === tx.customerId);
+    if (liveTx.customerId && result.pointsReversal !== 0) {
+      updateCustomerPoints(liveTx.customerId, result.pointsReversal);
+      updatedCustomer = useCustomerStore
+        .getState()
+        .customers.find((c) => c.id === liveTx.customerId);
     }
 
     const refundDate = new Date().toISOString();
@@ -170,7 +177,7 @@ export default function History() {
       refundDate,
       authorizedBy,
     };
-    applyRefund(tx.id, patch);
+    applyRefund(liveTx.id, patch);
 
     syncToCloudIfEnabled(
       updatedProducts.length > 0 ? updatedProducts : undefined,
@@ -178,7 +185,7 @@ export default function History() {
       updatedCustomer ? [updatedCustomer] : undefined,
       [
         {
-          ...tx,
+          ...liveTx,
           status: result.status,
           refundedItems: result.refundedItems,
           refundedAmount: result.refundedAmount,
@@ -324,7 +331,7 @@ export default function History() {
         {/* Header */}
         <div id="history-header" className="mb-6 shrink-0 flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
+            <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
               <HistoryIcon className="text-emerald-500" /> {t('history.transactionLogs')}
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm mt-0.5">

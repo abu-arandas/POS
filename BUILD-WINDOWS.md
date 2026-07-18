@@ -20,9 +20,9 @@ runners or your own PC.
 ## Option A — Build on GitHub Actions (no local setup)
 
 A workflow at `.github/workflows/build-windows.yml` builds the installer on a
-`windows-latest` runner every time the `claude/portable-build-delivery-hgp418`
-branch is pushed (and via **Actions → Build Windows Installer → Run workflow**
-once the workflow is on the default branch).
+`windows-latest` runner. Trigger it manually from
+**Actions → Build Windows Installer → Run workflow** (available once the
+workflow file is on the default branch).
 
 Each run:
 

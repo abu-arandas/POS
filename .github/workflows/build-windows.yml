@@ -7,8 +7,6 @@ name: Build Windows Installer
 # when the token allows, published as a GitHub Release asset for direct download.
 
 on:
-  push:
-    branches: [claude/portable-build-delivery-hgp418]
   workflow_dispatch:
 
 permissions:

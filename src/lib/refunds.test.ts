@@ -80,6 +80,9 @@ describe('computeRefund', () => {
     expect(r.refundedItems.find((i) => i.productId === 'latte')?.quantity).toBe(2);
     expect(r.refundedItems.find((i) => i.productId === 'muffin')?.quantity).toBe(1);
     expect(r.fullyRefunded).toBe(true);
+    // appliedItems reports what THIS refund actually returned (stock restore
+    // must use it, not the raw selection).
+    expect(r.appliedItems).toEqual([{ productId: 'muffin', quantity: 1 }]);
   });
 
   it('returns null when nothing refundable is selected', () => {

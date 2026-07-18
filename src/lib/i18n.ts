@@ -247,6 +247,8 @@ const en = {
       remaining: 'Remaining',
       splitBalanced: 'Balanced ✓',
       splitIncomplete: 'Payments do not cover the total.',
+      splitOverpayNonCash:
+        'Non-cash payments exceed the total. Change can only be given for cash — adjust the amounts.',
       payCard: 'Card',
       payCash: 'Cash',
       payMobile: 'Mobile',
@@ -329,6 +331,7 @@ const en = {
       visualThemeColor: 'Visual Theme Color',
       saveCategory: 'Save Category',
       pleaseFillRequired: 'Please fill out all required fields',
+      skuExists: 'A product with this SKU already exists.',
       deleteConfirm: 'Delete {{name}}?',
       suppliers: 'Suppliers',
       stockLog: 'Stock Log',
@@ -732,6 +735,8 @@ const ar = {
       remaining: 'المتبقي',
       splitBalanced: 'متوازن ✓',
       splitIncomplete: 'المدفوعات لا تغطي الإجمالي.',
+      splitOverpayNonCash:
+        'المدفوعات غير النقدية تتجاوز الإجمالي. لا يمكن إرجاع الباقي إلا نقدًا — عدّل المبالغ.',
       payCard: 'بطاقة',
       payCash: 'نقدي',
       payMobile: 'جوال',
@@ -814,6 +819,7 @@ const ar = {
       visualThemeColor: 'لون السمة المرئية',
       saveCategory: 'حفظ الفئة',
       pleaseFillRequired: 'يرجى ملء جميع الحقول المطلوبة',
+      skuExists: 'يوجد منتج بهذا الرمز (SKU) بالفعل.',
       deleteConfirm: 'هل تريد حذف {{name}}؟',
       suppliers: 'الموردون',
       stockLog: 'سجل المخزون',

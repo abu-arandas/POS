@@ -19,7 +19,10 @@ export function summarizeTenders(payments: Payment[], total: number): TenderSumm
   const cashTendered = round(
     clean.filter((p) => p.method === 'cash').reduce((s, p) => s + p.amount, 0),
   );
-  const cashChange = cashTendered > 0 ? round(Math.max(0, paidTotal - total)) : 0;
+  // Change never exceeds the cash actually handed over — an overpaying card
+  // line must not produce change the drawer cannot give.
+  const cashChange =
+    cashTendered > 0 ? round(Math.min(cashTendered, Math.max(0, paidTotal - total))) : 0;
   const dominantMethod: PaymentMethod = clean.length
     ? [...clean].sort((a, b) => b.amount - a.amount)[0].method
     : 'cash';

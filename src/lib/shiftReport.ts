@@ -48,8 +48,14 @@ export function summarizeShift(transactions: SaleTransaction[]): ShiftSummary {
   for (const tx of transactions) {
     const net = tx.status === 'refunded' ? 0 : tx.total - (tx.refundedAmount ?? 0);
     grossSales += net;
-    cashSales += cashKept(tx);
-    if (saleUsedCash(tx)) cashRefunds += tx.refundedAmount ?? 0;
+    const kept = cashKept(tx);
+    cashSales += kept;
+    if (saleUsedCash(tx) && tx.refundedAmount) {
+      // Only the cash share of the sale leaves the drawer — a split sale's
+      // card portion is refunded back to the card, not paid out in cash.
+      const cashShare = tx.total > 0 ? Math.min(1, kept / tx.total) : 0;
+      cashRefunds += Math.min(kept, tx.refundedAmount * cashShare);
+    }
 
     // Non-cash breakdown by dominant method (split detail is on the receipt).
     if (tx.paymentMethod === 'card') cardSales += net;

@@ -16,6 +16,7 @@ export function refundableQuantities(tx: SaleTransaction): Record<string, number
 export interface RefundComputation {
   refundAmount: number; // currency to return (prorated share of the total incl. tax & discount)
   pointsReversal: number; // delta to apply to the customer's points balance
+  appliedItems: RefundedItem[]; // quantities returned by THIS refund (selection clamped to refundable)
   refundedItems: RefundedItem[]; // NEW cumulative refunded-items list to persist
   refundedAmount: number; // NEW cumulative refunded currency to persist
   fullyRefunded: boolean; // true once every line has been fully returned
@@ -71,6 +72,7 @@ export function computeRefund(
   return {
     refundAmount,
     pointsReversal,
+    appliedItems: Object.entries(clean).map(([productId, quantity]) => ({ productId, quantity })),
     refundedItems,
     refundedAmount,
     fullyRefunded,

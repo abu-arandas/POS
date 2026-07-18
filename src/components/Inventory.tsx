@@ -172,9 +172,20 @@ export default function Inventory() {
       return;
     }
 
+    // Barcode scanning looks products up by SKU, so duplicates would make one
+    // of the two unreachable at the register.
+    const sku = prodSku.trim();
+    const skuTaken = products.some(
+      (p) => p.sku.toLowerCase() === sku.toLowerCase() && p.id !== editingProduct?.id,
+    );
+    if (skuTaken) {
+      alert(t('inventory.skuExists'));
+      return;
+    }
+
     const productPayload = {
       name: prodName,
-      sku: prodSku,
+      sku,
       category: prodCategory,
       price: parseFloat(prodPrice),
       cost: parseFloat(prodCost),
@@ -277,7 +288,7 @@ export default function Inventory() {
       {/* Header Panel */}
       <div id="inventory-header" className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
+          <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
             <Layers className="text-emerald-500" /> {t('inventory.catalogInventory')}
           </h2>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">

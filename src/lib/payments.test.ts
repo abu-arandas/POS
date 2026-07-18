@@ -39,4 +39,11 @@ describe('summarizeTenders', () => {
     expect(s.paidTotal).toBe(10);
     expect(s.dominantMethod).toBe('card');
   });
+
+  it('never reports more change than the cash actually tendered', () => {
+    // card 12 + cash 5 on a 10 total: overpayment is 7 but only 5 was cash.
+    const s = summarizeTenders([P('card', 12), P('cash', 5)], 10);
+    expect(s.cashTendered).toBe(5);
+    expect(s.cashChange).toBe(5);
+  });
 });

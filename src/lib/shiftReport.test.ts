@@ -86,4 +86,23 @@ describe('summarizeShift', () => {
     expect(s.cashRefunds).toBe(30);
     expect(s.expectedCash(0)).toBe(30); // 0 + 60 - 30
   });
+
+  it('only removes the cash share of a refunded split sale from the drawer', () => {
+    // 100 total paid 50 cash / 50 card, fully refunded: only the 50 that
+    // entered the drawer leaves it — the card half goes back to the card.
+    const tx = sale({
+      paymentMethod: 'card',
+      total: 100,
+      payments: [
+        { method: 'card', amount: 50 },
+        { method: 'cash', amount: 50 },
+      ],
+      status: 'refunded',
+      refundedAmount: 100,
+    });
+    const s = summarizeShift([tx]);
+    expect(s.cashSales).toBe(50);
+    expect(s.cashRefunds).toBe(50);
+    expect(s.expectedCash(0)).toBe(0);
+  });
 });

@@ -81,6 +81,14 @@ export default function Register() {
     [customers, selectedCustomerId],
   );
 
+  // The customer on the just-completed sale. clearCart() runs before the
+  // receipt modal opens (it resets selectedCustomerId), so the email button
+  // must resolve the customer from the receipt itself, not the live cart.
+  const receiptCustomer = useMemo(
+    () => customers.find((c) => c.id === activeReceipt?.customerId) || null,
+    [customers, activeReceipt],
+  );
+
   const cartItems = useMemo(
     () =>
       cart.map((item) => ({
@@ -293,6 +301,12 @@ export default function Register() {
         alert(t('register.splitIncomplete'));
         return;
       }
+      // Change can only be given for cash, so the non-cash tenders must not
+      // exceed the total — otherwise the customer is silently overcharged.
+      if (tenders.paidTotal - tenders.cashTendered > totalAmount + 0.005) {
+        alert(t('register.splitOverpayNonCash'));
+        return;
+      }
       payments = clean;
       saleMethod = tenders.dominantMethod;
       // cashPaid is the CASH tender only (not the card/mobile lines), so the
@@ -320,6 +334,15 @@ export default function Register() {
       ? Math.floor(totalAmount * settings.loyaltyPointsRate)
       : undefined;
 
+    // For a loyalty sale, record only the points actually redeemed: the
+    // discount is clamped to the subtotal (pricing.ts), so a stale
+    // loyaltyPointsToUse from a since-shrunk cart must not burn — or later
+    // refund — more points than the value the customer actually received.
+    const effectiveDiscountValue =
+      discountType === 'loyalty' && settings.loyaltyPointValue > 0
+        ? Math.min(discountValue, Math.ceil(discountAmount / settings.loyaltyPointValue))
+        : discountValue;
+
     const transaction: SaleTransaction = {
       id: nextId,
       date: new Date().toISOString(),
@@ -330,7 +353,7 @@ export default function Register() {
       subtotal,
       discount: discountAmount,
       discountType,
-      discountValue,
+      discountValue: effectiveDiscountValue,
       tax: taxAmount,
       total: totalAmount,
       paymentMethod: saleMethod,
@@ -363,7 +386,7 @@ export default function Register() {
     let updatedCustomer = null;
     if (selectedCustomerId) {
       let pointsDelta = pointsEarned ?? 0;
-      if (discountType === 'loyalty') pointsDelta -= discountValue;
+      if (discountType === 'loyalty') pointsDelta -= effectiveDiscountValue;
       updateCustomerPoints(selectedCustomerId, pointsDelta);
       updatedCustomer = useCustomerStore
         .getState()
@@ -384,7 +407,13 @@ export default function Register() {
     clearCart();
 
     if (printerConfig.autoPrintOnCheckout) {
-      printReceipt(transaction, settings, printerConfig).then(notifyPrint);
+      // Pop the drawer only for the checkout print of a sale that took cash.
+      const tookCash =
+        transaction.paymentMethod === 'cash' ||
+        (transaction.payments ?? []).some((p) => p.method === 'cash');
+      printReceipt(transaction, settings, printerConfig, { openDrawer: tookCash }).then(
+        notifyPrint,
+      );
     }
   };
 
@@ -1063,7 +1092,7 @@ export default function Register() {
                   </button>
                   <button
                     onClick={() =>
-                      emailReceipt(activeReceipt, settings, activeCustomer?.email || undefined)
+                      emailReceipt(activeReceipt, settings, receiptCustomer?.email || undefined)
                     }
                     className="flex-1 flex justify-center items-center gap-2 px-3 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-colors shadow-sm"
                   >

@@ -59,8 +59,13 @@ export default function Customers() {
     if (activeCustomerTransactions.length === 0) {
       return { totalSpent: 0, averageSpent: 0, totalVisits: 0 };
     }
-    const completedTx = activeCustomerTransactions.filter((t) => t.status === 'completed');
-    const totalSpent = completedTx.reduce((sum, tx) => sum + tx.total, 0);
+    // Partially-refunded sales count net of the refund; only fully-refunded
+    // sales drop out (matching the Dashboard and History totals).
+    const completedTx = activeCustomerTransactions.filter((t) => t.status !== 'refunded');
+    const totalSpent = completedTx.reduce(
+      (sum, tx) => sum + tx.total - (tx.refundedAmount ?? 0),
+      0,
+    );
     const totalVisits = completedTx.length;
     const averageSpent = totalVisits > 0 ? totalSpent / totalVisits : 0;
 
@@ -160,7 +165,7 @@ export default function Customers() {
         {/* Header */}
         <div id="customers-header" className="mb-6 shrink-0 flex items-center justify-between">
           <div>
-            <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
+            <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
               <Users className="text-emerald-500" /> {t('customers.customerLoyaltyCrm')}
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
@@ -402,11 +407,19 @@ export default function Customers() {
                             {tx.total.toFixed(2)}
                           </span>
                           <span
-                            className={`text-[9px] font-bold ${tx.status === 'refunded' ? 'text-rose-500' : 'text-slate-400'}`}
+                            className={`text-[9px] font-bold ${
+                              tx.status === 'refunded'
+                                ? 'text-rose-500'
+                                : tx.status === 'partial'
+                                  ? 'text-amber-500'
+                                  : 'text-slate-400'
+                            }`}
                           >
                             {tx.status === 'refunded'
                               ? t('customers.refunded')
-                              : t('customers.completed')}
+                              : tx.status === 'partial'
+                                ? t('history.partial')
+                                : t('customers.completed')}
                           </span>
                         </div>
                       </div>

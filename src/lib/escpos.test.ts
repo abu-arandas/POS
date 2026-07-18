@@ -65,12 +65,14 @@ describe('encodeReceipt', () => {
     expect(ascii).toContain('TX-1');
   });
 
-  it('kicks the drawer only when autoPrintOnCheckout is on', () => {
+  it('kicks the drawer only when the caller asks for it (cash checkout, not reprints)', () => {
     const kick = [0x1b, 0x70, 0x00];
+    expect(findSeq(encodeReceipt(tx, settings, printer, { openDrawer: true }), kick)).toBe(true);
+    expect(findSeq(encodeReceipt(tx, settings, printer), kick)).toBe(false);
+    // autoPrintOnCheckout alone must NOT pop the drawer (reprints share this path).
     expect(
       findSeq(encodeReceipt(tx, settings, { ...printer, autoPrintOnCheckout: true }), kick),
-    ).toBe(true);
-    expect(findSeq(encodeReceipt(tx, settings, printer), kick)).toBe(false);
+    ).toBe(false);
   });
 
   it('replaces multibyte characters with ASCII (no raw high bytes from text)', () => {

@@ -1,5 +1,5 @@
 import { SaleTransaction, StoreSettings, PrinterConfig } from '../types';
-import { encodeReceipt } from './escpos';
+import { encodeReceipt, EncodeReceiptOptions } from './escpos';
 import { printTransactions } from './receiptPrinter';
 
 export type HardwarePrintOutcome =
@@ -49,18 +49,20 @@ async function printNetwork(bytes: Uint8Array, ip: string): Promise<HardwarePrin
 
 // Dispatches a receipt to the configured transport. 'system' uses the browser
 // print window (synchronous under the hood); the hardware transports encode
-// ESC/POS and stream the bytes.
+// ESC/POS and stream the bytes. `options.openDrawer` pops the drawer on
+// hardware transports (checkout print of a cash sale only — reprints must not).
 export async function printReceipt(
   tx: SaleTransaction,
   settings: StoreSettings,
   printerConfig: PrinterConfig,
+  options: EncodeReceiptOptions = {},
 ): Promise<HardwarePrintOutcome> {
   if (printerConfig.type === 'system') {
     const outcome = printTransactions([tx], settings, printerConfig);
     return outcome === 'popup-blocked' ? 'popup-blocked' : 'printed';
   }
 
-  const bytes = encodeReceipt(tx, settings, printerConfig);
+  const bytes = encodeReceipt(tx, settings, printerConfig, options);
   if (printerConfig.type === 'serial') return printSerial(bytes, printerConfig.baudRate);
   if (printerConfig.type === 'network') {
     if (!printerConfig.ipAddress) return 'no-device';
