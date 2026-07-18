@@ -173,6 +173,9 @@ export interface KitchenPrinterConfig {
   ipAddress?: string;
   baudRate?: number;
   codepage?: 'ascii' | 'latin1';
+  // For type 'system': the exact OS printer to send to (from the enumerated
+  // list). Empty = the OS default printer. Only meaningful in the desktop app.
+  deviceName?: string;
 }
 
 export interface PrinterConfig {
@@ -180,6 +183,9 @@ export interface PrinterConfig {
   paperSize: '58mm' | '80mm';
   ipAddress?: string;
   baudRate?: number;
+  // For type 'system': the exact OS printer to send to (from the enumerated
+  // list). Empty = the OS default printer. Only meaningful in the desktop app.
+  deviceName?: string;
   // ESC/POS character handling: 'ascii' (default, safest — accents folded to
   // their base letter) or 'latin1' (selects the printer's Windows-1252 table,
   // so Western European accents and € print natively). Arabic text cannot be
@@ -188,6 +194,16 @@ export interface PrinterConfig {
   showBarcode: boolean;
   footerMessage: string;
   autoPrintOnCheckout: boolean;
+}
+
+// An OS-installed printer, enumerated by the Electron main process so the
+// operator can pick which physical printer the front / kitchen tickets use.
+export interface SystemPrinter {
+  name: string; // the deviceName used to target it when printing
+  displayName: string;
+  description: string;
+  status: number;
+  isDefault: boolean;
 }
 
 export interface SupabaseConfig {

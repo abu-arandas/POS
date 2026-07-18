@@ -1,6 +1,11 @@
 import { SaleTransaction, StoreSettings, PrinterConfig, KitchenPrinterConfig } from '../types';
 import { encodeReceipt, encodeKitchenTicket, EncodeReceiptOptions } from './escpos';
-import { printTransactions, printKitchenTicketSystem } from './receiptPrinter';
+import {
+  printTransactions,
+  printKitchenTicketSystem,
+  buildReceiptsDocument,
+  buildKitchenDocument,
+} from './receiptPrinter';
 
 export type HardwarePrintOutcome =
   'printed' | 'popup-blocked' | 'unsupported' | 'no-device' | 'error';
@@ -58,6 +63,15 @@ export async function printReceipt(
   options: EncodeReceiptOptions = {},
 ): Promise<HardwarePrintOutcome> {
   if (printerConfig.type === 'system') {
+    // In the desktop app, print silently to the operator-selected OS printer
+    // (no dialog, no popup) so the front and kitchen printers stay separate.
+    const api = window.electronAPI;
+    if (api?.printHtml) {
+      const html = buildReceiptsDocument([tx], settings, printerConfig);
+      const ok = await api.printHtml({ html, deviceName: printerConfig.deviceName });
+      return ok ? 'printed' : 'error';
+    }
+    // Plain browser: fall back to the print-window dialog.
     const outcome = printTransactions([tx], settings, printerConfig);
     return outcome === 'popup-blocked' ? 'popup-blocked' : 'printed';
   }
@@ -72,6 +86,31 @@ export async function printReceipt(
   return 'unsupported';
 }
 
+// A small sample sale used by the Settings "test print" buttons so operators
+// can confirm a receipt actually lands on the printer they selected.
+export function makeTestTransaction(): SaleTransaction {
+  return {
+    id: 'TX-TEST',
+    orderNumber: 0,
+    date: new Date().toISOString(),
+    items: [
+      { productId: 't1', productName: 'TEST ITEM', price: 1, cost: 0, quantity: 1, total: 1 },
+    ],
+    subtotal: 1,
+    discount: 0,
+    discountType: 'none',
+    discountValue: 0,
+    tax: 0,
+    total: 1,
+    paymentMethod: 'cash',
+    cashPaid: 1,
+    cashChange: 0,
+    customerId: null,
+    operatorName: 'TEST PRINT',
+    status: 'completed',
+  };
+}
+
 // Sends the kitchen prep ticket to the configured kitchen printer. No-op (and
 // no outcome surfaced) when the kitchen printer is disabled. The 'system'
 // transport opens a browser print window; hardware transports stream ESC/POS.
@@ -82,6 +121,12 @@ export async function printKitchenTicket(
 ): Promise<HardwarePrintOutcome> {
   if (!kitchenConfig.enabled) return 'printed';
   if (kitchenConfig.type === 'system') {
+    const api = window.electronAPI;
+    if (api?.printHtml) {
+      const html = buildKitchenDocument(tx, kitchenConfig);
+      const ok = await api.printHtml({ html, deviceName: kitchenConfig.deviceName });
+      return ok ? 'printed' : 'error';
+    }
     const outcome = printKitchenTicketSystem(tx, settings, kitchenConfig);
     return outcome === 'popup-blocked' ? 'popup-blocked' : 'printed';
   }

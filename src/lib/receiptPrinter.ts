@@ -122,26 +122,20 @@ export function buildReceiptHtml(
     </div>`;
 }
 
-// Opens a print window for one or more receipts on the "system" printer type;
-// non-system types are mocked (ESC/POS handoff message). Returns an outcome the
-// caller can surface to the operator; all dynamic values are HTML-escaped.
-export function printTransactions(
+// Builds the full printable HTML document for one or more receipts. Shared by
+// the browser print-window path (printTransactions) and the Electron silent
+// targeted-print path (hardwarePrint), so both render identically.
+export function buildReceiptsDocument(
   txs: SaleTransaction[],
   settings: StoreSettings,
   printerConfig: PrinterConfig,
-): PrintOutcome {
-  if (printerConfig.type !== 'system') return 'esc-pos';
-  if (txs.length === 0) return 'printed';
-
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return 'popup-blocked';
-
+): string {
   const rollWidth = printerConfig.paperSize === '58mm' ? '58mm' : '80mm';
   const receiptsHtml = txs
     .map((tx) => buildReceiptHtml(tx, settings, printerConfig))
     .join('<div class="page-break"></div>');
 
-  printWindow.document.write(`
+  return `
     <html>
       <head>
         <title>POS Receipts</title>
@@ -175,27 +169,40 @@ export function printTransactions(
         ${receiptsHtml}
       </body>
     </html>
-  `);
+  `;
+}
+
+// Opens a print window for one or more receipts on the "system" printer type;
+// non-system types are mocked (ESC/POS handoff message). Returns an outcome the
+// caller can surface to the operator; all dynamic values are HTML-escaped.
+export function printTransactions(
+  txs: SaleTransaction[],
+  settings: StoreSettings,
+  printerConfig: PrinterConfig,
+): PrintOutcome {
+  if (printerConfig.type !== 'system') return 'esc-pos';
+  if (txs.length === 0) return 'printed';
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return 'popup-blocked';
+
+  printWindow.document.write(buildReceiptsDocument(txs, settings, printerConfig));
   printWindow.document.close();
   return 'printed';
 }
 
-// Kitchen prep ticket for the 'system' printer type: order number + items,
-// no prices. All dynamic values are HTML-escaped.
-export function printKitchenTicketSystem(
+// Builds the full printable HTML for a kitchen prep ticket (order number +
+// items, no prices). Shared by the browser and Electron print paths.
+export function buildKitchenDocument(
   tx: SaleTransaction,
-  settings: StoreSettings,
   kitchenConfig: Pick<KitchenPrinterConfig, 'paperSize'>,
-): PrintOutcome {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return 'popup-blocked';
-
+): string {
   const rollWidth = kitchenConfig.paperSize === '58mm' ? '58mm' : '80mm';
   const items = tx.items
     .map((item) => `<div class="item">${esc(item.quantity)}x ${esc(item.productName)}</div>`)
     .join('');
 
-  printWindow.document.write(`
+  return `
     <html>
       <head>
         <title>Kitchen Ticket ${esc(tx.id)}</title>
@@ -226,7 +233,18 @@ export function printKitchenTicketSystem(
         <div class="divider"></div>
       </body>
     </html>
-  `);
+  `;
+}
+
+// Kitchen prep ticket for the 'system' printer type (browser print window).
+export function printKitchenTicketSystem(
+  tx: SaleTransaction,
+  _settings: StoreSettings,
+  kitchenConfig: Pick<KitchenPrinterConfig, 'paperSize'>,
+): PrintOutcome {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return 'popup-blocked';
+  printWindow.document.write(buildKitchenDocument(tx, kitchenConfig));
   printWindow.document.close();
   return 'printed';
 }

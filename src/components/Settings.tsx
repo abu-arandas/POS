@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import {
   Settings as SettingsIcon,
   Cloud,
@@ -15,7 +15,13 @@ import {
   X,
   Shield,
 } from 'lucide-react';
-import { StoreSettings, UserAccount, PrinterConfig, KitchenPrinterConfig } from '../types';
+import {
+  StoreSettings,
+  UserAccount,
+  PrinterConfig,
+  KitchenPrinterConfig,
+  SystemPrinter,
+} from '../types';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
@@ -24,6 +30,7 @@ import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { hashUserPin } from '../lib/hash';
 import { shortId } from '../lib/ids';
+import { printReceipt, printKitchenTicket, makeTestTransaction } from '../lib/hardwarePrint';
 import {
   testCloudConnection,
   pushAllToCloud,
@@ -66,6 +73,43 @@ export default function Settings() {
   // --- Printer config form state (seeded from persisted config) ---
   const [printerForm, setPrinterForm] = useState<PrinterConfig>(printerConfig);
   const [kitchenForm, setKitchenForm] = useState<KitchenPrinterConfig>(kitchenPrinterConfig);
+
+  // Installed OS printers, enumerated by the desktop app (empty in a browser,
+  // where printer selection is not available — the OS print dialog handles it).
+  const [systemPrinters, setSystemPrinters] = useState<SystemPrinter[]>([]);
+  const [printersLoading, setPrintersLoading] = useState(false);
+  const inDesktopApp = typeof window !== 'undefined' && !!window.electronAPI?.listPrinters;
+
+  const loadPrinters = useCallback(async () => {
+    if (!window.electronAPI?.listPrinters) return;
+    setPrintersLoading(true);
+    try {
+      setSystemPrinters(await window.electronAPI.listPrinters());
+    } catch {
+      setSystemPrinters([]);
+    } finally {
+      setPrintersLoading(false);
+    }
+  }, []);
+
+  // Enumerate once when the printer tab is opened (desktop app only). The
+  // fetch flips a loading flag; that's the intended effect, not a render loop.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (activeTab === 'printer') loadPrinters();
+  }, [activeTab, loadPrinters]);
+
+  const testFrontPrinter = async () => {
+    const outcome = await printReceipt(makeTestTransaction(), settings, printerForm);
+    if (outcome !== 'printed') alert(t('settings.testPrintFailed', { outcome }));
+  };
+  const testKitchenPrinter = async () => {
+    const outcome = await printKitchenTicket(makeTestTransaction(), settings, {
+      ...kitchenForm,
+      enabled: true,
+    });
+    if (outcome !== 'printed') alert(t('settings.testPrintFailed', { outcome }));
+  };
 
   const openAddUser = () => {
     setEditingUser(null);
@@ -270,6 +314,47 @@ export default function Settings() {
     manager: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
     cashier: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
   };
+
+  // A dropdown of the OS-installed printers for a 'system' printer. In a plain
+  // browser (no enumeration API) it shows a hint that selection needs the app.
+  const devicePicker = (value: string | undefined, onChange: (deviceName: string) => void) => (
+    <div className="md:col-span-2">
+      <div className="flex items-center justify-between mb-2">
+        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          {t('settings.selectPrinter')}
+        </label>
+        {inDesktopApp && (
+          <button
+            type="button"
+            onClick={loadPrinters}
+            className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+          >
+            <RefreshCw size={12} className={printersLoading ? 'animate-spin' : ''} />
+            {t('settings.refresh')}
+          </button>
+        )}
+      </div>
+      {inDesktopApp ? (
+        <select
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-hidden dark:text-slate-100"
+        >
+          <option value="">{t('settings.systemDefaultPrinter')}</option>
+          {systemPrinters.map((p) => (
+            <option key={p.name} value={p.name}>
+              {p.displayName}
+              {p.isDefault ? ` (${t('settings.defaultPrinter')})` : ''}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
+          {t('settings.printerPickDesktopOnly')}
+        </p>
+      )}
+    </div>
+  );
 
   return (
     <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950">
@@ -564,6 +649,10 @@ export default function Settings() {
                         <option value="80mm">80mm</option>
                       </select>
                     </div>
+                    {printerForm.type === 'system' &&
+                      devicePicker(printerForm.deviceName, (deviceName) =>
+                        setPrinterForm({ ...printerForm, deviceName }),
+                      )}
                     {printerForm.type === 'network' && (
                       <div>
                         <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
@@ -668,6 +757,15 @@ export default function Settings() {
                     </span>
                   </label>
 
+                  <button
+                    type="button"
+                    id="test-front-printer"
+                    onClick={testFrontPrinter}
+                    className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                  >
+                    <Printer size={14} /> {t('settings.testPrint')}
+                  </button>
+
                   {/* Kitchen printer — a second printer that auto-prints a prep
                       ticket (order number + items, no prices) for every sale. */}
                   <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
@@ -731,6 +829,10 @@ export default function Settings() {
                             <option value="80mm">80mm</option>
                           </select>
                         </div>
+                        {kitchenForm.type === 'system' &&
+                          devicePicker(kitchenForm.deviceName, (deviceName) =>
+                            setKitchenForm({ ...kitchenForm, deviceName }),
+                          )}
                         {kitchenForm.type === 'network' && (
                           <div>
                             <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
@@ -768,6 +870,16 @@ export default function Settings() {
                             />
                           </div>
                         )}
+                        <div className="md:col-span-2">
+                          <button
+                            type="button"
+                            id="test-kitchen-printer"
+                            onClick={testKitchenPrinter}
+                            className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                          >
+                            <Printer size={14} /> {t('settings.testPrintKitchen')}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

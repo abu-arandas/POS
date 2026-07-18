@@ -64,6 +64,75 @@ ipcMain.on('update-menu-data', (event, data) => {
   menuData = data;
 });
 
+// Lists the OS-installed printers so the renderer can offer a real
+// "choose your printer" dropdown for the front and kitchen 'system' printers.
+ipcMain.handle('list-printers', async () => {
+  try {
+    const contents = mainWindow?.webContents;
+    if (!contents) return [];
+    const printers = await contents.getPrintersAsync();
+    return printers.map((p) => ({
+      name: p.name,
+      displayName: p.displayName || p.name,
+      description: p.description || '',
+      status: p.status,
+      isDefault: !!p.isDefault,
+    }));
+  } catch (err) {
+    console.error('list-printers failed:', err.message);
+    return [];
+  }
+});
+
+// Silently prints a receipt/kitchen-ticket HTML document to a specific OS
+// printer (deviceName). Renders the HTML in a hidden window, prints without a
+// dialog, then disposes the window. Empty deviceName = the OS default printer.
+ipcMain.handle('print-html', (event, payload) => {
+  const { html, deviceName } = payload || {};
+  return new Promise((resolve) => {
+    if (typeof html !== 'string') {
+      resolve(false);
+      return;
+    }
+    const win = new BrowserWindow({
+      show: false,
+      webPreferences: { offscreen: false, sandbox: true },
+    });
+    let settled = false;
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      if (!win.isDestroyed()) win.close();
+      resolve(ok);
+    };
+    // Guard against a print job that never calls back (offline/hung spooler).
+    const timer = setTimeout(() => done(false), 15000);
+    win.webContents.once('did-finish-load', () => {
+      // Give inline images (logo data URI) a beat to lay out before printing.
+      setTimeout(() => {
+        win.webContents.print(
+          {
+            silent: true,
+            printBackground: true,
+            deviceName: deviceName || undefined,
+            margins: { marginType: 'none' },
+          },
+          (ok, reason) => {
+            if (!ok) console.warn('print-html failed:', reason);
+            clearTimeout(timer);
+            done(ok);
+          },
+        );
+      }, 250);
+    });
+    win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html)).catch((err) => {
+      console.error('print-html load failed:', err.message);
+      clearTimeout(timer);
+      done(false);
+    });
+  });
+});
+
 // Streams raw ESC/POS bytes to a network thermal printer (RAW/JetDirect on TCP
 // 9100). Resolves true on a clean write, false on any socket error/timeout.
 ipcMain.handle('print-escpos', (event, payload) => {

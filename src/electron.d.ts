@@ -1,5 +1,8 @@
 export {};
 
+import type { SystemPrinter } from './types';
+export type { SystemPrinter };
+
 // Public (customer-safe) shape pushed to the LAN-exposed QR-menu server.
 // Deliberately excludes cost, stock counts, and non-menu settings.
 export interface PublicMenuProduct {
@@ -37,6 +40,10 @@ declare global {
       }) => void;
       // Streams raw ESC/POS bytes to a network printer over TCP; resolves true on success.
       printEscpos?: (payload: { ip: string; port: number; data: number[] }) => Promise<boolean>;
+      // Enumerates the OS-installed printers for the printer picker.
+      listPrinters?: () => Promise<SystemPrinter[]>;
+      // Silently prints an HTML document to a named OS printer (or the default).
+      printHtml?: (payload: { html: string; deviceName?: string }) => Promise<boolean>;
     };
   }
 }

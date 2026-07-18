@@ -13,4 +13,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Streams a raw ESC/POS byte array to a network thermal printer over TCP.
   // Resolves true on success. { ip, port, data:number[] }.
   printEscpos: (payload) => ipcRenderer.invoke('print-escpos', payload),
+  // Lists the OS-installed printers (name/displayName/isDefault/status) so the
+  // renderer can offer a printer picker for the 'system' printer type.
+  listPrinters: () => ipcRenderer.invoke('list-printers'),
+  // Silently prints an HTML document to a specific OS printer (or the default
+  // when deviceName is empty). Resolves true on success. { html, deviceName }.
+  printHtml: (payload) => ipcRenderer.invoke('print-html', payload),
 });

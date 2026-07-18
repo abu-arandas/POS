@@ -139,6 +139,16 @@ const en = {
       kitchenPrinter: 'Kitchen Printer',
       kitchenPrinterHint:
         'Auto-print a prep ticket (order number + items, no prices) to a second printer for every sale.',
+      selectPrinter: 'Printer',
+      systemDefaultPrinter: 'System default printer',
+      defaultPrinter: 'default',
+      refresh: 'Refresh',
+      printerPickDesktopOnly:
+        'Choosing a specific printer needs the desktop app. In the browser, the print dialog lets you pick.',
+      testPrint: 'Test Print',
+      testPrintKitchen: 'Test Kitchen Print',
+      testPrintFailed:
+        'Test print did not complete ({{outcome}}). Check the printer and try again.',
       cancel: 'Cancel',
     },
     lockscreen: {
@@ -636,6 +646,15 @@ const ar = {
       kitchenPrinter: 'طابعة المطبخ',
       kitchenPrinterHint:
         'طباعة تذكرة تحضير تلقائيًا (رقم الطلب + الأصناف، بدون أسعار) على طابعة ثانية لكل عملية بيع.',
+      selectPrinter: 'الطابعة',
+      systemDefaultPrinter: 'الطابعة الافتراضية للنظام',
+      defaultPrinter: 'افتراضية',
+      refresh: 'تحديث',
+      printerPickDesktopOnly:
+        'اختيار طابعة محددة يتطلب تطبيق سطح المكتب. في المتصفح، يتيح لك مربع حوار الطباعة الاختيار.',
+      testPrint: 'طباعة تجريبية',
+      testPrintKitchen: 'طباعة تجريبية للمطبخ',
+      testPrintFailed: 'لم تكتمل الطباعة التجريبية ({{outcome}}). تحقق من الطابعة وحاول مرة أخرى.',
       cancel: 'إلغاء',
     },
     lockscreen: {
