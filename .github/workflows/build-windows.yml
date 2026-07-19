@@ -48,6 +48,9 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub release with installer
+        # Only publish on pushes / manual runs — never on pull_request, so an
+        # unreviewed same-repo PR can't cut a release from its branch.
+        if: github.event_name != 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

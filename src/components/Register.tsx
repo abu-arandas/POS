@@ -303,7 +303,7 @@ export default function Register() {
     const outcome = buildSaleTransaction(req);
     if (!outcome.success) {
       if (outcome.error === 'split-incomplete') alert(t('register.splitIncomplete'));
-      else if (outcome.error === 'split-non-cash-overpay') alert(t('register.splitNonCashOverpay', { defaultValue: 'Non-cash tenders exceed the total. Only cash can overpay.' }));
+      else if (outcome.error === 'split-non-cash-overpay') alert(t('register.splitNonCashOverpay'));
       else if (outcome.error === 'insufficient-cash') alert(t('register.insufficientCash'));
       return;
     }
