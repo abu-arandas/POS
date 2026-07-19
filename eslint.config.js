@@ -28,9 +28,9 @@ export default tseslint.config(
     },
   },
   {
-    // Playwright e2e tests and config run under Node, not the browser/React
-    // fast-refresh model, so drop the React-specific rules for them.
-    files: ['e2e/**/*.ts', 'playwright.config.ts'],
+    // Playwright e2e tests and the test/build config files run under Node, not
+    // the browser/React fast-refresh model, so drop the React-specific rules.
+    files: ['e2e/**/*.ts', 'playwright.config.ts', 'vitest.config.ts'],
     languageOptions: { globals: globals.node },
     rules: {
       'react-refresh/only-export-components': 'off',
