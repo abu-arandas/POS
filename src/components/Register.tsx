@@ -29,7 +29,6 @@ import { useHeldOrderStore } from '../stores/heldOrderStore';
 import { useShiftStore } from '../stores/shiftStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
-import { shortId } from '../lib/ids';
 import { buildSaleTransaction, CheckoutRequest } from '../lib/checkout';
 import { printReceipt, openCashDrawer, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
