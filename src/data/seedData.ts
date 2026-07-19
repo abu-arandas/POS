@@ -11,6 +11,32 @@ export const INITIAL_CATEGORIES: Category[] = [
   { id: 'cat-snk', name: 'Snacks', color: 'bg-purple-100 text-purple-800 border-purple-200' },
 ];
 
+// Category gradient stops for the generated product thumbnails.
+const CATEGORY_GRADIENT: Record<string, [string, string]> = {
+  'cat-bev': ['#38bdf8', '#2563eb'],
+  'cat-bak': ['#fbbf24', '#d97706'],
+  'cat-snd': ['#34d399', '#059669'],
+  'cat-snk': ['#a78bfa', '#7c3aed'],
+};
+
+// Builds a self-contained SVG thumbnail (a category-tinted gradient behind the
+// product's emoji) as a data URI. This keeps the demo catalog looking polished
+// fully offline — an offline-first POS often runs on a café LAN with no
+// internet — with no external image host and no binary assets in the repo.
+// encodeURIComponent (not base64) keeps it UTF-8-safe for the emoji glyph.
+function productThumb(category: string, emoji: string): string {
+  const [from, to] = CATEGORY_GRADIENT[category] ?? ['#94a3b8', '#475569'];
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">` +
+    `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">` +
+    `<stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/>` +
+    `</linearGradient></defs>` +
+    `<rect width="400" height="400" fill="url(#g)"/>` +
+    `<text x="50%" y="50%" dy="0.36em" text-anchor="middle" font-size="210">${emoji}</text>` +
+    `</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 export const INITIAL_PRODUCTS: Product[] = [
   {
     id: 'prod-espresso',
@@ -21,8 +47,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sku: 'BEV-ESP-01',
     stock: 120,
     minStock: 20,
-    image:
-      'https://images.unsplash.com/photo-1510972527409-cef1903972fa?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+    image: productThumb('cat-bev', '☕'),
   },
   {
     id: 'prod-latte',
@@ -33,8 +58,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sku: 'BEV-LAT-02',
     stock: 95,
     minStock: 15,
-    image:
-      'https://images.unsplash.com/photo-1541167760496-1628856ab772?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+    image: productThumb('cat-bev', '🥛'),
   },
   {
     id: 'prod-greentea',
@@ -45,8 +69,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sku: 'BEV-MAT-03',
     stock: 6, // Low stock warning!
     minStock: 10,
-    image:
-      'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+    image: productThumb('cat-bev', '🍵'),
   },
   {
     id: 'prod-croissant',
@@ -57,8 +80,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sku: 'BAK-CRO-01',
     stock: 45,
     minStock: 10,
-    image:
-      'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+    image: productThumb('cat-bak', '🥐'),
   },
   {
     id: 'prod-muffin',
@@ -69,8 +91,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sku: 'BAK-MUF-02',
     stock: 30,
     minStock: 8,
-    image:
-      'https://images.unsplash.com/photo-1607958996333-41aef7caefaa?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+    image: productThumb('cat-bak', '🧁'),
   },
   {
     id: 'prod-choccake',
@@ -81,8 +102,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sku: 'BAK-CAK-03',
     stock: 12,
     minStock: 5,
-    image:
-      'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+    image: productThumb('cat-bak', '🍰'),
   },
   {
     id: 'prod-avotoast',
@@ -93,8 +113,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sku: 'SND-AVO-01',
     stock: 35,
     minStock: 5,
-    image:
-      'https://images.unsplash.com/photo-1541532713592-79a0317b6b77?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+    image: productThumb('cat-snd', '🥑'),
   },
   {
     id: 'prod-caprese',
@@ -105,8 +124,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sku: 'SND-CAP-02',
     stock: 22,
     minStock: 5,
-    image:
-      'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+    image: productThumb('cat-snd', '🥪'),
   },
   {
     id: 'prod-turkeyswiss',
@@ -117,8 +135,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sku: 'SND-TRK-03',
     stock: 4, // Low stock warning!
     minStock: 5,
-    image:
-      'https://images.unsplash.com/photo-1509722747041-616f39b57569?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+    image: productThumb('cat-snd', '🥪'),
   },
   {
     id: 'prod-chips',
@@ -129,8 +146,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sku: 'SNK-CHP-01',
     stock: 75,
     minStock: 15,
-    image:
-      'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+    image: productThumb('cat-snk', '🍟'),
   },
   {
     id: 'prod-fruit',
@@ -141,8 +157,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sku: 'SNK-FRT-02',
     stock: 18,
     minStock: 5,
-    image:
-      'https://images.unsplash.com/photo-1519996521430-02b798c1d881?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+    image: productThumb('cat-snk', '🍓'),
   },
 ];
 
