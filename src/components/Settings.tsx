@@ -22,7 +22,7 @@ import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
-import { hashPin } from '../lib/hash';
+import { hashPinSalted } from '../lib/hash';
 import {
   testCloudConnection,
   pushAllToCloud,
@@ -107,13 +107,15 @@ export default function Settings() {
         name: uName.trim(),
         role: uRole,
         active: uActive,
-        pin: uPin ? await hashPin(uPin) : editingUser.pin,
+        pin: uPin ? await hashPinSalted(editingUser.id, uPin) : editingUser.pin,
       };
       handleUpdateUser(updated);
       syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [updated]);
     } else {
-      const pinHash = await hashPin(uPin);
-      const created = handleAddUser(uName.trim(), uRole, pinHash);
+      // New user: generate ID first so we can salt the PIN hash with it.
+      const tempId = `user-${crypto.randomUUID?.() ?? Date.now()}`;
+      const pinHash = await hashPinSalted(tempId, uPin);
+      const created = handleAddUser(uName.trim(), uRole, pinHash, tempId);
       if (!uActive) {
         const deactivated = { ...created, active: false };
         handleUpdateUser(deactivated);

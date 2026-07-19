@@ -37,6 +37,10 @@ A modern, high-performance, cross-platform Point of Sale (POS) system built with
    ```bash
    npm install
    ```
+   *Note for Windows users:* If `npm install` fails due to local system security restrictions, run:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -Command "npm install"
+   ```
 
 ### Running Locally (Web)
 

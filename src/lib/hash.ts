@@ -83,3 +83,17 @@ export async function hashPin(pin: string): Promise<string> {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 }
+
+// Salted PIN hash: SHA-256("<userId>:<pin>"). Using the stable account ID as
+// salt means identical PINs on different accounts produce different digests, and
+// the well-known hashes for "1234" / "0000" etc. no longer appear in the DB.
+// The output is still a 64-hex SHA-256, so the cloud schema needs no migration.
+export async function hashPinSalted(userId: string, pin: string): Promise<string> {
+  return hashPin(`${userId}:${pin}`);
+}
+
+// Synchronous variant for seed scripts / tests.
+export function hashPinSaltedSync(userId: string, pin: string): string {
+  return sha256HexSync(`${userId}:${pin}`);
+}
+

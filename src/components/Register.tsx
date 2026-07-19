@@ -30,8 +30,8 @@ import { useShiftStore } from '../stores/shiftStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { shortId } from '../lib/ids';
-import { summarizeTenders } from '../lib/payments';
-import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
+import { buildSaleTransaction, CheckoutRequest } from '../lib/checkout';
+import { printReceipt, openCashDrawer, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useTranslation } from 'react-i18next';
@@ -281,70 +281,37 @@ export default function Register() {
     setSplitPayments((prev) => prev.filter((_, i) => i !== idx));
 
   const handleCompletePayment = () => {
-    let saleMethod: PaymentMethod;
-    let payments: Payment[] | undefined;
-    let paidValue: number | undefined;
-    let changeDue: number | undefined;
-
-    if (splitMode) {
-      const clean = splitPayments.filter((p) => (p.amount || 0) > 0);
-      const tenders = summarizeTenders(clean, totalAmount);
-      if (clean.length === 0 || !tenders.coversTotal) {
-        alert(t('register.splitIncomplete'));
-        return;
-      }
-      payments = clean;
-      saleMethod = tenders.dominantMethod;
-      // cashPaid is the CASH tender only (not the card/mobile lines), so the
-      // receipt's "cash paid" and the Z-report drawer math stay correct.
-      paidValue = tenders.cashTendered > 0 ? tenders.cashTendered : undefined;
-      changeDue = tenders.cashTendered > 0 ? tenders.cashChange : undefined;
-    } else {
-      paidValue = paymentMethod === 'cash' ? parseFloat(cashPaidText) || 0 : undefined;
-      // A fully-discounted ($0) sale needs no tendered cash.
-      if (paymentMethod === 'cash' && totalAmount > 0 && (paidValue ?? 0) < totalAmount) {
-        alert(t('register.insufficientCash'));
-        return;
-      }
-      // A sale fully covered by redeemed points is a points redemption, not a $0
-      // card charge. Any other $0 total (e.g. a 100% promo) keeps its chosen method.
-      saleMethod = totalAmount <= 0 && discountType === 'loyalty' ? 'loyalty' : paymentMethod;
-      changeDue = saleMethod === 'cash' ? cashChangeDue : undefined;
-    }
-
-    // Globally-unique receipt ID: TX-<8 hex>. Avoids the previous TX-{max+1}
-    // scheme, which collided when two terminals shared one cloud database.
-    const nextId = `TX-${shortId().toUpperCase()}`;
-
-    const pointsEarned = selectedCustomerId
-      ? Math.floor(totalAmount * settings.loyaltyPointsRate)
-      : undefined;
-
-    const transaction: SaleTransaction = {
-      id: nextId,
-      date: new Date().toISOString(),
-      items: cartItems.map((item) => ({
-        ...item,
-        total: Number((item.price * item.quantity).toFixed(2)),
-      })),
+    const req: CheckoutRequest = {
+      cartItems,
       subtotal,
-      discount: discountAmount,
       discountType,
       discountValue,
-      tax: taxAmount,
-      total: totalAmount,
-      paymentMethod: saleMethod,
-      payments: payments && payments.length > 1 ? payments : undefined,
-      cashPaid: paidValue,
-      cashChange: changeDue,
-      customerId: selectedCustomerId,
-      customerName: activeCustomer?.name || null,
-      operatorId: currentUser?.id ?? null,
-      operatorName: currentUser?.name ?? null,
-      pointsEarned,
-      status: 'completed',
-      shiftId: currentShiftId,
+      discountAmount,
+      taxAmount,
+      totalAmount,
+      paymentMethod,
+      splitMode,
+      splitPayments,
+      cashPaidText,
+      cashChangeDue,
+      selectedCustomerId,
+      activeCustomerName: activeCustomer?.name || null,
+      currentUser,
+      currentShiftId,
+      settings,
     };
+
+    const outcome = buildSaleTransaction(req);
+    if (!outcome.success) {
+      if (outcome.error === 'split-incomplete') alert(t('register.splitIncomplete'));
+      else if (outcome.error === 'split-non-cash-overpay') alert(t('register.splitNonCashOverpay', { defaultValue: 'Non-cash tenders exceed the total. Only cash can overpay.' }));
+      else if (outcome.error === 'insufficient-cash') alert(t('register.insufficientCash'));
+      return;
+    }
+
+    const { transaction, pointsDelta } = outcome;
+    const saleMethod = transaction.paymentMethod;
+    const payments = transaction.payments;
 
     // Decrement stock on the LIVE product records. The cart holds snapshots
     // from add-to-cart time; writing those back would silently revert any
@@ -362,8 +329,6 @@ export default function Register() {
     // Update customer points
     let updatedCustomer = null;
     if (selectedCustomerId) {
-      let pointsDelta = pointsEarned ?? 0;
-      if (discountType === 'loyalty') pointsDelta -= discountValue;
       updateCustomerPoints(selectedCustomerId, pointsDelta);
       updatedCustomer = useCustomerStore
         .getState()
@@ -383,8 +348,12 @@ export default function Register() {
     setReceiptModalOpen(true);
     clearCart();
 
+    const isCashSale = saleMethod === 'cash' || (payments?.some((p) => p.method === 'cash') ?? false);
+
     if (printerConfig.autoPrintOnCheckout) {
-      printReceipt(transaction, settings, printerConfig).then(notifyPrint);
+      printReceipt(transaction, settings, printerConfig, isCashSale).then(notifyPrint);
+    } else if (isCashSale) {
+      openCashDrawer(printerConfig);
     }
   };
 
@@ -398,7 +367,7 @@ export default function Register() {
 
   const handlePrintActiveReceipt = async () => {
     if (!activeReceipt) return;
-    notifyPrint(await printReceipt(activeReceipt, settings, printerConfig));
+    notifyPrint(await printReceipt(activeReceipt, settings, printerConfig, false));
   };
 
   return (
@@ -1062,9 +1031,12 @@ export default function Register() {
                     <span>{t('register.share')}</span>
                   </button>
                   <button
-                    onClick={() =>
-                      emailReceipt(activeReceipt, settings, activeCustomer?.email || undefined)
-                    }
+                    onClick={() => {
+                      const receiptCustomerEmail = activeReceipt?.customerId
+                        ? customers.find((c) => c.id === activeReceipt.customerId)?.email
+                        : undefined;
+                      emailReceipt(activeReceipt, settings, receiptCustomerEmail || undefined);
+                    }}
                     className="flex-1 flex justify-center items-center gap-2 px-3 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-colors shadow-sm"
                   >
                     <Mail size={15} />

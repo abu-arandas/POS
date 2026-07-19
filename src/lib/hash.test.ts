@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hashPin, sha256HexSync } from './hash';
+import { hashPin, hashPinSalted, sha256HexSync } from './hash';
 
 // Known SHA-256 vectors. '1234' is also the seeded admin PIN hash used in
 // authStore/schema.sql — if these drift, default logins break.
@@ -31,5 +31,20 @@ describe('sha256HexSync (insecure-context fallback)', () => {
     for (const [input, digest] of VECTORS) {
       await expect(hashPin(input)).resolves.toBe(digest);
     }
+  });
+});
+
+describe('hashPinSalted', () => {
+  it('combines userId and pin properly', async () => {
+    // The salt format is userId:pin
+    // sha256("u123:1234") -> 7279202b4bc5a1b671df119c7be961807f00fb16cc4d2e6a7c3b628dbd7e8245
+    const saltedHash = await hashPinSalted('u123', '1234');
+    expect(saltedHash).toBe('7279202b4bc5a1b671df119c7be961807f00fb16cc4d2e6a7c3b628dbd7e8245');
+  });
+
+  it('produces different hashes for the same pin with different users', async () => {
+    const hash1 = await hashPinSalted('user1', '0000');
+    const hash2 = await hashPinSalted('user2', '0000');
+    expect(hash1).not.toBe(hash2);
   });
 });

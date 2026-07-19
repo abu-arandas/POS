@@ -59,9 +59,14 @@ export default function Customers() {
     if (activeCustomerTransactions.length === 0) {
       return { totalSpent: 0, averageSpent: 0, totalVisits: 0 };
     }
-    const completedTx = activeCustomerTransactions.filter((t) => t.status === 'completed');
-    const totalSpent = completedTx.reduce((sum, tx) => sum + tx.total, 0);
-    const totalVisits = completedTx.length;
+    // Include partial-refund sales and net out the refunded amount.
+    const validTx = activeCustomerTransactions.filter(
+      (t) => t.status === 'completed' || t.status === 'partial',
+    );
+    const totalSpent = validTx.reduce(
+      (sum, tx) => sum + tx.total - (tx.refundedAmount ?? 0), 0,
+    );
+    const totalVisits = validTx.length;
     const averageSpent = totalVisits > 0 ? totalSpent / totalVisits : 0;
 
     return {
@@ -160,7 +165,7 @@ export default function Customers() {
         {/* Header */}
         <div id="customers-header" className="mb-6 shrink-0 flex items-center justify-between">
           <div>
-            <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
+            <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
               <Users className="text-emerald-500" /> {t('customers.customerLoyaltyCrm')}
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
@@ -198,7 +203,7 @@ export default function Customers() {
             </div>
 
             {/* Sorting buttons */}
-            <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
               {(
                 [
                   { id: 'name', label: t('customers.alphabetical') },
@@ -211,8 +216,8 @@ export default function Customers() {
                   onClick={() => setSortBy(opt.id)}
                   className={`px-3.5 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0 ${
                     sortBy === opt.id
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-300'
                   }`}
                 >
                   {opt.label}
@@ -397,7 +402,7 @@ export default function Customers() {
                           </span>
                         </div>
                         <div className="text-right">
-                          <span className="font-mono font-extrabold block text-slate-900">
+                          <span className="font-mono font-extrabold block text-slate-900 dark:text-white">
                             {settings.currency}
                             {tx.total.toFixed(2)}
                           </span>

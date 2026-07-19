@@ -20,6 +20,7 @@ export interface RefundComputation {
   refundedAmount: number; // NEW cumulative refunded currency to persist
   fullyRefunded: boolean; // true once every line has been fully returned
   status: 'partial' | 'refunded';
+  appliedItems: Record<string, number>; // The exact clamped quantities refunded in this operation
 }
 
 // Computes the effect of returning `selection` (productId -> qty) from a sale.
@@ -75,5 +76,6 @@ export function computeRefund(
     refundedAmount,
     fullyRefunded,
     status: fullyRefunded ? 'refunded' : 'partial',
+    appliedItems: clean,
   };
 }

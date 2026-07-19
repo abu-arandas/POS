@@ -172,6 +172,14 @@ export default function Inventory() {
       return;
     }
 
+    const duplicateSku = products.find(
+      (p) => p.sku === prodSku && p.id !== editingProduct?.id
+    );
+    if (duplicateSku) {
+      alert(t('inventory.duplicateSku', { defaultValue: 'This SKU is already used by another product.' }));
+      return;
+    }
+
     const productPayload = {
       name: prodName,
       sku: prodSku,
@@ -277,7 +285,7 @@ export default function Inventory() {
       {/* Header Panel */}
       <div id="inventory-header" className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
+          <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
             <Layers className="text-emerald-500" /> {t('inventory.catalogInventory')}
           </h2>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
@@ -287,7 +295,7 @@ export default function Inventory() {
 
         <div className="flex items-center space-x-3">
           {/* Subscreen Tabs */}
-          <div className="bg-slate-200/60 p-1 rounded-xl flex">
+          <div className="bg-slate-200/60 dark:bg-slate-800/60 p-1 rounded-xl flex">
             {(
               [
                 { id: 'products', label: t('inventory.products') },
@@ -301,8 +309,8 @@ export default function Inventory() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   activeTab === tab.id
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-300'
                 }`}
               >
                 {tab.label}
@@ -527,7 +535,7 @@ export default function Inventory() {
                               {getProductCategoryName(prod.category)}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-slate-100 text-right">
+                          <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white text-right">
                             {settings.currency}
                             {prod.price.toFixed(2)}
                           </td>
@@ -545,7 +553,7 @@ export default function Inventory() {
                           <td className="py-3.5 px-5 text-center">
                             <div className="flex flex-col items-center justify-center">
                               <span
-                                className={`font-mono font-bold text-xs ${isOut ? 'text-rose-500 dark:text-rose-400' : isLow ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-slate-100'}`}
+                                className={`font-mono font-bold text-xs ${isOut ? 'text-rose-500 dark:text-rose-400' : isLow ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}
                               >
                                 {prod.stock}
                               </span>

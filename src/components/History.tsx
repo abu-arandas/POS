@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { SaleTransaction, Product, Customer } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { hashPin } from '../lib/hash';
+import { hashPin, hashPinSalted } from '../lib/hash';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
@@ -138,15 +138,18 @@ export default function History() {
   // refund on the transaction, and syncs. Reads points earned from the sale so
   // a later rate change never distorts the reversal.
   const applyRefundWithSelection = (
-    tx: SaleTransaction,
+    staleTx: SaleTransaction,
     selection: Record<string, number>,
     authorizedBy: string,
   ) => {
+    // Re-read live transaction to prevent double-refund races if the modal was open
+    const tx = useTransactionStore.getState().transactions.find((t) => t.id === staleTx.id) || staleTx;
+
     const result = computeRefund(tx, selection, settings.loyaltyPointsRate);
     if (!result) return;
 
     const updatedProducts: Product[] = [];
-    for (const [productId, qty] of Object.entries(selection)) {
+    for (const [productId, qty] of Object.entries(result.appliedItems)) {
       if (qty <= 0) continue;
       const prod = useProductStore.getState().products.find((p) => p.id === productId);
       if (prod) {
@@ -216,10 +219,17 @@ export default function History() {
     e.preventDefault();
     setOverrideError('');
 
-    const hashedPin = await hashPin(overridePin);
-    const authorizedUser = users.find(
-      (u) => u.pin === hashedPin && u.active && (u.role === 'manager' || u.role === 'admin'),
+    // Check each eligible manager/admin with both salted and legacy hashes.
+    const eligible = users.filter(
+      (u) => u.active && (u.role === 'manager' || u.role === 'admin'),
     );
+    let authorizedUser: (typeof eligible)[number] | undefined;
+    for (const u of eligible) {
+      const saltedHash = await hashPinSalted(u.id, overridePin);
+      if (u.pin === saltedHash) { authorizedUser = u; break; }
+      const legacyHash = await hashPin(overridePin);
+      if (u.pin === legacyHash) { authorizedUser = u; break; }
+    }
     if (authorizedUser && refundModalTx) {
       applyRefundWithSelection(
         refundModalTx,
@@ -247,7 +257,7 @@ export default function History() {
   };
 
   const handlePrintReceipt = async (tx: SaleTransaction) => {
-    notifyPrint(await printReceipt(tx, settings, printerConfig));
+    notifyPrint(await printReceipt(tx, settings, printerConfig, false));
   };
 
   const handleToggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -288,7 +298,7 @@ export default function History() {
       return;
     }
     for (const tx of txsToPrint) {
-      const outcome = await printReceipt(tx, settings, printerConfig);
+      const outcome = await printReceipt(tx, settings, printerConfig, false);
       if (outcome !== 'printed') {
         notifyPrint(outcome);
         break;
@@ -324,7 +334,7 @@ export default function History() {
         {/* Header */}
         <div id="history-header" className="mb-6 shrink-0 flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-sans font-extrabold tracking-tight text-slate-900 text-xl sm:text-2xl flex items-center gap-2">
+            <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
               <HistoryIcon className="text-emerald-500" /> {t('history.transactionLogs')}
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
@@ -359,11 +369,11 @@ export default function History() {
                 placeholder={t('history.searchReceipts')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent border-none text-slate-800 text-xs focus:outline-none placeholder-slate-400"
+                className="flex-1 bg-transparent border-none text-slate-800 dark:text-slate-200 text-xs focus:outline-none placeholder-slate-400"
               />
             </div>
 
-            <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
+            <div className="flex bg-slate-100 dark:bg-slate-800/60 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700/50 shrink-0">
               {(
                 [
                   { id: 'all', label: t('history.allDates') },
@@ -377,8 +387,8 @@ export default function History() {
                   onClick={() => setDateFilter(opt.id)}
                   className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0 ${
                     dateFilter === opt.id
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-300'
                   }`}
                 >
                   {opt.label}
@@ -534,7 +544,7 @@ export default function History() {
                             }}
                           />
                         </td>
-                        <td className="py-3 px-2 font-mono font-bold text-slate-900">{tx.id}</td>
+                        <td className="py-3 px-2 font-mono font-bold text-slate-900 dark:text-white">{tx.id}</td>
                         <td className="py-3 px-4 text-slate-500 font-mono">
                           {new Date(tx.date).toLocaleDateString()} &bull;{' '}
                           {new Date(tx.date).toLocaleTimeString([], {
@@ -552,7 +562,7 @@ export default function History() {
                         <td className="py-3 px-3 text-center font-mono font-bold bg-slate-50/40">
                           {tx.items.reduce((sum, item) => sum + item.quantity, 0)}
                         </td>
-                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
+                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
                           {settings.currency}
                           {tx.total.toFixed(2)}
                         </td>
@@ -669,7 +679,7 @@ export default function History() {
                       <ShoppingBag size={24} className="text-slate-800" />
                     )}
                   </div>
-                  <h4 className="font-bold text-slate-900 text-[11px] uppercase tracking-tight">
+                  <h4 className="font-bold text-slate-900 dark:text-white text-[11px] uppercase tracking-tight">
                     {settings.storeName}
                   </h4>
                   <p className="text-[9px] text-slate-400 mt-0.5">{settings.storeAddress}</p>

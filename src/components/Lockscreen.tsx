@@ -3,14 +3,14 @@ import { UserAccount } from '../types';
 import { ShieldAlert, User, Delete, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-import { hashPin } from '../lib/hash';
+import { hashPin, hashPinSalted } from '../lib/hash';
 import { cloudLogin } from '../lib/sync';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useTranslation } from 'react-i18next';
 
 export default function Lockscreen() {
-  const { users, setUsers, setCurrentUser } = useAuthStore();
+  const { users, setUsers, setCurrentUser, handleUpdateUser } = useAuthStore();
   const { settings } = useSettingsStore();
   const storeName = settings.storeName;
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
@@ -36,20 +36,31 @@ export default function Lockscreen() {
 
       // Automatically check pin once 4 digits are entered
       if (nextPin.length === 4 && selectedUser) {
-        const hashedNextPin = await hashPin(nextPin);
-        if (selectedUser.pin === hashedNextPin) {
+        // Try salted hash first (new scheme), then legacy unsalted.
+        const saltedHash = await hashPinSalted(selectedUser.id, nextPin);
+        if (selectedUser.pin === saltedHash) {
+          setCurrentUser(selectedUser);
+          return;
+        }
+        const legacyHash = await hashPin(nextPin);
+        if (selectedUser.pin === legacyHash) {
+          // Transparent upgrade: re-hash with salt and persist locally.
+          handleUpdateUser({ ...selectedUser, pin: saltedHash });
           setCurrentUser(selectedUser);
           return;
         }
         // Local check failed — try the cloud (verify_login) so a PIN changed on
         // another terminal still works. No-op when sync is disabled/offline.
         setChecking(true);
-        const cloudUser = await cloudLogin(selectedUser.name, hashedNextPin);
+        const cloudUser = await cloudLogin(selectedUser.name, saltedHash);
+        // Also try legacy hash against cloud in case the cloud record is unsalted.
+        const cloudUser2 = cloudUser ?? (await cloudLogin(selectedUser.name, legacyHash));
         setChecking(false);
-        if (cloudUser) {
-          // Refresh the local record with the verified account, then sign in.
-          setUsers(users.map((u) => (u.id === cloudUser.id ? { ...u, ...cloudUser } : u)));
-          setCurrentUser(cloudUser);
+        if (cloudUser2) {
+          // Refresh the local record with the verified account (salted), then sign in.
+          const upgraded = { ...selectedUser, ...cloudUser2, pin: saltedHash };
+          setUsers(users.map((u) => (u.id === upgraded.id ? upgraded : u)));
+          setCurrentUser(upgraded);
         } else {
           rejectPin();
         }

@@ -9,18 +9,19 @@ interface AuthState {
   currentUser: UserAccount | null;
   setUsers: (users: UserAccount[]) => void;
   setCurrentUser: (user: UserAccount | null) => void;
-  handleAddUser: (name: string, role: UserAccount['role'], pinHash: string) => UserAccount;
+  handleAddUser: (name: string, role: UserAccount['role'], pinHash: string, id?: string) => UserAccount;
   handleUpdateUser: (updatedUser: UserAccount) => void;
   handleDeleteUser: (id: string) => void;
 }
 
-// Pre-hashed (SHA-256) default PINs for seed data (Admin 1234, Manager 5555, Cashier 0000)
+// Pre-hashed default PINs — salted: SHA-256("<userId>:<pin>").
+// Admin PIN 1234, Manager PIN 5555, Cashier PIN 0000.
 const DEFAULT_USERS: UserAccount[] = [
   {
     id: 'u-1',
     name: 'Admin',
     role: 'admin',
-    pin: '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4',
+    pin: '2efd4458fced12834fc6f39317faa5a689dde4ec088267d768a3b3b0193ccbcf',
     active: true,
     createdAt: '2023-01-01',
   },
@@ -28,7 +29,7 @@ const DEFAULT_USERS: UserAccount[] = [
     id: 'u-2',
     name: 'Manager',
     role: 'manager',
-    pin: 'c1f330d0aff31c1c87403f1e4347bcc21aff7c179908723535f2b31723702525',
+    pin: '8690c9b4e9feb5cb74a13a8b3193c9a049d0f9cf01f631d257d472f0680b42be',
     active: true,
     createdAt: '2023-01-01',
   },
@@ -36,7 +37,7 @@ const DEFAULT_USERS: UserAccount[] = [
     id: 'u-3',
     name: 'Cashier',
     role: 'cashier',
-    pin: '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0',
+    pin: 'e103c0738bb6f7e2f6deb31424b25de795db8c477cb839745c19e41c20ec4396',
     active: true,
     createdAt: '2023-01-01',
   },
@@ -51,9 +52,9 @@ export const useAuthStore = create<AuthState>()(
       setUsers: (users) => set({ users }),
       setCurrentUser: (user) => set({ currentUser: user }),
 
-      handleAddUser: (name, role, pinHash) => {
+      handleAddUser: (name, role, pinHash, id?) => {
         const newUser: UserAccount = {
-          id: `user-${shortId()}`,
+          id: id || `user-${shortId()}`,
           name,
           role,
           pin: pinHash,

@@ -8,7 +8,9 @@ name: Build Windows Installer
 
 on:
   push:
-    branches: [claude/portable-build-delivery-hgp418]
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

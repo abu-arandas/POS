@@ -86,4 +86,25 @@ describe('summarizeShift', () => {
     expect(s.cashRefunds).toBe(30);
     expect(s.expectedCash(0)).toBe(30); // 0 + 60 - 30
   });
+
+  it('prorates cash refunds for split sales', () => {
+    const tx = sale({
+      id: 'C',
+      paymentMethod: 'card',
+      total: 100,
+      payments: [
+        { method: 'card', amount: 80 },
+        { method: 'cash', amount: 20 },
+      ],
+      cashChange: 0,
+      status: 'partial',
+      refundedAmount: 50,
+    });
+    const s = summarizeShift([tx]);
+    // The sale was 20% cash. Refunded $50 total, so $10 of that is cash out.
+    expect(s.grossSales).toBe(50);
+    expect(s.cashSales).toBe(20);
+    expect(s.cashRefunds).toBe(10);
+    expect(s.expectedCash(0)).toBe(10); // 0 + 20 cash - 10 refund
+  });
 });

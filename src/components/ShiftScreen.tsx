@@ -15,6 +15,7 @@ import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { summarizeShift } from '../lib/shiftReport';
+import { escapeHtml } from '../lib/escapeHtml';
 import { Shift } from '../types';
 
 export default function ShiftScreen() {
@@ -62,31 +63,33 @@ export default function ShiftScreen() {
     const counted = shift.countedCash ?? 0;
     const w = window.open('', '_blank');
     if (!w) return;
+    const esc = escapeHtml;
+    const c = esc(cur);
     const row = (label: string, val: string) =>
-      `<div class="flex-row"><span>${label}</span><span>${val}</span></div>`;
-    w.document.write(`<html><head><title>Z-Report ${shift.id}</title><style>
+      `<div class="flex-row"><span>${esc(label)}</span><span>${esc(val)}</span></div>`;
+    w.document.write(`<html><head><title>Z-Report ${esc(shift.id)}</title><style>
       body{font-family:'Courier New',monospace;width:80mm;padding:8px;font-size:12px;color:#000}
       .center{text-align:center}.bold{font-weight:bold}.divider{border-top:1px dashed #000;margin:8px 0}
       .flex-row{display:flex;justify-content:space-between}</style></head>
       <body onload="window.print();window.close()">
-      <div class="center bold">${settings.storeName}</div>
+      <div class="center bold">${esc(settings.storeName)}</div>
       <div class="center">Z-REPORT / SHIFT SUMMARY</div><div class="divider"></div>
       ${row('OPENED', new Date(shift.openedAt).toLocaleString())}
-      ${row('OPERATOR', shift.openedBy)}
+      ${row('OPERATOR', esc(shift.openedBy))}
       ${shift.closedAt ? row('CLOSED', new Date(shift.closedAt).toLocaleString()) : ''}
       <div class="divider"></div>
       ${row('SALES', String(s.saleCount))}
-      ${row('GROSS', cur + s.grossSales.toFixed(2))}
-      ${row('CASH SALES', cur + s.cashSales.toFixed(2))}
-      ${row('CARD', cur + s.cardSales.toFixed(2))}
-      ${row('MOBILE', cur + s.mobileSales.toFixed(2))}
-      ${row('GIFT', cur + s.giftSales.toFixed(2))}
-      ${row('CASH REFUNDS', cur + s.cashRefunds.toFixed(2))}
+      ${row('GROSS', c + s.grossSales.toFixed(2))}
+      ${row('CASH SALES', c + s.cashSales.toFixed(2))}
+      ${row('CARD', c + s.cardSales.toFixed(2))}
+      ${row('MOBILE', c + s.mobileSales.toFixed(2))}
+      ${row('GIFT', c + s.giftSales.toFixed(2))}
+      ${row('CASH REFUNDS', c + s.cashRefunds.toFixed(2))}
       <div class="divider"></div>
-      ${row('OPENING FLOAT', cur + shift.openingFloat.toFixed(2))}
-      ${row('EXPECTED CASH', cur + expected.toFixed(2))}
-      ${shift.closedAt ? row('COUNTED CASH', cur + counted.toFixed(2)) : ''}
-      ${shift.closedAt ? `<div class="flex-row bold">${'<span>VARIANCE</span>'}<span>${cur}${(counted - expected).toFixed(2)}</span></div>` : ''}
+      ${row('OPENING FLOAT', c + shift.openingFloat.toFixed(2))}
+      ${row('EXPECTED CASH', c + expected.toFixed(2))}
+      ${shift.closedAt ? row('COUNTED CASH', c + counted.toFixed(2)) : ''}
+      ${shift.closedAt ? `<div class="flex-row bold"><span>VARIANCE</span><span>${c}${(counted - expected).toFixed(2)}</span></div>` : ''}
       <div class="divider"></div>
       <div class="center">${new Date().toLocaleString()}</div>
       </body></html>`);

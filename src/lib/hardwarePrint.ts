@@ -50,17 +50,21 @@ async function printNetwork(bytes: Uint8Array, ip: string): Promise<HardwarePrin
 // Dispatches a receipt to the configured transport. 'system' uses the browser
 // print window (synchronous under the hood); the hardware transports encode
 // ESC/POS and stream the bytes.
+//
+// `openDrawer` controls whether the cash drawer kick pulse is appended to the
+// ESC/POS stream. Pass true for new cash sales at checkout; false for reprints.
 export async function printReceipt(
   tx: SaleTransaction,
   settings: StoreSettings,
   printerConfig: PrinterConfig,
+  openDrawer = false,
 ): Promise<HardwarePrintOutcome> {
   if (printerConfig.type === 'system') {
     const outcome = printTransactions([tx], settings, printerConfig);
     return outcome === 'popup-blocked' ? 'popup-blocked' : 'printed';
   }
 
-  const bytes = encodeReceipt(tx, settings, printerConfig);
+  const bytes = encodeReceipt(tx, settings, printerConfig, openDrawer);
   if (printerConfig.type === 'serial') return printSerial(bytes, printerConfig.baudRate);
   if (printerConfig.type === 'network') {
     if (!printerConfig.ipAddress) return 'no-device';
@@ -68,4 +72,14 @@ export async function printReceipt(
   }
   // Bluetooth ESC/POS pairing is device-specific and not implemented here.
   return 'unsupported';
+}
+
+// Sends only the drawer kick command to the configured hardware printer.
+export async function openCashDrawer(printerConfig: PrinterConfig): Promise<void> {
+  if (printerConfig.type === 'system') return; // Cannot kick drawer via OS print spooler
+  const bytes = new Uint8Array([0x1b, 0x70, 0x00, 0x19, 0xfa]); // ESC p 0 25 250
+  if (printerConfig.type === 'serial') await printSerial(bytes, printerConfig.baudRate);
+  if (printerConfig.type === 'network' && printerConfig.ipAddress) {
+    await printNetwork(bytes, printerConfig.ipAddress);
+  }
 }

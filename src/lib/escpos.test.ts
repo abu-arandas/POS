@@ -65,12 +65,10 @@ describe('encodeReceipt', () => {
     expect(ascii).toContain('TX-1');
   });
 
-  it('kicks the drawer only when autoPrintOnCheckout is on', () => {
+  it('kicks the drawer only when openDrawer is true', () => {
     const kick = [0x1b, 0x70, 0x00];
-    expect(
-      findSeq(encodeReceipt(tx, settings, { ...printer, autoPrintOnCheckout: true }), kick),
-    ).toBe(true);
-    expect(findSeq(encodeReceipt(tx, settings, printer), kick)).toBe(false);
+    expect(findSeq(encodeReceipt(tx, settings, printer, true), kick)).toBe(true);
+    expect(findSeq(encodeReceipt(tx, settings, printer, false), kick)).toBe(false);
   });
 
   it('replaces multibyte characters with ASCII (no raw high bytes from text)', () => {

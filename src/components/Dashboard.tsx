@@ -39,8 +39,10 @@ export default function Dashboard() {
   const { settings, supabaseConfig } = useSettingsStore();
   const cloudLive = supabaseConfig.enabled && supabaseConfig.status === 'connected';
 
+  // Include both completed and partially-refunded sales — a partial refund
+  // should reduce revenue by the refunded amount, not drop the entire sale.
   const completedTransactions = useMemo(() => {
-    return transactions.filter((t) => t.status === 'completed');
+    return transactions.filter((t) => t.status === 'completed' || t.status === 'partial');
   }, [transactions]);
 
   const todayDateString = useMemo(() => new Date().toDateString(), []);
@@ -64,19 +66,24 @@ export default function Dashboard() {
   }, [completedTransactions, range, rangeDays]);
 
   const kpis = useMemo(() => {
-    const revenueToday = todayTransactions.reduce((sum, t) => sum + t.total, 0);
+    const revenueToday = todayTransactions.reduce(
+      (sum, t) => sum + t.total - (t.refundedAmount ?? 0), 0,
+    );
     const ordersToday = todayTransactions.length;
     const aovToday = ordersToday > 0 ? revenueToday / ordersToday : 0;
 
     const profitToday = todayTransactions.reduce((sum, tx) => {
+      const refundProportion = tx.total > 0 ? (tx.refundedAmount ?? 0) / tx.total : 0;
       const transactionCost = tx.items.reduce((cSum, item) => cSum + item.cost * item.quantity, 0);
       const transactionRevenue = tx.subtotal - tx.discount;
-      return sum + (transactionRevenue - transactionCost);
+      return sum + (transactionRevenue - transactionCost) * (1 - refundProportion);
     }, 0);
 
     const uniqueDays = new Set(completedTransactions.map((tx) => new Date(tx.date).toDateString()));
     const daysCount = Math.max(1, uniqueDays.size);
-    const totalHistoricalRevenue = completedTransactions.reduce((sum, t) => sum + t.total, 0);
+    const totalHistoricalRevenue = completedTransactions.reduce(
+      (sum, t) => sum + t.total - (t.refundedAmount ?? 0), 0,
+    );
     const avgDailyRevenue = totalHistoricalRevenue / daysCount;
 
     // Same definition as the sidebar badge: at/below threshold but still in stock.
@@ -114,12 +121,13 @@ export default function Dashboard() {
       const txKey = new Date(tx.date).toDateString();
       if (datesMap.has(txKey)) {
         const entry = datesMap.get(txKey)!;
-        entry.revenue += tx.total;
+        const netRevenue = tx.total - (tx.refundedAmount ?? 0);
+        entry.revenue += netRevenue;
 
-        // Raw (unclamped) profit so loss days show as negative — matching the
-        // "Net Profit Today" KPI, which uses the same formula.
+        // Prorate profit by the refund share so partial refunds reduce profit.
+        const refundProportion = tx.total > 0 ? (tx.refundedAmount ?? 0) / tx.total : 0;
         const cost = tx.items.reduce((sum, item) => sum + item.cost * item.quantity, 0);
-        entry.profit += tx.subtotal - tx.discount - cost;
+        entry.profit += (tx.subtotal - tx.discount - cost) * (1 - refundProportion);
 
         datesMap.set(txKey, entry);
       }
@@ -136,14 +144,20 @@ export default function Dashboard() {
     const productSalesMap = new Map<string, { name: string; quantity: number; revenue: number }>();
 
     rangeTxns.forEach((tx) => {
+      // Subtract refunded quantities from best-sellers.
+      const refundedQtys: Record<string, number> = {};
+      for (const r of tx.refundedItems ?? []) {
+        refundedQtys[r.productId] = (refundedQtys[r.productId] ?? 0) + r.quantity;
+      }
       tx.items.forEach((item) => {
         const current = productSalesMap.get(item.productId) || {
           name: item.productName,
           quantity: 0,
           revenue: 0,
         };
-        current.quantity += item.quantity;
-        current.revenue += item.total;
+        const netQty = item.quantity - (refundedQtys[item.productId] ?? 0);
+        current.quantity += netQty;
+        current.revenue += item.price * netQty;
         productSalesMap.set(item.productId, current);
       });
     });
@@ -194,8 +208,9 @@ export default function Dashboard() {
       gift: 0,
     };
     rangeTxns.forEach((tx) => {
+      const net = tx.total - (tx.refundedAmount ?? 0);
       if (tx.paymentMethod in counts) {
-        counts[tx.paymentMethod as keyof typeof counts] += tx.total;
+        counts[tx.paymentMethod as keyof typeof counts] += net;
       }
     });
 
@@ -223,7 +238,7 @@ export default function Dashboard() {
       const key = tx.operatorId ?? tx.operatorName ?? 'unknown';
       const current = map.get(key) || { name: tx.operatorName ?? '—', orders: 0, revenue: 0 };
       current.orders += 1;
-      current.revenue += tx.total;
+      current.revenue += tx.total - (tx.refundedAmount ?? 0);
       map.set(key, current);
     });
     return Array.from(map.values())

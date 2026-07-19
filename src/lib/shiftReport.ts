@@ -17,11 +17,6 @@ export function cashKept(tx: SaleTransaction): number {
   return 0;
 }
 
-// Whether any of the sale's tenders was cash (so a refund of it is cash out).
-function saleUsedCash(tx: SaleTransaction): boolean {
-  if (tx.payments && tx.payments.length > 1) return tx.payments.some((p) => p.method === 'cash');
-  return tx.paymentMethod === 'cash';
-}
 
 export interface ShiftSummary {
   saleCount: number;
@@ -49,7 +44,12 @@ export function summarizeShift(transactions: SaleTransaction[]): ShiftSummary {
     const net = tx.status === 'refunded' ? 0 : tx.total - (tx.refundedAmount ?? 0);
     grossSales += net;
     cashSales += cashKept(tx);
-    if (saleUsedCash(tx)) cashRefunds += tx.refundedAmount ?? 0;
+    
+    const refundAmt = tx.refundedAmount ?? 0;
+    if (refundAmt > 0 && tx.total > 0) {
+      const cashShare = cashKept(tx) / tx.total;
+      cashRefunds += refundAmt * cashShare;
+    }
 
     // Non-cash breakdown by dominant method (split detail is on the receipt).
     if (tx.paymentMethod === 'card') cardSales += net;

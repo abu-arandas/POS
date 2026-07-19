@@ -69,6 +69,7 @@ export function encodeReceipt(
   tx: SaleTransaction,
   settings: StoreSettings,
   printerConfig: PrinterConfig,
+  openDrawer = false,
 ): Uint8Array {
   const width = printerConfig.paperSize === '58mm' ? 32 : 48;
   const cur = settings.currency;
@@ -114,6 +115,6 @@ export function encodeReceipt(
 
   b.align('center').line(printerConfig.footerMessage || 'Thank you!');
   b.feed(3).cut();
-  if (printerConfig.autoPrintOnCheckout) b.drawerKick();
+  if (openDrawer) b.drawerKick();
   return b.build();
 }
