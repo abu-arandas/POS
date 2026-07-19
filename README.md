@@ -139,6 +139,18 @@ Unit tests (Vitest) cover the pricing engine, the HTML-escaping used for
 printed receipts and the QR menu, and the SHA-256 fallback used on insecure
 origins.
 
+End-to-end tests (Playwright) drive the real app in a browser — PIN login,
+adding to the cart, card and cash checkout (with change), and role-based
+navigation — to guard the critical checkout path:
+
+```bash
+npx playwright install chromium   # one-time, downloads the browser
+npm run test:e2e
+```
+
+The Playwright config boots the Vite dev server automatically; both suites run
+in CI on every push and pull request.
+
 ## 🛠️ Tech Stack
 
 - **Framework:** React 19 + Vite

@@ -26,5 +26,14 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
     },
+  },
+  {
+    // Playwright e2e tests and config run under Node, not the browser/React
+    // fast-refresh model, so drop the React-specific rules for them.
+    files: ['e2e/**/*.ts', 'playwright.config.ts'],
+    languageOptions: { globals: globals.node },
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
   }
 );
