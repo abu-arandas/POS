@@ -29,7 +29,6 @@ import { useHeldOrderStore } from '../stores/heldOrderStore';
 import { useShiftStore } from '../stores/shiftStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
-import { shortId } from '../lib/ids';
 import { buildSaleTransaction, CheckoutRequest } from '../lib/checkout';
 import { printReceipt, openCashDrawer, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
@@ -304,7 +303,7 @@ export default function Register() {
     const outcome = buildSaleTransaction(req);
     if (!outcome.success) {
       if (outcome.error === 'split-incomplete') alert(t('register.splitIncomplete'));
-      else if (outcome.error === 'split-non-cash-overpay') alert(t('register.splitNonCashOverpay', { defaultValue: 'Non-cash tenders exceed the total. Only cash can overpay.' }));
+      else if (outcome.error === 'split-non-cash-overpay') alert(t('register.splitNonCashOverpay'));
       else if (outcome.error === 'insufficient-cash') alert(t('register.insufficientCash'));
       return;
     }

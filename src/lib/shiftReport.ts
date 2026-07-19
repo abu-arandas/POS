@@ -21,7 +21,7 @@ export function cashKept(tx: SaleTransaction): number {
 export interface ShiftSummary {
   saleCount: number;
   grossSales: number; // sum of sale totals (net of refunds)
-  cashSales: number; // net cash taken in
+  cashSales: number; // gross cash taken in (refunds tracked separately in cashRefunds)
   cardSales: number;
   mobileSales: number;
   giftSales: number;

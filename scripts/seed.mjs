@@ -39,18 +39,39 @@ const CATEGORIES = [
   { id: 'cat-snk', name: 'Snacks',    color: 'bg-purple-100 text-purple-800 border-purple-200' },
 ];
 
+// Self-contained SVG thumbnails (category gradient + emoji) so seeded products
+// render offline with no external image host — mirrors src/data/seedData.ts.
+const CATEGORY_GRADIENT = {
+  'cat-bev': ['#38bdf8', '#2563eb'],
+  'cat-bak': ['#fbbf24', '#d97706'],
+  'cat-snd': ['#34d399', '#059669'],
+  'cat-snk': ['#a78bfa', '#7c3aed'],
+};
+const productThumb = (category, emoji) => {
+  const [from, to] = CATEGORY_GRADIENT[category] || ['#94a3b8', '#475569'];
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">` +
+    `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">` +
+    `<stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/>` +
+    `</linearGradient></defs>` +
+    `<rect width="400" height="400" fill="url(#g)"/>` +
+    `<text x="50%" y="50%" dy="0.36em" text-anchor="middle" font-size="210">${emoji}</text>` +
+    `</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+};
+
 const PRODUCTS = [
-  { id: 'prod-espresso',   name: 'Classic Espresso',       price: 3.25, cost: 0.65, category: 'cat-bev', sku: 'BEV-ESP-01', stock: 120, min_stock: 20, image: 'https://images.unsplash.com/photo-1510972527409-cef1903972fa?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3' },
-  { id: 'prod-latte',      name: 'Caffe Latte',             price: 4.50, cost: 0.90, category: 'cat-bev', sku: 'BEV-LAT-02', stock: 95,  min_stock: 15, image: 'https://images.unsplash.com/photo-1541167760496-1628856ab772?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3' },
-  { id: 'prod-greentea',   name: 'Organic Matcha Tea',      price: 4.00, cost: 0.80, category: 'cat-bev', sku: 'BEV-MAT-03', stock: 6,   min_stock: 10, image: 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3' },
-  { id: 'prod-croissant',  name: 'Butter Croissant',        price: 3.75, cost: 1.10, category: 'cat-bak', sku: 'BAK-CRO-01', stock: 45,  min_stock: 10, image: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3' },
-  { id: 'prod-muffin',     name: 'Blueberry Muffin',        price: 3.50, cost: 0.95, category: 'cat-bak', sku: 'BAK-MUF-02', stock: 30,  min_stock: 8,  image: 'https://images.unsplash.com/photo-1607958996333-41aef7caefaa?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3' },
-  { id: 'prod-choccake',   name: 'Fudge Cake Slice',        price: 5.25, cost: 1.50, category: 'cat-bak', sku: 'BAK-CAK-03', stock: 12,  min_stock: 5,  image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3' },
-  { id: 'prod-avotoast',   name: 'Avocado Toast',           price: 8.50, cost: 2.50, category: 'cat-snd', sku: 'SND-AVO-01', stock: 35,  min_stock: 5,  image: 'https://images.unsplash.com/photo-1541532713592-79a0317b6b77?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3' },
-  { id: 'prod-caprese',    name: 'Caprese Panini',          price: 9.25, cost: 3.00, category: 'cat-snd', sku: 'SND-CAP-02', stock: 22,  min_stock: 5,  image: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3' },
-  { id: 'prod-turkeyswiss',name: 'Turkey Swiss Sandwich',   price: 8.75, cost: 2.75, category: 'cat-snd', sku: 'SND-TRK-03', stock: 4,   min_stock: 5,  image: 'https://images.unsplash.com/photo-1509722747041-616f39b57569?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3' },
-  { id: 'prod-chips',      name: 'Sea Salt Potato Chips',   price: 2.00, cost: 0.50, category: 'cat-snk', sku: 'SNK-CHP-01', stock: 75,  min_stock: 15, image: 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3' },
-  { id: 'prod-fruit',      name: 'Fresh Berry Bowl',        price: 5.50, cost: 1.80, category: 'cat-snk', sku: 'SNK-FRT-02', stock: 18,  min_stock: 5,  image: 'https://images.unsplash.com/photo-1519996521430-02b798c1d881?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3' },
+  { id: 'prod-espresso',   name: 'Classic Espresso',       price: 3.25, cost: 0.65, category: 'cat-bev', sku: 'BEV-ESP-01', stock: 120, min_stock: 20, image: productThumb('cat-bev', '☕') },
+  { id: 'prod-latte',      name: 'Caffe Latte',             price: 4.50, cost: 0.90, category: 'cat-bev', sku: 'BEV-LAT-02', stock: 95,  min_stock: 15, image: productThumb('cat-bev', '🥛') },
+  { id: 'prod-greentea',   name: 'Organic Matcha Tea',      price: 4.00, cost: 0.80, category: 'cat-bev', sku: 'BEV-MAT-03', stock: 6,   min_stock: 10, image: productThumb('cat-bev', '🍵') },
+  { id: 'prod-croissant',  name: 'Butter Croissant',        price: 3.75, cost: 1.10, category: 'cat-bak', sku: 'BAK-CRO-01', stock: 45,  min_stock: 10, image: productThumb('cat-bak', '🥐') },
+  { id: 'prod-muffin',     name: 'Blueberry Muffin',        price: 3.50, cost: 0.95, category: 'cat-bak', sku: 'BAK-MUF-02', stock: 30,  min_stock: 8,  image: productThumb('cat-bak', '🧁') },
+  { id: 'prod-choccake',   name: 'Fudge Cake Slice',        price: 5.25, cost: 1.50, category: 'cat-bak', sku: 'BAK-CAK-03', stock: 12,  min_stock: 5,  image: productThumb('cat-bak', '🍰') },
+  { id: 'prod-avotoast',   name: 'Avocado Toast',           price: 8.50, cost: 2.50, category: 'cat-snd', sku: 'SND-AVO-01', stock: 35,  min_stock: 5,  image: productThumb('cat-snd', '🥑') },
+  { id: 'prod-caprese',    name: 'Caprese Panini',          price: 9.25, cost: 3.00, category: 'cat-snd', sku: 'SND-CAP-02', stock: 22,  min_stock: 5,  image: productThumb('cat-snd', '🥪') },
+  { id: 'prod-turkeyswiss',name: 'Turkey Swiss Sandwich',   price: 8.75, cost: 2.75, category: 'cat-snd', sku: 'SND-TRK-03', stock: 4,   min_stock: 5,  image: productThumb('cat-snd', '🥪') },
+  { id: 'prod-chips',      name: 'Sea Salt Potato Chips',   price: 2.00, cost: 0.50, category: 'cat-snk', sku: 'SNK-CHP-01', stock: 75,  min_stock: 15, image: productThumb('cat-snk', '🍟') },
+  { id: 'prod-fruit',      name: 'Fresh Berry Bowl',        price: 5.50, cost: 1.80, category: 'cat-snk', sku: 'SNK-FRT-02', stock: 18,  min_stock: 5,  image: productThumb('cat-snk', '🍓') },
 ];
 
 const CUSTOMERS = [
