@@ -347,7 +347,8 @@ export default function Register() {
     setReceiptModalOpen(true);
     clearCart();
 
-    const isCashSale = saleMethod === 'cash' || (payments?.some((p) => p.method === 'cash') ?? false);
+    const isCashSale =
+      saleMethod === 'cash' || (payments?.some((p) => p.method === 'cash') ?? false);
 
     if (printerConfig.autoPrintOnCheckout) {
       printReceipt(transaction, settings, printerConfig, isCashSale).then(notifyPrint);
@@ -372,7 +373,8 @@ export default function Register() {
   return (
     <div
       id="register-root"
-      className="flex flex-1 h-full overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300"
+      className="flex flex-1 h-full overflow-hidden"
+      style={{ background: '#020617' }}
     >
       <ProductGrid
         selectedCategory={selectedCategory}
@@ -414,11 +416,12 @@ export default function Register() {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-2xl text-sm font-semibold ${
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] ring-1 ring-black/5 text-sm font-semibold tracking-wide ${
               scanFeedback.ok ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
             }`}
           >
-            <ScanLine size={16} />
+            <ScanLine size={18} className="opacity-90" />
             <span>{scanFeedback.text}</span>
           </motion.div>
         )}
@@ -429,31 +432,37 @@ export default function Register() {
         {heldModalOpen && (
           <div
             id="held-orders-modal"
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4"
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              initial={{ scale: 0.92, opacity: 0, y: 24 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800 max-h-[80vh]"
+              exit={{ scale: 0.92, opacity: 0, y: 24 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+              className="modal-card max-w-md w-full overflow-hidden flex flex-col max-h-[80vh]"
             >
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
-                <h3 className="font-sans font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
-                  <Clock size={20} className="text-emerald-500" />
-                  {t('register.heldOrders')} ({heldOrders.length})
+              <div className="p-5 flex justify-between items-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <h3 className="font-sans font-bold text-white text-base flex items-center gap-2.5">
+                  <div className="p-1.5 bg-amber-500/15 rounded-xl text-amber-400">
+                    <Clock size={16} />
+                  </div>
+                  {t('register.heldOrders')}
+                  <span className="badge badge-amber ms-1">{heldOrders.length}</span>
                 </h3>
                 <button
                   onClick={() => setHeldModalOpen(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm transition-colors"
+                  aria-label="Close"
+                  className="p-1.5 text-slate-500 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
                 >
                   <X size={16} />
                 </button>
               </div>
-              <div className="p-4 overflow-y-auto space-y-2">
+              <div className="p-4 overflow-y-auto space-y-2.5">
                 {heldOrders.length === 0 ? (
-                  <p className="text-center text-slate-400 font-mono text-xs py-10">
-                    {t('register.noHeldOrders')}
-                  </p>
+                  <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                    <PauseCircle size={36} className="opacity-20 mb-3" />
+                    <p className="font-mono text-xs">{t('register.noHeldOrders')}</p>
+                  </div>
                 ) : (
                   heldOrders.map((order) => {
                     const itemCount = order.items.reduce((s, i) => s + i.quantity, 0);
@@ -461,29 +470,34 @@ export default function Register() {
                     return (
                       <div
                         key={order.id}
-                        className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-3"
+                        className="group flex items-center justify-between gap-3 rounded-2xl p-3.5 transition-all"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
                       >
-                        <div className="min-w-0">
-                          <p className="font-sans font-semibold text-slate-800 dark:text-slate-100 text-sm truncate">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-sans font-bold text-slate-100 text-sm truncate">
                             {order.label}
                           </p>
-                          <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
-                            {itemCount} {t('register.itemsLower')} • {settings.currency}
-                            {orderTotal.toFixed(2)}
-                            {order.operatorName ? ` • ${order.operatorName}` : ''}
+                          <p className="text-[10px] font-mono text-slate-500 mt-1">
+                            {itemCount} {t('register.itemsLower')}{' '}
+                            <span className="mx-1.5 opacity-40">•</span>
+                            {settings.currency}{orderTotal.toFixed(2)}
+                            {order.operatorName && (
+                              <><span className="mx-1.5 opacity-40">•</span>{order.operatorName}</>
+                            )}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
                           <button
                             onClick={() => resumeHeldOrder(order)}
-                            className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors"
+                            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
+                            style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.25)' }}
                           >
-                            <Play size={13} /> {t('register.resume')}
+                            <Play size={12} className="fill-current" /> {t('register.resume')}
                           </button>
                           <button
                             onClick={() => removeHeldOrder(order.id)}
-                            className="p-2 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-                            title={t('register.deleteHeld')}
+                            aria-label={t('register.deleteHeld')}
+                            className="p-1.5 text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -502,36 +516,37 @@ export default function Register() {
         {checkoutModalOpen && (
           <div
             id="payment-modal"
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4"
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              initial={{ scale: 0.9, opacity: 0, y: 28 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800"
+              exit={{ scale: 0.9, opacity: 0, y: 28 }}
+              transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+              className="modal-card max-w-lg w-full overflow-hidden flex flex-col"
             >
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+              <div className="p-5 flex justify-between items-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                 <div>
-                  <h3 className="font-sans font-bold text-slate-800 dark:text-white text-lg">
+                  <h3 className="font-sans font-bold text-white text-lg">
                     {t('register.selectPaymentMethod')}
                   </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                    {t('register.amountToPay')}{' '}
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                      {settings.currency}
-                      {totalAmount.toFixed(2)}
+                  <p className="text-xs text-slate-500 font-mono mt-1 flex items-center gap-2">
+                    {t('register.amountToPay')}
+                    <span className="font-bold text-xl text-emerald-400 tracking-tight font-mono">
+                      {settings.currency}{totalAmount.toFixed(2)}
                     </span>
                   </p>
                 </div>
                 <button
                   onClick={() => setCheckoutModalOpen(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm transition-colors"
+                  aria-label="Close"
+                  className="p-1.5 text-slate-500 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
                 >
                   <X size={16} />
                 </button>
               </div>
 
-              <div className="p-6 space-y-6">
+              <div className="p-5 space-y-5">
                 <button
                   id="split-toggle-btn"
                   onClick={() => {
@@ -542,110 +557,79 @@ export default function Register() {
                       ]);
                     }
                   }}
-                  className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border transition-colors ${
-                    splitMode
-                      ? 'bg-emerald-500 text-white border-emerald-500'
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all"
+                  style={{
+                    background: splitMode ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.04)',
+                    border: splitMode ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(255,255,255,0.08)',
+                    color: splitMode ? '#34d399' : '#64748b',
+                  }}
                 >
                   <CreditCard size={14} />
                   {splitMode ? t('register.singlePayment') : t('register.splitPayment')}
                 </button>
 
                 {!splitMode && (
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-4 gap-2.5">
                     {(
                       [
-                        {
-                          id: 'card',
-                          label: t('register.payCard'),
-                          icon: CreditCard,
-                          color: 'text-blue-600 dark:text-blue-400',
-                          bg: 'bg-blue-50 dark:bg-blue-900/20',
-                        },
-                        {
-                          id: 'cash',
-                          label: t('register.payCash'),
-                          icon: DollarSign,
-                          color: 'text-emerald-600 dark:text-emerald-400',
-                          bg: 'bg-emerald-50 dark:bg-emerald-900/20',
-                        },
-                        {
-                          id: 'mobile',
-                          label: t('register.payMobile'),
-                          icon: Smartphone,
-                          color: 'text-purple-600 dark:text-purple-400',
-                          bg: 'bg-purple-50 dark:bg-purple-900/20',
-                        },
-                        {
-                          id: 'gift',
-                          label: t('register.payGift'),
-                          icon: Gift,
-                          color: 'text-amber-600 dark:text-amber-400',
-                          bg: 'bg-amber-50 dark:bg-amber-900/20',
-                        },
+                        { id: 'card', label: t('register.payCard'), icon: CreditCard, activeClass: 'active-card' },
+                        { id: 'cash', label: t('register.payCash'), icon: DollarSign, activeClass: 'active-cash' },
+                        { id: 'mobile', label: t('register.payMobile'), icon: Smartphone, activeClass: 'active-mobile' },
+                        { id: 'gift', label: t('register.payGift'), icon: Gift, activeClass: 'active-gift' },
                       ] as const
                     ).map((m) => {
                       const MIcon = m.icon;
                       const isSel = paymentMethod === m.id;
                       return (
-                        <button
+                        <motion.button
                           key={m.id}
                           id={`pay-method-${m.id}`}
                           onClick={() => setPaymentMethod(m.id)}
-                          className={`flex flex-col items-center justify-center p-4 rounded-2xl border text-center transition-all duration-200 ${
-                            isSel
-                              ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 transform scale-105'
-                              : `border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 ${m.bg} ${m.color}`
-                          }`}
+                          whileTap={{ scale: 0.93 }}
+                          className={`pay-method-btn ${isSel ? m.activeClass : ''}`}
                         >
-                          <MIcon size={24} className={isSel ? 'text-white' : m.color} />
-                          <span
-                            className={`text-xs font-semibold mt-2 ${isSel ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}
-                          >
-                            {m.label}
-                          </span>
-                        </button>
+                          <MIcon size={20} />
+                          <span>{m.label}</span>
+                        </motion.button>
                       );
                     })}
                   </div>
                 )}
 
                 {splitMode && (
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     {splitPayments.map((p, idx) => (
                       <div key={idx} className="flex items-center gap-2">
-                        <select
-                          value={p.method}
-                          onChange={(e) =>
-                            updateSplitPayment(idx, { method: e.target.value as PaymentMethod })
-                          }
-                          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold px-2 py-2 text-slate-700 dark:text-slate-200 focus:outline-none"
-                        >
-                          <option value="cash">{t('register.payCash')}</option>
-                          <option value="card">{t('register.payCard')}</option>
-                          <option value="mobile">{t('register.payMobile')}</option>
-                          <option value="gift">{t('register.payGift')}</option>
-                        </select>
-                        <div className="flex-1 flex items-center border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-950 px-2">
-                          <span className="font-mono text-slate-400 text-sm">
-                            {settings.currency}
-                          </span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={p.amount || ''}
-                            onChange={(e) =>
-                              updateSplitPayment(idx, { amount: parseFloat(e.target.value) || 0 })
-                            }
-                            className="flex-1 bg-transparent border-none text-slate-800 dark:text-slate-100 text-sm font-mono px-1 py-2 focus:outline-none w-full"
-                          />
+                        <div className="flex-1 flex items-center rounded-xl overflow-hidden transition-all"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}>
+                          <select
+                            value={p.method}
+                            onChange={(e) => updateSplitPayment(idx, { method: e.target.value as PaymentMethod })}
+                            className="bg-transparent text-xs font-semibold ps-3 pe-7 py-3 text-slate-300 focus:outline-none cursor-pointer"
+                            style={{ borderRight: '1px solid rgba(255,255,255,0.08)' }}
+                          >
+                            <option value="cash">{t('register.payCash')}</option>
+                            <option value="card">{t('register.payCard')}</option>
+                            <option value="mobile">{t('register.payMobile')}</option>
+                            <option value="gift">{t('register.payGift')}</option>
+                          </select>
+                          <div className="flex-1 flex items-center px-3">
+                            <span className="font-mono text-slate-500 font-bold text-sm">{settings.currency}</span>
+                            <input
+                              type="number" step="0.01" min="0"
+                              value={p.amount || ''}
+                              onChange={(e) => updateSplitPayment(idx, { amount: parseFloat(e.target.value) || 0 })}
+                              className="flex-1 bg-transparent text-white text-base font-mono font-bold px-2 py-2.5 focus:outline-none w-full"
+                              placeholder="0.00"
+                            />
+                          </div>
                         </div>
                         <button
                           onClick={() => removeSplitPayment(idx)}
                           disabled={splitPayments.length <= 1}
-                          className="p-2 text-slate-400 hover:text-rose-500 disabled:opacity-30"
+                          aria-label="Remove payment"
+                          className="p-2.5 text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl disabled:opacity-25 transition-colors"
+                          style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}
                         >
                           <X size={14} />
                         </button>
@@ -654,15 +638,14 @@ export default function Register() {
                     <div className="flex items-center justify-between pt-1">
                       <button
                         onClick={addSplitPayment}
-                        className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                        style={{ color: '#34d399', border: '1px dashed rgba(16,185,129,0.35)' }}
                       >
                         + {t('register.addPayment')}
                       </button>
                       <span
-                        className={`text-xs font-mono font-bold ${
-                          Math.abs(splitRemaining) < 0.005
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-amber-600 dark:text-amber-400'
+                        className={`text-xs font-mono font-bold px-3 py-1.5 rounded-lg badge ${
+                          Math.abs(splitRemaining) < 0.005 ? 'badge-emerald' : 'badge-amber'
                         }`}
                       >
                         {splitRemaining > 0.005
@@ -681,58 +664,57 @@ export default function Register() {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800 overflow-hidden"
+                      className="space-y-4 pt-4 overflow-hidden"
+                      style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
                     >
                       <div>
-                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2 font-mono uppercase tracking-wider">
+                        <label className="text-[10px] font-bold text-slate-600 block mb-2 uppercase tracking-wider">
                           {t('register.quickCashPay')}
                         </label>
                         <div className="flex flex-wrap gap-2">
                           {cashSuggestions.map((val) => (
-                            <button
+                            <motion.button
                               key={val}
+                              whileTap={{ scale: 0.93 }}
                               onClick={() => setCashPaidText(val.toFixed(2))}
-                              className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all shadow-sm"
+                              className="font-mono text-sm font-bold px-3.5 py-2 rounded-xl transition-all"
+                              style={{
+                                background: cashPaidText === val.toFixed(2) ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)',
+                                border: cashPaidText === val.toFixed(2) ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(255,255,255,0.09)',
+                                color: cashPaidText === val.toFixed(2) ? '#34d399' : '#94a3b8',
+                              }}
                             >
-                              {settings.currency}
-                              {val.toFixed(2)}
-                            </button>
+                              {settings.currency}{val.toFixed(2)}
+                            </motion.button>
                           ))}
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1.5">
-                            {t('register.cashTendered')} ({settings.currency})
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wider">
+                            {t('register.cashTendered')}
                           </label>
-                          <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl p-1 bg-slate-50 dark:bg-slate-950 shadow-inner">
-                            <span className="font-mono text-slate-400 dark:text-slate-500 ps-3 font-bold">
-                              {settings.currency}
-                            </span>
+                          <div className="flex items-center rounded-xl overflow-hidden transition-all"
+                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <span className="font-mono text-slate-500 ps-3 font-bold text-sm">{settings.currency}</span>
                             <input
-                              type="number"
-                              step="0.01"
-                              min={totalAmount}
-                              placeholder="0.00"
+                              type="number" step="0.01" min={totalAmount} placeholder="0.00"
                               value={cashPaidText}
                               onChange={(e) => setCashPaidText(e.target.value)}
-                              className="flex-1 bg-transparent border-none text-slate-800 dark:text-slate-100 text-lg font-mono font-bold px-2 py-1 focus:outline-none"
+                              className="flex-1 bg-transparent text-white text-xl font-mono font-bold px-2 py-2.5 focus:outline-none"
                             />
                           </div>
                         </div>
 
                         <div>
-                          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1.5">
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wider">
                             {t('register.changeDue')}
                           </label>
-                          <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-2 flex items-center justify-between h-[46px]">
-                            <span className="text-emerald-800 dark:text-emerald-400 text-xs font-semibold uppercase font-mono">
-                              {t('register.returnAmount')}
-                            </span>
-                            <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-lg">
-                              {settings.currency}
-                              {cashChangeDue.toFixed(2)}
+                          <div className="rounded-xl px-4 flex items-center justify-between" style={{ height: '48px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)' }}>
+                            <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">{t('register.returnAmount')}</span>
+                            <span className="font-mono text-emerald-400 font-bold text-xl">
+                              {settings.currency}{cashChangeDue.toFixed(2)}
                             </span>
                           </div>
                         </div>
@@ -742,27 +724,32 @@ export default function Register() {
                 </AnimatePresence>
               </div>
 
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between">
+              <div className="p-4 flex items-center gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                 <button
                   onClick={() => setCheckoutModalOpen(false)}
-                  className="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+                  className="px-5 py-3 rounded-xl text-sm font-bold transition-colors"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', color: '#64748b' }}
                 >
                   {t('register.cancel')}
                 </button>
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
                   onClick={handleCompletePayment}
                   disabled={
                     splitMode
                       ? splitPaidTotal < totalAmount - 0.005
-                      : paymentMethod === 'cash' &&
-                        totalAmount > 0 &&
-                        (parseFloat(cashPaidText) || 0) < totalAmount
+                      : paymentMethod === 'cash' && totalAmount > 0 && (parseFloat(cashPaidText) || 0) < totalAmount
                   }
-                  className="px-8 py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:from-slate-400 disabled:to-slate-400 text-white font-sans font-bold text-sm rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/25 transition-all transform active:scale-95"
+                  className="flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+                  style={{
+                    background: 'linear-gradient(135deg, #059669, #10b981)',
+                    color: 'white',
+                    boxShadow: '0 4px 20px rgba(16,185,129,0.35)',
+                  }}
                 >
-                  <Check size={18} />
+                  <Check size={17} strokeWidth={2.5} />
                   <span>{t('register.completeOrder')}</span>
-                </button>
+                </motion.button>
               </div>
             </motion.div>
           </div>
@@ -773,77 +760,68 @@ export default function Register() {
         {addCustomerOpen && (
           <div
             id="add-customer-modal"
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4"
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              initial={{ scale: 0.9, opacity: 0, y: 24 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5"
+              exit={{ scale: 0.9, opacity: 0, y: 24 }}
+              transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+              className="modal-card max-w-sm w-full p-6 space-y-5"
             >
-              <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
-                <h3 className="font-sans font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
-                  <UserPlus size={20} className="text-emerald-500" />
+              <div className="flex justify-between items-center pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <h3 className="font-sans font-bold text-white text-base flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-xl" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>
+                    <UserPlus size={16} />
+                  </div>
                   {t('register.newCustomer')}
                 </h3>
                 <button
                   onClick={() => setAddCustomerOpen(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 bg-slate-50 dark:bg-slate-800 rounded-full transition-colors"
+                  aria-label="Close"
+                  className="p-1.5 text-slate-500 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
                 >
                   <X size={16} />
                 </button>
               </div>
 
               <form onSubmit={handleAddNewCustomer} className="space-y-4">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
-                    {t('register.fullName')}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. John Doe"
-                    value={custName}
-                    onChange={(e) => setCustName(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
-                    {t('register.phoneNumber')}
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="e.g. 555-0100"
-                    value={custPhone}
-                    onChange={(e) => setCustPhone(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
-                    {t('register.emailAddress')}
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="e.g. john@example.com"
-                    value={custEmail}
-                    onChange={(e) => setCustEmail(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
-                  />
-                </div>
+                {[{
+                  label: t('register.fullName'), type: 'text', value: custName, onChange: setCustName, placeholder: 'e.g. John Doe', required: true,
+                }, {
+                  label: t('register.phoneNumber'), type: 'tel', value: custPhone, onChange: setCustPhone, placeholder: 'e.g. 555-0100', required: false,
+                }, {
+                  label: t('register.emailAddress'), type: 'email', value: custEmail, onChange: setCustEmail, placeholder: 'e.g. john@example.com', required: false,
+                }].map(({ label, type, value, onChange, placeholder, required }) => (
+                  <div key={label}>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">{label}</label>
+                    <input
+                      type={type}
+                      required={required}
+                      placeholder={placeholder}
+                      value={value}
+                      onChange={(e) => onChange(e.target.value)}
+                      className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-white focus:outline-none transition-all placeholder:text-slate-600"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}
+                      onFocus={(e) => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.12)'; }}
+                      onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.09)'; e.target.style.boxShadow = 'none'; }}
+                    />
+                  </div>
+                ))}
 
-                <div className="flex justify-end space-x-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex justify-end gap-2.5 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                   <button
                     type="button"
                     onClick={() => setAddCustomerOpen(false)}
-                    className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                    className="px-5 py-2.5 text-sm font-bold rounded-xl transition-colors"
+                    style={{ color: '#64748b', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
                   >
                     {t('register.cancel')}
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20 transition-all transform active:scale-95"
+                    className="px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all active:scale-95"
+                    style={{ background: 'linear-gradient(135deg, #059669, #10b981)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}
                   >
                     {t('register.saveLink')}
                   </button>
@@ -858,35 +836,41 @@ export default function Register() {
         {receiptModalOpen && activeReceipt && (
           <div
             id="receipt-modal"
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4"
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              initial={{ scale: 0.88, opacity: 0, y: 32 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800"
+              exit={{ scale: 0.88, opacity: 0, y: 32 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+              className="max-w-sm w-full overflow-hidden flex flex-col rounded-3xl"
+              style={{ background: '#0a0f1e', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.8)' }}
             >
-              <div className="bg-linear-to-br from-emerald-500 to-emerald-600 text-white p-8 text-center space-y-3 flex flex-col items-center">
+              <div className="bg-linear-to-br from-emerald-500 to-emerald-600 text-white p-8 pb-10 text-center flex flex-col items-center relative overflow-hidden">
+                {/* Decorative background circle */}
+                <div className="absolute -top-12 -right-12 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
+                <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-black opacity-10 rounded-full blur-xl"></div>
+
                 <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: 'spring', damping: 15 }}
-                  className="bg-white/20 p-3 rounded-full text-white shadow-inner mb-2"
+                  initial={{ scale: 0, rotate: -45 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', damping: 12, delay: 0.1 }}
+                  className="bg-white/20 p-3 rounded-full text-white shadow-inner mb-4 backdrop-blur-sm z-10"
                 >
-                  <Check size={32} className="stroke-3" />
+                  <Check size={36} strokeWidth={3} />
                 </motion.div>
-                <h3 className="font-sans font-bold text-white text-xl tracking-tight">
+                <h3 className="font-sans font-bold text-white text-2xl tracking-tight z-10 mb-1.5">
                   {t('register.paymentSuccessful')}
                 </h3>
-                <p className="text-emerald-100 text-sm font-mono bg-black/10 px-3 py-1 rounded-full">
+                <p className="text-emerald-100 text-[11px] uppercase tracking-wider font-bold bg-black/15 px-3.5 py-1 rounded-full z-10 shadow-sm border border-white/10">
                   {t('register.receipt')} {activeReceipt.id}
                 </p>
               </div>
 
-              <div className="p-6 flex-1 overflow-y-auto max-h-[380px] bg-slate-50 dark:bg-slate-950">
+              <div className="px-6 pb-6 pt-0 flex-1 overflow-y-auto max-h-105 relative -mt-4 z-20">
                 <div
                   id="thermal-receipt"
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4 font-mono text-xs text-slate-700 dark:text-slate-300"
+                  className="bg-white dark:bg-slate-950 border-x border-slate-200 dark:border-slate-800 border-y-[6px] border-y-slate-200 dark:border-y-slate-800 border-dashed rounded-xl p-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] space-y-4 font-mono text-xs text-slate-700 dark:text-slate-300"
                 >
                   <div className="text-center border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
                     <div className="flex justify-center mb-3">
@@ -894,7 +878,7 @@ export default function Register() {
                         <img
                           src={settings.storeLogo}
                           alt="Logo"
-                          className="h-[28px] w-auto object-contain"
+                          className="h-8 w-auto object-contain grayscale opacity-80 dark:invert"
                         />
                       ) : (
                         <ShoppingBag size={28} className="text-slate-800 dark:text-slate-200" />
@@ -903,12 +887,8 @@ export default function Register() {
                     <h4 className="font-bold text-slate-900 dark:text-white text-base uppercase tracking-widest">
                       {settings.storeName}
                     </h4>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">
-                      {settings.storeAddress}
-                    </p>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                      {settings.storePhone}
-                    </p>
+                    <p className="text-[10px] text-slate-500 mt-2">{settings.storeAddress}</p>
+                    <p className="text-[10px] text-slate-500">{settings.storePhone}</p>
                   </div>
 
                   <div className="space-y-1.5 text-[10px] border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
@@ -925,7 +905,7 @@ export default function Register() {
                       <span>{activeReceipt.operatorName || '—'}</span>
                     </div>
                     {activeReceipt.customerName && (
-                      <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold mt-1">
+                      <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-bold mt-1">
                         <span>{t('register.member')}:</span>
                         <span>{activeReceipt.customerName}</span>
                       </div>
@@ -934,11 +914,12 @@ export default function Register() {
 
                   <div className="space-y-2 border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
                     {activeReceipt.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between">
-                        <span className="truncate max-w-[160px]">
-                          {item.quantity}x {item.productName}
+                      <div key={idx} className="flex justify-between items-start gap-4">
+                        <span className="flex-1 pr-2">
+                          <span className="opacity-70 mr-1">{item.quantity}x</span>
+                          {item.productName}
                         </span>
-                        <span>
+                        <span className="shrink-0 font-bold">
                           {settings.currency}
                           {item.total.toFixed(2)}
                         </span>
@@ -955,7 +936,7 @@ export default function Register() {
                       </span>
                     </div>
                     {activeReceipt.discount > 0 && (
-                      <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                      <div className="flex justify-between text-amber-700 dark:text-amber-400">
                         <span>{t('register.discount').toUpperCase()}</span>
                         <span>
                           -{settings.currency}
@@ -970,7 +951,7 @@ export default function Register() {
                         {activeReceipt.tax.toFixed(2)}
                       </span>
                     </div>
-                    <div className="flex justify-between text-slate-900 dark:text-white font-bold pt-2 border-t border-slate-200 dark:border-slate-800 mt-2 text-sm">
+                    <div className="flex justify-between text-slate-900 dark:text-white font-bold pt-3 border-t border-slate-300 dark:border-slate-700 mt-2 text-sm">
                       <span>{t('register.totalPaid')}:</span>
                       <span>
                         {settings.currency}
@@ -1004,50 +985,44 @@ export default function Register() {
                     )}
                   </div>
 
-                  <div className="text-center pt-4 border-t border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-slate-400 dark:text-slate-500">
-                    <p>{t('register.thankYou')}</p>
+                  <div className="text-center pt-5 border-t border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-slate-400 dark:text-slate-500">
+                    <p className="tracking-widest">{t('register.thankYou')}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+              <div className="p-4 space-y-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={handlePrintActiveReceipt}
-                    className="flex-1 flex justify-center items-center gap-2 px-3 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-colors shadow-sm"
-                  >
-                    <Printer size={15} />
-                    <span>{t('register.print')}</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const r = await shareReceipt(activeReceipt, settings);
-                      if (r === 'copied') setScanFeedback({ ok: true, text: t('register.copied') });
-                    }}
-                    className="flex-1 flex justify-center items-center gap-2 px-3 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-colors shadow-sm"
-                  >
-                    <Share2 size={15} />
-                    <span>{t('register.share')}</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      const receiptCustomerEmail = activeReceipt?.customerId
-                        ? customers.find((c) => c.id === activeReceipt.customerId)?.email
-                        : undefined;
-                      emailReceipt(activeReceipt, settings, receiptCustomerEmail || undefined);
-                    }}
-                    className="flex-1 flex justify-center items-center gap-2 px-3 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-colors shadow-sm"
-                  >
-                    <Mail size={15} />
-                    <span>{t('register.email')}</span>
-                  </button>
+                  {[{
+                    icon: Printer, label: t('register.print'), onClick: handlePrintActiveReceipt,
+                  }, {
+                    icon: Share2, label: t('register.share'),
+                    onClick: async () => { const r = await shareReceipt(activeReceipt, settings); if (r === 'copied') setScanFeedback({ ok: true, text: t('register.copied') }); },
+                  }, {
+                    icon: Mail, label: t('register.email'),
+                    onClick: () => { const email = activeReceipt?.customerId ? customers.find((c) => c.id === activeReceipt.customerId)?.email : undefined; emailReceipt(activeReceipt, settings, email || undefined); },
+                  }].map(({ icon: Icon, label, onClick }) => (
+                    <button
+                      key={label}
+                      onClick={onClick}
+                      className="flex-1 flex justify-center items-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all group"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#64748b' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = '#34d399'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+                    >
+                      <Icon size={14} />
+                      <span>{label}</span>
+                    </button>
+                  ))}
                 </div>
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => setReceiptModalOpen(false)}
-                  className="w-full px-4 py-3 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl text-sm font-bold shadow-md shadow-slate-900/10 transition-colors"
+                  className="w-full py-3.5 rounded-xl text-sm font-bold text-slate-950 transition-all active:scale-[0.98]"
+                  style={{ background: 'linear-gradient(135deg, #10b981, #34d399)', boxShadow: '0 4px 16px rgba(16,185,129,0.3)' }}
                 >
                   {t('register.newSale')}
-                </button>
+                </motion.button>
               </div>
             </motion.div>
           </div>

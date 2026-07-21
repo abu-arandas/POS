@@ -1,18 +1,46 @@
 import { useState } from 'react';
 import { UserAccount } from '../types';
-import { ShieldAlert, User, Delete, ArrowLeft } from 'lucide-react';
+import { ShieldAlert, Delete, ArrowLeft, Lock, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-
 import { hashPin, hashPinSalted } from '../lib/hash';
 import { cloudLogin } from '../lib/sync';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useTranslation } from 'react-i18next';
 
+const ROLE_CONFIG = {
+  admin: {
+    gradient: 'from-indigo-500 to-violet-600',
+    glow: 'rgba(99, 102, 241, 0.4)',
+    badge: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+    dot: 'bg-indigo-400',
+  },
+  manager: {
+    gradient: 'from-amber-500 to-orange-500',
+    glow: 'rgba(245, 158, 11, 0.4)',
+    badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+    dot: 'bg-amber-400',
+  },
+  cashier: {
+    gradient: 'from-emerald-500 to-teal-500',
+    glow: 'rgba(16, 185, 129, 0.4)',
+    badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    dot: 'bg-emerald-400',
+  },
+} as const;
+
+function getInitials(name: string) {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 export default function Lockscreen() {
   const { users, setUsers, setCurrentUser, handleUpdateUser } = useAuthStore();
   const { settings } = useSettingsStore();
-  const storeName = settings.storeName;
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<boolean>(false);
@@ -24,40 +52,28 @@ export default function Lockscreen() {
   const rejectPin = () => {
     setError(true);
     setPin('');
-    setTimeout(() => setError(false), 800);
+    setTimeout(() => setError(false), 900);
   };
 
   const handleKeyPress = async (num: string) => {
-    if (error) setError(false);
-    if (checking) return;
+    if (error || checking) return;
     if (pin.length < 4) {
       const nextPin = pin + num;
       setPin(nextPin);
-
-      // Automatically check pin once 4 digits are entered
       if (nextPin.length === 4 && selectedUser) {
-        // Try salted hash first (new scheme), then legacy unsalted.
         const saltedHash = await hashPinSalted(selectedUser.id, nextPin);
-        if (selectedUser.pin === saltedHash) {
-          setCurrentUser(selectedUser);
-          return;
-        }
+        if (selectedUser.pin === saltedHash) { setCurrentUser(selectedUser); return; }
         const legacyHash = await hashPin(nextPin);
         if (selectedUser.pin === legacyHash) {
-          // Transparent upgrade: re-hash with salt and persist locally.
           handleUpdateUser({ ...selectedUser, pin: saltedHash });
           setCurrentUser(selectedUser);
           return;
         }
-        // Local check failed — try the cloud (verify_login) so a PIN changed on
-        // another terminal still works. No-op when sync is disabled/offline.
         setChecking(true);
         const cloudUser = await cloudLogin(selectedUser.name, saltedHash);
-        // Also try legacy hash against cloud in case the cloud record is unsalted.
         const cloudUser2 = cloudUser ?? (await cloudLogin(selectedUser.name, legacyHash));
         setChecking(false);
         if (cloudUser2) {
-          // Refresh the local record with the verified account (salted), then sign in.
           const upgraded = { ...selectedUser, ...cloudUser2, pin: saltedHash };
           setUsers(users.map((u) => (u.id === upgraded.id ? upgraded : u)));
           setCurrentUser(upgraded);
@@ -68,184 +84,264 @@ export default function Lockscreen() {
     }
   };
 
-  const handleBackspace = () => {
-    if (pin.length > 0) {
-      setPin(pin.slice(0, -1));
-    }
-  };
+  const handleBackspace = () => { if (pin.length > 0) setPin(pin.slice(0, -1)); };
+  const handleClear = () => setPin('');
+  const handleBackToUsers = () => { setSelectedUser(null); setPin(''); setError(false); };
 
-  const handleClear = () => {
-    setPin('');
-  };
-
-  const handleBackToUsers = () => {
-    setSelectedUser(null);
-    setPin('');
-    setError(false);
-  };
+  const role = selectedUser?.role ?? 'cashier';
+  const roleCfg = ROLE_CONFIG[role];
 
   return (
     <div
       id="lockscreen-root"
-      className="fixed inset-0 bg-slate-950 z-50 flex flex-col items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 overflow-hidden"
+      style={{ background: '#020617' }}
     >
-      {/* Background Decorative Grid */}
-      <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] bg-size-[16px_16px] opacity-10 pointer-events-none" />
-
-      {/* Terminal Title */}
-      <div className="text-center mb-8 shrink-0 z-10">
-        <h1 className="font-sans font-extrabold text-2xl tracking-tight text-white mb-1">
-          {storeName}
-        </h1>
-        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[10px] font-bold px-3 py-1 rounded-full inline-block">
-          ● {t('lockscreen.secureTerminal')}
-        </div>
+      {/* Animated background orbs */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="animate-orb-1 absolute top-[-15%] left-[-10%] w-[500px] h-[500px] rounded-full opacity-20"
+          style={{ background: 'radial-gradient(circle, #10b981 0%, transparent 70%)' }} />
+        <div className="animate-orb-2 absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full opacity-15"
+          style={{ background: 'radial-gradient(circle, #3b82f6 0%, transparent 70%)' }} />
+        <div className="animate-orb-3 absolute top-[40%] left-[50%] w-[350px] h-[350px] rounded-full opacity-10"
+          style={{ background: 'radial-gradient(circle, #8b5cf6 0%, transparent 70%)' }} />
+        {/* Dot grid */}
+        <div className="absolute inset-0 opacity-[0.04]"
+          style={{ backgroundImage: 'radial-gradient(#94a3b8 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
       </div>
 
-      <div className="w-full max-w-sm bg-slate-900 border border-slate-800/80 rounded-3xl p-6 shadow-2xl z-10 relative overflow-hidden flex flex-col min-h-[460px]">
-        <AnimatePresence mode="wait">
-          {!selectedUser ? (
-            /* SCREEN 1: SELECT STAFF ACCOUNT */
-            <motion.div
-              key="user-select"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="flex-1 flex flex-col space-y-4"
-            >
-              <div className="text-center pb-2">
-                <h2 className="text-slate-200 font-sans font-bold text-base">
-                  {t('lockscreen.selectProfile')}
-                </h2>
-                <p className="text-slate-500 text-xs mt-0.5">{t('lockscreen.chooseAccount')}</p>
-              </div>
+      {/* Brand */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="text-center mb-8 z-10"
+      >
+        <div className="inline-flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+            <Lock size={18} className="text-slate-950 stroke-[2.5]" />
+          </div>
+          <div className="text-start">
+            <h1 className="text-white font-sans font-extrabold text-xl tracking-tight leading-none">
+              {settings.storeName}
+            </h1>
+            <span className="text-emerald-400 font-mono text-[10px] tracking-[0.2em] uppercase">
+              ● Secure Terminal
+            </span>
+          </div>
+        </div>
+      </motion.div>
 
-              <div className="flex-1 overflow-y-auto space-y-2 pe-1 max-h-[300px]">
-                {activeUsers.map((user) => (
-                  <button
-                    key={user.id}
-                    onClick={() => setSelectedUser(user)}
-                    className="w-full flex items-center justify-between p-4 bg-slate-950/40 hover:bg-slate-800/60 border border-slate-800 hover:border-slate-700/80 rounded-2xl transition-all group text-start"
-                  >
-                    <div className="flex items-center space-x-3.5">
-                      <div className="bg-slate-800 text-slate-300 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
-                        <User size={18} />
-                      </div>
-                      <div>
-                        <h4 className="text-white text-xs font-bold font-sans">{user.name}</h4>
-                        <span className="text-[10px] uppercase font-mono font-bold text-slate-500 tracking-wider">
-                          {t('lockscreen.role')}: {user.role}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="bg-slate-900 px-2.5 py-1 rounded-lg text-[9px] text-slate-400 font-mono group-hover:text-emerald-400 transition-colors">
-                      {t('lockscreen.pinRequired')}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          ) : (
-            /* SCREEN 2: ENTER PIN NUMBER */
-            <motion.div
-              key="pin-entry"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex-1 flex flex-col items-center justify-between space-y-4"
-            >
-              {/* Back Button and Header */}
-              <div className="w-full flex items-center justify-between border-b border-slate-800/50 pb-3">
-                <button
-                  onClick={handleBackToUsers}
-                  className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg flex items-center gap-1 text-[11px] font-semibold transition-colors"
-                >
-                  <ArrowLeft size={14} className="rtl:rotate-180" /> {t('lockscreen.back')}
-                </button>
-                <div className="text-end">
-                  <h3 className="text-white text-xs font-bold font-sans">{selectedUser.name}</h3>
-                  <span className="text-[9px] uppercase font-mono font-bold text-slate-500 tracking-wider">
-                    {selectedUser.role}
-                  </span>
-                </div>
-              </div>
-
-              {/* Pin Circles display with shake on error */}
+      {/* Main card */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="w-full max-w-sm z-10"
+      >
+        <div className="modal-card overflow-hidden relative">
+          <AnimatePresence mode="wait">
+            {!selectedUser ? (
+              /* ── SCREEN 1: SELECT STAFF ── */
               <motion.div
-                animate={error ? { x: [-10, 10, -10, 10, 0] } : {}}
-                transition={{ duration: 0.4 }}
-                className="flex flex-col items-center justify-center space-y-3 my-2"
+                key="user-select"
+                initial={{ opacity: 0, x: -24 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 24 }}
+                transition={{ duration: 0.25 }}
+                className="p-6"
               >
-                <div className="flex justify-center space-x-4">
-                  {[0, 1, 2, 3].map((idx) => (
-                    <div
-                      key={idx}
-                      className={`w-3.5 h-3.5 rounded-full border transition-all duration-150 ${
-                        error
-                          ? 'bg-rose-500 border-rose-500 shadow-md shadow-rose-500/20'
-                          : pin.length > idx
-                            ? 'bg-emerald-400 border-emerald-400 shadow-md shadow-emerald-400/20'
-                            : 'bg-transparent border-slate-700'
-                      }`}
-                    />
-                  ))}
+                <div className="mb-5">
+                  <h2 className="text-white font-sans font-bold text-base">Who's working today?</h2>
+                  <p className="text-slate-500 text-xs mt-1">{t('lockscreen.chooseAccount')}</p>
                 </div>
-                <div className="h-4">
-                  {error && (
-                    <span className="text-[10px] text-rose-400 font-bold font-mono tracking-wider flex items-center gap-1">
-                      <ShieldAlert size={11} /> {t('lockscreen.incorrectPin')}
-                    </span>
-                  )}
+
+                <div className="space-y-2.5 max-h-72 overflow-y-auto pe-1">
+                  {activeUsers.map((user, i) => {
+                    const cfg = ROLE_CONFIG[user.role];
+                    return (
+                      <motion.button
+                        key={user.id}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.06 }}
+                        onClick={() => setSelectedUser(user)}
+                        className="w-full flex items-center justify-between p-4 rounded-2xl border border-white/7 bg-white/3 hover:bg-white/7 hover:border-white/12 transition-all group text-start"
+                      >
+                        <div className="flex items-center gap-3.5">
+                          {/* Avatar */}
+                          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${cfg.gradient} flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-md`}
+                            style={{ boxShadow: `0 4px 14px ${cfg.glow}` }}>
+                            {getInitials(user.name)}
+                          </div>
+                          <div>
+                            <p className="text-white text-sm font-semibold leading-tight">{user.name}</p>
+                            <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${cfg.badge} mt-1 inline-block`}>
+                              {user.role}
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-600 group-hover:text-slate-400 transition-colors rtl:rotate-180" />
+                      </motion.button>
+                    );
+                  })}
                 </div>
               </motion.div>
-
-              {/* PIN Keypad Grid */}
-              <div className="grid grid-cols-3 gap-2.5 w-full max-w-[280px]">
-                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+            ) : (
+              /* ── SCREEN 2: PIN ENTRY ── */
+              <motion.div
+                key="pin-entry"
+                initial={{ opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.25 }}
+                className="p-6"
+              >
+                {/* Back + user info */}
+                <div className="flex items-center justify-between mb-6">
                   <button
-                    key={num}
-                    onClick={() => handleKeyPress(num)}
-                    className="h-12 bg-slate-950/60 hover:bg-slate-800 border border-slate-800 text-slate-100 hover:text-white font-mono text-base font-bold rounded-2xl transition-all active:scale-95"
+                    onClick={handleBackToUsers}
+                    className="flex items-center gap-1.5 text-slate-400 hover:text-white text-xs font-semibold transition-colors p-1.5 rounded-xl hover:bg-white/8"
+                    aria-label={t('lockscreen.back')}
                   >
-                    {num}
+                    <ArrowLeft size={14} className="rtl:rotate-180" />
+                    <span>{t('lockscreen.back')}</span>
                   </button>
-                ))}
+                  <div className="flex items-center gap-2.5">
+                    <div className="text-end">
+                      <p className="text-white text-xs font-bold">{selectedUser.name}</p>
+                      <span className={`text-[9px] font-mono uppercase tracking-wider ${roleCfg.badge} px-1.5 py-0.5 rounded-full border inline-block mt-0.5`}>
+                        {selectedUser.role}
+                      </span>
+                    </div>
+                    <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${roleCfg.gradient} flex items-center justify-center text-white font-bold text-xs shrink-0`}
+                      style={{ boxShadow: `0 4px 12px ${roleCfg.glow}` }}>
+                      {getInitials(selectedUser.name)}
+                    </div>
+                  </div>
+                </div>
 
-                <button
-                  onClick={handleClear}
-                  className="h-12 bg-slate-950/20 hover:bg-slate-800 text-slate-500 hover:text-rose-400 font-semibold text-[11px] rounded-2xl transition-all uppercase"
-                >
-                  {t('lockscreen.clear')}
-                </button>
+                {/* PIN dots */}
+                <div className="flex flex-col items-center mb-7">
+                  <motion.div
+                    animate={error ? { x: [-10, 10, -8, 8, -4, 4, 0] } : {}}
+                    transition={{ duration: 0.45 }}
+                    className="flex justify-center gap-4 mb-3"
+                  >
+                    {[0, 1, 2, 3].map((idx) => (
+                      <motion.div
+                        key={idx}
+                        animate={{
+                          scale: pin.length > idx ? 1 : 0.85,
+                          backgroundColor: error
+                            ? '#f43f5e'
+                            : pin.length > idx
+                            ? '#10b981'
+                            : 'transparent',
+                        }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                        className="w-4 h-4 rounded-full border-2 transition-colors"
+                        style={{
+                          borderColor: error
+                            ? '#f43f5e'
+                            : pin.length > idx
+                            ? '#10b981'
+                            : '#334155',
+                          boxShadow: pin.length > idx && !error
+                            ? '0 0 10px rgba(16, 185, 129, 0.5)'
+                            : error
+                            ? '0 0 10px rgba(244, 63, 94, 0.5)'
+                            : 'none',
+                        }}
+                      />
+                    ))}
+                  </motion.div>
+                  <div className="h-5 flex items-center">
+                    {error && (
+                      <motion.span
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-[11px] text-rose-400 font-bold flex items-center gap-1.5"
+                      >
+                        <ShieldAlert size={12} />
+                        {t('lockscreen.incorrectPin')}
+                      </motion.span>
+                    )}
+                    {checking && (
+                      <span className="text-[11px] text-slate-400 font-mono animate-pulse">
+                        Verifying…
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-                <button
-                  onClick={() => handleKeyPress('0')}
-                  className="h-12 bg-slate-950/60 hover:bg-slate-800 border border-slate-800 text-slate-100 hover:text-white font-mono text-base font-bold rounded-2xl transition-all active:scale-95"
-                >
-                  0
-                </button>
+                {/* Keypad */}
+                <div className="grid grid-cols-3 gap-2.5">
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+                    <motion.button
+                      key={num}
+                      id={`pin-key-${num}`}
+                      onClick={() => handleKeyPress(num)}
+                      whileTap={{ scale: 0.88 }}
+                      className="h-13 rounded-2xl bg-white/4 hover:bg-white/9 border border-white/7 hover:border-white/14 text-white font-mono text-lg font-bold transition-all focus:outline-none"
+                      style={{ height: '52px' }}
+                    >
+                      {num}
+                    </motion.button>
+                  ))}
 
-                <button
-                  onClick={handleBackspace}
-                  className="h-12 bg-slate-950/20 hover:bg-slate-800 text-slate-500 hover:text-white flex items-center justify-center rounded-2xl transition-all"
-                  aria-label={t('lockscreen.backspace')}
-                >
-                  <Delete size={18} />
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+                  <motion.button
+                    onClick={handleClear}
+                    whileTap={{ scale: 0.9 }}
+                    className="h-13 rounded-2xl bg-rose-500/8 hover:bg-rose-500/15 border border-rose-500/15 text-rose-400 font-semibold text-[11px] uppercase tracking-wider transition-all focus:outline-none"
+                    style={{ height: '52px' }}
+                  >
+                    {t('lockscreen.clear')}
+                  </motion.button>
 
-      {/* Helper Footer Hint — dev builds only; never ship credentials in production */}
-      {import.meta.env.DEV && (
-        <div className="mt-6 text-center text-slate-600 font-mono text-[10px] z-10 max-w-xs">
-          {t('lockscreen.defaultPins')} <br />
-          Admin: <strong className="text-slate-400 font-semibold">1234</strong> | Manager:{' '}
-          <strong className="text-slate-400 font-semibold">5555</strong> | Cashier:{' '}
-          <strong className="text-slate-400 font-semibold">0000</strong>
+                  <motion.button
+                    id="pin-key-0"
+                    onClick={() => handleKeyPress('0')}
+                    whileTap={{ scale: 0.88 }}
+                    className="h-13 rounded-2xl bg-white/4 hover:bg-white/9 border border-white/7 hover:border-white/14 text-white font-mono text-lg font-bold transition-all focus:outline-none"
+                    style={{ height: '52px' }}
+                  >
+                    0
+                  </motion.button>
+
+                  <motion.button
+                    onClick={handleBackspace}
+                    whileTap={{ scale: 0.9 }}
+                    aria-label={t('lockscreen.backspace')}
+                    className="h-13 rounded-2xl bg-white/4 hover:bg-white/7 border border-white/7 text-slate-400 hover:text-white flex items-center justify-center transition-all focus:outline-none"
+                    style={{ height: '52px' }}
+                  >
+                    <Delete size={18} />
+                  </motion.button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
+      </motion.div>
+
+      {/* Dev hint */}
+      {import.meta.env.DEV && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="mt-5 z-10 bg-slate-900/80 border border-slate-700/50 rounded-xl px-4 py-2.5 text-center"
+        >
+          <p className="text-slate-500 font-mono text-[10px]">{t('lockscreen.defaultPins')}</p>
+          <div className="flex gap-4 justify-center mt-1">
+            {[['Admin', '1234', 'text-indigo-400'], ['Manager', '5555', 'text-amber-400'], ['Cashier', '0000', 'text-emerald-400']].map(([role, pin, color]) => (
+              <span key={role} className={`font-mono text-[10px] ${color}`}>
+                {role}: <strong>{pin}</strong>
+              </span>
+            ))}
+          </div>
+        </motion.div>
       )}
     </div>
   );

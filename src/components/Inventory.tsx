@@ -12,6 +12,10 @@ import {
   Layers,
   Truck,
   PackagePlus,
+  Image as ImageIcon,
+  Mail,
+  Phone,
+  User,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '../types';
@@ -40,7 +44,7 @@ export default function Inventory() {
 
   // Tab control
   const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'suppliers' | 'log'>(
-    'products',
+    'products'
   );
 
   // Receive-stock (lightweight purchase order) modal
@@ -49,6 +53,7 @@ export default function Inventory() {
   const [recvQty, setRecvQty] = useState('');
   const [recvSupplierId, setRecvSupplierId] = useState('');
   const [recvNote, setRecvNote] = useState('');
+  const [recvReason, setRecvReason] = useState<'received' | 'waste' | 'correction' | 'other'>('received');
 
   // Supplier form
   const [supplierModalOpen, setSupplierModalOpen] = useState(false);
@@ -60,8 +65,13 @@ export default function Inventory() {
   const handleReceiveStock = () => {
     const product = products.find((p) => p.id === recvProductId);
     const qty = parseInt(recvQty);
-    if (!product || !qty || qty <= 0) return;
-    const updated = { ...product, stock: product.stock + qty };
+    if (!product || !qty) return; // allows negative if reason is waste
+    const newStock = product.stock + qty;
+    if (newStock < 0) {
+      alert("Stock cannot be negative.");
+      return;
+    }
+    const updated = { ...product, stock: newStock };
     handleUpdateProduct(updated);
     syncToCloudIfEnabled([updated]);
     const supplier = suppliers.find((s) => s.id === recvSupplierId);
@@ -70,7 +80,7 @@ export default function Inventory() {
       productName: product.name,
       delta: qty,
       newStock: updated.stock,
-      reason: 'received',
+      reason: recvReason,
       note: recvNote || null,
       supplierId: supplier?.id ?? null,
       supplierName: supplier?.name ?? null,
@@ -81,6 +91,7 @@ export default function Inventory() {
     setRecvQty('');
     setRecvSupplierId('');
     setRecvNote('');
+    setRecvReason('received');
   };
 
   const handleAddSupplier = (e: React.FormEvent) => {
@@ -127,13 +138,12 @@ export default function Inventory() {
 
   // Colors available for categories
   const categoryColors = [
-    { class: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Blue' },
-    { class: 'bg-amber-100 text-amber-800 border-amber-200', label: 'Amber' },
-    { class: 'bg-emerald-100 text-emerald-800 border-emerald-200', label: 'Emerald' },
-    { class: 'bg-purple-100 text-purple-800 border-purple-200', label: 'Purple' },
-    { class: 'bg-rose-100 text-rose-800 border-rose-200', label: 'Rose' },
-    { class: 'bg-indigo-100 text-indigo-800 border-indigo-200', label: 'Indigo' },
-    { class: 'bg-slate-100 text-slate-800 border-slate-200', label: 'Slate' },
+    { class: 'badge badge-blue', bg: 'bg-blue-500', label: 'Blue' },
+    { class: 'badge badge-amber', bg: 'bg-amber-500', label: 'Amber' },
+    { class: 'badge badge-emerald', bg: 'bg-emerald-500', label: 'Emerald' },
+    { class: 'badge badge-purple', bg: 'bg-purple-500', label: 'Purple' },
+    { class: 'badge badge-rose', bg: 'bg-rose-500', label: 'Rose' },
+    { class: 'badge badge-slate', bg: 'bg-slate-500', label: 'Slate' },
   ];
 
   // Open Add Product Dialog
@@ -188,9 +198,7 @@ export default function Inventory() {
       cost: parseFloat(prodCost),
       stock: parseInt(prodStock),
       minStock: parseInt(prodMinStock) || 0,
-      image:
-        prodImage ||
-        'https://images.unsplash.com/photo-1541167760496-1628856ab772?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+      image: prodImage || '',
     };
 
     if (editingProduct) {
@@ -222,7 +230,7 @@ export default function Inventory() {
     const added = handleAddCategory(newCatName.trim(), newCatColor);
     syncToCloudIfEnabled(undefined, [added]);
     setNewCatName('');
-    setCategoryModalOpen(false);
+    setCategoryModalOpen(false); // only close if not inline, but we want inline behavior to stay same for states
   };
 
   // Sort & Filter logic
@@ -273,51 +281,36 @@ export default function Inventory() {
   const getProductCategoryColor = (catId: string) => {
     return (
       categories.find((c) => c.id === catId)?.color ||
-      'bg-slate-100 text-slate-800 border-slate-200'
+      'badge badge-slate'
     );
   };
 
+  const tabs = [
+    { id: 'products', label: t('inventory.products') },
+    { id: 'categories', label: t('inventory.categories') },
+    { id: 'suppliers', label: t('inventory.suppliers') },
+    { id: 'log', label: t('inventory.stockLog') },
+  ] as const;
+
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
       id="inventory-root"
       className="flex-1 flex flex-col h-screen overflow-hidden bg-transparent p-6 text-slate-800 dark:text-slate-100"
     >
       {/* Header Panel */}
-      <div id="inventory-header" className="flex items-center justify-between mb-6">
+      <div id="inventory-header" className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
-          <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
-            <Layers className="text-emerald-500" /> {t('inventory.catalogInventory')}
+          <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-2xl flex items-center gap-3">
+            <Layers className="text-emerald-500" size={28} /> {t('inventory.catalogInventory')}
           </h2>
-          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
+          <p className="text-slate-500 text-sm mt-1">
             {t('inventory.manageStoreItems')}
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
-          {/* Subscreen Tabs */}
-          <div className="bg-slate-200/60 dark:bg-slate-800/60 p-1 rounded-xl flex">
-            {(
-              [
-                { id: 'products', label: t('inventory.products') },
-                { id: 'categories', label: t('inventory.categories') },
-                { id: 'suppliers', label: t('inventory.suppliers') },
-                { id: 'log', label: t('inventory.stockLog') },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-300'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
+        <div className="flex items-center space-x-3 w-full sm:w-auto">
           {activeTab === 'products' && (
             <button
               id="receive-stock-btn"
@@ -325,9 +318,9 @@ export default function Inventory() {
                 setRecvProductId(products[0]?.id || '');
                 setReceiveOpen(true);
               }}
-              className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-sans font-bold text-xs sm:text-sm px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm"
+              className="glass-dark hover:bg-slate-800 text-white font-sans font-bold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all"
             >
-              <PackagePlus size={16} />{' '}
+              <PackagePlus size={18} />
               <span className="hidden sm:inline">{t('inventory.receiveStock')}</span>
             </button>
           )}
@@ -342,9 +335,9 @@ export default function Inventory() {
                     ? () => setCategoryModalOpen(true)
                     : () => setSupplierModalOpen(true)
               }
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-sans font-bold text-xs sm:text-sm px-4 py-2 rounded-xl flex items-center space-x-1.5 shadow-lg shadow-emerald-600/10"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-bold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
             >
-              <Plus size={16} />
+              <Plus size={18} />
               <span>
                 {activeTab === 'products'
                   ? t('inventory.addProduct')
@@ -357,38 +350,65 @@ export default function Inventory() {
         </div>
       </div>
 
-      {activeTab === 'products' && (
-        /* PRODUCTS TAB */
-        <>
-          {/* Filter Bar */}
-          <div
-            id="inventory-filters"
-            className="glass dark:glass-dark p-4 rounded-2xl border border-white/20 dark:border-white/10 shadow-lg space-y-4 mb-6 shrink-0 backdrop-blur-md"
+      {/* Tab Navigation with Animated Underline */}
+      <div className="flex space-x-6 border-b border-white/10 mb-6 relative">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`pb-3 text-sm font-semibold transition-colors relative z-10 ${
+              activeTab === tab.id
+                ? 'text-emerald-500'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
           >
-            <div className="flex flex-col md:flex-row gap-4">
+            {tab.label}
+            {activeTab === tab.id && (
+              <motion.div
+                layoutId="inventoryTab"
+                className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-emerald-500 rounded-t-full"
+                initial={false}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              />
+            )}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {activeTab === 'products' && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="flex-1 flex flex-col overflow-hidden"
+          >
+            {/* Filter Bar */}
+            <div
+              id="inventory-filters"
+              className="surface p-4 rounded-2xl shadow-lg mb-6 shrink-0 flex flex-wrap gap-4 items-center"
+            >
               {/* Search */}
-              <div className="flex-1 flex items-center space-x-2 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200/40">
-                <Search size={16} className="text-slate-400" />
+              <div className="flex-1 min-w-[200px] flex items-center space-x-2 bg-slate-900/50 px-3 py-2 rounded-xl border border-white/10 focus-within:border-emerald-500/50 transition-colors">
+                <Search size={18} className="text-slate-400" />
                 <input
                   id="inventory-search-input"
                   type="text"
                   placeholder={t('inventory.searchProducts')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 bg-transparent border-none text-slate-800 text-xs focus:outline-none placeholder-slate-400"
+                  className="flex-1 bg-transparent border-none text-slate-200 text-sm focus:outline-none placeholder-slate-500 glass-input"
                 />
               </div>
 
               {/* Select Category */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">
                   {t('inventory.category')}
                 </span>
                 <select
                   id="filter-category-select"
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold px-3 py-1.5 text-slate-600 focus:outline-none focus:border-emerald-500"
+                  className="bg-slate-900/50 border border-white/10 rounded-xl text-sm font-semibold px-4 py-2 text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
                 >
                   <option value="all">{t('inventory.allCategories')}</option>
                   {categories.map((c) => (
@@ -400,37 +420,37 @@ export default function Inventory() {
               </div>
 
               {/* Stock status filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">
                   {t('inventory.stockLevel')}
                 </span>
-                <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                <div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/10">
                   <button
                     onClick={() => setStockFilter('all')}
-                    className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
                       stockFilter === 'all'
-                        ? 'bg-white text-slate-800 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-slate-800 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
                     {t('inventory.all')}
                   </button>
                   <button
                     onClick={() => setStockFilter('low')}
-                    className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
                       stockFilter === 'low'
-                        ? 'bg-amber-500 text-white shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-amber-500/20 text-amber-400 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
                     {t('inventory.low')}
                   </button>
                   <button
                     onClick={() => setStockFilter('out')}
-                    className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
                       stockFilter === 'out'
-                        ? 'bg-rose-500 text-white shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-rose-500/20 text-rose-400 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
                     {t('inventory.out')}
@@ -438,527 +458,581 @@ export default function Inventory() {
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Table Container */}
-          <div
-            id="inventory-table-container"
-            className="flex-1 glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-2xl shadow-lg overflow-hidden flex flex-col backdrop-blur-md"
+            {/* Table Container */}
+            <div
+              id="inventory-table-container"
+              className="flex-1 surface rounded-2xl shadow-lg overflow-hidden flex flex-col"
+            >
+              <div className="flex-1 overflow-y-auto">
+                <table id="inventory-table" className="w-full text-left border-collapse table-fixed">
+                  <thead>
+                    <tr className="bg-slate-900/80 text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-white/5 sticky top-0 z-10 backdrop-blur-md">
+                      <th className="py-4 px-6 w-1/4">{t('inventory.productDetails')}</th>
+                      <th className="py-4 px-4 w-1/8">
+                        <button
+                          onClick={() => toggleSort('sku')}
+                          className="flex items-center gap-2 hover:text-white transition-colors"
+                        >
+                          {t('inventory.sku')} <ArrowUpDown size={12} />
+                        </button>
+                      </th>
+                      <th className="py-4 px-4 w-1/6">{t('inventory.category').replace(':', '')}</th>
+                      <th className="py-4 px-4 w-1/8 text-right">
+                        <button
+                          onClick={() => toggleSort('price')}
+                          className="flex items-center gap-2 hover:text-white transition-colors justify-end w-full"
+                        >
+                          {t('inventory.price')} <ArrowUpDown size={12} />
+                        </button>
+                      </th>
+                      <th className="py-4 px-4 w-1/8 text-right">{t('inventory.cost')}</th>
+                      <th className="py-4 px-4 w-1/8 text-right">{t('inventory.margin')}</th>
+                      <th className="py-4 px-6 w-1/6 text-center">
+                        <button
+                          onClick={() => toggleSort('stock')}
+                          className="flex items-center gap-2 hover:text-white transition-colors justify-center w-full"
+                        >
+                          {t('inventory.stock')} <ArrowUpDown size={12} />
+                        </button>
+                      </th>
+                      <th className="py-4 px-4 w-[100px] text-center">{t('inventory.actions')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 text-sm text-slate-200">
+                    {sortedAndFilteredProducts.length === 0 ? (
+                      <tr>
+                        <td colSpan={8}>
+                          <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
+                            <Layers size={48} className="opacity-20" />
+                            <p className="font-medium font-mono">{t('inventory.noProductsRegistered')}</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      sortedAndFilteredProducts.map((prod) => {
+                        const isLow = prod.stock <= prod.minStock && prod.stock > 0;
+                        const isOut = prod.stock === 0;
+                        const margin = prod.price > 0 ? ((prod.price - prod.cost) / prod.price) * 100 : 0;
+
+                        return (
+                          <tr
+                            key={prod.id}
+                            id={`inventory-row-${prod.id}`}
+                            className={`hover:bg-slate-800/50 transition-colors group ${isOut ? 'bg-rose-500/5' : isLow ? 'bg-amber-500/5' : ''}`}
+                          >
+                            <td className="py-4 px-6 flex items-center gap-4 truncate">
+                              <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center text-xl">
+                                {prod.image ? (
+                                  <img
+                                    src={prod.image}
+                                    alt={prod.name}
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                ) : (
+                                  <ImageIcon className="text-slate-500" size={20} />
+                                )}
+                              </div>
+                              <div className="truncate">
+                                <span className="font-bold block truncate text-slate-100">
+                                  {prod.name}
+                                </span>
+                                <span className="text-xs font-mono font-medium text-slate-500 block mt-0.5">
+                                  {t('inventory.thresholdAlert')}: {prod.minStock}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 font-mono text-xs truncate text-slate-400">
+                              {prod.sku}
+                            </td>
+                            <td className="py-4 px-4">
+                              <span className={getProductCategoryColor(prod.category)}>
+                                {getProductCategoryName(prod.category)}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4 font-mono font-bold text-white text-right">
+                              {settings.currency}{prod.price.toFixed(2)}
+                            </td>
+                            <td className="py-4 px-4 font-mono text-slate-400 text-right">
+                              {settings.currency}{prod.cost.toFixed(2)}
+                            </td>
+                            <td className="py-4 px-4 text-right font-mono font-medium">
+                              <span className={margin >= 50 ? 'text-emerald-400' : 'text-slate-400'}>
+                                {margin.toFixed(0)}%
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-center">
+                              <div className="flex flex-col items-center justify-center">
+                                <div className={`px-3 py-1 rounded-lg font-mono font-bold text-sm flex items-center gap-2 ${
+                                  isOut ? 'bg-rose-500/20 text-rose-400' 
+                                  : isLow ? 'bg-amber-500/20 text-amber-400' 
+                                  : 'bg-emerald-500/20 text-emerald-400'
+                                }`}>
+                                  {isOut || isLow ? <AlertTriangle size={14} /> : null}
+                                  {prod.stock}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4">
+                              <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => handleOpenEditProduct(prod)}
+                                  aria-label={t('inventory.editCatalogProduct')}
+                                  className="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+                                >
+                                  <Edit2 size={16} />
+                                </button>
+                                <button
+                                  id={`del-prod-${prod.id}`}
+                                  onClick={() => {
+                                    if (confirm(t('inventory.deleteConfirm', { name: prod.name })))
+                                      handleDeleteProduct(prod.id);
+                                  }}
+                                  aria-label={t('inventory.deleteProduct')}
+                                  className="p-2 text-slate-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {/* Table Footer Stats */}
+              <div className="px-6 py-4 border-t border-white/5 bg-slate-900/50 text-xs text-slate-400 font-mono flex justify-between items-center">
+                <span>
+                  {t('inventory.activeSkus')}: <strong className="text-white ml-1">{products.length}</strong>
+                </span>
+                <span className="flex items-center gap-6">
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    {t('inventory.lowStock')}:{' '}
+                    <strong className="text-amber-400 ml-1">{products.filter((p) => p.stock <= p.minStock && p.stock > 0).length}</strong>
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                    {t('inventory.outOfStock')}:{' '}
+                    <strong className="text-rose-400 ml-1">{products.filter((p) => p.stock === 0).length}</strong>
+                  </span>
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'categories' && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            id="categories-tab-content"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto pb-6"
+          >
+            {/* Inline Add Category Card */}
+            <div
+              className="surface border-2 border-dashed border-white/10 rounded-2xl p-6 shadow-lg flex flex-col justify-center items-center gap-4 cursor-pointer hover:border-emerald-500/50 transition-colors group"
+              onClick={() => setCategoryModalOpen(true)}
+            >
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Plus size={24} />
+              </div>
+              <span className="font-bold text-slate-300">{t('inventory.addCategory')}</span>
+            </div>
+
+            {categories.map((cat) => {
+              const productCount = products.filter((p) => p.category === cat.id).length;
+              return (
+                <div
+                  key={cat.id}
+                  id={`cat-card-${cat.id}`}
+                  className="surface rounded-2xl p-6 shadow-lg flex flex-col justify-between card-hover"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className={cat.color}>{cat.name}</span>
+                      <button
+                        id={`del-cat-${cat.id}`}
+                        disabled={productCount > 0}
+                        onClick={() => handleDeleteCategory(cat.id)}
+                        aria-label={productCount > 0 ? t('inventory.cannotDeleteCategory') : t('inventory.deleteCategory')}
+                        className="text-slate-500 hover:text-white hover:bg-rose-500 disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent p-2 rounded-xl transition-all"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-500 font-mono">
+                      ID: {cat.id}
+                    </p>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-4 mt-4 border-t border-white/10">
+                    <span className="text-sm text-slate-400 font-medium">
+                      {t('inventory.linkedProducts')}
+                    </span>
+                    <span className="font-mono text-white font-bold text-sm bg-slate-800 px-3 py-1.5 rounded-lg">
+                      {productCount}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </motion.div>
+        )}
+
+        {activeTab === 'suppliers' && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="flex-1 overflow-hidden flex flex-col surface rounded-2xl"
           >
             <div className="flex-1 overflow-y-auto">
-              <table id="inventory-table" className="w-full text-left border-collapse table-fixed">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-white/40 dark:bg-slate-900/40 text-slate-500 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider font-mono border-b border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
-                    <th className="py-3 px-5 w-1/4">{t('inventory.productDetails')}</th>
-                    <th className="py-3 px-4 w-1/8">
-                      <button
-                        onClick={() => toggleSort('sku')}
-                        className="flex items-center gap-1 hover:text-slate-800 transition-colors"
-                      >
-                        {t('inventory.sku')} <ArrowUpDown size={11} />
-                      </button>
-                    </th>
-                    <th className="py-3 px-4 w-1/6">{t('inventory.category').replace(':', '')}</th>
-                    <th className="py-3 px-4 w-1/8 text-right">
-                      <button
-                        onClick={() => toggleSort('price')}
-                        className="flex items-center gap-1 hover:text-slate-800 transition-colors justify-end w-full"
-                      >
-                        {t('inventory.price')} <ArrowUpDown size={11} />
-                      </button>
-                    </th>
-                    <th className="py-3 px-4 w-1/8 text-right">{t('inventory.cost')}</th>
-                    <th className="py-3 px-4 w-1/8 text-right">{t('inventory.margin')}</th>
-                    <th className="py-3 px-5 w-1/6 text-center">
-                      <button
-                        onClick={() => toggleSort('stock')}
-                        className="flex items-center gap-1 hover:text-slate-800 transition-colors justify-center w-full"
-                      >
-                        {t('inventory.stock')} <ArrowUpDown size={11} />
-                      </button>
-                    </th>
-                    <th className="py-3 px-4 w-[100px] text-center">{t('inventory.actions')}</th>
+                  <tr className="bg-slate-900/80 text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-white/5 sticky top-0 z-10 backdrop-blur-md">
+                    <th className="py-4 px-6">{t('inventory.supplierName')}</th>
+                    <th className="py-4 px-4">{t('inventory.supplierContact')}</th>
+                    <th className="py-4 px-4">{t('inventory.phoneNumber')}</th>
+                    <th className="py-4 px-4">{t('inventory.emailAddress')}</th>
+                    <th className="py-4 px-6 text-right">{t('inventory.actions')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200/50 dark:divide-slate-700/50 text-xs font-sans text-slate-700 dark:text-slate-200">
-                  {sortedAndFilteredProducts.length === 0 ? (
+                <tbody className="divide-y divide-white/5 text-sm text-slate-200">
+                  {suppliers.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={8}
-                        className="py-12 text-center text-slate-400 font-medium font-mono"
-                      >
-                        {t('inventory.noProductsRegistered')}
+                      <td colSpan={5}>
+                        <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
+                          <Truck size={48} className="opacity-20" />
+                          <p className="font-medium font-mono">{t('inventory.noSuppliers')}</p>
+                        </div>
                       </td>
                     </tr>
                   ) : (
-                    sortedAndFilteredProducts.map((prod) => {
-                      const isLow = prod.stock <= prod.minStock && prod.stock > 0;
-                      const isOut = prod.stock === 0;
-                      const margin =
-                        prod.price > 0 ? ((prod.price - prod.cost) / prod.price) * 100 : 0;
-
-                      return (
-                        <tr
-                          key={prod.id}
-                          id={`inventory-row-${prod.id}`}
-                          className={`hover:bg-white/30 dark:hover:bg-slate-800/30 transition-colors ${isOut ? 'bg-rose-500/10' : isLow ? 'bg-amber-500/10' : ''}`}
-                        >
-                          <td className="py-3.5 px-5 font-semibold text-slate-800 flex items-center space-x-3.5 truncate">
-                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden shrink-0 flex items-center justify-center">
-                              {prod.image ? (
-                                <img
-                                  src={prod.image}
-                                  alt={prod.name}
-                                  className="w-full h-full object-cover"
-                                  referrerPolicy="no-referrer"
-                                />
-                              ) : (
-                                <span className="text-xl">☕</span>
-                              )}
+                    suppliers.map((sup) => (
+                      <tr key={sup.id} className="hover:bg-slate-800/50 transition-colors group">
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-emerald-400">
+                              <Truck size={20} />
                             </div>
-                            <div className="truncate">
-                              <span className="font-semibold block truncate text-slate-800 dark:text-slate-100 max-w-[150px]">
-                                {prod.name}
-                              </span>
-                              <span className="text-[10px] font-mono font-medium text-slate-400 block mt-0.5">
-                                {t('inventory.thresholdAlert')}: {prod.minStock}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-4 font-mono text-[11px] truncate text-slate-500">
-                            {prod.sku}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span
-                              className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getProductCategoryColor(prod.category)}`}
-                            >
-                              {getProductCategoryName(prod.category)}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white text-right">
-                            {settings.currency}
-                            {prod.price.toFixed(2)}
-                          </td>
-                          <td className="py-3.5 px-4 font-mono text-slate-500 text-right">
-                            {settings.currency}
-                            {prod.cost.toFixed(2)}
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
-                            <span
-                              className={`font-mono font-medium ${margin >= 50 ? 'text-emerald-600' : 'text-slate-500'}`}
-                            >
-                              {margin.toFixed(0)}%
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-5 text-center">
-                            <div className="flex flex-col items-center justify-center">
-                              <span
-                                className={`font-mono font-bold text-xs ${isOut ? 'text-rose-500 dark:text-rose-400' : isLow ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}
-                              >
-                                {prod.stock}
-                              </span>
-                              {isOut ? (
-                                <span className="text-[9px] text-rose-500 font-bold uppercase mt-0.5 flex items-center gap-0.5">
-                                  <AlertTriangle size={10} /> {t('inventory.outOfStock')}
-                                </span>
-                              ) : isLow ? (
-                                <span className="text-[9px] text-amber-500 font-bold uppercase mt-0.5 flex items-center gap-0.5">
-                                  <AlertTriangle size={10} /> {t('inventory.lowStock')}
-                                </span>
-                              ) : (
-                                <span className="text-[9px] text-emerald-500 font-bold uppercase mt-0.5 font-mono">
-                                  {t('inventory.goodLevel')}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center justify-center space-x-1.5">
-                              <button
-                                onClick={() => handleOpenEditProduct(prod)}
-                                className="p-1.5 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200/60 rounded-lg transition-colors"
-                                title={t('inventory.editCatalogProduct')}
-                              >
-                                <Edit2 size={13} />
-                              </button>
-                              <button
-                                id={`del-prod-${prod.id}`}
-                                onClick={() => {
-                                  if (confirm(t('inventory.deleteConfirm', { name: prod.name })))
-                                    handleDeleteProduct(prod.id);
-                                }}
-                                className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100/50 rounded-lg transition-colors"
-                                title={t('inventory.deleteProduct')}
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
+                            <span className="font-bold text-white">{sup.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-slate-300">
+                          <div className="flex items-center gap-2">
+                            <User size={14} className="text-slate-500" />
+                            {sup.contact || '—'}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-slate-300 font-mono">
+                          <div className="flex items-center gap-2">
+                            <Phone size={14} className="text-slate-500" />
+                            {sup.phone || '—'}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-slate-300">
+                          <div className="flex items-center gap-2">
+                            <Mail size={14} className="text-slate-500" />
+                            {sup.email || '—'}
+                          </div>
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <button
+                            onClick={() => removeSupplier(sup.id)}
+                            aria-label={t('inventory.deleteSupplier')}
+                            className="p-2 text-slate-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
             </div>
-            {/* Table Footer Stats */}
-            <div className="px-5 py-3 border-t border-slate-200/50 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm text-[11px] text-slate-500 dark:text-slate-400 font-mono flex justify-between">
-              <span>
-                {t('inventory.activeSkus')}: {products.length}
-              </span>
-              <span className="flex items-center gap-4">
-                <span className="text-amber-600 font-bold flex items-center gap-1">
-                  ● {t('inventory.lowStock')}:{' '}
-                  {products.filter((p) => p.stock <= p.minStock && p.stock > 0).length}
-                </span>
-                <span className="text-rose-600 font-bold flex items-center gap-1">
-                  ● {t('inventory.outOfStock')}: {products.filter((p) => p.stock === 0).length}
-                </span>
-              </span>
-            </div>
-          </div>
-        </>
-      )}
+          </motion.div>
+        )}
 
-      {activeTab === 'categories' && (
-        /* CATEGORIES TAB */
-        <div
-          id="categories-tab-content"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-        >
-          {categories.map((cat) => {
-            const productCount = products.filter((p) => p.category === cat.id).length;
-            return (
-              <div
-                key={cat.id}
-                id={`cat-card-${cat.id}`}
-                className="glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-2xl p-5 shadow-lg space-y-4 flex flex-col justify-between card-hover"
-              >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold border ${cat.color}`}
-                    >
-                      {cat.name}
-                    </span>
-                    <button
-                      id={`del-cat-${cat.id}`}
-                      disabled={productCount > 0}
-                      onClick={() => handleDeleteCategory(cat.id)}
-                      className="text-slate-400 hover:text-rose-600 disabled:opacity-30 disabled:hover:text-slate-400 p-1.5 hover:bg-slate-50 rounded-lg transition-all"
-                      title={
-                        productCount > 0
-                          ? t('inventory.cannotDeleteCategory')
-                          : t('inventory.deleteCategory')
-                      }
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  <p className="text-xs text-slate-400 mt-2 font-mono">
-                    {t('inventory.id')}: {cat.id}
-                  </p>
-                </div>
-
-                <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                  <span className="text-xs text-slate-500 font-medium">
-                    {t('inventory.linkedProducts')}
-                  </span>
-                  <span className="font-mono text-slate-800 dark:text-slate-100 font-bold text-sm bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
-                    {productCount} {t('inventory.items')}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {activeTab === 'suppliers' && (
-        /* SUPPLIERS TAB */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {suppliers.length === 0 ? (
-            <div className="col-span-full glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-2xl p-12 text-center text-slate-400 font-mono text-xs">
-              {t('inventory.noSuppliers')}
-            </div>
-          ) : (
-            suppliers.map((sup) => (
-              <div
-                key={sup.id}
-                className="glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-2xl p-5 shadow-lg flex items-start justify-between card-hover"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Truck size={16} className="text-emerald-500 shrink-0" />
-                    <h4 className="font-sans font-bold text-slate-800 dark:text-slate-100 text-sm truncate">
-                      {sup.name}
-                    </h4>
-                  </div>
-                  <div className="mt-2 space-y-1 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                    {sup.contact && <p className="truncate">{sup.contact}</p>}
-                    {sup.phone && <p className="truncate">{sup.phone}</p>}
-                    {sup.email && <p className="truncate">{sup.email}</p>}
-                  </div>
-                </div>
-                <button
-                  onClick={() => removeSupplier(sup.id)}
-                  className="p-1.5 text-slate-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100/50 rounded-lg transition-colors shrink-0"
-                  title={t('inventory.deleteSupplier')}
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {activeTab === 'log' && (
-        /* STOCK ADJUSTMENT LOG */
-        <div className="flex-1 glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-2xl shadow-lg overflow-hidden flex flex-col backdrop-blur-md">
-          <div className="flex-1 overflow-y-auto">
-            {adjustments.length === 0 ? (
-              <div className="py-16 text-center text-slate-400 font-mono text-xs">
-                {t('inventory.noAdjustments')}
-              </div>
-            ) : (
+        {activeTab === 'log' && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="flex-1 surface rounded-2xl shadow-lg overflow-hidden flex flex-col"
+          >
+            <div className="flex-1 overflow-y-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-white/40 dark:bg-slate-900/40 text-slate-500 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider font-mono border-b border-slate-200/50 dark:border-slate-700/50 sticky top-0 backdrop-blur-sm">
-                    <th className="py-3 px-4">{t('inventory.logWhen')}</th>
-                    <th className="py-3 px-4">{t('inventory.productDetails')}</th>
-                    <th className="py-3 px-4 text-center">{t('inventory.logReason')}</th>
-                    <th className="py-3 px-4 text-right">{t('inventory.logChange')}</th>
-                    <th className="py-3 px-4 text-right">{t('inventory.stock')}</th>
-                    <th className="py-3 px-4">{t('inventory.logBy')}</th>
+                  <tr className="bg-slate-900/80 text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-white/5 sticky top-0 z-10 backdrop-blur-md">
+                    <th className="py-4 px-6">{t('inventory.logWhen')}</th>
+                    <th className="py-4 px-4">{t('inventory.productDetails')}</th>
+                    <th className="py-4 px-4 text-center">{t('inventory.logReason')}</th>
+                    <th className="py-4 px-4 text-right">{t('inventory.logChange')}</th>
+                    <th className="py-4 px-4 text-right">{t('inventory.stock')}</th>
+                    <th className="py-4 px-6">{t('inventory.logBy')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200/50 dark:divide-slate-700/50 text-xs text-slate-700 dark:text-slate-200">
-                  {adjustments.map((a) => (
-                    <tr key={a.id} className="hover:bg-white/30 dark:hover:bg-slate-800/30">
-                      <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                        {new Date(a.createdAt).toLocaleString()}
-                      </td>
-                      <td className="py-3 px-4 font-semibold truncate max-w-[160px]">
-                        {a.productName}
-                        {a.supplierName && (
-                          <span className="block text-[10px] text-slate-400 font-normal">
-                            {a.supplierName}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            a.reason === 'received'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : a.reason === 'waste'
-                                ? 'bg-rose-100 text-rose-700'
-                                : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          {t(`inventory.reason_${a.reason}`)}
-                        </span>
-                      </td>
-                      <td
-                        className={`py-3 px-4 text-right font-mono font-bold ${
-                          a.delta >= 0 ? 'text-emerald-600' : 'text-rose-600'
-                        }`}
-                      >
-                        {a.delta >= 0 ? '+' : ''}
-                        {a.delta}
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono">{a.newStock}</td>
-                      <td className="py-3 px-4 text-slate-500 truncate max-w-[100px]">
-                        {a.operatorName || '—'}
+                <tbody className="divide-y divide-white/5 text-sm text-slate-200">
+                  {adjustments.length === 0 ? (
+                    <tr>
+                      <td colSpan={6}>
+                        <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
+                          <Layers size={48} className="opacity-20" />
+                          <p className="font-medium font-mono">{t('inventory.noAdjustments')}</p>
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    adjustments.map((a) => (
+                      <tr key={a.id} className="hover:bg-slate-800/50 transition-colors">
+                        <td className="py-4 px-6 font-mono text-xs text-slate-400 whitespace-nowrap">
+                          {new Date(a.createdAt).toLocaleString()}
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="font-bold text-white block">{a.productName}</span>
+                          {a.supplierName && (
+                            <span className="text-xs text-slate-500 font-mono mt-1 block flex items-center gap-1">
+                              <Truck size={12} /> {a.supplierName}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span
+                            className={`badge ${
+                              a.reason === 'received' ? 'badge-emerald' :
+                              a.reason === 'waste' ? 'badge-rose' :
+                              a.reason === 'correction' ? 'badge-amber' :
+                              'badge-slate'
+                            }`}
+                          >
+                            {t(`inventory.reason_${a.reason}`, a.reason)}
+                          </span>
+                        </td>
+                        <td className={`py-4 px-4 text-right font-mono font-bold text-lg ${a.delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {a.delta >= 0 ? '+' : ''}{a.delta}
+                        </td>
+                        <td className="py-4 px-4 text-right font-mono font-bold text-slate-300">
+                          {a.newStock}
+                        </td>
+                        <td className="py-4 px-6 text-slate-400">
+                          <div className="flex items-center gap-2">
+                            <User size={14} className="text-slate-500" />
+                            {a.operatorName || '—'}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
-            )}
-          </div>
-        </div>
-      )}
+            </div>
+          </motion.div>
+        )}
+      </div>
 
       {/* MODAL: Product Add/Edit Form */}
       <AnimatePresence>
         {productModalOpen && (
           <div
             id="product-form-modal"
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+            className="modal-backdrop fixed inset-0 flex items-center justify-center z-50 p-4"
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="modal-card max-w-3xl w-full flex flex-col max-h-[90vh]"
             >
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 className="font-sans font-bold text-slate-800 text-base">
+              <div className="px-8 py-6 border-b border-white/10 flex justify-between items-center bg-slate-900/50">
+                <h3 className="font-sans font-bold text-white text-xl flex items-center gap-3">
+                  {editingProduct ? <Edit2 className="text-emerald-500" /> : <Plus className="text-emerald-500" />}
                   {editingProduct
                     ? t('inventory.editCatalogProduct')
                     : t('inventory.addNewProduct')}
                 </h3>
                 <button
                   onClick={() => setProductModalOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 bg-white border border-slate-200 rounded-lg shadow-sm"
+                  aria-label={t('inventory.cancel')}
+                  className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl transition-colors"
                 >
-                  <X size={16} />
+                  <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmitProduct}>
-                <div className="p-6 space-y-4 max-h-[420px] overflow-y-auto">
+              <form onSubmit={handleSubmitProduct} className="flex flex-col overflow-hidden flex-1">
+                <div className="p-8 space-y-8 overflow-y-auto">
+                  
                   {/* Basic information */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        {t('inventory.productName')}
-                      </label>
-                      <input
-                        id="form-prod-name"
-                        type="text"
-                        required
-                        placeholder="e.g. White Mocha Latte"
-                        value={prodName}
-                        onChange={(e) => setProdName(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2 border-b border-white/5 pb-2">
+                      <Layers size={16} className="text-emerald-500" /> Basic Details
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="md:col-span-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                          {t('inventory.productName')} *
+                        </label>
+                        <input
+                          id="form-prod-name"
+                          type="text"
+                          required
+                          placeholder="e.g. White Mocha Latte"
+                          value={prodName}
+                          onChange={(e) => setProdName(e.target.value)}
+                          className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        {t('inventory.skuCode')}
-                      </label>
-                      <input
-                        id="form-prod-sku"
-                        type="text"
-                        required
-                        placeholder="e.g. BEV-MOC-01"
-                        value={prodSku}
-                        onChange={(e) => setProdSku(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono text-slate-800 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                          {t('inventory.skuCode')} *
+                        </label>
+                        <input
+                          id="form-prod-sku"
+                          type="text"
+                          required
+                          placeholder="e.g. BEV-MOC-01"
+                          value={prodSku}
+                          onChange={(e) => setProdSku(e.target.value)}
+                          className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:outline-none focus:border-emerald-500 transition-colors"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        {t('inventory.category').replace(':', ' *')}
-                      </label>
-                      <select
-                        id="form-prod-category"
-                        value={prodCategory}
-                        onChange={(e) => setProdCategory(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 font-semibold"
-                      >
-                        {categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.name}
-                          </option>
-                        ))}
-                      </select>
+                      <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                          {t('inventory.category').replace(':', ' *')}
+                        </label>
+                        <select
+                          id="form-prod-category"
+                          value={prodCategory}
+                          onChange={(e) => setProdCategory(e.target.value)}
+                          className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white font-semibold focus:outline-none focus:border-emerald-500 transition-colors"
+                        >
+                          {categories.map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
 
                   {/* Financials & Stock */}
-                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        {t('inventory.sellPrice')} ({settings.currency}) *
-                      </label>
-                      <input
-                        id="form-prod-price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        required
-                        placeholder="0.00"
-                        value={prodPrice}
-                        onChange={(e) => setProdPrice(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 font-mono focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2 border-b border-white/5 pb-2">
+                      <PackagePlus size={16} className="text-emerald-500" /> Financials & Inventory
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                          {t('inventory.sellPrice')} ({settings.currency}) *
+                        </label>
+                        <input
+                          id="form-prod-price"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          required
+                          placeholder="0.00"
+                          value={prodPrice}
+                          onChange={(e) => setProdPrice(e.target.value)}
+                          className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-lg focus:outline-none focus:border-emerald-500 transition-colors"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        {t('inventory.costPrice')} ({settings.currency}) *
-                      </label>
-                      <input
-                        id="form-prod-cost"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        required
-                        placeholder="0.00"
-                        value={prodCost}
-                        onChange={(e) => setProdCost(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 font-mono focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                          {t('inventory.costPrice')} ({settings.currency}) *
+                        </label>
+                        <input
+                          id="form-prod-cost"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          required
+                          placeholder="0.00"
+                          value={prodCost}
+                          onChange={(e) => setProdCost(e.target.value)}
+                          className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-lg focus:outline-none focus:border-emerald-500 transition-colors"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        {t('inventory.inStockCount')}
-                      </label>
-                      <input
-                        id="form-prod-stock"
-                        type="number"
-                        min="0"
-                        required
-                        placeholder="0"
-                        value={prodStock}
-                        onChange={(e) => setProdStock(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 font-mono focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                          {t('inventory.inStockCount')} *
+                        </label>
+                        <input
+                          id="form-prod-stock"
+                          type="number"
+                          min="0"
+                          required
+                          placeholder="0"
+                          value={prodStock}
+                          onChange={(e) => setProdStock(e.target.value)}
+                          className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:outline-none focus:border-emerald-500 transition-colors"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        {t('inventory.lowStockAlert')}
-                      </label>
-                      <input
-                        id="form-prod-minstock"
-                        type="number"
-                        min="0"
-                        placeholder="5"
-                        value={prodMinStock}
-                        onChange={(e) => setProdMinStock(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 font-mono focus:outline-none focus:border-emerald-500"
-                      />
+                      <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                          {t('inventory.lowStockAlert')}
+                        </label>
+                        <input
+                          id="form-prod-minstock"
+                          type="number"
+                          min="0"
+                          placeholder="5"
+                          value={prodMinStock}
+                          onChange={(e) => setProdMinStock(e.target.value)}
+                          className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:outline-none focus:border-emerald-500 transition-colors"
+                        />
+                      </div>
                     </div>
                   </div>
 
                   {/* Asset settings */}
-                  <div className="pt-2 border-t border-slate-100">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  <div>
+                    <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2 border-b border-white/5 pb-2">
+                      <ImageIcon size={16} className="text-emerald-500" /> Media
+                    </h4>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
                       {t('inventory.productImageOptional')}
                     </label>
-                    <input
-                      id="form-prod-image"
-                      type="url"
-                      placeholder="https://images.unsplash.com/..."
-                      value={prodImage}
-                      onChange={(e) => setProdImage(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 placeholder-slate-300"
-                    />
+                    <div className="flex gap-4">
+                      <div className="w-20 h-20 rounded-2xl bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                        {prodImage ? (
+                          <img src={prodImage} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <ImageIcon className="text-slate-500" size={32} />
+                        )}
+                      </div>
+                      <input
+                        id="form-prod-image"
+                        type="url"
+                        placeholder="https://images.unsplash.com/..."
+                        value={prodImage}
+                        onChange={(e) => setProdImage(e.target.value)}
+                        className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 placeholder-slate-600 self-center"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+                <div className="px-8 py-5 border-t border-white/10 bg-slate-900/80 flex items-center justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => setProductModalOpen(false)}
-                    className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50"
+                    className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors"
                   >
                     {t('inventory.cancel')}
                   </button>
                   <button
                     type="submit"
                     id="form-submit-prod-btn"
-                    className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold text-xs sm:text-sm rounded-xl flex items-center shadow-lg shadow-slate-900/10"
+                    className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-transform active:scale-95"
                   >
-                    <Check size={16} className="me-1" />
+                    <Check size={20} />
                     <span>{t('inventory.saveCatalogItem')}</span>
                   </button>
                 </div>
@@ -973,31 +1047,31 @@ export default function Inventory() {
         {categoryModalOpen && (
           <div
             id="category-form-modal"
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+            className="modal-backdrop fixed inset-0 flex items-center justify-center z-50 p-4"
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 space-y-4"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="modal-card max-w-sm w-full p-8 space-y-6"
             >
               <div className="flex justify-between items-center">
-                <h3 className="font-sans font-bold text-slate-800 text-base flex items-center gap-2">
-                  <FolderPlus size={18} className="text-emerald-500" />{' '}
+                <h3 className="font-sans font-bold text-white text-xl flex items-center gap-3">
+                  <FolderPlus size={24} className="text-emerald-500" />{' '}
                   {t('inventory.addNewCategory')}
                 </h3>
                 <button
                   onClick={() => setCategoryModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-600"
+                  className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl transition-colors"
                 >
-                  <X size={16} />
+                  <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmitCategory} className="space-y-4">
+              <form onSubmit={handleSubmitCategory} className="space-y-6">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                    {t('inventory.categoryName')}
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                    {t('inventory.categoryName')} *
                   </label>
                   <input
                     id="new-cat-name-input"
@@ -1006,43 +1080,44 @@ export default function Inventory() {
                     placeholder="e.g. Beverages"
                     value={newCatName}
                     onChange={(e) => setNewCatName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 font-semibold"
+                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors font-bold text-lg"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3">
                     {t('inventory.visualThemeColor')}
                   </label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-3 gap-3">
                     {categoryColors.map((colorOption) => (
                       <button
                         key={colorOption.label}
                         type="button"
                         onClick={() => setNewCatColor(colorOption.class)}
-                        className={`p-2.5 rounded-xl border text-[10px] font-bold transition-all ${
+                        className={`py-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
                           newCatColor === colorOption.class
-                            ? 'border-slate-800 ring-2 ring-slate-800/15'
-                            : 'border-slate-200 opacity-70 hover:opacity-100'
-                        } ${colorOption.class.split(' ')[0]}`}
+                            ? 'border-emerald-500 bg-slate-800'
+                            : 'border-transparent bg-slate-900/50 hover:bg-slate-800'
+                        }`}
                       >
-                        {colorOption.label}
+                        <div className={`w-6 h-6 rounded-full ${colorOption.bg}`}></div>
+                        <span className="text-xs font-bold text-slate-300">{colorOption.label}</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+                <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
                   <button
                     type="button"
                     onClick={() => setCategoryModalOpen(false)}
-                    className="px-4 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 rounded-lg"
+                    className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors"
                   >
                     {t('inventory.cancel')}
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-sm"
+                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
                   >
                     {t('inventory.saveCategory')}
                   </button>
@@ -1053,69 +1128,93 @@ export default function Inventory() {
         )}
       </AnimatePresence>
 
-      {/* MODAL: Receive Stock (lightweight purchase order) */}
+      {/* MODAL: Receive Stock / Adjust */}
       <AnimatePresence>
         {receiveOpen && (
-          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="modal-backdrop fixed inset-0 flex items-center justify-center z-50 p-4">
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-sm w-full border border-slate-200 dark:border-slate-800 overflow-hidden"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="modal-card max-w-md w-full"
             >
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between">
-                <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                  <PackagePlus size={18} className="text-emerald-500" />{' '}
+              <div className="px-8 py-6 border-b border-white/10 bg-slate-900/50 flex items-center justify-between">
+                <h3 className="font-bold text-white text-xl flex items-center gap-3">
+                  <PackagePlus size={24} className="text-emerald-500" />{' '}
                   {t('inventory.receiveStock')}
                 </h3>
                 <button
                   onClick={() => setReceiveOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                  className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl transition-colors"
                 >
-                  <X size={16} />
+                  <X size={20} />
                 </button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-8 space-y-6">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
                     {t('inventory.products')}
                   </label>
                   <select
                     value={recvProductId}
                     onChange={(e) => setRecvProductId(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-lg font-bold"
                   >
                     {products.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name} ({p.stock})
+                        {p.name} (Cur: {p.stock})
                       </option>
                     ))}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                    Adjustment Reason
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {(['received', 'waste', 'correction', 'other'] as const).map(r => (
+                      <button
+                        key={r}
+                        onClick={() => setRecvReason(r)}
+                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
+                          recvReason === r 
+                          ? r === 'waste' ? 'bg-rose-500/20 border-rose-500 text-rose-400'
+                          : r === 'received' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
+                          : 'bg-amber-500/20 border-amber-500 text-amber-400'
+                          : 'bg-slate-900/50 border-white/10 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {t(`inventory.reason_${r}`, r.charAt(0).toUpperCase() + r.slice(1))}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                      {t('inventory.quantityReceived')}
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                      Δ Quantity
                     </label>
                     <input
                       type="number"
-                      min="1"
                       value={recvQty}
                       onChange={(e) => setRecvQty(e.target.value)}
-                      placeholder="0"
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-mono dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                      placeholder={recvReason === 'waste' ? "-5" : "10"}
+                      className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-xl text-center focus:outline-none focus:border-emerald-500"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
                       {t('inventory.suppliers')}
                     </label>
                     <select
                       value={recvSupplierId}
                       onChange={(e) => setRecvSupplierId(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                      disabled={recvReason !== 'received'}
+                      className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 disabled:opacity-50"
                     >
-                      <option value="">—</option>
+                      <option value="">— None —</option>
                       {suppliers.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
@@ -1124,27 +1223,32 @@ export default function Inventory() {
                     </select>
                   </div>
                 </div>
-                <input
-                  type="text"
-                  value={recvNote}
-                  onChange={(e) => setRecvNote(e.target.value)}
-                  placeholder={t('inventory.noteOptional')}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs dark:text-slate-100 focus:outline-none focus:border-emerald-500"
-                />
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                    Notes
+                  </label>
+                  <input
+                    type="text"
+                    value={recvNote}
+                    onChange={(e) => setRecvNote(e.target.value)}
+                    placeholder={t('inventory.noteOptional')}
+                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
               </div>
-              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex justify-end gap-2">
+              <div className="px-8 py-5 border-t border-white/10 bg-slate-900/80 flex justify-end gap-3">
                 <button
                   onClick={() => setReceiveOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                  className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors"
                 >
                   {t('inventory.cancel')}
                 </button>
                 <button
                   onClick={handleReceiveStock}
-                  disabled={!recvProductId || !(parseInt(recvQty) > 0)}
-                  className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-lg flex items-center gap-1.5"
+                  disabled={!recvProductId || !recvQty || isNaN(parseInt(recvQty))}
+                  className="px-6 py-3 font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
                 >
-                  <Check size={14} /> {t('inventory.confirmReceive')}
+                  <Check size={20} /> {t('inventory.confirmReceive', 'Confirm')}
                 </button>
               </div>
             </motion.div>
@@ -1155,67 +1259,87 @@ export default function Inventory() {
       {/* MODAL: Add Supplier */}
       <AnimatePresence>
         {supplierModalOpen && (
-          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="modal-backdrop fixed inset-0 flex items-center justify-center z-50 p-4">
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-sm w-full border border-slate-200 dark:border-slate-800 overflow-hidden"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="modal-card max-w-sm w-full overflow-hidden"
             >
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between">
-                <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                  <Truck size={18} className="text-emerald-500" /> {t('inventory.addSupplier')}
+              <div className="px-8 py-6 border-b border-white/10 bg-slate-900/50 flex items-center justify-between">
+                <h3 className="font-bold text-white text-xl flex items-center gap-3">
+                  <Truck size={24} className="text-emerald-500" /> {t('inventory.addSupplier')}
                 </h3>
                 <button
                   onClick={() => setSupplierModalOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
+                  className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl transition-colors"
                 >
-                  <X size={16} />
+                  <X size={20} />
                 </button>
               </div>
-              <form onSubmit={handleAddSupplier} className="p-6 space-y-3">
-                <input
-                  type="text"
-                  required
-                  value={supName}
-                  onChange={(e) => setSupName(e.target.value)}
-                  placeholder={t('inventory.supplierName')}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm dark:text-slate-100 focus:outline-none focus:border-emerald-500"
-                />
-                <input
-                  type="text"
-                  value={supContact}
-                  onChange={(e) => setSupContact(e.target.value)}
-                  placeholder={t('inventory.supplierContact')}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm dark:text-slate-100 focus:outline-none focus:border-emerald-500"
-                />
-                <div className="grid grid-cols-2 gap-3">
+              <form onSubmit={handleAddSupplier} className="p-8 space-y-5">
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                    Company / Name *
+                  </label>
                   <input
-                    type="tel"
-                    value={supPhone}
-                    onChange={(e) => setSupPhone(e.target.value)}
-                    placeholder={t('inventory.phoneNumber')}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-mono dark:text-slate-100 focus:outline-none focus:border-emerald-500"
-                  />
-                  <input
-                    type="email"
-                    value={supEmail}
-                    onChange={(e) => setSupEmail(e.target.value)}
-                    placeholder={t('inventory.emailAddress')}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm dark:text-slate-100 focus:outline-none focus:border-emerald-500"
+                    type="text"
+                    required
+                    value={supName}
+                    onChange={(e) => setSupName(e.target.value)}
+                    placeholder={t('inventory.supplierName')}
+                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 font-bold"
                   />
                 </div>
-                <div className="flex justify-end gap-2 pt-1">
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                    Contact Person
+                  </label>
+                  <input
+                    type="text"
+                    value={supContact}
+                    onChange={(e) => setSupContact(e.target.value)}
+                    placeholder={t('inventory.supplierContact')}
+                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={supPhone}
+                      onChange={(e) => setSupPhone(e.target.value)}
+                      placeholder={t('inventory.phoneNumber')}
+                      className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={supEmail}
+                      onChange={(e) => setSupEmail(e.target.value)}
+                      placeholder={t('inventory.emailAddress')}
+                      className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-6 border-t border-white/5 mt-6">
                   <button
                     type="button"
                     onClick={() => setSupplierModalOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                    className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors"
                   >
                     {t('inventory.cancel')}
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg"
+                    className="px-6 py-3 font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
                   >
                     {t('inventory.saveSupplier')}
                   </button>
@@ -1225,6 +1349,6 @@ export default function Inventory() {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

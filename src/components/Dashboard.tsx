@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import {
   TrendingUp,
   ShoppingBag,
@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   Download,
   Users,
+  Activity
 } from 'lucide-react';
 import {
   AreaChart,
@@ -39,8 +40,6 @@ export default function Dashboard() {
   const { settings, supabaseConfig } = useSettingsStore();
   const cloudLive = supabaseConfig.enabled && supabaseConfig.status === 'connected';
 
-  // Include both completed and partially-refunded sales — a partial refund
-  // should reduce revenue by the refunded amount, not drop the entire sale.
   const completedTransactions = useMemo(() => {
     return transactions.filter((t) => t.status === 'completed' || t.status === 'partial');
   }, [transactions]);
@@ -53,7 +52,6 @@ export default function Dashboard() {
     );
   }, [completedTransactions, todayDateString]);
 
-  // Reporting date range (drives the charts, breakdowns, and export).
   const [range, setRange] = useState<'today' | '7d' | '30d' | 'all'>('7d');
   const rangeDays = range === 'today' ? 1 : range === '7d' ? 7 : range === '30d' ? 30 : 30;
 
@@ -86,7 +84,6 @@ export default function Dashboard() {
     );
     const avgDailyRevenue = totalHistoricalRevenue / daysCount;
 
-    // Same definition as the sidebar badge: at/below threshold but still in stock.
     const lowStockItems = products.filter((p) => p.stock <= p.minStock && p.stock > 0).length;
 
     return {
@@ -102,7 +99,6 @@ export default function Dashboard() {
   const salesTrendData = useMemo(() => {
     const datesMap = new Map<string, { label: string; revenue: number; profit: number }>();
     const today = new Date();
-    // Daily buckets across the selected range (capped so the axis stays legible).
     const buckets = Math.min(range === 'all' ? 30 : rangeDays, 31);
 
     for (let i = buckets - 1; i >= 0; i--) {
@@ -124,7 +120,6 @@ export default function Dashboard() {
         const netRevenue = tx.total - (tx.refundedAmount ?? 0);
         entry.revenue += netRevenue;
 
-        // Prorate profit by the refund share so partial refunds reduce profit.
         const refundProportion = tx.total > 0 ? (tx.refundedAmount ?? 0) / tx.total : 0;
         const cost = tx.items.reduce((sum, item) => sum + item.cost * item.quantity, 0);
         entry.profit += (tx.subtotal - tx.discount - cost) * (1 - refundProportion);
@@ -144,7 +139,6 @@ export default function Dashboard() {
     const productSalesMap = new Map<string, { name: string; quantity: number; revenue: number }>();
 
     rangeTxns.forEach((tx) => {
-      // Subtract refunded quantities from best-sellers.
       const refundedQtys: Record<string, number> = {};
       for (const r of tx.refundedItems ?? []) {
         refundedQtys[r.productId] = (refundedQtys[r.productId] ?? 0) + r.quantity;
@@ -225,13 +219,10 @@ export default function Dashboard() {
       .filter((item) => item.value > 0);
   }, [rangeTxns]);
 
-  // Denominator over the same buckets shown in the cards, so the percentages
-  // always sum to 100 (loyalty redemptions are $0 sales and are not a bucket).
   const totalSalesVolume = useMemo(() => {
     return paymentMethodsData.reduce((sum, d) => sum + d.value, 0);
   }, [paymentMethodsData]);
 
-  // Per-operator sales for the selected range (staff performance report).
   const operatorBreakdown = useMemo(() => {
     const map = new Map<string, { name: string; orders: number; revenue: number }>();
     rangeTxns.forEach((tx) => {
@@ -248,15 +239,35 @@ export default function Dashboard() {
 
   const exportRange = () => {
     downloadCsv(
-      `sales-${range}-${new Date().toISOString().slice(0, 10)}.csv`,
+      `sales-\${range}-\${new Date().toISOString().slice(0, 10)}.csv`,
       toCsv(transactionsToCsvRows(rangeTxns)),
     );
+  };
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-[#0f172a]/95 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-xl">
+          <p className="text-white font-bold mb-2">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <div key={index} className="flex items-center gap-2 text-sm font-mono mt-1">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span className="text-slate-400 capitalize">{entry.name}:</span>
+              <span className="text-white font-bold">
+                {settings.currency}{Number(entry.value).toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
     <div
       id="dashboard-root"
-      className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 p-6 transition-colors duration-300"
+      className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-[#020617] p-6 transition-colors duration-300"
     >
       {/* Header */}
       <div id="dashboard-header" className="mb-6 shrink-0 flex items-center justify-between">
@@ -269,9 +280,8 @@ export default function Dashboard() {
           </p>
         </motion.div>
 
-        <div className="flex items-center gap-3">
-          {/* Date-range selector — drives the charts, breakdowns, and export. */}
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-4">
+          <div className="flex bg-[#0f172a] p-1 rounded-xl border border-white/5 shadow-inner">
             {(
               [
                 { id: 'today', label: t('dashboard.rangeToday') },
@@ -283,38 +293,39 @@ export default function Dashboard() {
               <button
                 key={r.id}
                 onClick={() => setRange(r.id)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase transition-all \${
                   range === r.id
-                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    ? 'bg-emerald-500/20 text-emerald-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
                 {r.label}
               </button>
             ))}
           </div>
+
           <button
             id="dashboard-export-btn"
             onClick={exportRange}
             disabled={rangeTxns.length === 0}
-            className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 text-slate-700 dark:text-slate-200 text-[10px] font-bold uppercase px-2.5 py-1.5 rounded-xl shadow-sm transition-colors"
+            className="flex items-center gap-2 bg-[#0f172a] border border-white/5 hover:border-white/10 disabled:opacity-40 text-slate-300 hover:text-white text-xs font-bold uppercase px-4 py-2 rounded-xl shadow-sm transition-colors h-full"
             title={t('dashboard.exportRange')}
           >
-            <Download size={13} />
+            <Download size={14} />
+            CSV
           </button>
 
-          {/* Sync Indicator — reflects whether cloud sync is actually connected */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`flex items-center space-x-2 border px-3 py-1.5 rounded-xl font-mono text-[10px] font-bold shadow-inner ${
+            className={`flex items-center space-x-2 border px-4 py-2 rounded-xl text-xs font-bold shadow-inner \${
               cloudLive
-                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-                : 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400'
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                : 'bg-slate-500/10 border-slate-400/20 text-slate-400'
             }`}
           >
             <span
-              className={`w-2 h-2 rounded-full ${
+              className={`w-2 h-2 rounded-full \${
                 cloudLive
                   ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]'
                   : 'bg-slate-400'
@@ -328,314 +339,249 @@ export default function Dashboard() {
       {/* Main dashboard content container */}
       <div id="dashboard-content" className="flex-1 overflow-y-auto space-y-6 pe-1 pb-6">
         {/* KPI Row */}
-        <div id="kpi-row" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* Card 1: Revenue Today */}
+        <div id="kpi-row" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Card 1: Revenue */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-5 shadow-lg shadow-slate-200/50 dark:shadow-none flex items-start justify-between relative overflow-hidden group hover:border-emerald-500/30 transition-colors"
+            className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[#1e293b] transition-colors"
           >
-            <div className="absolute -inset-e-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-colors" />
-            <div className="space-y-1 relative z-10">
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block uppercase tracking-wider font-mono">
+            <div className="absolute -inset-e-6 -top-6 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-colors" />
+            <div className="flex justify-between items-start mb-4 relative z-10">
+              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider font-mono">
                 {t('dashboard.todaysRevenue')}
               </span>
-              <h3 className="font-mono font-extrabold text-transparent bg-clip-text bg-linear-to-br from-emerald-600 to-emerald-400 dark:from-emerald-400 dark:to-emerald-200 text-2xl md:text-3xl animate-count-up">
-                {settings.currency}
-                {kpis.revenueToday.toFixed(2)}
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 shadow-inner">
+                <DollarSign size={20} className="stroke-[2.5]" />
+              </div>
+            </div>
+            <div className="relative z-10">
+              <h3 className="font-mono font-extrabold text-white text-3xl mb-2">
+                {settings.currency}{kpis.revenueToday.toFixed(2)}
               </h3>
-              <div className="flex items-center gap-1.5 text-[11px] font-medium mt-2">
+              <div className="flex items-center gap-2 text-xs font-medium">
                 {kpis.revenueToday >= kpis.avgDailyRevenue ? (
-                  <span className="text-emerald-500 font-bold flex items-center">
-                    <ArrowUpRight size={12} className="me-0.5" /> {t('dashboard.aboveAvg')}
+                  <span className="badge badge-emerald flex items-center px-2 py-0.5">
+                    <ArrowUpRight size={14} className="me-1" /> {t('dashboard.aboveAvg')}
                   </span>
                 ) : (
-                  <span className="text-rose-500 font-bold flex items-center">
-                    <ArrowDownRight size={12} className="me-0.5" /> {t('dashboard.belowAvg')}
+                  <span className="badge badge-rose flex items-center px-2 py-0.5">
+                    <ArrowDownRight size={14} className="me-1" /> {t('dashboard.belowAvg')}
                   </span>
                 )}
-                <span className="text-slate-400 dark:text-slate-500 font-mono">
-                  {t('dashboard.dailyAvg')} {settings.currency}
-                  {kpis.avgDailyRevenue.toFixed(0)}
+                <span className="text-slate-500 font-mono">
+                  vs {settings.currency}{kpis.avgDailyRevenue.toFixed(0)} avg
                 </span>
               </div>
             </div>
-            <div className="p-3.5 rounded-2xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 shadow-inner relative z-10">
-              <DollarSign size={22} className="stroke-[2.5]" />
-            </div>
           </motion.div>
 
-          {/* Card 2: Profit Today */}
+          {/* Card 2: Profit */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-5 shadow-lg shadow-slate-200/50 dark:shadow-none flex items-start justify-between relative overflow-hidden group hover:border-blue-500/30 transition-colors"
+            className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[#1e293b] transition-colors"
           >
-            <div className="absolute -inset-e-6 -top-6 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-colors" />
-            <div className="space-y-1 relative z-10">
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block uppercase tracking-wider font-mono">
+            <div className="absolute -inset-e-6 -top-6 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors" />
+            <div className="flex justify-between items-start mb-4 relative z-10">
+              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider font-mono">
                 {t('dashboard.netProfit')}
               </span>
-              <h3 className="font-mono font-extrabold text-slate-900 dark:text-white text-2xl md:text-3xl animate-count-up">
-                {settings.currency}
-                {kpis.profitToday.toFixed(2)}
-              </h3>
-              <div className="flex items-center gap-1.5 text-[11px] font-medium mt-2 text-slate-500 font-mono">
-                <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-md">
-                  {t('dashboard.margin')}{' '}
-                  {kpis.revenueToday > 0
-                    ? ((kpis.profitToday / kpis.revenueToday) * 100).toFixed(0)
-                    : 0}
-                  %
-                </span>
-                <span>• {t('dashboard.exclTax')}</span>
+              <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 shadow-inner">
+                <Percent size={20} className="stroke-[2.5]" />
               </div>
             </div>
-            <div className="p-3.5 rounded-2xl bg-blue-500/10 text-blue-500 dark:text-blue-400 shadow-inner relative z-10">
-              <Percent size={22} className="stroke-[2.5]" />
+            <div className="relative z-10">
+              <h3 className="font-mono font-extrabold text-white text-3xl mb-2">
+                {settings.currency}{kpis.profitToday.toFixed(2)}
+              </h3>
+              <div className="flex items-center gap-2 text-xs font-medium">
+                <span className="badge badge-blue px-2 py-0.5">
+                  Margin {kpis.revenueToday > 0 ? ((kpis.profitToday / kpis.revenueToday) * 100).toFixed(0) : 0}%
+                </span>
+                <span className="text-slate-500 font-mono">excl. tax</span>
+              </div>
             </div>
           </motion.div>
 
-          {/* Card 3: Orders Count Today */}
+          {/* Card 3: Orders */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-5 shadow-lg shadow-slate-200/50 dark:shadow-none flex items-start justify-between relative overflow-hidden group hover:border-purple-500/30 transition-colors"
+            className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[#1e293b] transition-colors"
           >
-            <div className="absolute -inset-e-6 -top-6 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-colors" />
-            <div className="space-y-1 relative z-10">
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block uppercase tracking-wider font-mono">
+            <div className="absolute -inset-e-6 -top-6 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-colors" />
+            <div className="flex justify-between items-start mb-4 relative z-10">
+              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider font-mono">
                 {t('dashboard.completedSales')}
               </span>
-              <h3 className="font-mono font-extrabold text-slate-900 dark:text-white text-2xl md:text-3xl animate-count-up">
+              <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 shadow-inner">
+                <ShoppingBag size={20} className="stroke-[2.5]" />
+              </div>
+            </div>
+            <div className="relative z-10">
+              <h3 className="font-mono font-extrabold text-white text-3xl mb-2">
                 {kpis.ordersToday}
               </h3>
-              <div className="flex items-center gap-1 text-[11px] font-medium mt-2 text-slate-500">
-                <span className="font-mono bg-purple-500/10 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded-md">
-                  {t('dashboard.ticketAvg')} {settings.currency}
-                  {kpis.aovToday}
+              <div className="flex items-center gap-2 text-xs font-medium">
+                <span className="badge badge-purple px-2 py-0.5 font-mono">
+                  {settings.currency}{kpis.aovToday} AOV
                 </span>
               </div>
             </div>
-            <div className="p-3.5 rounded-2xl bg-purple-500/10 text-purple-500 dark:text-purple-400 shadow-inner relative z-10">
-              <ShoppingBag size={22} className="stroke-[2.5]" />
-            </div>
           </motion.div>
 
-          {/* Card 4: Low Stock Alarms */}
+          {/* Card 4: Low Stock */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-5 shadow-lg shadow-slate-200/50 dark:shadow-none flex items-start justify-between relative overflow-hidden group hover:border-amber-500/30 transition-colors"
+            className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[#1e293b] transition-colors"
           >
-            <div
-              className={`absolute -inset-e-6 -top-6 w-24 h-24 rounded-full blur-2xl transition-colors ${kpis.lowStockItems > 0 ? 'bg-amber-500/20 group-hover:bg-amber-500/30' : 'bg-emerald-500/10'}`}
-            />
-            <div className="space-y-1 relative z-10">
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block uppercase tracking-wider font-mono">
+            <div className={`absolute -inset-e-6 -top-6 w-32 h-32 rounded-full blur-3xl transition-colors \${kpis.lowStockItems > 0 ? 'bg-amber-500/10 group-hover:bg-amber-500/20' : 'bg-slate-500/10'}`} />
+            <div className="flex justify-between items-start mb-4 relative z-10">
+              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider font-mono">
                 {t('dashboard.stockWarnings')}
               </span>
-              <h3 className="font-mono font-extrabold text-slate-900 dark:text-white text-2xl md:text-3xl animate-count-up">
+              <div className={`p-2.5 rounded-xl shadow-inner \${kpis.lowStockItems > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-800 text-slate-400'}`}>
+                <Package size={20} className="stroke-[2.5]" />
+              </div>
+            </div>
+            <div className="relative z-10">
+              <h3 className="font-mono font-extrabold text-white text-3xl mb-2">
                 {kpis.lowStockItems}
               </h3>
-              <div className="flex items-center gap-1 text-[11px] font-semibold mt-2">
+              <div className="flex items-center gap-2 text-xs font-medium">
                 {kpis.lowStockItems > 0 ? (
-                  <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 rounded-md">
-                    <AlertTriangle size={12} /> {t('dashboard.lowItems')}
+                  <span className="badge badge-amber flex items-center gap-1.5 px-2 py-0.5">
+                    <AlertTriangle size={12} /> Action Needed
                   </span>
                 ) : (
-                  <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
-                    ● {t('dashboard.allStocked')}
+                  <span className="badge badge-slate flex items-center gap-1.5 px-2 py-0.5">
+                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" /> All Good
                   </span>
                 )}
               </div>
             </div>
-            <div
-              className={`p-3.5 rounded-2xl shadow-inner relative z-10 ${kpis.lowStockItems > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}
-            >
-              <Package size={22} className="stroke-[2.5]" />
-            </div>
           </motion.div>
         </div>
 
-        {/* Charts Grid Row 1: Sales Trend Area Chart */}
+        {/* Charts Row 1: Sales Trend */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm space-y-5"
+          className="surface rounded-3xl p-8 shadow-xl"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="font-sans font-bold text-slate-800 dark:text-white text-base">
+              <h3 className="font-sans font-bold text-white text-lg flex items-center gap-2">
+                <Activity size={20} className="text-emerald-500" />
                 {t('dashboard.salesTrend')}
               </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">
+              <p className="text-sm text-slate-400 mt-1">
                 {t('dashboard.historicalPerf')}
               </p>
             </div>
-            <div className="flex items-center gap-4 text-xs font-mono bg-slate-100 dark:bg-slate-900/50 px-3 py-1.5 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
-              <span className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />{' '}
+            <div className="flex items-center gap-4 text-xs font-mono bg-[#0f172a] px-4 py-2 rounded-xl border border-white/5">
+              <span className="flex items-center gap-2 text-slate-300">
+                <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" /> 
                 {t('dashboard.revenue')}
               </span>
-              <span className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />{' '}
+              <span className="flex items-center gap-2 text-slate-300">
+                <span className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" /> 
                 {t('dashboard.profit')}
               </span>
             </div>
           </div>
-          <div className="h-72 w-full">
+          <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={salesTrendData}
-                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-              >
+              <AreaChart data={salesTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
                     <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
                     <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#e2e8f0"
-                  strokeOpacity={0.2}
+                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#1e293b" />
+                <XAxis 
+                  dataKey="label" 
+                  stroke="#475569" 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  dy={15} 
                 />
-                <XAxis
-                  dataKey="label"
-                  stroke="#64748b"
-                  fontSize={10}
-                  fontStyle="italic"
-                  tickLine={false}
-                  axisLine={false}
-                  dy={10}
+                <YAxis 
+                  stroke="#475569" 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  dx={-15} 
+                  tickFormatter={(val) => `${val}`}
                 />
-                <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} dx={-10} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    backdropFilter: 'blur(8px)',
-                    borderRadius: '16px',
-                    color: '#fff',
-                    fontSize: '11px',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                  }}
-                  labelStyle={{
-                    fontWeight: 'bold',
-                    color: '#10b981',
-                    fontStyle: 'italic',
-                    marginBottom: '4px',
-                  }}
-                />
+                <Tooltip content={<CustomTooltip />} />
                 <Area
                   type="monotone"
                   dataKey="revenue"
                   stroke="#10b981"
-                  strokeWidth={3}
-                  fillOpacity={1}
+                  strokeWidth={4}
                   fill="url(#colorRevenue)"
-                  activeDot={{
-                    r: 6,
-                    strokeWidth: 0,
-                    fill: '#10b981',
-                    style: { filter: 'drop-shadow(0px 0px 4px rgba(16,185,129,0.8))' },
-                  }}
+                  activeDot={{ r: 8, fill: '#10b981', stroke: '#020617', strokeWidth: 3 }}
                 />
                 <Area
                   type="monotone"
                   dataKey="profit"
                   stroke="#3b82f6"
-                  strokeWidth={3}
-                  fillOpacity={1}
+                  strokeWidth={4}
                   fill="url(#colorProfit)"
-                  activeDot={{
-                    r: 6,
-                    strokeWidth: 0,
-                    fill: '#3b82f6',
-                    style: { filter: 'drop-shadow(0px 0px 4px rgba(59,130,246,0.8))' },
-                  }}
+                  activeDot={{ r: 8, fill: '#3b82f6', stroke: '#020617', strokeWidth: 3 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </motion.div>
 
-        {/* Charts Grid Row 2: Secondary breakdowns */}
+        {/* Charts Row 2 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Chart A: Top Selling Products (Bar Chart) */}
+          {/* Best Sellers */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm space-y-5 lg:col-span-2"
+            className="surface rounded-3xl p-8 shadow-xl lg:col-span-2"
           >
-            <div>
-              <h3 className="font-sans font-bold text-slate-800 dark:text-white text-base">
+            <div className="mb-8">
+              <h3 className="font-sans font-bold text-white text-lg">
                 {t('dashboard.bestSellers')}
               </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">
+              <p className="text-sm text-slate-400 mt-1">
                 {t('dashboard.topMenu')}
               </p>
             </div>
-            <div className="h-64 w-full">
+            <div className="h-72 w-full">
               {topProductsData.length === 0 ? (
-                <div className="h-full flex items-center justify-center font-mono text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                  {t('dashboard.noSales')}
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-white/10">
+                  <Package size={32} className="mb-3 opacity-50" />
+                  <span>{t('dashboard.noSales')}</span>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={topProductsData}
-                    layout="vertical"
-                    margin={{ top: 5, right: 10, left: 15, bottom: 5 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      horizontal={false}
-                      stroke="#e2e8f0"
-                      strokeOpacity={0.2}
-                    />
-                    <XAxis
-                      type="number"
-                      stroke="#64748b"
-                      fontSize={10}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      orientation={i18n.language === 'ar' ? 'right' : 'left'}
-                      stroke="#64748b"
-                      fontSize={10}
-                      width={100}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                        backdropFilter: 'blur(8px)',
-                        borderRadius: '16px',
-                        color: '#fff',
-                        fontSize: '11px',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                      }}
-                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                    />
-                    <Bar dataKey="quantity" fill="#10b981" radius={[0, 12, 12, 0]} barSize={24}>
+                  <BarChart data={topProductsData} layout="vertical" margin={{ top: 0, right: 20, left: 20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="4 4" horizontal={false} stroke="#1e293b" />
+                    <XAxis type="number" stroke="#475569" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={12} width={120} tickLine={false} axisLine={false} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.4 }} />
+                    <Bar dataKey="quantity" radius={[0, 8, 8, 0]} barSize={28}>
                       {topProductsData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#3b82f6'} />
+                        <Cell key={`cell-\${index}`} fill={index === 0 ? '#10b981' : '#3b82f6'} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -644,24 +590,21 @@ export default function Dashboard() {
             </div>
           </motion.div>
 
-          {/* Chart B: Payment Methods & Category shares */}
+          {/* Category Share */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
-            className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm space-y-5 flex flex-col"
+            className="surface rounded-3xl p-8 shadow-xl flex flex-col"
           >
-            <div>
-              <h3 className="font-sans font-bold text-slate-800 dark:text-white text-base">
+            <div className="mb-4">
+              <h3 className="font-sans font-bold text-white text-lg">
                 {t('dashboard.salesByCategory')}
               </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">
-                {t('dashboard.revenueShare')}
-              </p>
             </div>
-            <div className="flex-1 min-h-[180px] w-full relative flex items-center justify-center">
+            <div className="flex-1 min-h-[220px] w-full relative">
               {categoryShareData.length === 0 ? (
-                <div className="font-mono text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 w-full h-full rounded-2xl flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800">
+                <div className="w-full h-full flex items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-white/10">
                   {t('dashboard.noCategoryStats')}
                 </div>
               ) : (
@@ -671,146 +614,124 @@ export default function Dashboard() {
                       data={categoryShareData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={55}
-                      outerRadius={85}
-                      paddingAngle={4}
+                      innerRadius={65}
+                      outerRadius={95}
+                      paddingAngle={5}
                       dataKey="value"
                       stroke="none"
                     >
                       {categoryShareData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`cell-\${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip
-                      formatter={(value) =>
-                        `${settings.currency}${parseFloat(value as string).toFixed(2)}`
-                      }
-                      contentStyle={{
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                        backdropFilter: 'blur(8px)',
-                        borderRadius: '16px',
-                        color: '#fff',
-                        fontSize: '11px',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                      }}
-                    />
+                    <Tooltip content={<CustomTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
               )}
             </div>
-            {/* Custom Legend */}
-            <div className="grid grid-cols-2 gap-3 text-[10px] font-semibold text-slate-600 dark:text-slate-300 font-mono mt-auto bg-slate-50/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
-              {categoryShareData.map((item, idx) => (
-                <div key={idx} className="flex items-center space-x-2 truncate">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="truncate opacity-80">{item.name}:</span>
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    {settings.currency}
-                    {item.value.toFixed(0)}
-                  </span>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 mt-6">
+              {categoryShareData.slice(0, 4).map((item, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-slate-400 truncate w-20">{item.name}</span>
+                    <span className="text-xs font-bold text-white font-mono">
+                      {settings.currency}{item.value.toFixed(0)}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
           </motion.div>
         </div>
 
-        {/* Payment Type KPI block */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-          className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm space-y-5"
-        >
-          <div>
-            <h3 className="font-sans font-bold text-slate-800 dark:text-white text-base">
-              {t('dashboard.paymentMethods')}
-            </h3>
-            <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">
-              {t('dashboard.preferredModes')}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-            {['card', 'cash', 'mobile', 'gift'].map((method) => {
-              const data = paymentMethodsData.find((d) => d.name === method.toUpperCase());
-              const val = data ? data.value : 0;
-              const pct = totalSalesVolume > 0 ? (val / totalSalesVolume) * 100 : 0;
-
-              return (
-                <div
-                  key={method}
-                  className="bg-white/40 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden"
-                >
-                  <div className="absolute inset-0 bg-linear-to-br from-white/5 to-transparent dark:from-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest font-mono relative z-10">
-                    {t(`dashboard.${method}`, { defaultValue: method })}
-                  </span>
-                  <div className="mt-3 relative z-10">
-                    <span className="font-mono font-extrabold text-lg text-slate-800 dark:text-white block">
-                      {settings.currency}
-                      {val.toFixed(2)}
-                    </span>
-                    <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold mt-1.5 block bg-emerald-500/10 w-max px-2 py-0.5 rounded-md">
-                      {pct.toFixed(0)}
-                      {t('dashboard.ofSales')}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Per-operator sales report */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass dark:glass-dark border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-6 shadow-sm space-y-4"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-sans font-bold text-slate-800 dark:text-white text-base flex items-center gap-2">
-                <Users size={18} className="text-emerald-500" /> {t('dashboard.byOperator')}
+        {/* Bottom Row: Payments & Operators */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="surface rounded-3xl p-8 shadow-xl"
+          >
+            <div className="mb-6">
+              <h3 className="font-sans font-bold text-white text-lg">
+                {t('dashboard.paymentMethods')}
               </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">
-                {t('dashboard.byOperatorSub')}
-              </p>
             </div>
-          </div>
-          {operatorBreakdown.length === 0 ? (
-            <div className="font-mono text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 py-8 text-center">
-              {t('dashboard.noSales')}
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              {operatorBreakdown.map((op, idx) => {
-                const max = operatorBreakdown[0].revenue || 1;
+            <div className="grid grid-cols-2 gap-4">
+              {['card', 'cash', 'mobile', 'gift'].map((method) => {
+                const data = paymentMethodsData.find((d) => d.name === method.toUpperCase());
+                const val = data ? data.value : 0;
+                const pct = totalSalesVolume > 0 ? (val / totalSalesVolume) * 100 : 0;
+
                 return (
-                  <div key={idx} className="flex items-center gap-3">
-                    <span className="w-28 truncate text-xs font-semibold text-slate-700 dark:text-slate-200">
-                      {op.name}
+                  <div key={method} className="bg-[#0f172a] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono block mb-2">
+                      {t(`dashboard.\${method}`, { defaultValue: method })}
                     </span>
-                    <div className="flex-1 h-6 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
-                      <div
-                        className="h-full bg-linear-to-r from-emerald-500 to-emerald-400 rounded-lg"
-                        style={{ width: `${Math.max(4, (op.revenue / max) * 100)}%` }}
-                      />
+                    <span className="font-mono font-extrabold text-2xl text-white block mb-2">
+                      {settings.currency}{val.toFixed(2)}
+                    </span>
+                    <div className="w-full bg-slate-800 rounded-full h-1.5 mb-2">
+                      <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
                     </div>
-                    <span className="w-16 text-right font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                      {op.orders} {t('dashboard.ordersShort')}
-                    </span>
-                    <span className="w-24 text-right font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
-                      {settings.currency}
-                      {op.revenue.toFixed(2)}
-                    </span>
+                    <span className="text-xs text-slate-500 font-mono">{pct.toFixed(1)}% of total</span>
                   </div>
                 );
               })}
             </div>
-          )}
-        </motion.div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9 }}
+            className="surface rounded-3xl p-8 shadow-xl"
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="font-sans font-bold text-white text-lg flex items-center gap-2">
+                <Users size={20} className="text-emerald-500" /> {t('dashboard.byOperator')}
+              </h3>
+            </div>
+            {operatorBreakdown.length === 0 ? (
+              <div className="w-full py-12 flex items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-white/10">
+                {t('dashboard.noSales')}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {operatorBreakdown.map((op, idx) => {
+                  const max = operatorBreakdown[0].revenue || 1;
+                  return (
+                    <div key={idx} className="flex items-center gap-4">
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-xs shrink-0">
+                        {op.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-end mb-1.5">
+                          <span className="text-sm font-semibold text-slate-200 truncate">{op.name}</span>
+                          <span className="font-mono font-bold text-sm text-white">
+                            {settings.currency}{op.revenue.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full"
+                              style={{ width: `${Math.max(2, (op.revenue / max) * 100)}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-mono text-slate-500 shrink-0">
+                            {op.orders} orders
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        </div>
       </div>
     </div>
   );

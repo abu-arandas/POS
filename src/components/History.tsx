@@ -15,9 +15,11 @@ import {
   Lock,
   ShoppingBag,
   Trash2,
-  Share2,
-  Mail,
   Download,
+  Filter,
+  ChevronRight,
+  Minus,
+  Plus
 } from 'lucide-react';
 import { SaleTransaction, Product, Customer } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -30,7 +32,6 @@ import { useCustomerStore } from '../stores/customerStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { printTransactions } from '../lib/receiptPrinter';
 import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
-import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { computeRefund, refundableQuantities } from '../lib/refunds';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
 import type { RefundPatch } from '../stores/transactionStore';
@@ -44,56 +45,44 @@ export default function History() {
   const { handleUpdateProduct } = useProductStore();
   const { updateCustomerPoints, customers } = useCustomerStore();
 
-  // Filters & Search State
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | 'custom'>(
-    'all',
-  );
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | 'custom'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'refunded'>('all');
-
+  const [paymentFilter, setPaymentFilter] = useState<string[]>([]);
+  
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
-  // Active Selected Transaction for Receipt View
   const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
 
-  // Bulk Selection
   const [selectedTxIds, setSelectedTxIds] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // Refund selection modal (line-item / partial refunds)
   const [refundModalTx, setRefundModalTx] = useState<SaleTransaction | null>(null);
   const [refundSelection, setRefundSelection] = useState<Record<string, number>>({});
-
-  // Passcode Challenge Modal for Refunds
-  const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [refundStep, setRefundStep] = useState<1 | 2>(1);
   const [overridePin, setOverridePin] = useState('');
   const [overrideError, setOverrideError] = useState('');
 
-  // Cashiers may view and print history, but destructive bulk deletion is
-  // reserved for managers/admins (refunds already require an override).
   const canDelete = currentUser?.role === 'admin' || currentUser?.role === 'manager';
 
   const activeTransaction = useMemo(() => {
     return transactions.find((tx) => tx.id === selectedTxId) || null;
   }, [transactions, selectedTxId]);
 
-  // Filters logic
   const filteredTransactions = useMemo(() => {
     return transactions.filter((tx) => {
-      // Search matches
       const matchesSearch =
         tx.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (tx.customerName && tx.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
         tx.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // Status matches
-      // The "refunded" filter includes partially-refunded sales (any refund activity).
       const matchesStatus =
         statusFilter === 'all' ||
         (statusFilter === 'refunded' ? tx.status !== 'completed' : tx.status === 'completed');
 
-      // Date matches
+      const matchesPayment = paymentFilter.length === 0 || paymentFilter.includes(tx.paymentMethod);
+
       let matchesDate = true;
       const txDate = new Date(tx.date);
       const today = new Date();
@@ -122,29 +111,46 @@ export default function History() {
         }
       }
 
-      return matchesSearch && matchesStatus && matchesDate;
-    });
-  }, [transactions, searchQuery, dateFilter, statusFilter, customStartDate, customEndDate]);
+      return matchesSearch && matchesStatus && matchesDate && matchesPayment;
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [transactions, searchQuery, dateFilter, statusFilter, paymentFilter, customStartDate, customEndDate]);
 
-  // Opens the refund selection modal, defaulting to returning every remaining
-  // (not-yet-refunded) unit — i.e. a full refund unless the operator narrows it.
+  // Group by date
+  const groupedTransactions = useMemo(() => {
+    const groups: Record<string, SaleTransaction[]> = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    filteredTransactions.forEach(tx => {
+      const d = new Date(tx.date);
+      d.setHours(0,0,0,0);
+      let label = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      
+      if (d.getTime() === today.getTime()) label = t('history.today', 'Today');
+      else if (d.getTime() === yesterday.getTime()) label = t('history.yesterday', 'Yesterday');
+
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(tx);
+    });
+    return groups;
+  }, [filteredTransactions, t]);
+
   const openRefundModal = (tx: SaleTransaction) => {
     setRefundSelection({ ...refundableQuantities(tx) });
     setRefundModalTx(tx);
+    setRefundStep(1);
+    setOverridePin('');
+    setOverrideError('');
   };
 
-  // Applies a (possibly partial) refund: returns the selected quantities to
-  // stock, reverses the proportional loyalty points, records the cumulative
-  // refund on the transaction, and syncs. Reads points earned from the sale so
-  // a later rate change never distorts the reversal.
   const applyRefundWithSelection = (
     staleTx: SaleTransaction,
     selection: Record<string, number>,
     authorizedBy: string,
   ) => {
-    // Re-read live transaction to prevent double-refund races if the modal was open
     const tx = useTransactionStore.getState().transactions.find((t) => t.id === staleTx.id) || staleTx;
-
     const result = computeRefund(tx, selection, settings.loyaltyPointsRate);
     if (!result) return;
 
@@ -192,37 +198,31 @@ export default function History() {
     );
   };
 
-  // Refund entry point — opens the line-item selection modal.
-  const handleRefundClick = (tx: SaleTransaction) => openRefundModal(tx);
-
-  // From the refund modal: process the current selection. Cashiers must pass a
-  // manager/admin override first; managers/admins confirm inline.
   const handleProcessRefund = () => {
     if (!refundModalTx) return;
     const totalQty = Object.values(refundSelection).reduce((s, q) => s + Math.max(0, q), 0);
     if (totalQty <= 0) return;
-    if (!currentUser || currentUser.role === 'cashier') {
-      setOverridePin('');
-      setOverrideError('');
-      setShowOverrideModal(true);
+    
+    if (refundStep === 1) {
+      setRefundStep(2);
     } else {
-      applyRefundWithSelection(
-        refundModalTx,
-        refundSelection,
-        `${currentUser.name} (${currentUser.role})`,
-      );
-      setRefundModalTx(null);
+      if (!currentUser || currentUser.role === 'cashier') {
+        // Needs pin verification inline
+        handleAuthorizeOverride();
+      } else {
+        applyRefundWithSelection(
+          refundModalTx,
+          refundSelection,
+          `${currentUser.name} (${currentUser.role})`,
+        );
+        setRefundModalTx(null);
+      }
     }
   };
 
-  const handleAuthorizeOverride = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAuthorizeOverride = async () => {
     setOverrideError('');
-
-    // Check each eligible manager/admin with both salted and legacy hashes.
-    const eligible = users.filter(
-      (u) => u.active && (u.role === 'manager' || u.role === 'admin'),
-    );
+    const eligible = users.filter((u) => u.active && (u.role === 'manager' || u.role === 'admin'));
     let authorizedUser: (typeof eligible)[number] | undefined;
     for (const u of eligible) {
       const saltedHash = await hashPinSalted(u.id, overridePin);
@@ -236,22 +236,15 @@ export default function History() {
         refundSelection,
         `${authorizedUser.name} (${authorizedUser.role})`,
       );
-      alert(
-        t('history.refundAuthorized', { name: authorizedUser.name, role: authorizedUser.role }),
-      );
-      setShowOverrideModal(false);
-      setOverridePin('');
       setRefundModalTx(null);
     } else {
       setOverrideError(t('history.invalidPasscode'));
-      setOverridePin('');
     }
   };
 
   const notifyPrint = (outcome: HardwarePrintOutcome) => {
     if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
-    else if (outcome === 'unsupported')
-      alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
+    else if (outcome === 'unsupported') alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
     else if (outcome === 'no-device') alert(t('print.noDevice'));
     else if (outcome === 'error') alert(t('print.error'));
   };
@@ -261,37 +254,24 @@ export default function History() {
   };
 
   const handleToggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      setSelectedTxIds(filteredTransactions.map((tx) => tx.id));
-    } else {
-      setSelectedTxIds([]);
-    }
+    if (e.target.checked) setSelectedTxIds(filteredTransactions.map((tx) => tx.id));
+    else setSelectedTxIds([]);
   };
 
   const handleToggleTx = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setSelectedTxIds((prev) =>
-      prev.includes(id) ? prev.filter((txId) => txId !== id) : [...prev, id],
-    );
-  };
-
-  const handleBulkDelete = () => {
-    setShowDeleteModal(true);
+    setSelectedTxIds((prev) => prev.includes(id) ? prev.filter((txId) => txId !== id) : [...prev, id]);
   };
 
   const confirmBulkDelete = () => {
     deleteTransactions(selectedTxIds);
     setSelectedTxIds([]);
-    if (selectedTxId && selectedTxIds.includes(selectedTxId)) {
-      setSelectedTxId(null);
-    }
+    if (selectedTxId && selectedTxIds.includes(selectedTxId)) setSelectedTxId(null);
     setShowDeleteModal(false);
   };
 
   const handleBulkPrint = async () => {
     const txsToPrint = transactions.filter((tx) => selectedTxIds.includes(tx.id));
-    // System (browser) printing batches every receipt into one print window;
-    // hardware transports stream them one at a time.
     if (printerConfig.type === 'system') {
       const outcome = printTransactions(txsToPrint, settings, printerConfig);
       if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
@@ -299,45 +279,57 @@ export default function History() {
     }
     for (const tx of txsToPrint) {
       const outcome = await printReceipt(tx, settings, printerConfig, false);
-      if (outcome !== 'printed') {
-        notifyPrint(outcome);
-        break;
-      }
+      if (outcome !== 'printed') { notifyPrint(outcome); break; }
     }
   };
 
-  const getPaymentIcon = (method: SaleTransaction['paymentMethod']) => {
+  const getPaymentIcon = (method: string) => {
     switch (method) {
-      case 'card':
-        return <CreditCard size={13} className="text-blue-500" />;
-      case 'cash':
-        return <DollarSign size={13} className="text-emerald-500" />;
-      case 'mobile':
-        return <Smartphone size={13} className="text-purple-500" />;
-      case 'gift':
-        return <Gift size={13} className="text-amber-500" />;
-      case 'loyalty':
-        return <Award size={13} className="text-emerald-500" />;
+      case 'card': return <CreditCard size={13} className="text-blue-400" />;
+      case 'cash': return <DollarSign size={13} className="text-emerald-400" />;
+      case 'mobile': return <Smartphone size={13} className="text-purple-400" />;
+      case 'gift': return <Gift size={13} className="text-amber-400" />;
+      case 'loyalty': return <Award size={13} className="text-emerald-400" />;
+      default: return <CreditCard size={13} className="text-slate-400" />;
     }
+  };
+
+  const togglePaymentFilter = (method: string) => {
+    setPaymentFilter(prev => prev.includes(method) ? prev.filter(m => m !== method) : [...prev, method]);
+  };
+
+  const renderRefundAmounts = () => {
+    if (!refundModalTx) return null;
+    const computed = computeRefund(refundModalTx, refundSelection, settings.loyaltyPointsRate);
+    if (!computed) return null;
+    return (
+      <div className="bg-slate-900/50 rounded-2xl p-4 border border-slate-700 space-y-2 mt-4">
+        <div className="flex justify-between text-sm text-slate-300">
+          <span>Refund Subtotal</span>
+          <span>{settings.currency}{computed.refundSubtotal.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between text-sm text-slate-300">
+          <span>Refund Tax</span>
+          <span>{settings.currency}{computed.refundTax.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between text-lg font-bold text-white pt-2 border-t border-slate-700">
+          <span>Total Refund</span>
+          <span className="text-emerald-400">{settings.currency}{computed.refundedAmount.toFixed(2)}</span>
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div
-      id="history-root"
-      className="flex-1 flex h-screen overflow-hidden bg-transparent p-6 text-slate-800 dark:text-slate-100"
-    >
-      {/* LEFT COLUMN: Transaction List (2/3 width) */}
-      <div
-        id="transaction-list-section"
-        className="flex-1 flex flex-col min-w-0 pe-6 overflow-hidden"
-      >
-        {/* Header */}
+    <div id="history-root" className="flex-1 flex h-screen overflow-hidden bg-[#020617] p-6 text-slate-100 relative">
+      <div id="transaction-list-section" className="flex-1 flex flex-col min-w-0 pe-6 overflow-hidden">
+        
         <div id="history-header" className="mb-6 shrink-0 flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
+            <h2 className="font-sans font-extrabold tracking-tight text-white text-xl sm:text-2xl flex items-center gap-2">
               <HistoryIcon className="text-emerald-500" /> {t('history.transactionLogs')}
             </h2>
-            <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
+            <p className="text-slate-400 text-xs sm:text-sm mt-0.5">
               {t('history.auditPastOrders')}
             </p>
           </div>
@@ -348,20 +340,15 @@ export default function History() {
               downloadCsv(`transactions-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
             }}
             disabled={filteredTransactions.length === 0}
-            className="shrink-0 flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl shadow-sm transition-colors"
+            className="shrink-0 flex items-center gap-1.5 glass-input hover:bg-slate-800 disabled:opacity-40 text-white text-xs font-semibold px-4 py-2.5 rounded-2xl shadow-lg transition-colors"
           >
             <Download size={14} /> {t('history.exportCsv')}
           </button>
         </div>
 
-        {/* Filters */}
-        <div
-          id="history-filters"
-          className="glass dark:glass-dark p-4 rounded-2xl border border-white/20 dark:border-white/10 shadow-lg space-y-4 mb-6 shrink-0 backdrop-blur-md"
-        >
+        <div id="history-filters" className="glass-dark p-4 rounded-3xl border border-white/10 shadow-lg mb-6 shrink-0 space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
-            {/* Search */}
-            <div className="flex-1 flex items-center space-x-2 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200/40">
+            <div className="flex-1 flex items-center space-x-2 glass-input px-4 py-2 rounded-2xl">
               <Search size={16} className="text-slate-400" />
               <input
                 id="history-search-input"
@@ -369,346 +356,248 @@ export default function History() {
                 placeholder={t('history.searchReceipts')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent border-none text-slate-800 dark:text-slate-200 text-xs focus:outline-none placeholder-slate-400"
+                className="flex-1 bg-transparent border-none text-slate-200 text-sm focus:outline-none placeholder-slate-500"
               />
             </div>
+            
+            <div className="flex gap-2">
+              <select
+                id="history-status-select"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'completed' | 'refunded')}
+                className="glass-input rounded-2xl text-xs font-semibold px-4 py-2 text-white focus:outline-none cursor-pointer"
+              >
+                <option value="all" className="bg-slate-800 text-white">{t('history.allStatuses')}</option>
+                <option value="completed" className="bg-slate-800 text-white">{t('history.paidCompleted')}</option>
+                <option value="refunded" className="bg-slate-800 text-white">{t('history.refundedReturned')}</option>
+              </select>
 
-            <div className="flex bg-slate-100 dark:bg-slate-800/60 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700/50 shrink-0">
-              {(
-                [
-                  { id: 'all', label: t('history.allDates') },
-                  { id: 'today', label: t('history.today') },
-                  { id: 'yesterday', label: t('history.yesterday') },
-                  { id: '7days', label: t('history.last7Days') },
-                ] as const
-              ).map((opt) => (
+              <div className="flex glass-input p-1 rounded-2xl shrink-0">
+                {(
+                  [
+                    { id: 'all', label: t('history.allDates') },
+                    { id: 'today', label: t('history.today') },
+                    { id: 'yesterday', label: t('history.yesterday') },
+                    { id: '7days', label: t('history.last7Days') },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setDateFilter(opt.id)}
+                    className={`px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all shrink-0 ${
+                      dateFilter === opt.id
+                        ? 'bg-slate-700 text-white shadow-md'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Filter size={14} className="text-slate-500" />
+              <span className="text-xs font-bold text-slate-400 uppercase">Payment:</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {['cash', 'card', 'mobile', 'gift'].map(method => (
                 <button
-                  key={opt.id}
-                  onClick={() => setDateFilter(opt.id)}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0 ${
-                    dateFilter === opt.id
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-300'
+                  key={method}
+                  onClick={() => togglePaymentFilter(method)}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${
+                    paymentFilter.includes(method)
+                      ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                      : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:border-slate-500'
                   }`}
                 >
-                  {opt.label}
+                  {getPaymentIcon(method)} <span className="uppercase">{method}</span>
                 </button>
               ))}
             </div>
-
-            <select
-              id="history-status-select"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'completed' | 'refunded')}
-              className="bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold px-3 py-1.5 text-slate-600 focus:outline-none focus:border-emerald-500 shrink-0"
-            >
-              <option value="all">{t('history.allStatuses')}</option>
-              <option value="completed">{t('history.paidCompleted')}</option>
-              <option value="refunded">{t('history.refundedReturned')}</option>
-            </select>
-          </div>
-
-          <div className="flex items-center space-x-3 pt-1 w-full">
-            <div className="flex-1 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 px-4 py-1.5 rounded-xl">
-              <div className="flex items-center space-x-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">
-                  {t('history.from')}
-                </span>
-                <input
-                  type="datetime-local"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="bg-transparent border-none text-xs text-slate-700 focus:outline-none font-mono"
-                />
-              </div>
-
-              <div className="flex-1 px-4 flex items-center justify-center">
-                <div className="h-px bg-slate-300 w-full max-w-[100px]"></div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">
-                  {t('history.to')}
-                </span>
-                <input
-                  type="datetime-local"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="bg-transparent border-none text-xs text-slate-700 focus:outline-none font-mono"
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={() => setDateFilter('custom')}
-              className={`px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm shrink-0 ${
-                dateFilter === 'custom'
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-emerald-500 hover:bg-emerald-600 text-white'
-              }`}
-            >
-              {t('history.applyFilter')}
-            </button>
           </div>
         </div>
 
-        {selectedTxIds.length > 0 && (
-          <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex justify-between items-center mb-6 shrink-0 shadow-sm transition-all animate-in fade-in slide-in-from-top-2">
-            <span className="text-emerald-800 font-bold text-xs px-2">
-              {selectedTxIds.length} {t('history.transactionsSelected')}
-            </span>
-            <div className="flex gap-2">
-              <button
-                onClick={handleBulkPrint}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 transition-colors"
-              >
-                <Printer size={14} /> {t('history.printSelected')}
-              </button>
-              {canDelete && (
-                <button
-                  onClick={handleBulkDelete}
-                  className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 transition-colors"
-                >
-                  <Trash2 size={14} /> {t('history.deleteSelected')}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Transactions Table */}
-        <div
-          id="history-table-container"
-          className="flex-1 glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-2xl shadow-lg overflow-hidden flex flex-col backdrop-blur-md"
-        >
-          <div className="flex-1 overflow-y-auto">
+        <div id="history-table-container" className="flex-1 surface rounded-[2rem] shadow-2xl overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-y-auto scrollbar-none relative">
             <table id="history-table" className="w-full text-left border-collapse table-fixed">
-              <thead>
-                <tr className="bg-white/40 dark:bg-slate-900/40 text-slate-500 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider font-mono border-b border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
-                  <th className="py-3 px-4 w-[40px] text-center">
+              <thead className="sticky top-0 z-20">
+                <tr className="bg-slate-900/95 backdrop-blur-md text-slate-400 text-[10px] font-bold uppercase tracking-wider font-mono border-b border-white/5 shadow-sm">
+                  <th className="py-4 px-4 w-[50px] text-center">
                     <input
                       type="checkbox"
-                      className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
-                      checked={
-                        filteredTransactions.length > 0 &&
-                        selectedTxIds.length === filteredTransactions.length
-                      }
+                      className="rounded bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500 cursor-pointer w-4 h-4"
+                      checked={filteredTransactions.length > 0 && selectedTxIds.length === filteredTransactions.length}
                       onChange={handleToggleSelectAll}
                     />
                   </th>
-                  <th className="py-3 px-2 w-[120px]">{t('history.receiptId')}</th>
-                  <th className="py-3 px-4 w-1/4">{t('history.timestamp')}</th>
-                  <th className="py-3 px-4 w-1/4">{t('history.customer')}</th>
-                  <th className="py-3 px-3 w-1/8 text-center">{t('history.items')}</th>
-                  <th className="py-3 px-4 w-1/8 text-right">{t('history.total')}</th>
-                  <th className="py-3 px-4 w-1/8 text-center">{t('history.payment')}</th>
-                  <th className="py-3 px-4 w-[100px] text-center">{t('history.status')}</th>
+                  <th className="py-4 px-2 w-[140px]">{t('history.receiptId')}</th>
+                  <th className="py-4 px-4 w-1/4">{t('history.customer')}</th>
+                  <th className="py-4 px-3 w-1/8 text-center">{t('history.items')}</th>
+                  <th className="py-4 px-4 w-1/8 text-right">{t('history.total')}</th>
+                  <th className="py-4 px-4 w-1/8 text-center">{t('history.payment')}</th>
+                  <th className="py-4 px-4 w-[120px] text-center">{t('history.status')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200/50 dark:divide-slate-700/50 text-xs font-sans text-slate-700 dark:text-slate-200">
+              <tbody className="text-sm font-sans text-slate-200">
                 {filteredTransactions.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={8}
-                      className="py-12 text-center text-slate-400 font-medium font-mono"
-                    >
-                      {t('history.noHistoricalTransactions')}
+                    <td colSpan={7} className="py-16 text-center text-slate-400 font-mono">
+                      <div className="flex flex-col items-center">
+                        <HistoryIcon size={32} className="text-slate-600 mb-3" />
+                        {t('history.noHistoricalTransactions')}
+                      </div>
                     </td>
                   </tr>
                 ) : (
-                  filteredTransactions.map((tx) => {
-                    const isRefunded = tx.status === 'refunded';
-                    const isPartial = tx.status === 'partial';
-                    const isSelected = tx.id === selectedTxId;
-
-                    return (
-                      <tr
-                        key={tx.id}
-                        id={`history-row-${tx.id}`}
-                        onClick={() => setSelectedTxId(tx.id)}
-                        className={`hover:bg-slate-50/50 transition-colors cursor-pointer ${
-                          isSelected
-                            ? 'bg-slate-100/80 hover:bg-slate-100/80'
-                            : isRefunded
-                              ? 'opacity-70'
-                              : ''
-                        }`}
-                      >
-                        <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
-                            checked={selectedTxIds.includes(tx.id)}
-                            onChange={(e) => {
-                              handleToggleTx(tx.id, e as unknown as React.MouseEvent);
-                            }}
-                          />
-                        </td>
-                        <td className="py-3 px-2 font-mono font-bold text-slate-900 dark:text-white">{tx.id}</td>
-                        <td className="py-3 px-4 text-slate-500 font-mono">
-                          {new Date(tx.date).toLocaleDateString()} &bull;{' '}
-                          {new Date(tx.date).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </td>
-                        <td className="py-3 px-4 font-semibold text-slate-700 truncate">
-                          {tx.customerName || (
-                            <span className="text-slate-400 font-normal">
-                              {t('history.walkIn')}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-center font-mono font-bold bg-slate-50/40">
-                          {tx.items.reduce((sum, item) => sum + item.quantity, 0)}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
-                          {settings.currency}
-                          {tx.total.toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center justify-center gap-1 font-mono uppercase text-[10px] text-slate-500">
-                            {getPaymentIcon(tx.paymentMethod)}
-                            <span>{tx.paymentMethod}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span
-                            className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                              isRefunded
-                                ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                : isPartial
-                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            }`}
-                          >
-                            {isRefunded
-                              ? t('history.refunded')
-                              : isPartial
-                                ? t('history.partial')
-                                : t('history.paid')}
-                          </span>
+                  Object.entries(groupedTransactions).map(([dateLabel, txs]) => (
+                    <React.Fragment key={dateLabel}>
+                      <tr>
+                        <td colSpan={7} className="py-2 px-4 bg-slate-900/40 text-xs font-bold text-slate-400 sticky top-[48px] z-10 backdrop-blur-sm border-y border-white/5 uppercase tracking-widest">
+                          {dateLabel}
                         </td>
                       </tr>
-                    );
-                  })
+                      {txs.map((tx) => {
+                        const isRefunded = tx.status === 'refunded';
+                        const isPartial = tx.status === 'partial';
+                        const isSelected = tx.id === selectedTxId;
+                        const isChecked = selectedTxIds.includes(tx.id);
+
+                        return (
+                          <tr
+                            key={tx.id}
+                            onClick={() => setSelectedTxId(tx.id)}
+                            className={`transition-colors cursor-pointer border-b border-white/5 last:border-0 ${
+                              isSelected
+                                ? 'bg-slate-800/80 hover:bg-slate-800/80'
+                                : 'hover:bg-slate-800/40'
+                            } ${isRefunded ? 'opacity-60' : ''}`}
+                          >
+                            <td className="py-4 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                className="rounded bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500 cursor-pointer w-4 h-4"
+                                checked={isChecked}
+                                onChange={(e) => handleToggleTx(tx.id, e as unknown as React.MouseEvent)}
+                              />
+                            </td>
+                            <td className="py-4 px-2 font-mono font-bold text-slate-300 text-xs">
+                              {tx.id.substring(0, 12)}...
+                              <div className="text-[10px] text-slate-500 mt-1 font-sans">
+                                {new Date(tx.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </td>
+                            <td className="py-4 px-4">
+                              {tx.customerName ? (
+                                <span className="font-bold text-white">{tx.customerName}</span>
+                              ) : (
+                                <span className="text-slate-500 font-medium italic">{t('history.walkIn')}</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-3 text-center">
+                              <span className="inline-block bg-slate-800 px-2.5 py-1 rounded-lg text-xs font-mono text-slate-300 border border-slate-700">
+                                {tx.items.reduce((sum, item) => sum + item.quantity, 0)}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4 text-right font-mono font-bold text-white">
+                              {settings.currency}{tx.total.toFixed(2)}
+                            </td>
+                            <td className="py-4 px-4">
+                              <div className="flex items-center justify-center gap-1.5 font-mono uppercase text-[10px] text-slate-400 bg-slate-800/50 py-1 px-2 rounded-xl border border-slate-700">
+                                {getPaymentIcon(tx.paymentMethod)}
+                                <span>{tx.paymentMethod}</span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 text-center">
+                              <span className={`badge ${isRefunded ? 'badge-rose' : isPartial ? 'badge-amber' : 'badge-emerald'}`}>
+                                {isRefunded ? t('history.refunded') : isPartial ? t('history.partial') : t('history.paid')}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))
                 )}
               </tbody>
             </table>
           </div>
-          {/* Table Footer */}
-          <div className="px-4 py-2.5 border-t border-slate-200/50 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm text-[10px] text-slate-500 dark:text-slate-400 font-mono flex justify-between shrink-0">
+          
+          <div className="px-5 py-3 border-t border-white/10 bg-slate-900/60 text-[11px] text-slate-400 font-mono flex justify-between shrink-0">
             <span>
               {t('history.filteredCount')} {filteredTransactions.length} {t('history.sales')}
             </span>
-            <span>
+            <span className="font-bold text-slate-200">
               {t('history.totalValue')} {settings.currency}
-              {filteredTransactions
-                .reduce(
-                  (sum, tx) =>
-                    // Net of any refunds: full refund contributes 0, partial nets out.
-                    sum + (tx.status === 'refunded' ? 0 : tx.total - (tx.refundedAmount ?? 0)),
-                  0,
-                )
-                .toFixed(2)}
+              {filteredTransactions.reduce((sum, tx) => sum + (tx.status === 'refunded' ? 0 : tx.total - (tx.refundedAmount ?? 0)), 0).toFixed(2)}
             </span>
           </div>
         </div>
       </div>
 
-      {/* RIGHT COLUMN: Thermal Receipt Viewer (1/3 width) */}
-      <div
-        id="receipt-view-section"
-        className="w-80 glass dark:glass-dark border border-white/20 dark:border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden shrink-0 backdrop-blur-md"
-      >
-        {activeTransaction ? (
-          <>
-            {/* Header Status */}
-            <div
-              className={`p-4 border-b flex items-center justify-between ${
-                activeTransaction.status === 'refunded'
-                  ? 'bg-rose-50 border-rose-100 text-rose-800'
-                  : activeTransaction.status === 'partial'
-                    ? 'bg-amber-50 border-amber-100 text-amber-800'
-                    : 'bg-emerald-50 border-emerald-100 text-emerald-800'
+      <AnimatePresence>
+        {activeTransaction && (
+          <motion.div
+            initial={{ opacity: 0, x: '100%' }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            id="receipt-view-section"
+            className="absolute top-6 right-6 bottom-6 w-96 glass-dark border border-white/10 rounded-[2rem] shadow-2xl flex flex-col overflow-hidden z-30"
+          >
+            <div className={`p-5 flex items-center justify-between border-b border-white/10 ${
+                activeTransaction.status === 'refunded' ? 'bg-rose-500/10' : 
+                activeTransaction.status === 'partial' ? 'bg-amber-500/10' : 'bg-emerald-500/10'
               }`}
             >
               <div className="flex items-center space-x-2">
-                <Check
-                  size={16}
-                  className={
-                    activeTransaction.status === 'refunded'
-                      ? 'text-rose-600'
-                      : activeTransaction.status === 'partial'
-                        ? 'text-amber-600'
-                        : 'text-emerald-600'
-                  }
-                />
-                <span className="font-sans font-bold text-xs">
-                  {activeTransaction.status === 'refunded'
-                    ? t('history.transactionRefunded')
-                    : activeTransaction.status === 'partial'
-                      ? t('history.transactionPartial')
-                      : t('history.transactionPaid')}
+                <Check size={18} className={
+                  activeTransaction.status === 'refunded' ? 'text-rose-500' :
+                  activeTransaction.status === 'partial' ? 'text-amber-500' : 'text-emerald-500'
+                }/>
+                <span className="font-sans font-bold text-sm text-white">
+                  {activeTransaction.status === 'refunded' ? t('history.transactionRefunded') :
+                   activeTransaction.status === 'partial' ? t('history.transactionPartial') : t('history.transactionPaid')}
                 </span>
               </div>
-              <button
-                onClick={() => setSelectedTxId(null)}
-                className="text-slate-400 hover:text-slate-600"
-              >
+              <button onClick={() => setSelectedTxId(null)} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-colors">
                 <X size={16} />
               </button>
             </div>
 
-            {/* Scrollable Receipt Body */}
-            <div className="flex-1 p-5 overflow-y-auto bg-slate-100 flex flex-col justify-between">
-              {/* Receipts Mockup Card */}
-              <div
-                id="audit-receipt-mockup"
-                className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-4 font-mono text-xs text-slate-700"
-              >
-                <div className="text-center border-b border-dashed border-slate-200 pb-3">
+            <div className="flex-1 p-6 overflow-y-auto bg-slate-950 flex flex-col justify-between scrollbar-none relative">
+              <div className="absolute inset-0 mesh-bg-dark opacity-30 pointer-events-none" />
+              
+              <div id="audit-receipt-mockup" className="bg-white text-slate-900 rounded-lg p-5 shadow-sm font-mono text-[11px] relative z-10 receipt-paper">
+                <div className="text-center border-b border-dashed border-slate-300 pb-4 mb-4">
                   <div className="flex justify-center mb-2">
                     {settings.storeLogo ? (
-                      <img
-                        src={settings.storeLogo}
-                        alt="Logo"
-                        className="h-[24px] w-auto object-contain"
-                      />
+                      <img src={settings.storeLogo} alt="Logo" className="h-8 w-auto object-contain" />
                     ) : (
-                      <ShoppingBag size={24} className="text-slate-800" />
+                      <ShoppingBag size={28} className="text-slate-800" />
                     )}
                   </div>
-                  <h4 className="font-bold text-slate-900 dark:text-white text-[11px] uppercase tracking-tight">
-                    {settings.storeName}
-                  </h4>
-                  <p className="text-[9px] text-slate-400 mt-0.5">{settings.storeAddress}</p>
-                  <p className="text-[9px] text-slate-400">{settings.storePhone}</p>
+                  <h4 className="font-bold text-slate-900 text-sm uppercase tracking-wider">{settings.storeName}</h4>
+                  <p className="text-[10px] text-slate-500 mt-1">{settings.storeAddress}</p>
+                  <p className="text-[10px] text-slate-500">{settings.storePhone}</p>
                 </div>
 
-                <div className="space-y-1 text-[10px] border-b border-dashed border-slate-200 pb-3">
+                <div className="space-y-1.5 border-b border-dashed border-slate-300 pb-4 mb-4">
                   <div className="flex justify-between">
                     <span>{t('history.date')}</span>
                     <span>{new Date(activeTransaction.date).toLocaleString()}</span>
                   </div>
                   {activeTransaction.status === 'refunded' && activeTransaction.refundDate && (
-                    <div className="flex justify-between text-rose-600">
+                    <div className="flex justify-between text-rose-600 font-bold">
                       <span>{t('history.refunded').toUpperCase()}:</span>
                       <span>{new Date(activeTransaction.refundDate).toLocaleDateString()}</span>
                     </div>
                   )}
-                  {activeTransaction.status === 'refunded' &&
-                    activeTransaction.refundAuthorizedBy && (
-                      <div className="flex justify-between text-rose-600">
-                        <span>{t('history.refundAuthBy')}</span>
-                        <span className="truncate max-w-[150px]">
-                          {activeTransaction.refundAuthorizedBy}
-                        </span>
-                      </div>
-                    )}
                   <div className="flex justify-between">
                     <span>{t('history.receipt')}</span>
-                    <span>{activeTransaction.id}</span>
+                    <span className="font-bold">{activeTransaction.id.substring(0,8)}...</span>
                   </div>
                   {activeTransaction.operatorName && (
                     <div className="flex justify-between">
@@ -717,338 +606,144 @@ export default function History() {
                     </div>
                   )}
                   {activeTransaction.customerName && (
-                    <div className="flex justify-between text-emerald-600 font-bold">
+                    <div className="flex justify-between text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded">
                       <span>{t('history.member')}</span>
                       <span>{activeTransaction.customerName}</span>
                     </div>
                   )}
                 </div>
 
-                {/* Items */}
-                <div className="space-y-1 pb-3 border-b border-dashed border-slate-200">
+                <div className="space-y-2 border-b border-dashed border-slate-300 pb-4 mb-4">
+                  <div className="grid grid-cols-12 text-slate-400 font-bold mb-1">
+                    <span className="col-span-8">ITEM</span>
+                    <span className="col-span-2 text-center">QTY</span>
+                    <span className="col-span-2 text-right">TOT</span>
+                  </div>
                   {activeTransaction.items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-[11px]">
-                      <span className="truncate max-w-[130px]">
-                        {item.quantity}x {item.productName}
-                      </span>
-                      <span>
-                        {settings.currency}
-                        {item.total.toFixed(2)}
-                      </span>
+                    <div key={idx} className="grid grid-cols-12">
+                      <span className="col-span-8 truncate pe-2">{item.productName}</span>
+                      <span className="col-span-2 text-center">{item.quantity}</span>
+                      <span className="col-span-2 text-right">{settings.currency}{item.total.toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
 
-                {/* Pricing Block */}
-                <div className="space-y-1 pb-3 border-b border-dashed border-slate-200">
+                <div className="space-y-1.5 border-b border-dashed border-slate-300 pb-4 mb-4">
                   <div className="flex justify-between">
                     <span>{t('history.subtotal')}</span>
-                    <span>
-                      {settings.currency}
-                      {activeTransaction.subtotal.toFixed(2)}
-                    </span>
+                    <span>{settings.currency}{activeTransaction.subtotal.toFixed(2)}</span>
                   </div>
                   {activeTransaction.discount > 0 && (
-                    <div className="flex justify-between text-amber-600">
+                    <div className="flex justify-between text-rose-600">
                       <span>{t('history.discount')}</span>
-                      <span>
-                        -{settings.currency}
-                        {activeTransaction.discount.toFixed(2)}
-                      </span>
+                      <span>-{settings.currency}{activeTransaction.discount.toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-slate-500">
                     <span>{t('history.tax')}</span>
-                    <span>
-                      {settings.currency}
-                      {activeTransaction.tax.toFixed(2)}
-                    </span>
+                    <span>{settings.currency}{activeTransaction.tax.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-slate-950 font-bold pt-1.5 border-t border-slate-100 text-sm">
+                  <div className="flex justify-between text-slate-900 font-bold pt-2 border-t border-slate-200 text-sm mt-1">
                     <span>{t('history.totalPaid')}</span>
-                    <span>
-                      {settings.currency}
-                      {activeTransaction.total.toFixed(2)}
-                    </span>
+                    <span>{settings.currency}{activeTransaction.total.toFixed(2)}</span>
                   </div>
                 </div>
 
-                {/* Payment block */}
-                <div className="space-y-1 text-[10px]">
-                  <div className="flex justify-between">
-                    <span>{t('history.payMethod')}</span>
-                    <span className="uppercase font-bold">{activeTransaction.paymentMethod}</span>
-                  </div>
-                  {activeTransaction.paymentMethod === 'cash' && (
-                    <>
-                      <div className="flex justify-between">
-                        <span>{t('history.cashPaid')}</span>
-                        <span>
-                          {settings.currency}
-                          {(activeTransaction.cashPaid || 0).toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-slate-950 font-bold">
-                        <span>{t('history.cashChange')}</span>
-                        <span>
-                          {settings.currency}
-                          {(activeTransaction.cashChange || 0).toFixed(2)}
-                        </span>
-                      </div>
-                    </>
-                  )}
+                <div className="space-y-1 text-center text-[10px] text-slate-500">
+                  <p>PAID VIA {activeTransaction.paymentMethod.toUpperCase()}</p>
+                  <p className="mt-2 font-bold uppercase">{settings.receiptMessage}</p>
                 </div>
-
-                {/* Simulated Barcode */}
-                <div className="text-center pt-3 border-t border-dashed border-slate-200 space-y-1.5">
-                  <div className="font-mono text-[10px] tracking-[4px] text-slate-400 select-none overflow-hidden h-4 flex items-center justify-center leading-none">
-                    ||| | |||| ||| || | |||| || ||| | |||
-                  </div>
-                  <span className="text-[9px] text-slate-400 font-mono">
-                    {t('history.auth')} {activeTransaction.id}
-                  </span>
-                </div>
-              </div>
-
-              {/* Refund trigger */}
-              <div className="pt-4 mt-auto space-y-2">
-                {activeTransaction.refundedAmount ? (
-                  <div className="flex justify-between text-[11px] font-mono text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
-                    <span className="font-bold">{t('history.alreadyRefunded')}</span>
-                    <span>
-                      {settings.currency}
-                      {activeTransaction.refundedAmount.toFixed(2)}
-                    </span>
-                  </div>
-                ) : null}
-                {activeTransaction.status !== 'refunded' ? (
-                  <button
-                    id="refund-action-btn"
-                    onClick={() => handleRefundClick(activeTransaction)}
-                    className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-sans font-bold text-xs py-2.5 rounded-xl flex items-center justify-center space-x-1.5 transition-colors shadow-sm"
-                  >
-                    <RotateCcw size={14} />
-                    <span>
-                      {activeTransaction.status === 'partial'
-                        ? t('history.refundRemaining')
-                        : t('history.refundThisSale')}
-                    </span>
-                  </button>
-                ) : (
-                  <div className="bg-rose-50 border border-rose-100 p-3 rounded-xl flex items-start gap-2">
-                    <AlertTriangle size={14} className="text-rose-600 mt-0.5 shrink-0" />
-                    <div className="text-[10px] text-rose-800 leading-normal">
-                      <span className="font-bold">{t('history.returnedInventoryLocked')}</span>
-                      <p className="mt-0.5">{t('history.returnedInventoryMsg')}</p>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* Print / share footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
+            <div className="p-4 bg-slate-900 border-t border-white/10 flex gap-2">
               <button
                 onClick={() => handlePrintReceipt(activeTransaction)}
-                className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold text-xs py-2.5 rounded-xl flex items-center justify-center space-x-1.5 transition-colors shadow-md shadow-slate-900/10"
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
               >
-                <Printer size={14} />
-                <span>{t('history.printCopyReceipt')}</span>
+                <Printer size={16} /> {t('history.print')}
               </button>
-              <button
-                onClick={() => shareReceipt(activeTransaction, settings)}
-                title={t('register.share')}
-                className="px-3 py-2.5 border border-slate-200 hover:bg-white text-slate-600 rounded-xl transition-colors shadow-sm"
-              >
-                <Share2 size={14} />
-              </button>
-              <button
-                onClick={() =>
-                  emailReceipt(
-                    activeTransaction,
-                    settings,
-                    customers.find((c) => c.id === activeTransaction.customerId)?.email ||
-                      undefined,
-                  )
-                }
-                title={t('register.email')}
-                className="px-3 py-2.5 border border-slate-200 hover:bg-white text-slate-600 rounded-xl transition-colors shadow-sm"
-              >
-                <Mail size={14} />
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
-            <span className="text-4xl mb-2">🧾</span>
-            <h4 className="font-sans font-bold text-slate-700 text-sm">
-              {t('history.noReceiptSelected')}
-            </h4>
-            <p className="text-xs text-slate-400 max-w-[200px] mt-1">
-              {t('history.selectTransactionRow')}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* REFUND SELECTION MODAL (line-item / partial) */}
-      <AnimatePresence>
-        {refundModalTx &&
-          (() => {
-            const remaining = refundableQuantities(refundModalTx);
-            const preview = computeRefund(
-              refundModalTx,
-              refundSelection,
-              settings.loyaltyPointsRate,
-            );
-            const anySelected = Object.values(refundSelection).some((q) => q > 0);
-            return (
-              <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-                <motion.div
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.95, opacity: 0 }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 max-w-md w-full rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+              {activeTransaction.status !== 'refunded' && (
+                <button
+                  onClick={() => openRefundModal(activeTransaction)}
+                  className="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-3 rounded-xl text-xs font-bold transition-colors shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2"
                 >
-                  <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between">
-                    <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                      <RotateCcw size={18} className="text-rose-500" />
-                      {t('history.refundItems')} — {refundModalTx.id}
-                    </h3>
-                    <button
-                      onClick={() => setRefundModalTx(null)}
-                      className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  <div className="p-4 overflow-y-auto space-y-2">
-                    {refundModalTx.items.map((item) => {
-                      const rem = remaining[item.productId] ?? 0;
-                      const sel = refundSelection[item.productId] ?? 0;
-                      return (
-                        <div
-                          key={item.productId}
-                          className={`flex items-center justify-between gap-3 rounded-xl p-3 border ${
-                            rem === 0
-                              ? 'opacity-50 border-slate-200 dark:border-slate-700'
-                              : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40'
-                          }`}
-                        >
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
-                              {item.productName}
-                            </p>
-                            <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                              {settings.currency}
-                              {item.price.toFixed(2)} · {t('history.refundable')}: {rem}/
-                              {item.quantity}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              disabled={sel <= 0}
-                              onClick={() =>
-                                setRefundSelection((s) => ({
-                                  ...s,
-                                  [item.productId]: Math.max(0, (s[item.productId] ?? 0) - 1),
-                                }))
-                              }
-                              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 flex items-center justify-center"
-                            >
-                              −
-                            </button>
-                            <span className="w-8 text-center font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
-                              {sel}
-                            </span>
-                            <button
-                              disabled={sel >= rem}
-                              onClick={() =>
-                                setRefundSelection((s) => ({
-                                  ...s,
-                                  [item.productId]: Math.min(rem, (s[item.productId] ?? 0) + 1),
-                                }))
-                              }
-                              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 flex items-center justify-center"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">
-                        {t('history.refundTotal')}
-                      </span>
-                      <span className="font-mono font-extrabold text-lg text-rose-600 dark:text-rose-400">
-                        {settings.currency}
-                        {(preview?.refundAmount ?? 0).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex gap-2.5">
-                      <button
-                        onClick={() => setRefundModalTx(null)}
-                        className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
-                      >
-                        {t('history.cancel')}
-                      </button>
-                      <button
-                        onClick={handleProcessRefund}
-                        disabled={!anySelected}
-                        className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white transition-colors"
-                      >
-                        {preview?.fullyRefunded
-                          ? t('history.processFullRefund')
-                          : t('history.processRefund')}
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-            );
-          })()}
+                  <RotateCcw size={16} /> Refund
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
-      {/* BULK DELETE CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {selectedTxIds.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-800/90 backdrop-blur-xl border border-white/10 p-3 rounded-2xl flex items-center gap-6 shadow-2xl z-40"
+          >
+            <div className="flex items-center gap-3 px-2">
+              <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                {selectedTxIds.length}
+              </div>
+              <span className="text-white font-bold text-sm">Selected</span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleBulkPrint}
+                className="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-colors"
+              >
+                <Printer size={16} /> Print
+              </button>
+              {canDelete && (
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="bg-rose-500 hover:bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-colors"
+                >
+                  <Trash2 size={16} /> Delete
+                </button>
+              )}
+              <button
+                onClick={() => setSelectedTxIds([])}
+                className="bg-slate-700/50 hover:bg-slate-700 text-slate-300 px-3 py-2.5 rounded-xl transition-colors ml-2"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-slate-900 border border-slate-800 text-slate-100 max-w-sm w-full p-6 rounded-3xl shadow-2xl relative overflow-hidden"
+              className="modal-card max-w-sm w-full p-6 text-center"
             >
-              <div className="text-center space-y-2 mb-6">
-                <div className="mx-auto w-10 h-10 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-full flex items-center justify-center">
-                  <AlertTriangle size={18} />
-                </div>
-                <h3 className="font-sans font-extrabold text-base text-white">
-                  {t('history.confirmDeletion')}
-                </h3>
-                <p className="text-xs text-slate-400">
-                  {t('history.confirmDeletionMsg1')} {selectedTxIds.length}{' '}
-                  {t('history.confirmDeletionMsg2')}
-                </p>
+              <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle size={32} />
               </div>
-
+              <h3 className="text-xl font-bold text-white mb-2">Delete Transactions?</h3>
+              <p className="text-sm text-slate-400 mb-6">
+                Are you sure you want to delete {selectedTxIds.length} transactions? This action cannot be undone.
+              </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white transition-colors"
+                  className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors"
                 >
-                  {t('history.cancel')}
+                  Cancel
                 </button>
                 <button
                   onClick={confirmBulkDelete}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-colors"
+                  className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold transition-colors"
                 >
-                  {t('history.deleteNow')}
+                  Delete
                 </button>
               </div>
             </motion.div>
@@ -1056,62 +751,98 @@ export default function History() {
         )}
       </AnimatePresence>
 
-      {/* OVERRIDE PASSCODE CHALLENGE MODAL */}
       <AnimatePresence>
-        {showOverrideModal && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        {refundModalTx && (
+          <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-slate-900 border border-slate-800 text-slate-100 max-w-sm w-full p-6 rounded-3xl shadow-2xl relative overflow-hidden"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="modal-card max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]"
             >
-              <div className="text-center space-y-2 mb-6">
-                <div className="mx-auto w-10 h-10 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full flex items-center justify-center">
-                  <Lock size={18} />
-                </div>
-                <h3 className="font-sans font-extrabold text-base text-white">
-                  {t('history.managerOverride')}
+              <div className="p-6 border-b border-white/10 bg-slate-900/50 flex justify-between items-center">
+                <h3 className="font-sans font-bold text-white text-lg">
+                  {refundStep === 1 ? 'Step 1: Select Items' : 'Step 2: Review & Confirm'}
                 </h3>
-                <p className="text-xs text-slate-400">{t('history.enterManagerPasscode')}</p>
+                <button onClick={() => setRefundModalTx(null)} className="p-2 bg-slate-800 rounded-xl text-slate-400 hover:text-white">
+                  <X size={16} />
+                </button>
               </div>
 
-              <form onSubmit={handleAuthorizeOverride} className="space-y-4">
-                <div>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    required
-                    autoFocus
-                    placeholder="••••"
-                    value={overridePin}
-                    onChange={(e) => setOverridePin(e.target.value.replace(/\D/g, ''))}
-                    className="w-full text-center bg-slate-950 border border-slate-800 focus:border-emerald-500 focus:outline-none rounded-2xl py-3 text-lg font-mono tracking-[1.5em] text-white font-bold placeholder-slate-800"
-                  />
-                </div>
-
-                {overrideError && (
-                  <p className="text-rose-400 text-center font-mono font-bold text-[10px] uppercase tracking-wider">
-                    {overrideError}
-                  </p>
+              <div className="p-6 overflow-y-auto flex-1">
+                {refundStep === 1 && (
+                  <div className="space-y-4">
+                    <p className="text-sm text-slate-400 mb-4">Select the quantity of each item to refund.</p>
+                    {refundModalTx.items.map((item, idx) => {
+                      const max = refundableQuantities(refundModalTx)[item.productId] || 0;
+                      if (max <= 0) return null;
+                      const current = refundSelection[item.productId] || 0;
+                      return (
+                        <div key={idx} className="flex items-center justify-between bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                          <div className="flex-1 min-w-0 pr-4">
+                            <h4 className="text-white font-bold truncate">{item.productName}</h4>
+                            <p className="text-xs text-slate-400 mt-1">{settings.currency}{(item.total / item.quantity).toFixed(2)} each</p>
+                          </div>
+                          <div className="flex items-center gap-3 bg-slate-900 rounded-xl p-1 border border-white/10">
+                            <button
+                              onClick={() => setRefundSelection({ ...refundSelection, [item.productId]: Math.max(0, current - 1) })}
+                              className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg text-white hover:bg-rose-500/20 hover:text-rose-400"
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <span className="w-6 text-center font-bold font-mono text-white">{current}</span>
+                            <button
+                              onClick={() => setRefundSelection({ ...refundSelection, [item.productId]: Math.min(max, current + 1) })}
+                              className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg text-white hover:bg-emerald-500/20 hover:text-emerald-400"
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
 
-                <div className="flex gap-2.5 pt-2">
+                {refundStep === 2 && (
+                  <div className="space-y-6">
+                    {renderRefundAmounts()}
+                    {(!currentUser || currentUser.role === 'cashier') && (
+                      <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-5">
+                        <div className="flex items-center gap-2 text-rose-400 mb-3 font-bold text-sm">
+                          <Lock size={16} /> Manager Authorization Required
+                        </div>
+                        <input
+                          type="password"
+                          placeholder="Manager PIN"
+                          value={overridePin}
+                          onChange={(e) => setOverridePin(e.target.value)}
+                          className="w-full glass-input rounded-xl px-4 py-3 text-white text-center tracking-widest font-mono focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                        />
+                        {overrideError && <p className="text-xs text-rose-400 mt-2 text-center">{overrideError}</p>}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-white/10 bg-slate-900/50 flex gap-3">
+                {refundStep === 2 && (
                   <button
-                    type="button"
-                    onClick={() => setShowOverrideModal(false)}
-                    className="flex-1 bg-slate-800 hover:bg-slate-750 text-slate-400 hover:text-white font-sans font-semibold text-xs py-2.5 rounded-xl transition-colors"
+                    onClick={() => setRefundStep(1)}
+                    className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors"
                   >
-                    {t('history.cancel')}
+                    Back
                   </button>
-                  <button
-                    type="submit"
-                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-sans font-bold text-xs py-2.5 rounded-xl transition-colors"
-                  >
-                    {t('history.authorizeRefund')}
-                  </button>
-                </div>
-              </form>
+                )}
+                <button
+                  onClick={handleProcessRefund}
+                  disabled={refundStep === 1 && Object.values(refundSelection).reduce((a,b)=>a+b,0) === 0}
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
+                >
+                  {refundStep === 1 ? 'Next' : 'Confirm Refund'} {refundStep === 1 && <ChevronRight size={16} />}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
