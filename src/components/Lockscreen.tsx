@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { UserAccount } from '../types';
 import { ShieldAlert, Delete, ArrowLeft, Lock, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -87,6 +87,19 @@ export default function Lockscreen() {
   const handleBackspace = () => { if (pin.length > 0) setPin(pin.slice(0, -1)); };
   const handleClear = () => setPin('');
   const handleBackToUsers = () => { setSelectedUser(null); setPin(''); setError(false); };
+
+  // Hardware keyboard PIN entry: digits type, Backspace deletes, Escape goes
+  // back to staff selection. Registered without deps so handlers stay fresh.
+  useEffect(() => {
+    if (!selectedUser) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (/^[0-9]$/.test(e.key)) handleKeyPress(e.key);
+      else if (e.key === 'Backspace') handleBackspace();
+      else if (e.key === 'Escape') handleBackToUsers();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
 
   const role = selectedUser?.role ?? 'cashier';
   const roleCfg = ROLE_CONFIG[role];
@@ -223,7 +236,14 @@ export default function Lockscreen() {
 
                 {/* PIN dots */}
                 <div className="flex flex-col items-center mb-7">
+                  <span className="sr-only" role="status">
+                    {t('lockscreen.pinProgress', {
+                      defaultValue: '{{count}} of 4 digits entered',
+                      count: pin.length,
+                    })}
+                  </span>
                   <motion.div
+                    aria-hidden="true"
                     animate={error ? { x: [-10, 10, -8, 8, -4, 4, 0] } : {}}
                     transition={{ duration: 0.45 }}
                     className="flex justify-center gap-4 mb-3"
@@ -256,7 +276,7 @@ export default function Lockscreen() {
                       />
                     ))}
                   </motion.div>
-                  <div className="h-5 flex items-center">
+                  <div className="h-5 flex items-center" role="status" aria-live="assertive">
                     {error && (
                       <motion.span
                         initial={{ opacity: 0, y: -6 }}
@@ -283,7 +303,7 @@ export default function Lockscreen() {
                       id={`pin-key-${num}`}
                       onClick={() => handleKeyPress(num)}
                       whileTap={{ scale: 0.88 }}
-                      className="h-13 rounded-2xl bg-white/4 hover:bg-white/9 border border-white/7 hover:border-white/14 text-white font-mono text-lg font-bold transition-all focus:outline-none"
+                      className="h-13 rounded-2xl bg-white/4 hover:bg-white/9 border border-white/7 hover:border-white/14 text-white font-mono text-lg font-bold transition-all"
                       style={{ height: '52px' }}
                     >
                       {num}
@@ -293,7 +313,7 @@ export default function Lockscreen() {
                   <motion.button
                     onClick={handleClear}
                     whileTap={{ scale: 0.9 }}
-                    className="h-13 rounded-2xl bg-rose-500/8 hover:bg-rose-500/15 border border-rose-500/15 text-rose-400 font-semibold text-[11px] uppercase tracking-wider transition-all focus:outline-none"
+                    className="h-13 rounded-2xl bg-rose-500/8 hover:bg-rose-500/15 border border-rose-500/15 text-rose-400 font-semibold text-[11px] uppercase tracking-wider transition-all"
                     style={{ height: '52px' }}
                   >
                     {t('lockscreen.clear')}
@@ -303,7 +323,7 @@ export default function Lockscreen() {
                     id="pin-key-0"
                     onClick={() => handleKeyPress('0')}
                     whileTap={{ scale: 0.88 }}
-                    className="h-13 rounded-2xl bg-white/4 hover:bg-white/9 border border-white/7 hover:border-white/14 text-white font-mono text-lg font-bold transition-all focus:outline-none"
+                    className="h-13 rounded-2xl bg-white/4 hover:bg-white/9 border border-white/7 hover:border-white/14 text-white font-mono text-lg font-bold transition-all"
                     style={{ height: '52px' }}
                   >
                     0
@@ -313,7 +333,7 @@ export default function Lockscreen() {
                     onClick={handleBackspace}
                     whileTap={{ scale: 0.9 }}
                     aria-label={t('lockscreen.backspace')}
-                    className="h-13 rounded-2xl bg-white/4 hover:bg-white/7 border border-white/7 text-slate-400 hover:text-white flex items-center justify-center transition-all focus:outline-none"
+                    className="h-13 rounded-2xl bg-white/4 hover:bg-white/7 border border-white/7 text-slate-400 hover:text-white flex items-center justify-center transition-all"
                     style={{ height: '52px' }}
                   >
                     <Delete size={18} />

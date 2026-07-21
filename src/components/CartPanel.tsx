@@ -106,8 +106,9 @@ const CartPanel = ({
   }, [activeCustomer, subtotal, settings.loyaltyPointValue]);
 
   return (
-    <div
+    <aside
       id="cart-section"
+      aria-label={t('register.checkout')}
       className="flex flex-col h-full shrink-0 relative z-10"
       style={{
         width: '300px',
@@ -156,6 +157,7 @@ const CartPanel = ({
               <select
                 value={selectedCustomerId || ''}
                 onChange={(e) => setSelectedCustomerId(e.target.value || null)}
+                aria-label={t('register.link')}
                 className="w-full ps-3 pe-8 py-2 rounded-xl text-xs font-medium transition-all focus:outline-none appearance-none"
                 style={{
                   background: 'rgba(255,255,255,0.05)',
@@ -251,6 +253,7 @@ const CartPanel = ({
                     style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
                     <button
                       onClick={() => updateCartQty(item.product.id, -1)}
+                      aria-label={`${t('register.decreaseQty', { defaultValue: 'Decrease quantity' })} — ${item.product.name}`}
                       className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/8 transition-colors"
                     >
                       <Minus size={11} />
@@ -262,6 +265,7 @@ const CartPanel = ({
                     <button
                       onClick={() => updateCartQty(item.product.id, 1)}
                       disabled={item.quantity >= item.product.stock}
+                      aria-label={`${t('register.increaseQty', { defaultValue: 'Increase quantity' })} — ${item.product.name}`}
                       className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/8 disabled:opacity-25 transition-colors"
                     >
                       <Plus size={11} />
@@ -269,8 +273,8 @@ const CartPanel = ({
                   </div>
                   <button
                     onClick={() => removeFromCart(item.product.id)}
-                    aria-label="Remove from cart"
-                    className="ms-1.5 w-6 h-6 flex items-center justify-center text-slate-700 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                    aria-label={`${t('register.removeFromCart', { defaultValue: 'Remove from cart' })} — ${item.product.name}`}
+                    className="ms-1.5 w-6 h-6 flex items-center justify-center text-slate-700 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                   >
                     <Trash2 size={11} />
                   </button>
@@ -389,6 +393,7 @@ const CartPanel = ({
                   placeholder={discountType === 'percentage' ? '0%' : '0.00'}
                   value={discountInput}
                   onChange={(e) => setDiscountInput(e.target.value)}
+                  aria-label={t('register.discount').replace(':', '')}
                   className="flex-1 text-xs bg-transparent px-2.5 focus:outline-none text-slate-200 placeholder:text-slate-600"
                   autoFocus
                 />
@@ -443,6 +448,8 @@ const CartPanel = ({
           <div
             className="flex justify-between items-center pt-2.5"
             style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
+            aria-live="polite"
+            aria-atomic="true"
           >
             <span className="text-slate-300 font-bold text-sm">{t('register.total')}</span>
             <motion.span
@@ -491,7 +498,7 @@ const CartPanel = ({
             whileTap={{ scale: 0.97 }}
             onClick={handleCheckoutClick}
             disabled={cart.length === 0}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-40 focus:outline-none"
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-40"
             style={{
               background: cart.length > 0
                 ? 'linear-gradient(135deg, #059669, #10b981)'
@@ -523,7 +530,7 @@ const CartPanel = ({
           </motion.button>
         )}
       </div>
-    </div>
+    </aside>
   );
 };
 

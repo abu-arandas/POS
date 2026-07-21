@@ -408,7 +408,8 @@ export default function ShiftScreen() {
                         <td className="py-4 px-4 text-center">
                           <button
                             onClick={() => printReport(shift)}
-                            className="p-2 text-slate-500 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors opacity-0 group-hover:opacity-100"
+                            aria-label={t('shift.printReport')}
+                            className="p-2 text-slate-500 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                             title={t('shift.printReport')}
                           >
                             <Printer size={16} />

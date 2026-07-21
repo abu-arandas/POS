@@ -33,6 +33,7 @@ import { syncToCloudIfEnabled } from '../lib/sync';
 import { printTransactions } from '../lib/receiptPrinter';
 import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { computeRefund, refundableQuantities } from '../lib/refunds';
+import { useModalA11y } from '../lib/useModalA11y';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
 import type { RefundPatch } from '../stores/transactionStore';
 import { useTranslation } from 'react-i18next';
@@ -65,6 +66,9 @@ export default function History() {
   const [overrideError, setOverrideError] = useState('');
 
   const canDelete = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+
+  const deleteModalRef = useModalA11y(showDeleteModal, () => setShowDeleteModal(false));
+  const refundModalRef = useModalA11y(!!refundModalTx, () => setRefundModalTx(null));
 
   const activeTransaction = useMemo(() => {
     return transactions.find((tx) => tx.id === selectedTxId) || null;
@@ -304,17 +308,19 @@ export default function History() {
     if (!computed) return null;
     return (
       <div className="bg-slate-900/50 rounded-2xl p-4 border border-slate-700 space-y-2 mt-4">
+        {computed.pointsReversal !== 0 && (
+          <div className="flex justify-between text-sm text-slate-300">
+            <span>Loyalty Points Adjustment</span>
+            <span className="font-mono">{computed.pointsReversal > 0 ? '+' : ''}{computed.pointsReversal} pts</span>
+          </div>
+        )}
         <div className="flex justify-between text-sm text-slate-300">
-          <span>Refund Subtotal</span>
-          <span>{settings.currency}{computed.refundSubtotal.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between text-sm text-slate-300">
-          <span>Refund Tax</span>
-          <span>{settings.currency}{computed.refundTax.toFixed(2)}</span>
+          <span>Total Refunded After This</span>
+          <span className="font-mono">{settings.currency}{computed.refundedAmount.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-lg font-bold text-white pt-2 border-t border-slate-700">
-          <span>Total Refund</span>
-          <span className="text-emerald-400">{settings.currency}{computed.refundedAmount.toFixed(2)}</span>
+          <span>Refund Amount</span>
+          <span className="text-emerald-400 font-mono">{settings.currency}{computed.refundAmount.toFixed(2)}</span>
         </div>
       </div>
     );
@@ -428,6 +434,7 @@ export default function History() {
                   <th className="py-4 px-4 w-[50px] text-center">
                     <input
                       type="checkbox"
+                      aria-label={t('history.selectAll', { defaultValue: 'Select all transactions' })}
                       className="rounded bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500 cursor-pointer w-4 h-4"
                       checked={filteredTransactions.length > 0 && selectedTxIds.length === filteredTransactions.length}
                       onChange={handleToggleSelectAll}
@@ -469,6 +476,13 @@ export default function History() {
                           <tr
                             key={tx.id}
                             onClick={() => setSelectedTxId(tx.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setSelectedTxId(tx.id);
+                              }
+                            }}
+                            tabIndex={0}
                             className={`transition-colors cursor-pointer border-b border-white/5 last:border-0 ${
                               isSelected
                                 ? 'bg-slate-800/80 hover:bg-slate-800/80'
@@ -478,6 +492,7 @@ export default function History() {
                             <td className="py-4 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                               <input
                                 type="checkbox"
+                                aria-label={`${t('history.selectTransaction', { defaultValue: 'Select transaction' })} ${tx.id.substring(0, 12)}`}
                                 className="rounded bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500 cursor-pointer w-4 h-4"
                                 checked={isChecked}
                                 onChange={(e) => handleToggleTx(tx.id, e as unknown as React.MouseEvent)}
@@ -562,7 +577,7 @@ export default function History() {
                    activeTransaction.status === 'partial' ? t('history.transactionPartial') : t('history.transactionPaid')}
                 </span>
               </div>
-              <button onClick={() => setSelectedTxId(null)} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-colors">
+              <button onClick={() => setSelectedTxId(null)} aria-label={t('history.closeDetails', { defaultValue: 'Close receipt details' })} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-colors">
                 <X size={16} />
               </button>
             </div>
@@ -651,7 +666,7 @@ export default function History() {
 
                 <div className="space-y-1 text-center text-[10px] text-slate-500">
                   <p>PAID VIA {activeTransaction.paymentMethod.toUpperCase()}</p>
-                  <p className="mt-2 font-bold uppercase">{settings.receiptMessage}</p>
+                  <p className="mt-2 font-bold uppercase">{printerConfig.footerMessage}</p>
                 </div>
               </div>
             </div>
@@ -707,6 +722,7 @@ export default function History() {
               )}
               <button
                 onClick={() => setSelectedTxIds([])}
+                aria-label={t('history.clearSelection', { defaultValue: 'Clear selection' })}
                 className="bg-slate-700/50 hover:bg-slate-700 text-slate-300 px-3 py-2.5 rounded-xl transition-colors ml-2"
               >
                 <X size={16} />
@@ -720,6 +736,11 @@ export default function History() {
         {showDeleteModal && (
           <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
             <motion.div
+              ref={deleteModalRef}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="delete-tx-title"
+              tabIndex={-1}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -728,7 +749,7 @@ export default function History() {
               <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle size={32} />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Delete Transactions?</h3>
+              <h3 id="delete-tx-title" className="text-xl font-bold text-white mb-2">Delete Transactions?</h3>
               <p className="text-sm text-slate-400 mb-6">
                 Are you sure you want to delete {selectedTxIds.length} transactions? This action cannot be undone.
               </p>
@@ -755,16 +776,21 @@ export default function History() {
         {refundModalTx && (
           <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
             <motion.div
+              ref={refundModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="refund-modal-title"
+              tabIndex={-1}
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               className="modal-card max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]"
             >
               <div className="p-6 border-b border-white/10 bg-slate-900/50 flex justify-between items-center">
-                <h3 className="font-sans font-bold text-white text-lg">
+                <h3 id="refund-modal-title" className="font-sans font-bold text-white text-lg">
                   {refundStep === 1 ? 'Step 1: Select Items' : 'Step 2: Review & Confirm'}
                 </h3>
-                <button onClick={() => setRefundModalTx(null)} className="p-2 bg-slate-800 rounded-xl text-slate-400 hover:text-white">
+                <button onClick={() => setRefundModalTx(null)} aria-label="Close" className="p-2 bg-slate-800 rounded-xl text-slate-400 hover:text-white">
                   <X size={16} />
                 </button>
               </div>
@@ -786,6 +812,7 @@ export default function History() {
                           <div className="flex items-center gap-3 bg-slate-900 rounded-xl p-1 border border-white/10">
                             <button
                               onClick={() => setRefundSelection({ ...refundSelection, [item.productId]: Math.max(0, current - 1) })}
+                              aria-label={`Decrease refund quantity — ${item.productName}`}
                               className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg text-white hover:bg-rose-500/20 hover:text-rose-400"
                             >
                               <Minus size={14} />
@@ -793,6 +820,7 @@ export default function History() {
                             <span className="w-6 text-center font-bold font-mono text-white">{current}</span>
                             <button
                               onClick={() => setRefundSelection({ ...refundSelection, [item.productId]: Math.min(max, current + 1) })}
+                              aria-label={`Increase refund quantity — ${item.productName}`}
                               className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg text-white hover:bg-emerald-500/20 hover:text-emerald-400"
                             >
                               <Plus size={14} />
@@ -815,6 +843,8 @@ export default function History() {
                         <input
                           type="password"
                           placeholder="Manager PIN"
+                          aria-label="Manager PIN"
+                          data-autofocus
                           value={overridePin}
                           onChange={(e) => setOverridePin(e.target.value)}
                           className="w-full glass-input rounded-xl px-4 py-3 text-white text-center tracking-widest font-mono focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
