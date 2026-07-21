@@ -60,7 +60,7 @@ export default function ShiftScreen() {
     if (!currentShift) return;
     const counted = parseFloat(countedCash) || 0;
     if (!window.confirm(t('shift.confirmClose') || 'Close shift?')) return;
-    closeShift(currentShift.id, counted, closeNote);
+    closeShift(currentShift.id, counted, closeNote, currentUser?.name ?? 'Unknown');
     setCountedCash('');
     setCloseNote('');
   };
@@ -355,7 +355,8 @@ export default function ShiftScreen() {
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-white/5 text-slate-400 font-medium">
-                    <th className="pb-3 px-4">{t('shift.operator') || 'Operator'}</th>
+                    <th className="pb-3 px-4">{t('shift.operator') || 'Opened By'}</th>
+                    <th className="pb-3 px-4">{t('shift.closedBy') || 'Closed By'}</th>
                     <th className="pb-3 px-4">{t('shift.openedAt') || 'Opened'}</th>
                     <th className="pb-3 px-4">{t('shift.closedAt') || 'Closed'}</th>
                     <th className="pb-3 px-4 text-right">{t('shift.gross') || 'Gross'}</th>
@@ -377,6 +378,18 @@ export default function ShiftScreen() {
                             </div>
                             <span className="font-medium text-slate-200">{shift.openedBy}</span>
                           </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          {shift.closedBy ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 font-bold text-xs">
+                                {shift.closedBy.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="text-sm text-slate-300">{shift.closedBy}</span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-600">—</span>
+                          )}
                         </td>
                         <td className="py-4 px-4 font-mono text-slate-400 text-xs">
                           {new Date(shift.openedAt).toLocaleString()}

@@ -8,7 +8,7 @@ interface ShiftState {
   shifts: Shift[];
   currentShiftId: string | null;
   openShift: (openedBy: string, openingFloat: number) => Shift;
-  closeShift: (id: string, countedCash: number, note: string) => void;
+  closeShift: (id: string, countedCash: number, note: string, closedBy: string) => void;
 }
 
 // Register shifts are terminal-local (one physical drawer), so they persist to
@@ -30,11 +30,11 @@ export const useShiftStore = create<ShiftState>()(
         return shift;
       },
 
-      closeShift: (id, countedCash, note) => {
+      closeShift: (id, countedCash, note, closedBy) => {
         set({
           shifts: get().shifts.map((s) =>
             s.id === id
-              ? { ...s, closedAt: new Date().toISOString(), countedCash, note: note || null }
+              ? { ...s, closedAt: new Date().toISOString(), closedBy, countedCash, note: note || null }
               : s,
           ),
           currentShiftId: get().currentShiftId === id ? null : get().currentShiftId,
