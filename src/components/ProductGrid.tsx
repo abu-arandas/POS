@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
 import { Search, X, LayoutGrid, GripHorizontal, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, Category, StoreSettings } from '../types';
@@ -35,17 +35,17 @@ interface SortableProductCardProps {
   isEditMode: boolean;
   addToCart: (product: Product) => void;
   cartQty: number;
-  categories: Category[];
+  categoryName: string;
   settings: StoreSettings;
   index: number;
 }
 
-function SortableProductCard({
+const SortableProductCard = memo(function SortableProductCard({
   prod,
   isEditMode,
   addToCart,
   cartQty,
-  categories,
+  categoryName,
   settings,
   index,
 }: SortableProductCardProps) {
@@ -66,8 +66,6 @@ function SortableProductCard({
   const isLimitReached = cartQty >= prod.stock;
   const [imgError, setImgError] = useState(false);
   const { t } = useTranslation();
-
-  const categoryName = categories.find((c) => c.id === prod.category)?.name || '';
 
   const getCategoryEmoji = (catName: string) => {
     const n = catName.toLowerCase();
@@ -191,19 +189,33 @@ function SortableProductCard({
       </div>
     </motion.div>
   );
-}
+});
 
-export default function ProductGrid({
+const ProductGrid = ({
   selectedCategory,
   setSelectedCategory,
   cart,
   addToCart,
-}: ProductGridProps) {
-  const { products, categories, reorderProducts } = useProductStore();
-  const { settings } = useSettingsStore();
-  const { currentUser } = useAuthStore();
+}: ProductGridProps) => {
+  const products = useProductStore((s) => s.products);
+  const categories = useProductStore((s) => s.categories);
+  const reorderProducts = useProductStore((s) => s.reorderProducts);
+  const settings = useSettingsStore((s) => s.settings);
+  const currentUser = useAuthStore((s) => s.currentUser);
   const isAdmin = currentUser?.role === 'admin';
   const { t } = useTranslation();
+
+  const cartQuantityMap = useMemo(() => {
+    const map = new Map<string, number>();
+    cart.forEach(item => map.set(item.product.id, item.quantity));
+    return map;
+  }, [cart]);
+
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach(c => map.set(c.id, c.name));
+    return map;
+  }, [categories]);
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [search, setSearch] = useState('');
@@ -234,12 +246,14 @@ export default function ProductGrid({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       reorderProducts(active.id as string, over.id as string);
     }
-  };
+  }, [reorderProducts]);
+
+  const sortableIds = useMemo(() => filteredProducts.map(p => p.id), [filteredProducts]);
 
   return (
     <div id="catalog-section" className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -371,7 +385,7 @@ export default function ProductGrid({
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={filteredProducts.map((p) => p.id)}
+                items={sortableIds}
                 strategy={rectSortingStrategy}
               >
                 <div
@@ -379,15 +393,14 @@ export default function ProductGrid({
                   className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3"
                 >
                   {filteredProducts.map((prod, index) => {
-                    const cartQty = cart.find((item) => item.product.id === prod.id)?.quantity || 0;
                     return (
                       <SortableProductCard
                         key={prod.id}
                         prod={prod}
                         isEditMode={isEditMode}
                         addToCart={addToCart}
-                        cartQty={cartQty}
-                        categories={categories}
+                        cartQty={cartQuantityMap.get(prod.id) ?? 0}
+                        categoryName={categoryMap.get(prod.category) ?? ''}
                         settings={settings}
                         index={index}
                       />
@@ -401,4 +414,6 @@ export default function ProductGrid({
       </div>
     </div>
   );
-}
+};
+
+export default memo(ProductGrid);

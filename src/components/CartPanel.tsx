@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo, memo } from 'react';
 import {
   User,
   Plus,
@@ -49,7 +49,7 @@ interface CartPanelProps {
   onOpenHeldOrders: () => void;
 }
 
-export default function CartPanel({
+const CartPanel = ({
   cart,
   updateCartQty,
   removeFromCart,
@@ -74,12 +74,12 @@ export default function CartPanel({
   onHoldOrder,
   heldCount,
   onOpenHeldOrders,
-}: CartPanelProps) {
-  const { customers } = useCustomerStore();
-  const { settings } = useSettingsStore();
+}: CartPanelProps) => {
+  const customers = useCustomerStore((s) => s.customers);
+  const settings = useSettingsStore((s) => s.settings);
   const { t } = useTranslation();
 
-  const applyLoyaltyPoints = () => {
+  const applyLoyaltyPoints = useCallback(() => {
     if (!activeCustomer) return;
     const maxPointsUse = Math.min(
       activeCustomer.points,
@@ -88,16 +88,22 @@ export default function CartPanel({
     setDiscountType('loyalty');
     setLoyaltyPointsToUse(maxPointsUse);
     setShowPromoInput(false);
-  };
+  }, [activeCustomer, subtotal, settings.loyaltyPointValue, setDiscountType, setLoyaltyPointsToUse, setShowPromoInput]);
 
-  const handleApplyPromoCode = () => {
+  const handleApplyPromoCode = useCallback(() => {
     const val = parseFloat(discountInput);
     if (!isNaN(val) && val > 0) {
       setShowPromoInput(false);
     }
-  };
+  }, [discountInput, setShowPromoInput]);
 
-  const cartTotal = cart.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+  const loyaltySavings = useMemo(() => {
+    if (!activeCustomer) return 0;
+    return Math.min(
+      Math.min(activeCustomer.points, Math.ceil(subtotal / settings.loyaltyPointValue)) * settings.loyaltyPointValue,
+      subtotal
+    );
+  }, [activeCustomer, subtotal, settings.loyaltyPointValue]);
 
   return (
     <div
@@ -297,10 +303,7 @@ export default function CartPanel({
                 </p>
                 <p className="text-emerald-500 text-[10px]">
                   {t('register.save')} {settings.currency}
-                  {Math.min(
-                    Math.min(activeCustomer.points, Math.ceil(subtotal / settings.loyaltyPointValue)) * settings.loyaltyPointValue,
-                    subtotal,
-                  ).toFixed(2)}
+                  {loyaltySavings.toFixed(2)}
                 </p>
               </div>
             </div>
@@ -522,4 +525,6 @@ export default function CartPanel({
       </div>
     </div>
   );
-}
+};
+
+export default memo(CartPanel);

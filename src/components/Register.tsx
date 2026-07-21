@@ -37,12 +37,17 @@ import { useTranslation } from 'react-i18next';
 
 export default function Register() {
   const { t } = useTranslation();
-  const { handleUpdateProduct } = useProductStore();
-  const { customers, handleAddCustomer, updateCustomerPoints } = useCustomerStore();
-  const { settings, printerConfig } = useSettingsStore();
-  const { addTransaction } = useTransactionStore();
-  const { currentUser } = useAuthStore();
-  const { heldOrders, holdOrder, removeHeldOrder } = useHeldOrderStore();
+  const handleUpdateProduct = useProductStore((s) => s.handleUpdateProduct);
+  const customers = useCustomerStore((s) => s.customers);
+  const handleAddCustomer = useCustomerStore((s) => s.handleAddCustomer);
+  const updateCustomerPoints = useCustomerStore((s) => s.updateCustomerPoints);
+  const settings = useSettingsStore((s) => s.settings);
+  const printerConfig = useSettingsStore((s) => s.printerConfig);
+  const addTransaction = useTransactionStore((s) => s.addTransaction);
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const heldOrders = useHeldOrderStore((s) => s.heldOrders);
+  const holdOrder = useHeldOrderStore((s) => s.holdOrder);
+  const removeHeldOrder = useHeldOrderStore((s) => s.removeHeldOrder);
   const currentShiftId = useShiftStore((s) => s.currentShiftId);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -142,7 +147,7 @@ export default function Register() {
     });
   }, []);
 
-  const updateCartQty = (productId: string, delta: number) => {
+  const updateCartQty = useCallback((productId: string, delta: number) => {
     setCart(
       (prev) =>
         prev
@@ -157,19 +162,19 @@ export default function Register() {
           })
           .filter(Boolean) as Array<{ product: Product; quantity: number }>,
     );
-  };
+  }, []);
 
-  const removeFromCart = (productId: string) =>
-    setCart((prev) => prev.filter((item) => item.product.id !== productId));
+  const removeFromCart = useCallback((productId: string) =>
+    setCart((prev) => prev.filter((item) => item.product.id !== productId)), []);
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setCart([]);
     setSelectedCustomerId(null);
     setDiscountType('none');
     setDiscountInput('');
     setLoyaltyPointsToUse(0);
     setShowPromoInput(false);
-  };
+  }, []);
 
   // Barcode scan: match a product by exact SKU and add it, with brief feedback.
   const handleScan = useCallback(
@@ -199,7 +204,7 @@ export default function Register() {
     return () => clearTimeout(timer);
   }, [scanFeedback]);
 
-  const handleHoldOrder = () => {
+  const handleHoldOrder = useCallback(() => {
     if (cart.length === 0) return;
     const label = window
       .prompt(t('register.holdLabelPrompt'), new Date().toLocaleTimeString())
@@ -221,9 +226,9 @@ export default function Register() {
       operatorName: currentUser?.name ?? null,
     });
     clearCart();
-  };
+  }, [cart, selectedCustomerId, discountType, discountInput, loyaltyPointsToUse, currentUser, holdOrder, clearCart, t]);
 
-  const resumeHeldOrder = (order: HeldOrder) => {
+  const resumeHeldOrder = useCallback((order: HeldOrder) => {
     if (cart.length > 0 && !window.confirm(t('register.resumeReplaceWarning'))) return;
     // Rebuild the cart from the current catalog so prices/stock are live; drop
     // any line whose product no longer exists.
@@ -242,9 +247,9 @@ export default function Register() {
     setShowPromoInput(false);
     removeHeldOrder(order.id);
     setHeldModalOpen(false);
-  };
+  }, [cart, removeHeldOrder, t]);
 
-  const handleAddNewCustomer = (e: React.FormEvent) => {
+  const handleAddNewCustomer = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!custName.trim()) return;
     const newCust = handleAddCustomer(custName, custPhone, custEmail);
@@ -253,16 +258,16 @@ export default function Register() {
     setCustPhone('');
     setCustEmail('');
     setAddCustomerOpen(false);
-  };
+  }, [custName, custPhone, custEmail, handleAddCustomer]);
 
-  const handleCheckoutClick = () => {
+  const handleCheckoutClick = useCallback(() => {
     if (cart.length === 0) return;
     setPaymentMethod('card');
     setCashPaidText('');
     setSplitMode(false);
     setSplitPayments([]);
     setCheckoutModalOpen(true);
-  };
+  }, [cart]);
 
   const splitPaidTotal = useMemo(
     () => splitPayments.reduce((s, p) => s + (p.amount || 0), 0),
@@ -270,16 +275,16 @@ export default function Register() {
   );
   const splitRemaining = Number((totalAmount - splitPaidTotal).toFixed(2));
 
-  const addSplitPayment = () => {
+  const addSplitPayment = useCallback(() => {
     const remaining = Math.max(0, splitRemaining);
     setSplitPayments((prev) => [...prev, { method: 'cash', amount: Number(remaining.toFixed(2)) }]);
-  };
-  const updateSplitPayment = (idx: number, patch: Partial<Payment>) =>
-    setSplitPayments((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
-  const removeSplitPayment = (idx: number) =>
-    setSplitPayments((prev) => prev.filter((_, i) => i !== idx));
+  }, [splitRemaining]);
+  const updateSplitPayment = useCallback((idx: number, patch: Partial<Payment>) =>
+    setSplitPayments((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p))), []);
+  const removeSplitPayment = useCallback((idx: number) =>
+    setSplitPayments((prev) => prev.filter((_, i) => i !== idx)), []);
 
-  const handleCompletePayment = () => {
+  const handleCompletePayment = useCallback(() => {
     const req: CheckoutRequest = {
       cartItems,
       subtotal,
@@ -355,20 +360,45 @@ export default function Register() {
     } else if (isCashSale) {
       openCashDrawer(printerConfig);
     }
-  };
+  }, [cartItems, subtotal, discountType, discountValue, discountAmount, taxAmount, totalAmount, paymentMethod, splitMode, splitPayments, cashPaidText, cashChangeDue, selectedCustomerId, activeCustomer, currentUser, currentShiftId, settings, cart, handleUpdateProduct, updateCustomerPoints, addTransaction, printerConfig, clearCart, t]);
 
-  const notifyPrint = (outcome: HardwarePrintOutcome) => {
+  const notifyPrint = useCallback((outcome: HardwarePrintOutcome) => {
     if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
     else if (outcome === 'unsupported')
       alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
     else if (outcome === 'no-device') alert(t('print.noDevice'));
     else if (outcome === 'error') alert(t('print.error'));
-  };
+  }, [t, printerConfig]);
 
-  const handlePrintActiveReceipt = async () => {
+  const handlePrintActiveReceipt = useCallback(async () => {
     if (!activeReceipt) return;
     notifyPrint(await printReceipt(activeReceipt, settings, printerConfig, false));
-  };
+  }, [activeReceipt, settings, printerConfig, notifyPrint]);
+
+  const paymentMethodsArray = useMemo(() => [
+    { id: 'card', label: t('register.payCard'), icon: CreditCard, activeClass: 'active-card' },
+    { id: 'cash', label: t('register.payCash'), icon: DollarSign, activeClass: 'active-cash' },
+    { id: 'mobile', label: t('register.payMobile'), icon: Smartphone, activeClass: 'active-mobile' },
+    { id: 'gift', label: t('register.payGift'), icon: Gift, activeClass: 'active-gift' },
+  ] as const, [t]);
+
+  const addCustomerFieldsArray = useMemo(() => [
+    { label: t('register.fullName'), type: 'text', value: custName, onChange: setCustName, placeholder: 'e.g. John Doe', required: true },
+    { label: t('register.phoneNumber'), type: 'tel', value: custPhone, onChange: setCustPhone, placeholder: 'e.g. 555-0100', required: false },
+    { label: t('register.emailAddress'), type: 'email', value: custEmail, onChange: setCustEmail, placeholder: 'e.g. john@example.com', required: false }
+  ], [t, custName, custPhone, custEmail]);
+
+  const receiptActionsArray = useMemo(() => [
+    { icon: Printer, label: t('register.print'), onClick: handlePrintActiveReceipt },
+    {
+      icon: Share2, label: t('register.share'),
+      onClick: async () => { const r = await shareReceipt(activeReceipt, settings); if (r === 'copied') setScanFeedback({ ok: true, text: t('register.copied') }); },
+    },
+    {
+      icon: Mail, label: t('register.email'),
+      onClick: () => { const email = activeReceipt?.customerId ? customers.find((c) => c.id === activeReceipt.customerId)?.email : undefined; emailReceipt(activeReceipt, settings, email || undefined); },
+    }
+  ], [t, handlePrintActiveReceipt, activeReceipt, settings, customers]);
 
   return (
     <div
@@ -571,12 +601,7 @@ export default function Register() {
                 {!splitMode && (
                   <div className="grid grid-cols-4 gap-2.5">
                     {(
-                      [
-                        { id: 'card', label: t('register.payCard'), icon: CreditCard, activeClass: 'active-card' },
-                        { id: 'cash', label: t('register.payCash'), icon: DollarSign, activeClass: 'active-cash' },
-                        { id: 'mobile', label: t('register.payMobile'), icon: Smartphone, activeClass: 'active-mobile' },
-                        { id: 'gift', label: t('register.payGift'), icon: Gift, activeClass: 'active-gift' },
-                      ] as const
+                      paymentMethodsArray
                     ).map((m) => {
                       const MIcon = m.icon;
                       const isSel = paymentMethod === m.id;
@@ -786,13 +811,7 @@ export default function Register() {
               </div>
 
               <form onSubmit={handleAddNewCustomer} className="space-y-4">
-                {[{
-                  label: t('register.fullName'), type: 'text', value: custName, onChange: setCustName, placeholder: 'e.g. John Doe', required: true,
-                }, {
-                  label: t('register.phoneNumber'), type: 'tel', value: custPhone, onChange: setCustPhone, placeholder: 'e.g. 555-0100', required: false,
-                }, {
-                  label: t('register.emailAddress'), type: 'email', value: custEmail, onChange: setCustEmail, placeholder: 'e.g. john@example.com', required: false,
-                }].map(({ label, type, value, onChange, placeholder, required }) => (
+                {addCustomerFieldsArray.map(({ label, type, value, onChange, placeholder, required }) => (
                   <div key={label}>
                     <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">{label}</label>
                     <input
@@ -993,15 +1012,7 @@ export default function Register() {
 
               <div className="p-4 space-y-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                 <div className="flex items-center gap-2">
-                  {[{
-                    icon: Printer, label: t('register.print'), onClick: handlePrintActiveReceipt,
-                  }, {
-                    icon: Share2, label: t('register.share'),
-                    onClick: async () => { const r = await shareReceipt(activeReceipt, settings); if (r === 'copied') setScanFeedback({ ok: true, text: t('register.copied') }); },
-                  }, {
-                    icon: Mail, label: t('register.email'),
-                    onClick: () => { const email = activeReceipt?.customerId ? customers.find((c) => c.id === activeReceipt.customerId)?.email : undefined; emailReceipt(activeReceipt, settings, email || undefined); },
-                  }].map(({ icon: Icon, label, onClick }) => (
+                  {receiptActionsArray.map(({ icon: Icon, label, onClick }) => (
                     <button
                       key={label}
                       onClick={onClick}

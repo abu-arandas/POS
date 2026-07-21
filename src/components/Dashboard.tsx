@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import {
   TrendingUp,
   ShoppingBag,
@@ -33,11 +33,33 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
 import { useTranslation } from 'react-i18next';
 
+const CustomTooltip = ({ active, payload, label, currency }: { active?: boolean; payload?: any[]; label?: string; currency: string }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#0f172a]/95 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-xl">
+        <p className="text-white font-bold mb-2">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center gap-2 text-sm font-mono mt-1">
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+            <span className="text-slate-400 capitalize">{entry.name}:</span>
+            <span className="text-white font-bold">
+              {currency}{Number(entry.value).toFixed(2)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
-  const { transactions } = useTransactionStore();
-  const { products, categories } = useProductStore();
-  const { settings, supabaseConfig } = useSettingsStore();
+  const transactions = useTransactionStore((s) => s.transactions);
+  const products = useProductStore((s) => s.products);
+  const categories = useProductStore((s) => s.categories);
+  const settings = useSettingsStore((s) => s.settings);
+  const supabaseConfig = useSettingsStore((s) => s.supabaseConfig);
   const cloudLive = supabaseConfig.enabled && supabaseConfig.status === 'connected';
 
   const completedTransactions = useMemo(() => {
@@ -237,32 +259,17 @@ export default function Dashboard() {
       .sort((a, b) => b.revenue - a.revenue);
   }, [rangeTxns]);
 
-  const exportRange = () => {
+  const exportRange = useCallback(() => {
     downloadCsv(
-      `sales-\${range}-\${new Date().toISOString().slice(0, 10)}.csv`,
+      `sales-${range}-${new Date().toISOString().slice(0, 10)}.csv`,
       toCsv(transactionsToCsvRows(rangeTxns)),
     );
-  };
+  }, [rangeTxns, range]);
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-[#0f172a]/95 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-xl">
-          <p className="text-white font-bold mb-2">{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center gap-2 text-sm font-mono mt-1">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-              <span className="text-slate-400 capitalize">{entry.name}:</span>
-              <span className="text-white font-bold">
-                {settings.currency}{Number(entry.value).toFixed(2)}
-              </span>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
+  const paymentMethodsMap = useMemo(
+    () => new Map(paymentMethodsData.map(d => [d.name, d])),
+    [paymentMethodsData]
+  );
 
   return (
     <div
@@ -527,7 +534,7 @@ export default function Dashboard() {
                   dx={-15} 
                   tickFormatter={(val) => `${val}`}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip currency={settings.currency} />} />
                 <Area
                   type="monotone"
                   dataKey="revenue"
@@ -578,7 +585,7 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="4 4" horizontal={false} stroke="#1e293b" />
                     <XAxis type="number" stroke="#475569" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={12} width={120} tickLine={false} axisLine={false} />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.4 }} />
+                    <Tooltip content={<CustomTooltip currency={settings.currency} />} cursor={{ fill: '#1e293b', opacity: 0.4 }} />
                     <Bar dataKey="quantity" radius={[0, 8, 8, 0]} barSize={28}>
                       {topProductsData.map((entry, index) => (
                         <Cell key={`cell-\${index}`} fill={index === 0 ? '#10b981' : '#3b82f6'} />
@@ -624,7 +631,7 @@ export default function Dashboard() {
                         <Cell key={`cell-\${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip content={<CustomTooltip />} />
+                    <Tooltip content={<CustomTooltip currency={settings.currency} />} />
                   </PieChart>
                 </ResponsiveContainer>
               )}
@@ -660,7 +667,7 @@ export default function Dashboard() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               {['card', 'cash', 'mobile', 'gift'].map((method) => {
-                const data = paymentMethodsData.find((d) => d.name === method.toUpperCase());
+                const data = paymentMethodsMap.get(method.toUpperCase());
                 const val = data ? data.value : 0;
                 const pct = totalSalesVolume > 0 ? (val / totalSalesVolume) * 100 : 0;
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Plus,
   Search,
@@ -27,19 +27,34 @@ import { useAuthStore } from '../stores/authStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { useTranslation } from 'react-i18next';
 
+// Colors available for categories
+const categoryColors = [
+  { class: 'badge badge-blue', bg: 'bg-blue-500', label: 'Blue' },
+  { class: 'badge badge-amber', bg: 'bg-amber-500', label: 'Amber' },
+  { class: 'badge badge-emerald', bg: 'bg-emerald-500', label: 'Emerald' },
+  { class: 'badge badge-purple', bg: 'bg-purple-500', label: 'Purple' },
+  { class: 'badge badge-rose', bg: 'bg-rose-500', label: 'Rose' },
+  { class: 'badge badge-slate', bg: 'bg-slate-500', label: 'Slate' },
+];
+
 export default function Inventory() {
   const { t } = useTranslation();
-  const {
-    products,
-    categories,
-    handleAddProduct,
-    handleUpdateProduct,
-    handleDeleteProduct,
-    handleAddCategory,
-    handleDeleteCategory,
-  } = useProductStore();
-  const { settings } = useSettingsStore();
-  const { suppliers, adjustments, addSupplier, removeSupplier, logAdjustment } = useSupplyStore();
+  const products = useProductStore((s) => s.products);
+  const categories = useProductStore((s) => s.categories);
+  const handleAddProduct = useProductStore((s) => s.handleAddProduct);
+  const handleUpdateProduct = useProductStore((s) => s.handleUpdateProduct);
+  const handleDeleteProduct = useProductStore((s) => s.handleDeleteProduct);
+  const handleAddCategory = useProductStore((s) => s.handleAddCategory);
+  const handleDeleteCategory = useProductStore((s) => s.handleDeleteCategory);
+  
+  const settings = useSettingsStore((s) => s.settings);
+  
+  const suppliers = useSupplyStore((s) => s.suppliers);
+  const adjustments = useSupplyStore((s) => s.adjustments);
+  const addSupplier = useSupplyStore((s) => s.addSupplier);
+  const removeSupplier = useSupplyStore((s) => s.removeSupplier);
+  const logAdjustment = useSupplyStore((s) => s.logAdjustment);
+  
   const currentUser = useAuthStore((s) => s.currentUser);
 
   // Tab control
@@ -62,7 +77,7 @@ export default function Inventory() {
   const [supPhone, setSupPhone] = useState('');
   const [supEmail, setSupEmail] = useState('');
 
-  const handleReceiveStock = () => {
+  const handleReceiveStock = useCallback(() => {
     const product = products.find((p) => p.id === recvProductId);
     const qty = parseInt(recvQty);
     if (!product || !qty) return; // allows negative if reason is waste
@@ -92,9 +107,12 @@ export default function Inventory() {
     setRecvSupplierId('');
     setRecvNote('');
     setRecvReason('received');
-  };
+  }, [
+    products, recvProductId, recvQty, suppliers, recvSupplierId, recvReason,
+    recvNote, currentUser, handleUpdateProduct, logAdjustment
+  ]);
 
-  const handleAddSupplier = (e: React.FormEvent) => {
+  const handleAddSupplier = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!supName.trim()) return;
     addSupplier({
@@ -108,7 +126,7 @@ export default function Inventory() {
     setSupPhone('');
     setSupEmail('');
     setSupplierModalOpen(false);
-  };
+  }, [supName, supContact, supPhone, supEmail, addSupplier]);
 
   // Products Table / List State
   const [searchQuery, setSearchQuery] = useState('');
@@ -136,18 +154,8 @@ export default function Inventory() {
   const [prodMinStock, setProdMinStock] = useState('');
   const [prodImage, setProdImage] = useState('');
 
-  // Colors available for categories
-  const categoryColors = [
-    { class: 'badge badge-blue', bg: 'bg-blue-500', label: 'Blue' },
-    { class: 'badge badge-amber', bg: 'bg-amber-500', label: 'Amber' },
-    { class: 'badge badge-emerald', bg: 'bg-emerald-500', label: 'Emerald' },
-    { class: 'badge badge-purple', bg: 'bg-purple-500', label: 'Purple' },
-    { class: 'badge badge-rose', bg: 'bg-rose-500', label: 'Rose' },
-    { class: 'badge badge-slate', bg: 'bg-slate-500', label: 'Slate' },
-  ];
-
   // Open Add Product Dialog
-  const handleOpenAddProduct = () => {
+  const handleOpenAddProduct = useCallback(() => {
     setEditingProduct(null);
     setProdName('');
     setProdSku(`SKU-${Math.floor(100000 + Math.random() * 900000)}`);
@@ -158,7 +166,7 @@ export default function Inventory() {
     setProdMinStock('5');
     setProdImage('');
     setProductModalOpen(true);
-  };
+  }, [categories]);
 
   // Open Edit Product Dialog
   const handleOpenEditProduct = (prod: Product) => {
