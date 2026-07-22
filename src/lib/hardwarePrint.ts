@@ -1,6 +1,6 @@
 import { SaleTransaction, StoreSettings, PrinterConfig } from '../types';
-import { encodeReceipt } from './escpos';
-import { printTransactions } from './receiptPrinter';
+import { encodeReceipt, encodeKitchenTicket } from './escpos';
+import { printTransactions, printKitchenTicketSystem } from './receiptPrinter';
 
 export type HardwarePrintOutcome =
   'printed' | 'popup-blocked' | 'unsupported' | 'no-device' | 'error';
@@ -71,6 +71,27 @@ export async function printReceipt(
     return printNetwork(bytes, printerConfig.ipAddress);
   }
   // Bluetooth ESC/POS pairing is device-specific and not implemented here.
+  return 'unsupported';
+}
+
+// Dispatches a kitchen ticket (big-type items, no prices) to the configured
+// transport. Same routing as printReceipt but never kicks the drawer.
+export async function printKitchenTicket(
+  tx: SaleTransaction,
+  settings: StoreSettings,
+  printerConfig: PrinterConfig,
+): Promise<HardwarePrintOutcome> {
+  if (printerConfig.type === 'system') {
+    const outcome = printKitchenTicketSystem(tx, settings, printerConfig);
+    return outcome === 'popup-blocked' ? 'popup-blocked' : 'printed';
+  }
+
+  const bytes = encodeKitchenTicket(tx, settings, printerConfig);
+  if (printerConfig.type === 'serial') return printSerial(bytes, printerConfig.baudRate);
+  if (printerConfig.type === 'network') {
+    if (!printerConfig.ipAddress) return 'no-device';
+    return printNetwork(bytes, printerConfig.ipAddress);
+  }
   return 'unsupported';
 }
 

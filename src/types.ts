@@ -194,6 +194,9 @@ export interface PrinterConfig {
   showBarcode: boolean;
   footerMessage: string;
   autoPrintOnCheckout: boolean;
+  // Also print a kitchen ticket (big-type items, no prices) at checkout.
+  // Optional so configs persisted before this field existed stay valid.
+  kitchenTicketOnCheckout?: boolean;
 }
 
 // Keyboard-wedge barcode scanner tuning. Wedge scanners "type" the code as a

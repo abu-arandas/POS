@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Settings as SettingsIcon,
@@ -26,6 +26,12 @@ import {
 import { StoreSettings, UserAccount, PrinterConfig, SupabaseConfig, ScannerConfig } from '../types';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
+import {
+  detectPrinters,
+  requestSerialPort,
+  serialSupported,
+  DetectedPrinter,
+} from '../lib/printerDiscovery';
 import { useTranslation } from 'react-i18next';
 import {
   useSettingsStore,
@@ -98,6 +104,36 @@ export default function Settings() {
 
   // --- Printer config form state ---
   const [printerForm, setPrinterForm] = useState<PrinterConfig>(printerConfig);
+
+  // --- Connected printer discovery ---
+  const [detectedPrinters, setDetectedPrinters] = useState<DetectedPrinter[]>([]);
+  const [printersLoading, setPrintersLoading] = useState(false);
+  const refreshPrinters = useCallback(async () => {
+    setPrintersLoading(true);
+    try {
+      setDetectedPrinters(await detectPrinters());
+    } finally {
+      setPrintersLoading(false);
+    }
+  }, []);
+  // Auto-detect when the Printer tab opens. State updates land only after the
+  // async detect resolves — never synchronously inside the effect — and the
+  // cancel guard drops a late result if the tab changed meanwhile.
+  useEffect(() => {
+    if (activeTab !== 'printer') return;
+    let cancelled = false;
+    detectPrinters()
+      .then((list) => {
+        if (!cancelled) setDetectedPrinters(list);
+      })
+      .catch((e) => console.error('Printer detection failed:', e));
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
+  const handlePairSerial = async () => {
+    if (await requestSerialPort()) await refreshPrinters();
+  };
 
   // --- Scanner config form state + live test ---
   const [scannerForm, setScannerForm] = useState<ScannerConfig>(scannerConfig);
@@ -630,6 +666,70 @@ export default function Settings() {
               {/* Printer Tab */}
               {activeTab === 'printer' && (
                 <div className="surface rounded-2xl p-6 max-w-3xl mx-auto space-y-8">
+                  {/* Connected printers */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                        {t('settings.connectedPrinters')}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        {serialSupported() && (
+                          <button
+                            type="button"
+                            onClick={handlePairSerial}
+                            className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center gap-2 transition-colors"
+                          >
+                            <Usb size={14} />
+                            {t('settings.pairSerial')}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={refreshPrinters}
+                          disabled={printersLoading}
+                          className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 rounded-xl flex items-center gap-2 transition-colors"
+                        >
+                          <RefreshCw size={14} className={printersLoading ? 'animate-spin' : ''} />
+                          {t('settings.refreshPrinters')}
+                        </button>
+                      </div>
+                    </div>
+                    {detectedPrinters.length === 0 ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl px-4 py-4 leading-relaxed">
+                        {printersLoading ? '…' : t('settings.noPrintersFound')}
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {detectedPrinters.map((p) => (
+                          <li
+                            key={p.id}
+                            className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                                {p.kind === 'system' ? <Monitor size={16} /> : <Usb size={16} />}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block truncate">
+                                  {p.name}
+                                </span>
+                                {p.detail && (
+                                  <span className="text-[11px] text-slate-500 block truncate">{p.detail}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {p.isDefault && (
+                                <span className="badge badge-emerald">{t('settings.printerDefault')}</span>
+                              )}
+                              <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true" />
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
                   <div>
                     <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-4">
                       {t('settings.connectionType')}
@@ -738,6 +838,18 @@ export default function Settings() {
                       />
                       <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                         {t('settings.autoPrint')}
+                      </span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!printerForm.kitchenTicketOnCheckout}
+                        onChange={(e) => setPrinterForm({ ...printerForm, kitchenTicketOnCheckout: e.target.checked })}
+                        className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                      />
+                      <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                        {t('settings.autoPrintKitchen')}
                       </span>
                     </label>
                   </div>

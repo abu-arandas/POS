@@ -118,3 +118,37 @@ export function encodeReceipt(
   if (openDrawer) b.drawerKick();
   return b.build();
 }
+
+// Kitchen ticket: what the line cooks need and nothing else — order id, time,
+// who rang it, and big-type quantities/items. Deliberately no prices, no
+// payment info, no drawer kick.
+export function encodeKitchenTicket(
+  tx: SaleTransaction,
+  settings: StoreSettings,
+  printerConfig: PrinterConfig,
+): Uint8Array {
+  const width = printerConfig.paperSize === '58mm' ? 32 : 48;
+  const b = new EscPosBuilder();
+
+  b.init().align('center').bold(true).doubleHeight(true).line('*** KITCHEN ***');
+  b.doubleHeight(false).line(settings.storeName).bold(false);
+  b.line('-'.repeat(width));
+
+  b.align('left');
+  b.line(twoCol('ORDER', tx.id, width));
+  b.line(twoCol('TIME', new Date(tx.date).toLocaleTimeString(), width));
+  if (tx.operatorName) b.line(twoCol('OPERATOR', tx.operatorName, width));
+  if (tx.customerName) b.line(twoCol('CUSTOMER', tx.customerName, width));
+  b.line('-'.repeat(width));
+
+  b.doubleHeight(true).bold(true);
+  for (const item of tx.items) {
+    b.line(`${item.quantity}x ${item.productName}`);
+  }
+  b.bold(false).doubleHeight(false);
+  b.line('-'.repeat(width));
+
+  b.align('center').line(`${tx.items.reduce((s, i) => s + i.quantity, 0)} ITEMS`);
+  b.feed(3).cut();
+  return b.build();
+}

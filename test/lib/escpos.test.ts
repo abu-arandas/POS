@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encodeReceipt } from '../../src/lib/escpos';
+import { encodeReceipt, encodeKitchenTicket } from '../../src/lib/escpos';
 import { SaleTransaction, StoreSettings, PrinterConfig } from '../../src/types';
 
 const settings: StoreSettings = {
@@ -79,5 +79,37 @@ describe('encodeReceipt', () => {
       .map((b) => String.fromCharCode(b))
       .join('');
     expect(ascii).toContain('MEMBER');
+  });
+});
+
+const ascii = (u: Uint8Array) =>
+  bytes(u)
+    .filter((b) => b >= 32 && b < 127)
+    .map((b) => String.fromCharCode(b))
+    .join('');
+
+describe('encodeKitchenTicket', () => {
+  it('starts with ESC @ and ends with a full cut', () => {
+    const out = encodeKitchenTicket(tx, settings, printer);
+    expect(out[0]).toBe(0x1b);
+    expect(out[1]).toBe(0x40);
+    expect(findSeq(out, [0x1d, 0x56, 0x00])).toBe(true);
+  });
+
+  it('lists items with quantities and the item count', () => {
+    const out = ascii(encodeKitchenTicket(tx, settings, printer));
+    expect(out).toContain('KITCHEN');
+    expect(out).toContain('2x Latte');
+    expect(out).toContain('ORDER');
+    expect(out).toContain('2 ITEMS');
+  });
+
+  it('never prints prices, totals, or the drawer kick', () => {
+    const out = encodeKitchenTicket(tx, settings, printer);
+    // No cash-drawer pulse on a kitchen ticket.
+    expect(findSeq(out, [0x1b, 0x70, 0x00])).toBe(false);
+    // No currency amounts (the receipt shows "$9.00"; the ticket must not).
+    expect(ascii(out)).not.toContain('$');
+    expect(ascii(out)).not.toContain('TOTAL');
   });
 });

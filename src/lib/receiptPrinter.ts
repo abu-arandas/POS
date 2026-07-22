@@ -116,24 +116,48 @@ export function buildReceiptHtml(
     </div>`;
 }
 
-// Opens a print window for one or more receipts on the "system" printer type;
-// non-system types are mocked (ESC/POS handoff message). Returns an outcome the
-// caller can surface to the operator; all dynamic values are HTML-escaped.
-export function printTransactions(
-  txs: SaleTransaction[],
-  settings: StoreSettings,
-  printerConfig: PrinterConfig,
-): PrintOutcome {
-  if (printerConfig.type !== 'system') return 'esc-pos';
-  if (txs.length === 0) return 'printed';
+// Kitchen ticket HTML: order id, time, who rang it, and large-type
+// quantities/items — no prices or payment details. Exported for unit testing.
+export function buildKitchenTicketHtml(tx: SaleTransaction, settings: StoreSettings): string {
+  const unitCount = tx.items.reduce((s, i) => s + i.quantity, 0);
+  return `
+    <div class="receipt">
+      <div class="center bold kitchen-title">*** KITCHEN ***</div>
+      <div class="center">${esc(settings.storeName)}</div>
+      <div class="divider"></div>
 
+      <div class="flex-row"><span>ORDER:</span><span class="bold">${esc(tx.id)}</span></div>
+      <div class="flex-row"><span>TIME:</span><span>${esc(new Date(tx.date).toLocaleTimeString())}</span></div>
+      ${
+        tx.operatorName
+          ? `<div class="flex-row"><span>OPERATOR:</span><span>${esc(tx.operatorName)}</span></div>`
+          : ''
+      }
+      ${
+        tx.customerName
+          ? `<div class="flex-row"><span>CUSTOMER:</span><span>${esc(tx.customerName)}</span></div>`
+          : ''
+      }
+
+      <div class="divider"></div>
+
+      ${tx.items
+        .map(
+          (item) =>
+            `<div class="kitchen-item">${item.quantity}x ${esc(item.productName)}</div>`,
+        )
+        .join('')}
+
+      <div class="divider"></div>
+      <div class="center bold">${unitCount} ITEMS</div>
+    </div>`;
+}
+
+// Shared print-window scaffolding: writes the given receipt HTML into a new
+// window sized to the thermal roll and triggers the OS print dialog.
+function openPrintWindow(bodyHtml: string, rollWidth: string): PrintOutcome {
   const printWindow = window.open('', '_blank');
   if (!printWindow) return 'popup-blocked';
-
-  const rollWidth = printerConfig.paperSize === '58mm' ? '58mm' : '80mm';
-  const receiptsHtml = txs
-    .map((tx) => buildReceiptHtml(tx, settings, printerConfig))
-    .join('<div class="page-break"></div>');
 
   printWindow.document.write(`
     <html>
@@ -159,16 +183,47 @@ export function printTransactions(
           .logo svg { width: 32px; height: 32px; }
           .flex-row { display: flex; justify-content: space-between; }
           .mt-1 { margin-top: 4px; }
+          .kitchen-title { font-size: 16px; }
+          .kitchen-item { font-size: 16px; font-weight: bold; margin: 4px 0; }
           @media print {
             .page-break { page-break-after: always; }
           }
         </style>
       </head>
       <body onload="window.print(); window.close();">
-        ${receiptsHtml}
+        ${bodyHtml}
       </body>
     </html>
   `);
   printWindow.document.close();
   return 'printed';
+}
+
+// Opens a print window for one or more receipts on the "system" printer type;
+// non-system types are mocked (ESC/POS handoff message). Returns an outcome the
+// caller can surface to the operator; all dynamic values are HTML-escaped.
+export function printTransactions(
+  txs: SaleTransaction[],
+  settings: StoreSettings,
+  printerConfig: PrinterConfig,
+): PrintOutcome {
+  if (printerConfig.type !== 'system') return 'esc-pos';
+  if (txs.length === 0) return 'printed';
+
+  const rollWidth = printerConfig.paperSize === '58mm' ? '58mm' : '80mm';
+  const receiptsHtml = txs
+    .map((tx) => buildReceiptHtml(tx, settings, printerConfig))
+    .join('<div class="page-break"></div>');
+  return openPrintWindow(receiptsHtml, rollWidth);
+}
+
+// System-print path for the kitchen ticket format.
+export function printKitchenTicketSystem(
+  tx: SaleTransaction,
+  settings: StoreSettings,
+  printerConfig: PrinterConfig,
+): PrintOutcome {
+  if (printerConfig.type !== 'system') return 'esc-pos';
+  const rollWidth = printerConfig.paperSize === '58mm' ? '58mm' : '80mm';
+  return openPrintWindow(buildKitchenTicketHtml(tx, settings), rollWidth);
 }

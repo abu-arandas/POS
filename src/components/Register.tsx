@@ -16,6 +16,7 @@ import {
   PauseCircle,
   Share2,
   Mail,
+  ChefHat,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, SaleTransaction, HeldOrder, Payment, PaymentMethod } from '../types';
@@ -31,7 +32,12 @@ import { useShiftStore } from '../stores/shiftStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { buildSaleTransaction, CheckoutRequest } from '../lib/checkout';
-import { printReceipt, openCashDrawer, HardwarePrintOutcome } from '../lib/hardwarePrint';
+import {
+  printReceipt,
+  printKitchenTicket,
+  openCashDrawer,
+  HardwarePrintOutcome,
+} from '../lib/hardwarePrint';
 import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useModalA11y } from '../lib/useModalA11y';
@@ -384,11 +390,19 @@ export default function Register() {
     } else if (isCashSale) {
       openCashDrawer(printerConfig);
     }
+    if (printerConfig.kitchenTicketOnCheckout) {
+      printKitchenTicket(transaction, settings, printerConfig).then(notifyPrint);
+    }
   }, [cartItems, subtotal, discountType, discountValue, discountAmount, taxAmount, totalAmount, paymentMethod, splitMode, splitPayments, cashPaidText, cashChangeDue, selectedCustomerId, activeCustomer, currentUser, currentShiftId, settings, cart, handleUpdateProduct, updateCustomerPoints, addTransaction, printerConfig, clearCart, t, notifyPrint]);
 
   const handlePrintActiveReceipt = useCallback(async () => {
     if (!activeReceipt) return;
     notifyPrint(await printReceipt(activeReceipt, settings, printerConfig, false));
+  }, [activeReceipt, settings, printerConfig, notifyPrint]);
+
+  const handlePrintKitchenTicket = useCallback(async () => {
+    if (!activeReceipt) return;
+    notifyPrint(await printKitchenTicket(activeReceipt, settings, printerConfig));
   }, [activeReceipt, settings, printerConfig, notifyPrint]);
 
   const paymentMethodsArray = useMemo(() => [
@@ -406,6 +420,7 @@ export default function Register() {
 
   const receiptActionsArray = useMemo(() => [
     { icon: Printer, label: t('register.print'), onClick: handlePrintActiveReceipt },
+    { icon: ChefHat, label: t('register.kitchen'), onClick: handlePrintKitchenTicket },
     {
       icon: Share2, label: t('register.share'),
       onClick: async () => {
@@ -422,7 +437,7 @@ export default function Register() {
         emailReceipt(activeReceipt, settings, email || undefined, emailTemplate);
       },
     }
-  ], [t, handlePrintActiveReceipt, activeReceipt, settings, customers, emailTemplate]);
+  ], [t, handlePrintActiveReceipt, handlePrintKitchenTicket, activeReceipt, settings, customers, emailTemplate]);
 
   return (
     <div

@@ -37,6 +37,16 @@ declare global {
       }) => void;
       // Streams raw ESC/POS bytes to a network printer over TCP; resolves true on success.
       printEscpos?: (payload: { ip: string; port: number; data: number[] }) => Promise<boolean>;
+      // Lists the OS printers visible to the app window (undefined pre-upgrade builds).
+      listPrinters?: () => Promise<
+        Array<{
+          name: string;
+          displayName: string;
+          description: string;
+          status: number;
+          isDefault: boolean;
+        }>
+      >;
     };
   }
 }

@@ -64,6 +64,24 @@ ipcMain.on('update-menu-data', (event, data) => {
   menuData = data;
 });
 
+// Lists the OS printers visible to this window (name, status, default flag)
+// so the renderer's Printer settings screen can show what's connected.
+ipcMain.handle('list-printers', async (event) => {
+  try {
+    const printers = await event.sender.getPrintersAsync();
+    return printers.map((p) => ({
+      name: p.name,
+      displayName: p.displayName || p.name,
+      description: p.description || '',
+      status: p.status,
+      isDefault: !!p.isDefault,
+    }));
+  } catch (err) {
+    console.error('list-printers failed:', err.message);
+    return [];
+  }
+});
+
 // Streams raw ESC/POS bytes to a network thermal printer (RAW/JetDirect on TCP
 // 9100). Resolves true on a clean write, false on any socket error/timeout.
 ipcMain.handle('print-escpos', (event, payload) => {

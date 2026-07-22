@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildReceiptHtml } from '../../src/lib/receiptPrinter';
+import { buildReceiptHtml, buildKitchenTicketHtml } from '../../src/lib/receiptPrinter';
 import { SaleTransaction, StoreSettings, PrinterConfig } from '../../src/types';
 
 const settings: StoreSettings = {
@@ -95,5 +95,41 @@ describe('buildReceiptHtml', () => {
     const html = buildReceiptHtml(refunded, settings, printer);
     expect(html).toContain('REFUND AUTH:');
     expect(html).toContain('Jane (manager)');
+  });
+});
+
+describe('buildKitchenTicketHtml', () => {
+  it('renders the order id, items, and item count', () => {
+    const html = buildKitchenTicketHtml(baseTx, settings);
+    expect(html).toContain('KITCHEN');
+    expect(html).toContain('TX-ABCD1234');
+    expect(html).toContain('2x Latte');
+    expect(html).toContain('2 ITEMS');
+  });
+
+  it('never leaks prices or payment details to the kitchen', () => {
+    const html = buildKitchenTicketHtml(baseTx, settings);
+    expect(html).not.toContain('$');
+    expect(html).not.toContain('TOTAL');
+    expect(html).not.toContain('METHOD');
+  });
+
+  it('escapes hostile product names (stored-XSS defense)', () => {
+    const evil: SaleTransaction = {
+      ...baseTx,
+      items: [
+        {
+          productId: 'p1',
+          productName: '<img src=x onerror="alert(1)">',
+          price: 1,
+          cost: 0,
+          quantity: 1,
+          total: 1,
+        },
+      ],
+    };
+    const html = buildKitchenTicketHtml(evil, settings);
+    expect(html).not.toContain('<img src=x');
+    expect(html).toContain('&lt;img src=x');
   });
 });
