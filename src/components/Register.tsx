@@ -39,6 +39,7 @@ import {
   HardwarePrintOutcome,
 } from '../lib/hardwarePrint';
 import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
+import { code128Svg } from '../lib/barcode';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
@@ -1007,15 +1008,22 @@ export default function Register() {
 
                   <div className="space-y-2 border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
                     {activeReceipt.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-start gap-4">
-                        <span className="flex-1 pr-2">
-                          <span className="opacity-70 mr-1">{item.quantity}x</span>
-                          {item.productName}
-                        </span>
-                        <span className="shrink-0 font-bold">
-                          {settings.currency}
-                          {item.total.toFixed(2)}
-                        </span>
+                      <div key={idx}>
+                        <div className="flex justify-between items-start gap-4">
+                          <span className="flex-1 pr-2">
+                            <span className="opacity-70 mr-1">{item.quantity}x</span>
+                            {item.productName}
+                          </span>
+                          <span className="shrink-0 font-bold">
+                            {settings.currency}
+                            {item.total.toFixed(2)}
+                          </span>
+                        </div>
+                        {item.quantity > 1 && (
+                          <div className="text-[10px] opacity-60 ps-4">
+                            @ {settings.currency}{item.price.toFixed(2)} {t('register.each', 'ea')}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1038,7 +1046,10 @@ export default function Register() {
                       </div>
                     )}
                     <div className="flex justify-between">
-                      <span>{t('register.tax').toUpperCase()}:</span>
+                      <span>
+                        {t('register.tax').toUpperCase()}
+                        {settings.taxRate > 0 ? ` (${settings.taxRate}%)` : ''}:
+                      </span>
                       <span>
                         {settings.currency}
                         {activeReceipt.tax.toFixed(2)}
@@ -1051,6 +1062,11 @@ export default function Register() {
                         {activeReceipt.total.toFixed(2)}
                       </span>
                     </div>
+                    {activeReceipt.discount > 0 && (
+                      <div className="text-center font-bold text-amber-700 dark:text-amber-400 border border-dashed border-amber-400/50 rounded py-1 mt-2">
+                        {t('register.youSaved', 'YOU SAVED')} {settings.currency}{activeReceipt.discount.toFixed(2)}
+                      </div>
+                    )}
                   </div>
 
                   <div className="border-t border-dashed border-slate-300 dark:border-slate-700 pt-4 space-y-1.5 text-[10px]">
@@ -1076,11 +1092,31 @@ export default function Register() {
                         </div>
                       </>
                     )}
+                    {activeReceipt.customerName && (activeReceipt.pointsEarned ?? 0) > 0 && (
+                      <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-bold">
+                        <span>{t('register.pointsEarned', 'POINTS EARNED')}:</span>
+                        <span>{activeReceipt.pointsEarned}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="text-center pt-5 border-t border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-slate-400 dark:text-slate-500">
                     <p className="tracking-widest">{t('register.thankYou')}</p>
                   </div>
+
+                  {printerConfig.showBarcode && (
+                    <div className="pt-4 flex flex-col items-center gap-1">
+                      <div
+                        className="bg-white rounded p-1"
+                        dangerouslySetInnerHTML={{
+                          __html: code128Svg(activeReceipt.id, { height: 40, moduleWidth: 1.4 }),
+                        }}
+                      />
+                      <span className="font-mono text-[10px] tracking-[0.2em] text-slate-500">
+                        {activeReceipt.id}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

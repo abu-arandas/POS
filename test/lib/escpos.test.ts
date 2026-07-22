@@ -80,7 +80,40 @@ describe('encodeReceipt', () => {
       .join('');
     expect(ascii).toContain('MEMBER');
   });
+
+  it('breaks out the unit price, item count, and tax rate', () => {
+    const ascii = asciiOf(encodeReceipt(tx, settings, printer));
+    expect(ascii).toContain('@ $4.50 ea'); // qty 2 → unit price line
+    expect(ascii).toContain('ITEMS');
+    expect(ascii).toContain('TAX (10%)'); // settings.taxRate = 10
+  });
+
+  it('prints a YOU SAVED line only when a discount applied', () => {
+    const discounted = { ...tx, discount: 1.5 };
+    expect(asciiOf(encodeReceipt(discounted, settings, printer))).toContain('YOU SAVED $1.50');
+    expect(asciiOf(encodeReceipt(tx, settings, printer))).not.toContain('YOU SAVED');
+  });
+
+  it('shows earned points only for a member sale that earned some', () => {
+    const member = { ...tx, customerName: 'Ann', pointsEarned: 9 };
+    expect(asciiOf(encodeReceipt(member, settings, printer))).toContain('Points earned: 9');
+    expect(asciiOf(encodeReceipt(tx, settings, printer))).not.toContain('Points earned');
+  });
+
+  it('emits a native Code128 barcode (GS k 73) of the receipt id when showBarcode is on', () => {
+    const on = encodeReceipt(tx, settings, printer); // showBarcode: true
+    expect(findSeq(on, [0x1d, 0x6b, 73])).toBe(true);
+    expect(asciiOf(on)).toContain('{BTX-1'); // code-set-B prefixed payload
+    const off = encodeReceipt(tx, settings, { ...printer, showBarcode: false });
+    expect(findSeq(off, [0x1d, 0x6b, 73])).toBe(false);
+  });
 });
+
+const asciiOf = (u: Uint8Array) =>
+  bytes(u)
+    .filter((b) => b >= 32 && b < 127)
+    .map((b) => String.fromCharCode(b))
+    .join('');
 
 const ascii = (u: Uint8Array) =>
   bytes(u)

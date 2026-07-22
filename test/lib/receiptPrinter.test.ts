@@ -78,11 +78,41 @@ describe('buildReceiptHtml', () => {
     expect(buildReceiptHtml(baseTx, settings, printer)).not.toContain('CASH PAID:');
   });
 
-  it('omits the barcode block when showBarcode is off', () => {
+  it('renders a real (SVG) barcode of the receipt id when showBarcode is on', () => {
     const withBarcode = buildReceiptHtml(baseTx, settings, printer);
     const without = buildReceiptHtml(baseTx, settings, { ...printer, showBarcode: false });
-    expect(withBarcode).toContain('AUTH-TX-ABCD1234');
-    expect(without).not.toContain('AUTH-TX-ABCD1234');
+    // crispEdges is unique to the barcode SVG (the logo SVG lacks it), so it
+    // cleanly distinguishes barcode-present from barcode-absent.
+    expect(withBarcode).toContain('shape-rendering="crispEdges"');
+    expect(withBarcode).toContain('barcode-label');
+    expect(withBarcode).toContain('TX-ABCD1234');
+    expect(withBarcode).not.toContain('|||||'); // the old decorative placeholder is gone
+    expect(without).not.toContain('shape-rendering="crispEdges"');
+    expect(without).not.toContain('barcode-label');
+  });
+
+  it('breaks out unit price for multi-qty lines, item count, and tax rate', () => {
+    const multi: SaleTransaction = {
+      ...baseTx,
+      items: [{ productId: 'p1', productName: 'Latte', price: 4.5, cost: 0.9, quantity: 2, total: 9 }],
+    };
+    const html = buildReceiptHtml(multi, settings, printer);
+    expect(html).toContain('@ $4.50 ea');
+    expect(html).toContain('ITEMS:');
+    expect(html).toContain('TAX (8.5%):'); // settings.taxRate = 8.5
+  });
+
+  it('shows a YOU SAVED banner and earned points where applicable', () => {
+    const tx: SaleTransaction = {
+      ...baseTx,
+      discount: 2,
+      customerName: 'Ann',
+      pointsEarned: 12,
+    };
+    const html = buildReceiptHtml(tx, settings, printer);
+    expect(html).toContain('YOU SAVED $2.00');
+    expect(html).toContain('POINTS EARNED:');
+    expect(html).toContain('>12<');
   });
 
   it('shows the refund authorizer when present', () => {
