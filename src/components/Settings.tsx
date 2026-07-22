@@ -969,18 +969,43 @@ export default function Settings() {
                         <ChefHat size={16} className="text-emerald-500" />
                         {t('settings.kitchenStations')}
                       </h3>
-                      <button
-                        type="button"
-                        onClick={addStation}
-                        className="px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl flex items-center gap-2 transition-colors"
-                      >
-                        <Plus size={14} />
-                        {t('settings.addStation')}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {networkScanSupported() && (
+                          <button
+                            type="button"
+                            onClick={handleScanNetwork}
+                            disabled={scanningNetwork}
+                            className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 rounded-xl flex items-center gap-2 transition-colors"
+                          >
+                            <Wifi size={14} className={scanningNetwork ? 'animate-pulse' : ''} />
+                            {scanningNetwork ? t('settings.scanningNetwork') : t('settings.scanNetwork')}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={addStation}
+                          className="px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl flex items-center gap-2 transition-colors"
+                        >
+                          <Plus size={14} />
+                          {t('settings.addStation')}
+                        </button>
+                      </div>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
                       {t('settings.kitchenStationsHint')}
                     </p>
+
+                    {/* Discovered network-printer IPs offered as autocomplete on the
+                        station IP fields below. */}
+                    <datalist id="station-printer-ips">
+                      {detectedPrinters
+                        .filter((p) => p.kind === 'network' && p.ipAddress)
+                        .map((p) => (
+                          <option key={p.id} value={p.ipAddress!}>
+                            {p.name}
+                          </option>
+                        ))}
+                    </datalist>
 
                     {stationForm.length === 0 ? (
                       <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl px-4 py-4">
@@ -1005,6 +1030,7 @@ export default function Settings() {
                               <input
                                 type="text"
                                 dir="ltr"
+                                list="station-printer-ips"
                                 value={station.ipAddress || ''}
                                 onChange={(e) => updateStation(station.id, { ipAddress: e.target.value })}
                                 placeholder={t('settings.stationPrinterIp')}

@@ -10,7 +10,9 @@ import {
   AlertTriangle,
   Download,
   Users,
-  Activity
+  Activity,
+  ClipboardList,
+  Truck
 } from 'lucide-react';
 import {
   AreaChart,
@@ -30,7 +32,9 @@ import { motion } from 'motion/react';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useSupplyStore } from '../stores/supplyStore';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
+import { buildPoReport } from '../lib/poReport';
 import { useTranslation } from 'react-i18next';
 
 interface TooltipEntry {
@@ -66,6 +70,7 @@ export default function Dashboard() {
   const categories = useProductStore((s) => s.categories);
   const settings = useSettingsStore((s) => s.settings);
   const supabaseConfig = useSettingsStore((s) => s.supabaseConfig);
+  const purchaseOrders = useSupplyStore((s) => s.purchaseOrders);
   const cloudLive = supabaseConfig.enabled && supabaseConfig.status === 'connected';
 
   const completedTransactions = useMemo(() => {
@@ -264,6 +269,11 @@ export default function Dashboard() {
       .map((v) => ({ ...v, revenue: Number(v.revenue.toFixed(2)) }))
       .sort((a, b) => b.revenue - a.revenue);
   }, [rangeTxns]);
+
+  const poReport = useMemo(
+    () => buildPoReport(purchaseOrders, range === 'all' ? undefined : rangeDays),
+    [purchaseOrders, range, rangeDays],
+  );
 
   const exportRange = useCallback(() => {
     downloadCsv(
@@ -746,6 +756,97 @@ export default function Dashboard() {
             )}
           </motion.div>
         </div>
+
+        {/* Purchasing (purchase orders) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.0 }}
+          className="surface rounded-3xl p-8 shadow-xl"
+        >
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="font-sans font-bold text-white text-lg flex items-center gap-2">
+              <ClipboardList size={20} className="text-emerald-500" /> {t('dashboard.purchasing')}
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="bg-[#0f172a] border border-white/5 rounded-2xl p-5">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono block mb-2">
+                {t('dashboard.poReceived')}
+              </span>
+              <span className="font-mono font-extrabold text-2xl text-emerald-400 block">
+                {settings.currency}{poReport.receivedValue.toFixed(2)}
+              </span>
+            </div>
+            <div className="bg-[#0f172a] border border-white/5 rounded-2xl p-5">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono block mb-2">
+                {t('dashboard.poOutstanding')}
+              </span>
+              <span className="font-mono font-extrabold text-2xl text-amber-400 block">
+                {settings.currency}{poReport.outstandingValue.toFixed(2)}
+              </span>
+            </div>
+            <div className="bg-[#0f172a] border border-white/5 rounded-2xl p-5">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono block mb-2">
+                {t('dashboard.poOpenOrders')}
+              </span>
+              <span className="font-mono font-extrabold text-2xl text-white block">
+                {poReport.countByStatus.draft + poReport.countByStatus.ordered}
+              </span>
+              <span className="text-[10px] font-mono text-slate-500">
+                {poReport.countByStatus.received} {t('dashboard.poReceivedCount')}
+              </span>
+            </div>
+          </div>
+
+          {poReport.suppliers.length === 0 ? (
+            <div className="w-full py-10 flex items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-white/10">
+              {t('dashboard.noPurchaseData')}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">
+                {t('dashboard.topSuppliers')}
+              </span>
+              {poReport.suppliers.slice(0, 5).map((s) => {
+                const maxSpend = poReport.suppliers[0].received || poReport.suppliers[0].outstanding || 1;
+                const spend = s.received || s.outstanding;
+                return (
+                  <div key={s.supplierId ?? 'none'} className="flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-emerald-400 shrink-0">
+                      <Truck size={15} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-end mb-1.5">
+                        <span className="text-sm font-semibold text-slate-200 truncate">{s.supplierName}</span>
+                        <span className="font-mono font-bold text-sm text-white">
+                          {settings.currency}{s.received.toFixed(2)}
+                          {s.outstanding > 0 && (
+                            <span className="text-amber-400 ms-2 text-xs">
+                              +{settings.currency}{s.outstanding.toFixed(2)}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 rounded-full"
+                            style={{ width: `${Math.max(2, (spend / maxSpend) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-500 shrink-0">
+                          {s.orders} {t('dashboard.poOrdersLabel')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </motion.div>
       </div>
     </div>
   );
