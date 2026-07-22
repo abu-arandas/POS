@@ -19,10 +19,12 @@ import {
   ClipboardList,
   Send,
   Ban,
+  Tag,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, PurchaseOrder, PurchaseOrderStatus } from '../types';
 import { poTotal, poUnitCount, normalizePoLines } from '../lib/purchaseOrders';
+import { printProductLabels } from '../lib/productLabels';
 
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -382,6 +384,13 @@ export default function Inventory() {
     return list;
   }, [products, searchQuery, selectedCategory, sortBy, sortOrder, stockFilter]);
 
+  // Print price-tag labels (name, price, SKU, scannable barcode) for whatever
+  // the current filter/search shows.
+  const handlePrintLabels = useCallback(() => {
+    const outcome = printProductLabels(sortedAndFilteredProducts, settings, { columns: 3 });
+    if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+  }, [sortedAndFilteredProducts, settings, t]);
+
   const toggleSort = (field: 'name' | 'stock' | 'price' | 'sku') => {
     if (sortBy === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -437,6 +446,19 @@ export default function Inventory() {
         </div>
 
         <div className="flex items-center space-x-3 w-full sm:w-auto">
+          {activeTab === 'products' && (
+            <button
+              id="print-labels-btn"
+              onClick={handlePrintLabels}
+              disabled={sortedAndFilteredProducts.length === 0}
+              className="glass-dark hover:bg-slate-800 disabled:opacity-40 text-white font-sans font-bold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all"
+              title={t('inventory.printLabelsHint')}
+            >
+              <Tag size={18} />
+              <span className="hidden sm:inline">{t('inventory.printLabels')}</span>
+            </button>
+          )}
+
           {activeTab === 'products' && (
             <button
               id="receive-stock-btn"
