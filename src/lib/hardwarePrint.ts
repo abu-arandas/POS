@@ -1,6 +1,7 @@
-import { SaleTransaction, StoreSettings, PrinterConfig } from '../types';
-import { encodeReceipt } from './escpos';
-import { printTransactions } from './receiptPrinter';
+import { SaleTransaction, StoreSettings, PrinterConfig, KitchenStation } from '../types';
+import { encodeReceipt, encodeKitchenTicket } from './escpos';
+import { printTransactions, printKitchenTicketSystem } from './receiptPrinter';
+import { routeKitchenTickets } from './kitchenRouting';
 
 export type HardwarePrintOutcome =
   'printed' | 'popup-blocked' | 'unsupported' | 'no-device' | 'error';
@@ -72,6 +73,70 @@ export async function printReceipt(
   }
   // Bluetooth ESC/POS pairing is device-specific and not implemented here.
   return 'unsupported';
+}
+
+// Dispatches a kitchen ticket (big-type items, no prices) to the configured
+// transport. Same routing as printReceipt but never kicks the drawer. An
+// optional stationName titles the ticket and an ipOverride sends it to a
+// station's dedicated network printer instead of the configured transport.
+export async function printKitchenTicket(
+  tx: SaleTransaction,
+  settings: StoreSettings,
+  printerConfig: PrinterConfig,
+  stationName?: string,
+  ipOverride?: string,
+): Promise<HardwarePrintOutcome> {
+  // A station with its own network printer always goes over the network,
+  // regardless of the terminal's default transport.
+  if (ipOverride) {
+    const bytes = encodeKitchenTicket(tx, settings, printerConfig, stationName);
+    return printNetwork(bytes, ipOverride);
+  }
+
+  if (printerConfig.type === 'system') {
+    const outcome = printKitchenTicketSystem(tx, settings, printerConfig, stationName);
+    return outcome === 'popup-blocked' ? 'popup-blocked' : 'printed';
+  }
+
+  const bytes = encodeKitchenTicket(tx, settings, printerConfig, stationName);
+  if (printerConfig.type === 'serial') return printSerial(bytes, printerConfig.baudRate);
+  if (printerConfig.type === 'network') {
+    if (!printerConfig.ipAddress) return 'no-device';
+    return printNetwork(bytes, printerConfig.ipAddress);
+  }
+  return 'unsupported';
+}
+
+// Routes a sale's items to their kitchen stations and prints one ticket per
+// station that has items. `categoryOf` maps a productId to its category id
+// (built from the live catalog). With no stations configured, prints a single
+// combined kitchen ticket. Returns the worst outcome seen so the caller can
+// surface a problem.
+export async function printKitchenTickets(
+  tx: SaleTransaction,
+  settings: StoreSettings,
+  printerConfig: PrinterConfig,
+  stations: KitchenStation[],
+  categoryOf: (productId: string) => string | undefined,
+): Promise<HardwarePrintOutcome> {
+  if (stations.length === 0) {
+    return printKitchenTicket(tx, settings, printerConfig);
+  }
+
+  const tickets = routeKitchenTickets(tx, stations, categoryOf);
+  let worst: HardwarePrintOutcome = 'printed';
+  for (const ticket of tickets) {
+    const stationTx: SaleTransaction = { ...tx, items: ticket.items };
+    const outcome = await printKitchenTicket(
+      stationTx,
+      settings,
+      printerConfig,
+      ticket.station.name,
+      ticket.station.ipAddress,
+    );
+    if (outcome !== 'printed') worst = outcome;
+  }
+  return worst;
 }
 
 // Sends only the drawer kick command to the configured hardware printer.

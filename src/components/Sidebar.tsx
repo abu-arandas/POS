@@ -111,7 +111,7 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
       </div>
 
       {/* ── Navigation ── */}
-      <nav id="sidebar-navigation" aria-label="Main navigation" className="flex-1 px-3 py-4 space-y-1 relative z-10 overflow-y-auto scrollbar-none">
+      <nav id="sidebar-navigation" aria-label={t('sidebar.mainNavigation')} className="flex-1 px-3 py-4 space-y-1 relative z-10 overflow-y-auto scrollbar-none">
         {allowedItems.map((item, i) => {
           const Icon = item.icon;
           const isActive = currentScreen === item.id;

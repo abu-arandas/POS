@@ -1,13 +1,13 @@
 import { defineConfig } from 'vitest/config';
 
-// Unit tests (Vitest) live in src/**. The Playwright end-to-end specs in e2e/**
-// are run separately via `npm run test:e2e`; scope Vitest to src so it never
-// tries to collect a Playwright spec (whose test()/expect() come from a
-// different runner).
+// Unit and component tests (Vitest) live in test/**, mirroring the src/**
+// layout. The Playwright end-to-end specs in e2e/** are run separately via
+// `npm run test:e2e`; scoping Vitest to test/ keeps it from ever collecting a
+// Playwright spec (whose test()/expect() come from a different runner).
 export default defineConfig({
   test: {
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: ['test/**/*.{test,spec}.{ts,tsx}'],
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
+    setupFiles: ['./test/setup.ts'],
   },
 });

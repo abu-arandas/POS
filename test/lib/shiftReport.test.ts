@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { cashKept, summarizeShift } from './shiftReport';
-import { SaleTransaction } from '../types';
+import { cashKept, summarizeShift } from '../../src/lib/shiftReport';
+import { SaleTransaction } from '../../src/types';
 
 const sale = (over: Partial<SaleTransaction>): SaleTransaction => ({
   id: 'TX',

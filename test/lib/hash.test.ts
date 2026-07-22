@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hashPin, hashPinSalted, sha256HexSync } from './hash';
+import { hashPin, hashPinSalted, sha256HexSync } from '../../src/lib/hash';
 
 // Known SHA-256 vectors. '1234' is also the seeded admin PIN hash used in
 // authStore/schema.sql — if these drift, default logins break.

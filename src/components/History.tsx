@@ -420,7 +420,7 @@ export default function History() {
                   <th className="py-4 px-4 w-[50px] text-center">
                     <input
                       type="checkbox"
-                      aria-label={t('history.selectAll', { defaultValue: 'Select all transactions' })}
+                      aria-label={t('history.selectAll')}
                       className="rounded bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500 cursor-pointer w-4 h-4"
                       checked={filteredTransactions.length > 0 && selectedTxIds.length === filteredTransactions.length}
                       onChange={handleToggleSelectAll}
@@ -481,7 +481,7 @@ export default function History() {
                             <td className="py-4 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                               <input
                                 type="checkbox"
-                                aria-label={`${t('history.selectTransaction', { defaultValue: 'Select transaction' })} ${tx.id.substring(0, 12)}`}
+                                aria-label={`${t('history.selectTransaction')} ${tx.id.substring(0, 12)}`}
                                 className="rounded bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500 cursor-pointer w-4 h-4"
                                 checked={isChecked}
                                 onChange={(e) => handleToggleTx(tx.id, e as unknown as React.MouseEvent)}
@@ -566,7 +566,7 @@ export default function History() {
                    activeTransaction.status === 'partial' ? t('history.transactionPartial') : t('history.transactionPaid')}
                 </span>
               </div>
-              <button onClick={() => setSelectedTxId(null)} aria-label={t('history.closeDetails', { defaultValue: 'Close receipt details' })} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-colors">
+              <button onClick={() => setSelectedTxId(null)} aria-label={t('history.closeDetails')} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-colors">
                 <X size={16} />
               </button>
             </div>
@@ -711,7 +711,7 @@ export default function History() {
               )}
               <button
                 onClick={() => setSelectedTxIds([])}
-                aria-label={t('history.clearSelection', { defaultValue: 'Clear selection' })}
+                aria-label={t('history.clearSelection')}
                 className="bg-slate-700/50 hover:bg-slate-700 text-slate-300 px-3 py-2.5 rounded-xl transition-colors ml-2"
               >
                 <X size={16} />
@@ -779,7 +779,7 @@ export default function History() {
                 <h3 id="refund-modal-title" className="font-sans font-bold text-white text-lg">
                   {refundStep === 1 ? 'Step 1: Select Items' : 'Step 2: Review & Confirm'}
                 </h3>
-                <button onClick={() => setRefundModalTx(null)} aria-label="Close" className="p-2 bg-slate-800 rounded-xl text-slate-400 hover:text-white">
+                <button onClick={() => setRefundModalTx(null)} aria-label={t('history.close')} className="p-2 bg-slate-800 rounded-xl text-slate-400 hover:text-white">
                   <X size={16} />
                 </button>
               </div>
@@ -801,7 +801,7 @@ export default function History() {
                           <div className="flex items-center gap-3 bg-slate-900 rounded-xl p-1 border border-white/10">
                             <button
                               onClick={() => setRefundSelection({ ...refundSelection, [item.productId]: Math.max(0, current - 1) })}
-                              aria-label={`Decrease refund quantity — ${item.productName}`}
+                              aria-label={`${t('history.decreaseRefundQty')} — ${item.productName}`}
                               className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg text-white hover:bg-rose-500/20 hover:text-rose-400"
                             >
                               <Minus size={14} />
@@ -809,7 +809,7 @@ export default function History() {
                             <span className="w-6 text-center font-bold font-mono text-white">{current}</span>
                             <button
                               onClick={() => setRefundSelection({ ...refundSelection, [item.productId]: Math.min(max, current + 1) })}
-                              aria-label={`Increase refund quantity — ${item.productName}`}
+                              aria-label={`${t('history.increaseRefundQty')} — ${item.productName}`}
                               className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg text-white hover:bg-emerald-500/20 hover:text-emerald-400"
                             >
                               <Plus size={14} />
@@ -832,7 +832,7 @@ export default function History() {
                         <input
                           type="password"
                           placeholder="Manager PIN"
-                          aria-label="Manager PIN"
+                          aria-label={t('history.managerPin')}
                           data-autofocus
                           value={overridePin}
                           onChange={(e) => setOverridePin(e.target.value)}

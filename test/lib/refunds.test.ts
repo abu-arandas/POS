@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { computeRefund, refundableQuantities } from './refunds';
-import { SaleTransaction } from '../types';
+import { computeRefund, refundableQuantities } from '../../src/lib/refunds';
+import { SaleTransaction } from '../../src/types';
 
 // A sale: 2x Latte @4.50 + 1x Muffin @3.50 = 12.50 subtotal, 10% tax = 1.25,
 // total 13.75. 12 points earned (1/$). No discount.

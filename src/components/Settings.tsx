@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Settings as SettingsIcon,
@@ -19,12 +19,36 @@ import {
   Bluetooth,
   Wifi,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  ScanLine,
+  Mail,
+  ChefHat,
+  Plus
 } from 'lucide-react';
-import { StoreSettings, UserAccount, PrinterConfig, SupabaseConfig } from '../types';
+import {
+  StoreSettings,
+  UserAccount,
+  PrinterConfig,
+  SupabaseConfig,
+  ScannerConfig,
+  KitchenStation,
+} from '../types';
 import { useModalA11y } from '../lib/useModalA11y';
+import { useBarcodeScanner } from '../lib/useBarcodeScanner';
+import {
+  detectPrinters,
+  requestSerialPort,
+  serialSupported,
+  scanNetworkPrinters,
+  networkScanSupported,
+  DetectedPrinter,
+} from '../lib/printerDiscovery';
 import { useTranslation } from 'react-i18next';
-import { useSettingsStore } from '../stores/settingsStore';
+import {
+  useSettingsStore,
+  DEFAULT_EMAIL_TEMPLATE,
+  DEFAULT_SCANNER,
+} from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
@@ -39,7 +63,7 @@ import {
   deleteUsersCloudIfEnabled,
 } from '../lib/sync';
 
-type SettingsTab = 'profile' | 'printer' | 'supabase' | 'users' | 'danger';
+type SettingsTab = 'profile' | 'printer' | 'scanner' | 'supabase' | 'users' | 'danger';
 
 const DEFAULT_PRINTER: PrinterConfig = {
   type: 'system',
@@ -66,6 +90,12 @@ export default function Settings() {
     setSupabaseConfig,
     printerConfig,
     setPrinterConfig,
+    scannerConfig,
+    setScannerConfig,
+    emailTemplate,
+    setEmailTemplate,
+    kitchenStations,
+    setKitchenStations,
   } = useSettingsStore();
   const { products, categories, setProducts, setCategories } = useProductStore();
   const { customers, setCustomers } = useCustomerStore();
@@ -87,6 +117,101 @@ export default function Settings() {
 
   // --- Printer config form state ---
   const [printerForm, setPrinterForm] = useState<PrinterConfig>(printerConfig);
+
+  // --- Connected printer discovery ---
+  const [detectedPrinters, setDetectedPrinters] = useState<DetectedPrinter[]>([]);
+  const [printersLoading, setPrintersLoading] = useState(false);
+  const refreshPrinters = useCallback(async () => {
+    setPrintersLoading(true);
+    try {
+      setDetectedPrinters(await detectPrinters());
+    } finally {
+      setPrintersLoading(false);
+    }
+  }, []);
+  // Auto-detect when the Printer tab opens. State updates land only after the
+  // async detect resolves — never synchronously inside the effect — and the
+  // cancel guard drops a late result if the tab changed meanwhile.
+  useEffect(() => {
+    if (activeTab !== 'printer') return;
+    let cancelled = false;
+    detectPrinters()
+      .then((list) => {
+        if (!cancelled) setDetectedPrinters(list);
+      })
+      .catch((e) => console.error('Printer detection failed:', e));
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
+  const handlePairSerial = async () => {
+    if (await requestSerialPort()) await refreshPrinters();
+  };
+  // Subnet scan for network printers, merged into the detected list (replacing
+  // any prior network hits so a re-scan doesn't accumulate stale entries).
+  const [scanningNetwork, setScanningNetwork] = useState(false);
+  const handleScanNetwork = async () => {
+    setScanningNetwork(true);
+    try {
+      const netPrinters = await scanNetworkPrinters();
+      setDetectedPrinters((prev) => [...prev.filter((p) => p.kind !== 'network'), ...netPrinters]);
+    } finally {
+      setScanningNetwork(false);
+    }
+  };
+  // One-click apply a discovered network printer to the config form.
+  const handleUseNetworkPrinter = (ip: string) => {
+    setPrinterForm((f) => ({ ...f, type: 'network', ipAddress: ip }));
+  };
+
+  // --- Kitchen station routing form state ---
+  const [stationForm, setStationForm] = useState<KitchenStation[]>(kitchenStations);
+  const addStation = () =>
+    setStationForm((prev) => [
+      ...prev,
+      { id: `station-${crypto.randomUUID?.() ?? Date.now()}`, name: '', categoryIds: [] },
+    ]);
+  const updateStation = (id: string, patch: Partial<KitchenStation>) =>
+    setStationForm((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  const removeStation = (id: string) =>
+    setStationForm((prev) => prev.filter((s) => s.id !== id));
+  const toggleStationCategory = (id: string, categoryId: string) =>
+    setStationForm((prev) =>
+      prev.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              categoryIds: s.categoryIds.includes(categoryId)
+                ? s.categoryIds.filter((c) => c !== categoryId)
+                : [...s.categoryIds, categoryId],
+            }
+          : s,
+      ),
+    );
+  const handleSaveStations = () => {
+    // Drop stations with a blank name; trim IPs.
+    const cleaned = stationForm
+      .filter((s) => s.name.trim())
+      .map((s) => ({
+        ...s,
+        name: s.name.trim(),
+        ipAddress: s.ipAddress?.trim() || undefined,
+      }));
+    setKitchenStations(cleaned);
+    setStationForm(cleaned);
+    alert(t('settings.stationsSaved'));
+  };
+
+  // --- Scanner config form state + live test ---
+  const [scannerForm, setScannerForm] = useState<ScannerConfig>(scannerConfig);
+  const [lastTestScan, setLastTestScan] = useState<{ code: string; at: string } | null>(null);
+  useBarcodeScanner({
+    onScan: (code) => setLastTestScan({ code, at: new Date().toLocaleTimeString() }),
+    // Live test uses the unsaved form values so thresholds can be tuned first.
+    enabled: activeTab === 'scanner' && scannerForm.enabled,
+    minLength: scannerForm.minLength,
+    maxInterKeyMs: scannerForm.maxInterKeyMs,
+  });
 
   // --- Supabase form state ---
   const [sbUrl, setSbUrl] = useState(supabaseConfig.url);
@@ -180,6 +305,15 @@ export default function Settings() {
     alert(t('settings.printerSaved'));
   };
 
+  const handleSaveScanner = () => {
+    setScannerConfig({
+      enabled: scannerForm.enabled,
+      minLength: Math.max(1, Math.floor(scannerForm.minLength) || 3),
+      maxInterKeyMs: Math.max(10, Math.floor(scannerForm.maxInterKeyMs) || 50),
+    });
+    alert(t('settings.scannerSaved'));
+  };
+
   const buildConfig = (enabled: boolean, status: 'disconnected' | 'connected' | 'error') => ({
     url: sbUrl.trim(),
     anonKey: sbKey.trim(),
@@ -265,6 +399,11 @@ export default function Settings() {
       setSettings(INITIAL_SETTINGS);
       setPrinterConfig(DEFAULT_PRINTER);
       setPrinterForm(DEFAULT_PRINTER);
+      setScannerConfig(DEFAULT_SCANNER);
+      setScannerForm(DEFAULT_SCANNER);
+      setEmailTemplate(DEFAULT_EMAIL_TEMPLATE);
+      setKitchenStations([]);
+      setStationForm([]);
       setSupabaseConfig(DEFAULT_SUPABASE);
       setSbUrl('');
       setSbKey('');
@@ -283,6 +422,7 @@ export default function Settings() {
   }> = [
     { id: 'profile', label: t('settings.title', 'Store'), icon: SettingsIcon },
     { id: 'printer', label: t('settings.printerTab', 'Printer'), icon: PrinterIcon },
+    { id: 'scanner', label: t('settings.scannerTab', 'Scanner'), icon: ScanLine },
     { id: 'supabase', label: t('settings.supabaseSync', 'Supabase Sync'), icon: Cloud },
     { id: 'users', label: t('settings.usersTab', 'Users'), icon: Users },
     { id: 'danger', label: t('settings.dangerZone', 'Danger Zone'), icon: AlertTriangle, danger: true },
@@ -531,12 +671,162 @@ export default function Settings() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Receipt Email Template */}
+                  <div className="surface rounded-2xl p-6">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <Mail size={16} className="text-emerald-500" />
+                      {t('settings.emailTemplateTitle')}
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+                      {t('settings.emailTemplateHint')}
+                    </p>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                          {t('settings.emailSubject')}
+                        </label>
+                        <input
+                          type="text"
+                          value={emailTemplate.subject}
+                          onChange={(e) => setEmailTemplate({ ...emailTemplate, subject: e.target.value })}
+                          className="glass-input w-full px-4 py-2.5 rounded-xl font-mono text-sm"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                            {t('settings.emailHeader')}
+                          </label>
+                          <textarea
+                            rows={4}
+                            value={emailTemplate.header}
+                            onChange={(e) => setEmailTemplate({ ...emailTemplate, header: e.target.value })}
+                            className="glass-input w-full px-4 py-2.5 rounded-xl text-sm resize-y"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                            {t('settings.emailFooter')}
+                          </label>
+                          <textarea
+                            rows={4}
+                            value={emailTemplate.footer}
+                            onChange={(e) => setEmailTemplate({ ...emailTemplate, footer: e.target.value })}
+                            className="glass-input w-full px-4 py-2.5 rounded-xl text-sm resize-y"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setEmailTemplate(DEFAULT_EMAIL_TEMPLATE)}
+                          className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center gap-2 transition-colors"
+                        >
+                          <RotateCcw size={14} />
+                          {t('settings.resetTemplate')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
               {/* Printer Tab */}
               {activeTab === 'printer' && (
                 <div className="surface rounded-2xl p-6 max-w-3xl mx-auto space-y-8">
+                  {/* Connected printers */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                        {t('settings.connectedPrinters')}
+                      </h3>
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        {serialSupported() && (
+                          <button
+                            type="button"
+                            onClick={handlePairSerial}
+                            className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center gap-2 transition-colors"
+                          >
+                            <Usb size={14} />
+                            {t('settings.pairSerial')}
+                          </button>
+                        )}
+                        {networkScanSupported() && (
+                          <button
+                            type="button"
+                            onClick={handleScanNetwork}
+                            disabled={scanningNetwork}
+                            className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 rounded-xl flex items-center gap-2 transition-colors"
+                          >
+                            <Wifi size={14} className={scanningNetwork ? 'animate-pulse' : ''} />
+                            {scanningNetwork ? t('settings.scanningNetwork') : t('settings.scanNetwork')}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={refreshPrinters}
+                          disabled={printersLoading}
+                          className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 rounded-xl flex items-center gap-2 transition-colors"
+                        >
+                          <RefreshCw size={14} className={printersLoading ? 'animate-spin' : ''} />
+                          {t('settings.refreshPrinters')}
+                        </button>
+                      </div>
+                    </div>
+                    {detectedPrinters.length === 0 ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl px-4 py-4 leading-relaxed">
+                        {printersLoading ? '…' : t('settings.noPrintersFound')}
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {detectedPrinters.map((p) => (
+                          <li
+                            key={p.id}
+                            className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                                {p.kind === 'system' ? (
+                                  <Monitor size={16} />
+                                ) : p.kind === 'network' ? (
+                                  <Wifi size={16} />
+                                ) : (
+                                  <Usb size={16} />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block truncate">
+                                  {p.name}
+                                </span>
+                                {p.detail && (
+                                  <span className="text-[11px] text-slate-500 block truncate">{p.detail}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {p.isDefault && (
+                                <span className="badge badge-emerald">{t('settings.printerDefault')}</span>
+                              )}
+                              {p.kind === 'network' && p.ipAddress && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUseNetworkPrinter(p.ipAddress!)}
+                                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+                                >
+                                  {printerForm.type === 'network' && printerForm.ipAddress === p.ipAddress
+                                    ? t('settings.printerInUse')
+                                    : t('settings.useThisPrinter')}
+                                </button>
+                              )}
+                              <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true" />
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
                   <div>
                     <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-4">
                       {t('settings.connectionType')}
@@ -647,6 +937,18 @@ export default function Settings() {
                         {t('settings.autoPrint')}
                       </span>
                     </label>
+
+                    <label className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!printerForm.kitchenTicketOnCheckout}
+                        onChange={(e) => setPrinterForm({ ...printerForm, kitchenTicketOnCheckout: e.target.checked })}
+                        className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                      />
+                      <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                        {t('settings.autoPrintKitchen')}
+                      </span>
+                    </label>
                   </div>
 
                   <div className="pt-4 flex justify-end">
@@ -657,6 +959,206 @@ export default function Settings() {
                     >
                       <Save size={18} />
                       {t('settings.savePrinter')}
+                    </button>
+                  </div>
+
+                  {/* Kitchen station routing */}
+                  <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
+                        <ChefHat size={16} className="text-emerald-500" />
+                        {t('settings.kitchenStations')}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={addStation}
+                        className="px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl flex items-center gap-2 transition-colors"
+                      >
+                        <Plus size={14} />
+                        {t('settings.addStation')}
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+                      {t('settings.kitchenStationsHint')}
+                    </p>
+
+                    {stationForm.length === 0 ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl px-4 py-4">
+                        {t('settings.noStations')}
+                      </p>
+                    ) : (
+                      <div className="space-y-4">
+                        {stationForm.map((station) => (
+                          <div
+                            key={station.id}
+                            className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100/60 dark:bg-slate-800/40 p-4 space-y-3"
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={station.name}
+                                onChange={(e) => updateStation(station.id, { name: e.target.value })}
+                                placeholder={t('settings.stationNamePlaceholder')}
+                                aria-label={t('settings.stationName')}
+                                className="glass-input flex-1 px-4 py-2.5 rounded-xl font-bold"
+                              />
+                              <input
+                                type="text"
+                                dir="ltr"
+                                value={station.ipAddress || ''}
+                                onChange={(e) => updateStation(station.id, { ipAddress: e.target.value })}
+                                placeholder={t('settings.stationPrinterIp')}
+                                aria-label={t('settings.stationPrinterIp')}
+                                className="glass-input w-40 px-4 py-2.5 rounded-xl font-mono text-sm"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeStation(station.id)}
+                                aria-label={t('settings.removeStation')}
+                                className="p-2.5 text-slate-400 hover:text-rose-500 bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/10 rounded-xl transition-colors shrink-0"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                                {t('settings.stationCategories')}
+                              </span>
+                              <div className="flex flex-wrap gap-2">
+                                {categories.map((cat) => {
+                                  const on = station.categoryIds.includes(cat.id);
+                                  return (
+                                    <button
+                                      key={cat.id}
+                                      type="button"
+                                      aria-pressed={on}
+                                      onClick={() => toggleStationCategory(station.id, cat.id)}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                                        on
+                                          ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-400'
+                                          : 'bg-slate-200/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                      }`}
+                                    >
+                                      {cat.name}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="pt-4 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleSaveStations}
+                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                      >
+                        <Save size={18} />
+                        {t('settings.saveStations')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Scanner Tab */}
+              {activeTab === 'scanner' && (
+                <div className="surface rounded-2xl p-6 max-w-3xl mx-auto space-y-8">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <ScanLine size={16} className="text-emerald-500" />
+                      {t('settings.scannerTitle')}
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                      {t('settings.scannerHint')}
+                    </p>
+                  </div>
+
+                  <label className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={scannerForm.enabled}
+                      onChange={(e) => setScannerForm({ ...scannerForm, enabled: e.target.checked })}
+                      className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                    />
+                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      {t('settings.scannerEnabled')}
+                    </span>
+                  </label>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        {t('settings.scannerMinLength')}
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={scannerForm.minLength}
+                        onChange={(e) =>
+                          setScannerForm({ ...scannerForm, minLength: parseInt(e.target.value) || 0 })
+                        }
+                        className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
+                      />
+                      <p className="text-xs text-slate-500 mt-2">{t('settings.scannerMinLengthHint')}</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        {t('settings.scannerSpeed')}
+                      </label>
+                      <input
+                        type="number"
+                        min="10"
+                        step="5"
+                        value={scannerForm.maxInterKeyMs}
+                        onChange={(e) =>
+                          setScannerForm({ ...scannerForm, maxInterKeyMs: parseInt(e.target.value) || 0 })
+                        }
+                        className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
+                      />
+                      <p className="text-xs text-slate-500 mt-2">{t('settings.scannerSpeedHint')}</p>
+                    </div>
+                  </div>
+
+                  {/* Live scan test area */}
+                  <div className="rounded-2xl border-2 border-dashed border-emerald-500/30 bg-emerald-500/5 p-5">
+                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+                      <ScanLine size={14} /> {t('settings.scannerTest')}
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                      {t('settings.scannerTestHint')}
+                    </p>
+                    <div
+                      className="rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 px-4 py-3 font-mono text-sm"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {lastTestScan ? (
+                        <span className="text-emerald-600 dark:text-emerald-400">
+                          {t('settings.scannerLastScan')}: <strong>{lastTestScan.code}</strong>
+                          <span className="text-slate-400 dark:text-slate-500 ms-2 text-xs">
+                            {lastTestScan.at}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 dark:text-slate-500">
+                          {t('settings.scannerNoScan')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      id="save-scanner-btn"
+                      onClick={handleSaveScanner}
+                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                    >
+                      <Save size={18} />
+                      {t('settings.saveScanner')}
                     </button>
                   </div>
                 </div>

@@ -16,6 +16,7 @@ import {
   PauseCircle,
   Share2,
   Mail,
+  ChefHat,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, SaleTransaction, HeldOrder, Payment, PaymentMethod } from '../types';
@@ -31,8 +32,14 @@ import { useShiftStore } from '../stores/shiftStore';
 import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { buildSaleTransaction, CheckoutRequest } from '../lib/checkout';
-import { printReceipt, openCashDrawer, HardwarePrintOutcome } from '../lib/hardwarePrint';
+import {
+  printReceipt,
+  printKitchenTickets,
+  openCashDrawer,
+  HardwarePrintOutcome,
+} from '../lib/hardwarePrint';
 import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
+import { code128Svg } from '../lib/barcode';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
@@ -45,6 +52,9 @@ export default function Register() {
   const updateCustomerPoints = useCustomerStore((s) => s.updateCustomerPoints);
   const settings = useSettingsStore((s) => s.settings);
   const printerConfig = useSettingsStore((s) => s.printerConfig);
+  const scannerConfig = useSettingsStore((s) => s.scannerConfig);
+  const emailTemplate = useSettingsStore((s) => s.emailTemplate);
+  const kitchenStations = useSettingsStore((s) => s.kitchenStations);
   const addTransaction = useTransactionStore((s) => s.addTransaction);
   const currentUser = useAuthStore((s) => s.currentUser);
   const heldOrders = useHeldOrderStore((s) => s.heldOrders);
@@ -202,7 +212,14 @@ export default function Register() {
 
   useBarcodeScanner({
     onScan: handleScan,
-    enabled: !checkoutModalOpen && !addCustomerOpen && !receiptModalOpen && !heldModalOpen,
+    enabled:
+      scannerConfig.enabled &&
+      !checkoutModalOpen &&
+      !addCustomerOpen &&
+      !receiptModalOpen &&
+      !heldModalOpen,
+    minLength: scannerConfig.minLength,
+    maxInterKeyMs: scannerConfig.maxInterKeyMs,
   });
 
   useEffect(() => {
@@ -375,12 +392,28 @@ export default function Register() {
     } else if (isCashSale) {
       openCashDrawer(printerConfig);
     }
-  }, [cartItems, subtotal, discountType, discountValue, discountAmount, taxAmount, totalAmount, paymentMethod, splitMode, splitPayments, cashPaidText, cashChangeDue, selectedCustomerId, activeCustomer, currentUser, currentShiftId, settings, cart, handleUpdateProduct, updateCustomerPoints, addTransaction, printerConfig, clearCart, t, notifyPrint]);
+    if (printerConfig.kitchenTicketOnCheckout) {
+      const catOf = (productId: string) =>
+        useProductStore.getState().products.find((p) => p.id === productId)?.category;
+      printKitchenTickets(transaction, settings, printerConfig, kitchenStations, catOf).then(
+        notifyPrint,
+      );
+    }
+  }, [cartItems, subtotal, discountType, discountValue, discountAmount, taxAmount, totalAmount, paymentMethod, splitMode, splitPayments, cashPaidText, cashChangeDue, selectedCustomerId, activeCustomer, currentUser, currentShiftId, settings, cart, handleUpdateProduct, updateCustomerPoints, addTransaction, printerConfig, kitchenStations, clearCart, t, notifyPrint]);
 
   const handlePrintActiveReceipt = useCallback(async () => {
     if (!activeReceipt) return;
     notifyPrint(await printReceipt(activeReceipt, settings, printerConfig, false));
   }, [activeReceipt, settings, printerConfig, notifyPrint]);
+
+  const handlePrintKitchenTicket = useCallback(async () => {
+    if (!activeReceipt) return;
+    const catOf = (productId: string) =>
+      useProductStore.getState().products.find((p) => p.id === productId)?.category;
+    notifyPrint(
+      await printKitchenTickets(activeReceipt, settings, printerConfig, kitchenStations, catOf),
+    );
+  }, [activeReceipt, settings, printerConfig, kitchenStations, notifyPrint]);
 
   const paymentMethodsArray = useMemo(() => [
     { id: 'card', label: t('register.payCard'), icon: CreditCard, activeClass: 'active-card' },
@@ -397,6 +430,7 @@ export default function Register() {
 
   const receiptActionsArray = useMemo(() => [
     { icon: Printer, label: t('register.print'), onClick: handlePrintActiveReceipt },
+    { icon: ChefHat, label: t('register.kitchen'), onClick: handlePrintKitchenTicket },
     {
       icon: Share2, label: t('register.share'),
       onClick: async () => {
@@ -410,10 +444,10 @@ export default function Register() {
       onClick: () => {
         if (!activeReceipt) return;
         const email = activeReceipt.customerId ? customers.find((c) => c.id === activeReceipt.customerId)?.email : undefined;
-        emailReceipt(activeReceipt, settings, email || undefined);
+        emailReceipt(activeReceipt, settings, email || undefined, emailTemplate);
       },
     }
-  ], [t, handlePrintActiveReceipt, activeReceipt, settings, customers]);
+  ], [t, handlePrintActiveReceipt, handlePrintKitchenTicket, activeReceipt, settings, customers, emailTemplate]);
 
   return (
     <div
@@ -503,7 +537,7 @@ export default function Register() {
                 </h3>
                 <button
                   onClick={() => setHeldModalOpen(false)}
-                  aria-label="Close"
+                  aria-label={t('register.close')}
                   className="p-1.5 text-slate-500 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
                 >
                   <X size={16} />
@@ -596,7 +630,7 @@ export default function Register() {
                 </div>
                 <button
                   onClick={() => setCheckoutModalOpen(false)}
-                  aria-label="Close"
+                  aria-label={t('register.close')}
                   className="p-1.5 text-slate-500 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
                 >
                   <X size={16} />
@@ -682,7 +716,7 @@ export default function Register() {
                         <button
                           onClick={() => removeSplitPayment(idx)}
                           disabled={splitPayments.length <= 1}
-                          aria-label="Remove payment"
+                          aria-label={t('register.removePayment')}
                           className="p-2.5 text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl disabled:opacity-25 transition-colors"
                           style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}
                         >
@@ -839,7 +873,7 @@ export default function Register() {
                 </h3>
                 <button
                   onClick={() => setAddCustomerOpen(false)}
-                  aria-label="Close"
+                  aria-label={t('register.close')}
                   className="p-1.5 text-slate-500 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
                 >
                   <X size={16} />
@@ -974,15 +1008,22 @@ export default function Register() {
 
                   <div className="space-y-2 border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
                     {activeReceipt.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-start gap-4">
-                        <span className="flex-1 pr-2">
-                          <span className="opacity-70 mr-1">{item.quantity}x</span>
-                          {item.productName}
-                        </span>
-                        <span className="shrink-0 font-bold">
-                          {settings.currency}
-                          {item.total.toFixed(2)}
-                        </span>
+                      <div key={idx}>
+                        <div className="flex justify-between items-start gap-4">
+                          <span className="flex-1 pr-2">
+                            <span className="opacity-70 mr-1">{item.quantity}x</span>
+                            {item.productName}
+                          </span>
+                          <span className="shrink-0 font-bold">
+                            {settings.currency}
+                            {item.total.toFixed(2)}
+                          </span>
+                        </div>
+                        {item.quantity > 1 && (
+                          <div className="text-[10px] opacity-60 ps-4">
+                            @ {settings.currency}{item.price.toFixed(2)} {t('register.each', 'ea')}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1005,7 +1046,10 @@ export default function Register() {
                       </div>
                     )}
                     <div className="flex justify-between">
-                      <span>{t('register.tax').toUpperCase()}:</span>
+                      <span>
+                        {t('register.tax').toUpperCase()}
+                        {settings.taxRate > 0 ? ` (${settings.taxRate}%)` : ''}:
+                      </span>
                       <span>
                         {settings.currency}
                         {activeReceipt.tax.toFixed(2)}
@@ -1018,6 +1062,11 @@ export default function Register() {
                         {activeReceipt.total.toFixed(2)}
                       </span>
                     </div>
+                    {activeReceipt.discount > 0 && (
+                      <div className="text-center font-bold text-amber-700 dark:text-amber-400 border border-dashed border-amber-400/50 rounded py-1 mt-2">
+                        {t('register.youSaved', 'YOU SAVED')} {settings.currency}{activeReceipt.discount.toFixed(2)}
+                      </div>
+                    )}
                   </div>
 
                   <div className="border-t border-dashed border-slate-300 dark:border-slate-700 pt-4 space-y-1.5 text-[10px]">
@@ -1043,11 +1092,31 @@ export default function Register() {
                         </div>
                       </>
                     )}
+                    {activeReceipt.customerName && (activeReceipt.pointsEarned ?? 0) > 0 && (
+                      <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-bold">
+                        <span>{t('register.pointsEarned', 'POINTS EARNED')}:</span>
+                        <span>{activeReceipt.pointsEarned}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="text-center pt-5 border-t border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-slate-400 dark:text-slate-500">
                     <p className="tracking-widest">{t('register.thankYou')}</p>
                   </div>
+
+                  {printerConfig.showBarcode && (
+                    <div className="pt-4 flex flex-col items-center gap-1">
+                      <div
+                        className="bg-white rounded p-1"
+                        dangerouslySetInnerHTML={{
+                          __html: code128Svg(activeReceipt.id, { height: 40, moduleWidth: 1.4 }),
+                        }}
+                      />
+                      <span className="font-mono text-[10px] tracking-[0.2em] text-slate-500">
+                        {activeReceipt.id}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

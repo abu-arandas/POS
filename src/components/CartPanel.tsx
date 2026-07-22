@@ -253,7 +253,7 @@ const CartPanel = ({
                     style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
                     <button
                       onClick={() => updateCartQty(item.product.id, -1)}
-                      aria-label={`${t('register.decreaseQty', { defaultValue: 'Decrease quantity' })} — ${item.product.name}`}
+                      aria-label={`${t('register.decreaseQty')} — ${item.product.name}`}
                       className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/8 transition-colors"
                     >
                       <Minus size={11} />
@@ -265,7 +265,7 @@ const CartPanel = ({
                     <button
                       onClick={() => updateCartQty(item.product.id, 1)}
                       disabled={item.quantity >= item.product.stock}
-                      aria-label={`${t('register.increaseQty', { defaultValue: 'Increase quantity' })} — ${item.product.name}`}
+                      aria-label={`${t('register.increaseQty')} — ${item.product.name}`}
                       className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/8 disabled:opacity-25 transition-colors"
                     >
                       <Plus size={11} />
@@ -273,7 +273,7 @@ const CartPanel = ({
                   </div>
                   <button
                     onClick={() => removeFromCart(item.product.id)}
-                    aria-label={`${t('register.removeFromCart', { defaultValue: 'Remove from cart' })} — ${item.product.name}`}
+                    aria-label={`${t('register.removeFromCart')} — ${item.product.name}`}
                     className="ms-1.5 w-6 h-6 flex items-center justify-center text-slate-700 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                   >
                     <Trash2 size={11} />
@@ -342,7 +342,7 @@ const CartPanel = ({
             </span>
             <button
               onClick={() => { setDiscountType('none'); setDiscountInput(''); setLoyaltyPointsToUse(0); }}
-              aria-label="Remove discount"
+              aria-label={t('register.removeDiscount')}
               className="text-amber-500 hover:text-amber-300 transition-colors"
             >
               <X size={13} />
@@ -406,7 +406,7 @@ const CartPanel = ({
                 </button>
                 <button
                   onClick={() => { setDiscountType('none'); setShowPromoInput(false); }}
-                  aria-label="Cancel discount"
+                  aria-label={t('register.cancelDiscount')}
                   className="p-1.5 text-slate-500 hover:text-slate-300 transition-colors shrink-0"
                 >
                   <X size={13} />

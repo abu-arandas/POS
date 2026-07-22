@@ -1,4 +1,4 @@
-import { SaleTransaction, StoreSettings } from '../types';
+import { SaleTransaction, StoreSettings, ReceiptEmailTemplate } from '../types';
 
 // Plain-text receipt for digital delivery (email body / share / clipboard).
 // Pure and testable — no DOM.
@@ -64,10 +64,60 @@ export async function shareReceipt(
   }
 }
 
+// Fills {placeholder} tokens in an email template string from the sale.
+// Unknown tokens are left as-is so a typo is visible rather than silently
+// swallowed. Supported: {storeName} {receiptId} {date} {total} {customerName}.
+export function renderEmailTemplate(
+  template: string,
+  tx: SaleTransaction,
+  settings: StoreSettings,
+): string {
+  const values: Record<string, string> = {
+    storeName: settings.storeName,
+    receiptId: tx.id,
+    date: new Date(tx.date).toLocaleString(),
+    total: `${settings.currency}${tx.total.toFixed(2)}`,
+    customerName: tx.customerName || 'there',
+  };
+  return template.replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match);
+}
+
+export interface ReceiptEmail {
+  subject: string;
+  body: string;
+}
+
+// Assembles the full email: rendered header, the plain-text receipt, rendered
+// footer. Pure and testable — no DOM. Without a template it falls back to the
+// bare receipt with a generic subject.
+export function buildReceiptEmail(
+  tx: SaleTransaction,
+  settings: StoreSettings,
+  template?: ReceiptEmailTemplate,
+): ReceiptEmail {
+  if (!template) {
+    return {
+      subject: `Receipt ${tx.id} — ${settings.storeName}`,
+      body: receiptPlainText(tx, settings),
+    };
+  }
+  const subject = renderEmailTemplate(template.subject, tx, settings);
+  const parts = [
+    renderEmailTemplate(template.header, tx, settings).trim(),
+    receiptPlainText(tx, settings),
+    renderEmailTemplate(template.footer, tx, settings).trim(),
+  ].filter(Boolean);
+  return { subject, body: parts.join('\n\n') };
+}
+
 // Opens the OS mail client with a pre-filled receipt (to the customer if known).
-export function emailReceipt(tx: SaleTransaction, settings: StoreSettings, toEmail?: string): void {
-  const subject = `Receipt ${tx.id} — ${settings.storeName}`;
-  const body = receiptPlainText(tx, settings);
+export function emailReceipt(
+  tx: SaleTransaction,
+  settings: StoreSettings,
+  toEmail?: string,
+  template?: ReceiptEmailTemplate,
+): void {
+  const { subject, body } = buildReceiptEmail(tx, settings, template);
   const to = toEmail ? encodeURIComponent(toEmail) : '';
   const url = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = url;
