@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isScreenAllowed, SCREEN_ROLES, ScreenId } from './access';
+import { isScreenAllowed, SCREEN_ROLES, ScreenId } from '../../src/lib/access';
 
 describe('isScreenAllowed', () => {
   it('lets admins open every screen', () => {

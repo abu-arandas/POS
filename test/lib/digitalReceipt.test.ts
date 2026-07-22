@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { receiptPlainText, renderEmailTemplate, buildReceiptEmail } from './digitalReceipt';
-import { SaleTransaction, StoreSettings, ReceiptEmailTemplate } from '../types';
+import { receiptPlainText, renderEmailTemplate, buildReceiptEmail } from '../../src/lib/digitalReceipt';
+import { SaleTransaction, StoreSettings, ReceiptEmailTemplate } from '../../src/types';
 
 const settings: StoreSettings = {
   storeName: 'Test Store',

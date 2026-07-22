@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { encodeReceipt } from './escpos';
-import { SaleTransaction, StoreSettings, PrinterConfig } from '../types';
+import { encodeReceipt } from '../../src/lib/escpos';
+import { SaleTransaction, StoreSettings, PrinterConfig } from '../../src/types';
 
 const settings: StoreSettings = {
   storeName: 'Test Store',

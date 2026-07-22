@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto'; // zustand stores persist via idb-keyval
 import '@testing-library/jest-dom/vitest';
 import { afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
-import '../lib/i18n'; // initialize i18next so t() returns real English strings
+import '../src/lib/i18n'; // initialize i18next so t() returns real English strings
 
 // Auto-cleanup only registers itself when vitest globals are enabled; they
 // aren't here, so unmount rendered trees between tests explicitly.

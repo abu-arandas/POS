@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateOrderTotals, CheckoutItem } from './pricing';
+import { calculateOrderTotals, CheckoutItem } from '../../src/lib/pricing';
 
 const settings = { taxRate: 10, loyaltyPointValue: 0.05 };
 

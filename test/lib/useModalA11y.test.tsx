@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useState } from 'react';
-import { useModalA11y } from './useModalA11y';
+import { useModalA11y } from '../../src/lib/useModalA11y';
 
 function Harness({ onClose = () => {} }: { onClose?: () => void }) {
   const [open, setOpen] = useState(false);

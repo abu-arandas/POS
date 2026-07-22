@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import CartPanel from './CartPanel';
-import { Product, Customer } from '../types';
+import CartPanel from '../../src/components/CartPanel';
+import { Product, Customer } from '../../src/types';
 
 const makeProduct = (overrides: Partial<Product> = {}): Product => ({
   id: 'p1',

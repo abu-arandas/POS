@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildReceiptHtml } from './receiptPrinter';
-import { SaleTransaction, StoreSettings, PrinterConfig } from '../types';
+import { buildReceiptHtml } from '../../src/lib/receiptPrinter';
+import { SaleTransaction, StoreSettings, PrinterConfig } from '../../src/types';
 
 const settings: StoreSettings = {
   storeName: 'Test Store',

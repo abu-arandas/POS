@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeTenders } from './payments';
-import { Payment } from '../types';
+import { summarizeTenders } from '../../src/lib/payments';
+import { Payment } from '../../src/types';
 
 const P = (method: Payment['method'], amount: number): Payment => ({ method, amount });
 

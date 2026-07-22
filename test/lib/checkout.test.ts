@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSaleTransaction, CheckoutRequest } from './checkout';
+import { buildSaleTransaction, CheckoutRequest } from '../../src/lib/checkout';
 
 const mockSettings = {
   storeName: 'Test Store',

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { toCsv, transactionsToCsvRows } from './csv';
-import { SaleTransaction } from '../types';
+import { toCsv, transactionsToCsvRows } from '../../src/lib/csv';
+import { SaleTransaction } from '../../src/types';
 
 describe('toCsv', () => {
   it('emits a header and rows', () => {
