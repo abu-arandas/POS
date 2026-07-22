@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { QrCode, Smartphone, Wifi, Printer, Copy, Check, RefreshCw } from 'lucide-react';
+import { QrCode, Wifi, Printer, Copy, Check, RefreshCw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 
 export default function QRMenu() {
   const { t } = useTranslation();
@@ -28,7 +28,17 @@ export default function QRMenu() {
   };
 
   useEffect(() => {
-    fetchMenuInfo();
+    // Initial fetch without the refresh spinner: state updates only land
+    // after the promise resolves, never synchronously inside the effect.
+    let cancelled = false;
+    window.electronAPI?.getMenuInfo?.()
+      .then((info) => {
+        if (!cancelled) setMenuHost(info);
+      })
+      .catch((err) => console.error('Failed to get menu server info:', err));
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const menuUrl = `http://${menuHost.ip}:${menuHost.port}`;

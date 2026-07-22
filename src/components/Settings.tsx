@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Settings as SettingsIcon,
   Cloud,
@@ -14,7 +14,6 @@ import {
   Trash2,
   Check,
   X,
-  Shield,
   Monitor,
   Usb,
   Bluetooth,
@@ -23,6 +22,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { StoreSettings, UserAccount, PrinterConfig, SupabaseConfig } from '../types';
+import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
@@ -78,6 +78,7 @@ export default function Settings() {
 
   // --- Staff account management state ---
   const [userModalOpen, setUserModalOpen] = useState(false);
+  const userModalRef = useModalA11y(userModalOpen, () => setUserModalOpen(false));
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
   const [uName, setUName] = useState('');
   const [uRole, setURole] = useState<UserAccount['role']>('cashier');
@@ -274,13 +275,18 @@ export default function Settings() {
     }
   };
 
-  const tabs = [
+  const tabs: Array<{
+    id: SettingsTab;
+    label: string;
+    icon: typeof SettingsIcon;
+    danger?: boolean;
+  }> = [
     { id: 'profile', label: t('settings.title', 'Store'), icon: SettingsIcon },
     { id: 'printer', label: t('settings.printerTab', 'Printer'), icon: PrinterIcon },
     { id: 'supabase', label: t('settings.supabaseSync', 'Supabase Sync'), icon: Cloud },
     { id: 'users', label: t('settings.usersTab', 'Users'), icon: Users },
     { id: 'danger', label: t('settings.dangerZone', 'Danger Zone'), icon: AlertTriangle, danger: true },
-  ] as const;
+  ];
 
   const roleLabel: Record<UserAccount['role'], string> = {
     admin: t('settings.roleAdmin'),
@@ -312,14 +318,16 @@ export default function Settings() {
         </div>
         
         {/* Animated Tab Navigation */}
-        <nav className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-px overflow-x-auto no-scrollbar">
+        <nav role="tablist" aria-label={t('settings.systemControlCenter')} className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-px overflow-x-auto no-scrollbar">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as SettingsTab)}
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveTab(tab.id)}
                 className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
                   isActive
                     ? tab.danger 
@@ -541,6 +549,7 @@ export default function Settings() {
                           <button
                             key={pt.id}
                             type="button"
+                            aria-pressed={isSelected}
                             onClick={() => setPrinterForm({ ...printerForm, type: pt.id as PrinterConfig['type'] })}
                             className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${
                               isSelected
@@ -947,13 +956,18 @@ export default function Settings() {
             className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop"
           >
             <motion.div
+              ref={userModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="user-modal-title"
+              tabIndex={-1}
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               className="modal-card w-full max-w-sm"
             >
               <div className="px-6 py-4 border-b border-slate-200/10 flex items-center justify-between">
-                <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <h3 id="user-modal-title" className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
                   <UserPlus size={18} className="text-emerald-500" />
                   {editingUser ? t('settings.editUser') : t('settings.newUser')}
                 </h3>

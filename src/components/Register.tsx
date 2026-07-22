@@ -13,6 +13,7 @@ import {
   Clock,
   Trash2,
   Play,
+  PauseCircle,
   Share2,
   Mail,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ import { buildSaleTransaction, CheckoutRequest } from '../lib/checkout';
 import { printReceipt, openCashDrawer, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
+import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
 
 export default function Register() {
@@ -79,6 +81,11 @@ export default function Register() {
 
   const [heldModalOpen, setHeldModalOpen] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const heldModalRef = useModalA11y(heldModalOpen, () => setHeldModalOpen(false));
+  const checkoutModalRef = useModalA11y(checkoutModalOpen, () => setCheckoutModalOpen(false));
+  const addCustomerModalRef = useModalA11y(addCustomerOpen, () => setAddCustomerOpen(false));
+  const receiptModalRef = useModalA11y(receiptModalOpen, () => setReceiptModalOpen(false));
 
   const activeCustomer = useMemo(
     () => customers.find((c) => c.id === selectedCustomerId) || null,
@@ -284,6 +291,14 @@ export default function Register() {
   const removeSplitPayment = useCallback((idx: number) =>
     setSplitPayments((prev) => prev.filter((_, i) => i !== idx)), []);
 
+  const notifyPrint = useCallback((outcome: HardwarePrintOutcome) => {
+    if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+    else if (outcome === 'unsupported')
+      alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
+    else if (outcome === 'no-device') alert(t('print.noDevice'));
+    else if (outcome === 'error') alert(t('print.error'));
+  }, [t, printerConfig]);
+
   const handleCompletePayment = useCallback(() => {
     const req: CheckoutRequest = {
       cartItems,
@@ -360,15 +375,7 @@ export default function Register() {
     } else if (isCashSale) {
       openCashDrawer(printerConfig);
     }
-  }, [cartItems, subtotal, discountType, discountValue, discountAmount, taxAmount, totalAmount, paymentMethod, splitMode, splitPayments, cashPaidText, cashChangeDue, selectedCustomerId, activeCustomer, currentUser, currentShiftId, settings, cart, handleUpdateProduct, updateCustomerPoints, addTransaction, printerConfig, clearCart, t]);
-
-  const notifyPrint = useCallback((outcome: HardwarePrintOutcome) => {
-    if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
-    else if (outcome === 'unsupported')
-      alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
-    else if (outcome === 'no-device') alert(t('print.noDevice'));
-    else if (outcome === 'error') alert(t('print.error'));
-  }, [t, printerConfig]);
+  }, [cartItems, subtotal, discountType, discountValue, discountAmount, taxAmount, totalAmount, paymentMethod, splitMode, splitPayments, cashPaidText, cashChangeDue, selectedCustomerId, activeCustomer, currentUser, currentShiftId, settings, cart, handleUpdateProduct, updateCustomerPoints, addTransaction, printerConfig, clearCart, t, notifyPrint]);
 
   const handlePrintActiveReceipt = useCallback(async () => {
     if (!activeReceipt) return;
@@ -392,11 +399,19 @@ export default function Register() {
     { icon: Printer, label: t('register.print'), onClick: handlePrintActiveReceipt },
     {
       icon: Share2, label: t('register.share'),
-      onClick: async () => { const r = await shareReceipt(activeReceipt, settings); if (r === 'copied') setScanFeedback({ ok: true, text: t('register.copied') }); },
+      onClick: async () => {
+        if (!activeReceipt) return;
+        const r = await shareReceipt(activeReceipt, settings);
+        if (r === 'copied') setScanFeedback({ ok: true, text: t('register.copied') });
+      },
     },
     {
       icon: Mail, label: t('register.email'),
-      onClick: () => { const email = activeReceipt?.customerId ? customers.find((c) => c.id === activeReceipt.customerId)?.email : undefined; emailReceipt(activeReceipt, settings, email || undefined); },
+      onClick: () => {
+        if (!activeReceipt) return;
+        const email = activeReceipt.customerId ? customers.find((c) => c.id === activeReceipt.customerId)?.email : undefined;
+        emailReceipt(activeReceipt, settings, email || undefined);
+      },
     }
   ], [t, handlePrintActiveReceipt, activeReceipt, settings, customers]);
 
@@ -443,6 +458,8 @@ export default function Register() {
       <AnimatePresence>
         {scanFeedback && (
           <motion.div
+            role="status"
+            aria-live="polite"
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -465,6 +482,11 @@ export default function Register() {
             className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4"
           >
             <motion.div
+              ref={heldModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="held-orders-title"
+              tabIndex={-1}
               initial={{ scale: 0.92, opacity: 0, y: 24 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.92, opacity: 0, y: 24 }}
@@ -472,7 +494,7 @@ export default function Register() {
               className="modal-card max-w-md w-full overflow-hidden flex flex-col max-h-[80vh]"
             >
               <div className="p-5 flex justify-between items-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                <h3 className="font-sans font-bold text-white text-base flex items-center gap-2.5">
+                <h3 id="held-orders-title" className="font-sans font-bold text-white text-base flex items-center gap-2.5">
                   <div className="p-1.5 bg-amber-500/15 rounded-xl text-amber-400">
                     <Clock size={16} />
                   </div>
@@ -549,6 +571,11 @@ export default function Register() {
             className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4"
           >
             <motion.div
+              ref={checkoutModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="payment-modal-title"
+              tabIndex={-1}
               initial={{ scale: 0.9, opacity: 0, y: 28 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 28 }}
@@ -557,7 +584,7 @@ export default function Register() {
             >
               <div className="p-5 flex justify-between items-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                 <div>
-                  <h3 className="font-sans font-bold text-white text-lg">
+                  <h3 id="payment-modal-title" className="font-sans font-bold text-white text-lg">
                     {t('register.selectPaymentMethod')}
                   </h3>
                   <p className="text-xs text-slate-500 font-mono mt-1 flex items-center gap-2">
@@ -611,6 +638,7 @@ export default function Register() {
                           id={`pay-method-${m.id}`}
                           onClick={() => setPaymentMethod(m.id)}
                           whileTap={{ scale: 0.93 }}
+                          aria-pressed={isSel}
                           className={`pay-method-btn ${isSel ? m.activeClass : ''}`}
                         >
                           <MIcon size={20} />
@@ -630,6 +658,7 @@ export default function Register() {
                           <select
                             value={p.method}
                             onChange={(e) => updateSplitPayment(idx, { method: e.target.value as PaymentMethod })}
+                            aria-label={t('register.method')}
                             className="bg-transparent text-xs font-semibold ps-3 pe-7 py-3 text-slate-300 focus:outline-none cursor-pointer"
                             style={{ borderRight: '1px solid rgba(255,255,255,0.08)' }}
                           >
@@ -644,6 +673,7 @@ export default function Register() {
                               type="number" step="0.01" min="0"
                               value={p.amount || ''}
                               onChange={(e) => updateSplitPayment(idx, { amount: parseFloat(e.target.value) || 0 })}
+                              aria-label={t('register.amountToPay')}
                               className="flex-1 bg-transparent text-white text-base font-mono font-bold px-2 py-2.5 focus:outline-none w-full"
                               placeholder="0.00"
                             />
@@ -727,6 +757,7 @@ export default function Register() {
                               type="number" step="0.01" min={totalAmount} placeholder="0.00"
                               value={cashPaidText}
                               onChange={(e) => setCashPaidText(e.target.value)}
+                              aria-label={t('register.cashTendered')}
                               className="flex-1 bg-transparent text-white text-xl font-mono font-bold px-2 py-2.5 focus:outline-none"
                             />
                           </div>
@@ -788,6 +819,11 @@ export default function Register() {
             className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4"
           >
             <motion.div
+              ref={addCustomerModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="add-customer-title"
+              tabIndex={-1}
               initial={{ scale: 0.9, opacity: 0, y: 24 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 24 }}
@@ -795,7 +831,7 @@ export default function Register() {
               className="modal-card max-w-sm w-full p-6 space-y-5"
             >
               <div className="flex justify-between items-center pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                <h3 className="font-sans font-bold text-white text-base flex items-center gap-2.5">
+                <h3 id="add-customer-title" className="font-sans font-bold text-white text-base flex items-center gap-2.5">
                   <div className="p-1.5 rounded-xl" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>
                     <UserPlus size={16} />
                   </div>
@@ -858,6 +894,11 @@ export default function Register() {
             className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4"
           >
             <motion.div
+              ref={receiptModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="receipt-modal-title"
+              tabIndex={-1}
               initial={{ scale: 0.88, opacity: 0, y: 32 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.88, opacity: 0, y: 32 }}
@@ -878,7 +919,7 @@ export default function Register() {
                 >
                   <Check size={36} strokeWidth={3} />
                 </motion.div>
-                <h3 className="font-sans font-bold text-white text-2xl tracking-tight z-10 mb-1.5">
+                <h3 id="receipt-modal-title" className="font-sans font-bold text-white text-2xl tracking-tight z-10 mb-1.5">
                   {t('register.paymentSuccessful')}
                 </h3>
                 <p className="text-emerald-100 text-[11px] uppercase tracking-wider font-bold bg-black/15 px-3.5 py-1 rounded-full z-10 shadow-sm border border-white/10">

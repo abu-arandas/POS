@@ -12,7 +12,7 @@ import {
   Clock,
   Loader2,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, MotionConfig } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import Sidebar from './components/Sidebar';
 import Register from './components/Register';
@@ -109,7 +109,11 @@ export default function App() {
   }, [currentUser, currentScreen]);
 
   if (!currentUser) {
-    return <Lockscreen />;
+    return (
+      <MotionConfig reducedMotion="user">
+        <Lockscreen />
+      </MotionConfig>
+    );
   }
 
   // Guard at render time too: effects run after paint, so relying on the
@@ -167,6 +171,7 @@ export default function App() {
   );
 
   return (
+    <MotionConfig reducedMotion="user">
     <div
       id="application-container"
       className={`flex min-h-screen overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300 ${darkMode ? 'mesh-bg-dark' : 'mesh-bg'}`}
@@ -201,24 +206,28 @@ export default function App() {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg focus:outline-none"
+              aria-label={darkMode ? t('sidebar.lightMode') : t('sidebar.darkMode')}
+              className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg"
             >
               {darkMode ? (
-                <div className="text-amber-400">☀️</div>
+                <div className="text-amber-400" aria-hidden="true">☀️</div>
               ) : (
-                <div className="text-indigo-400">🌙</div>
+                <div className="text-indigo-400" aria-hidden="true">🌙</div>
               )}
             </button>
             <button
               onClick={() => setCurrentUser(null)}
               title={t('sidebar.lockTerminal')}
-              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg focus:outline-none"
+              aria-label={t('sidebar.lockTerminal')}
+              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg"
             >
               <XIcon size={16} />
             </button>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-1.5 text-slate-300 hover:text-white rounded-lg focus:outline-none"
+              aria-label="Menu"
+              aria-expanded={mobileMenuOpen}
+              className="p-1.5 text-slate-300 hover:text-white rounded-lg"
             >
               <Menu size={20} />
             </button>
@@ -273,5 +282,6 @@ export default function App() {
         </main>
       </div>
     </div>
+    </MotionConfig>
   );
 }

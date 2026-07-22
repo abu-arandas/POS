@@ -25,6 +25,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useSupplyStore } from '../stores/supplyStore';
 import { useAuthStore } from '../stores/authStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
+import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
 
 // Colors available for categories
@@ -143,6 +144,11 @@ export default function Inventory() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatColor, setNewCatColor] = useState('bg-blue-100 text-blue-800 border-blue-200');
+
+  const productModalRef = useModalA11y(productModalOpen, () => setProductModalOpen(false));
+  const categoryModalRef = useModalA11y(categoryModalOpen, () => setCategoryModalOpen(false));
+  const receiveModalRef = useModalA11y(receiveOpen, () => setReceiveOpen(false));
+  const supplierModalRef = useModalA11y(supplierModalOpen, () => setSupplierModalOpen(false));
 
   // Product Form Fields
   const [prodName, setProdName] = useState('');
@@ -359,11 +365,13 @@ export default function Inventory() {
       </div>
 
       {/* Tab Navigation with Animated Underline */}
-      <div className="flex space-x-6 border-b border-white/10 mb-6 relative">
+      <div role="tablist" aria-label={t('inventory.catalogInventory')} className="flex space-x-6 border-b border-white/10 mb-6 relative">
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
             className={`pb-3 text-sm font-semibold transition-colors relative z-10 ${
               activeTab === tab.id
                 ? 'text-emerald-500'
@@ -477,7 +485,10 @@ export default function Inventory() {
                   <thead>
                     <tr className="bg-slate-900/80 text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-white/5 sticky top-0 z-10 backdrop-blur-md">
                       <th className="py-4 px-6 w-1/4">{t('inventory.productDetails')}</th>
-                      <th className="py-4 px-4 w-1/8">
+                      <th
+                        className="py-4 px-4 w-1/8"
+                        aria-sort={sortBy === 'sku' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
+                      >
                         <button
                           onClick={() => toggleSort('sku')}
                           className="flex items-center gap-2 hover:text-white transition-colors"
@@ -486,7 +497,10 @@ export default function Inventory() {
                         </button>
                       </th>
                       <th className="py-4 px-4 w-1/6">{t('inventory.category').replace(':', '')}</th>
-                      <th className="py-4 px-4 w-1/8 text-right">
+                      <th
+                        className="py-4 px-4 w-1/8 text-right"
+                        aria-sort={sortBy === 'price' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
+                      >
                         <button
                           onClick={() => toggleSort('price')}
                           className="flex items-center gap-2 hover:text-white transition-colors justify-end w-full"
@@ -496,7 +510,10 @@ export default function Inventory() {
                       </th>
                       <th className="py-4 px-4 w-1/8 text-right">{t('inventory.cost')}</th>
                       <th className="py-4 px-4 w-1/8 text-right">{t('inventory.margin')}</th>
-                      <th className="py-4 px-6 w-1/6 text-center">
+                      <th
+                        className="py-4 px-6 w-1/6 text-center"
+                        aria-sort={sortBy === 'stock' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
+                      >
                         <button
                           onClick={() => toggleSort('stock')}
                           className="flex items-center gap-2 hover:text-white transition-colors justify-center w-full"
@@ -583,7 +600,7 @@ export default function Inventory() {
                               </div>
                             </td>
                             <td className="py-4 px-4">
-                              <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                                 <button
                                   onClick={() => handleOpenEditProduct(prod)}
                                   aria-label={t('inventory.editCatalogProduct')}
@@ -640,7 +657,8 @@ export default function Inventory() {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto pb-6"
           >
             {/* Inline Add Category Card */}
-            <div
+            <button
+              type="button"
               className="surface border-2 border-dashed border-white/10 rounded-2xl p-6 shadow-lg flex flex-col justify-center items-center gap-4 cursor-pointer hover:border-emerald-500/50 transition-colors group"
               onClick={() => setCategoryModalOpen(true)}
             >
@@ -648,7 +666,7 @@ export default function Inventory() {
                 <Plus size={24} />
               </div>
               <span className="font-bold text-slate-300">{t('inventory.addCategory')}</span>
-            </div>
+            </button>
 
             {categories.map((cat) => {
               const productCount = products.filter((p) => p.category === cat.id).length;
@@ -749,7 +767,7 @@ export default function Inventory() {
                           <button
                             onClick={() => removeSupplier(sup.id)}
                             aria-label={t('inventory.deleteSupplier')}
-                            className="p-2 text-slate-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors opacity-0 group-hover:opacity-100"
+                            className="p-2 text-slate-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -846,13 +864,18 @@ export default function Inventory() {
             className="modal-backdrop fixed inset-0 flex items-center justify-center z-50 p-4"
           >
             <motion.div
+              ref={productModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="product-form-title"
+              tabIndex={-1}
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               className="modal-card max-w-3xl w-full flex flex-col max-h-[90vh]"
             >
               <div className="px-8 py-6 border-b border-white/10 flex justify-between items-center bg-slate-900/50">
-                <h3 className="font-sans font-bold text-white text-xl flex items-center gap-3">
+                <h3 id="product-form-title" className="font-sans font-bold text-white text-xl flex items-center gap-3">
                   {editingProduct ? <Edit2 className="text-emerald-500" /> : <Plus className="text-emerald-500" />}
                   {editingProduct
                     ? t('inventory.editCatalogProduct')
@@ -1058,18 +1081,24 @@ export default function Inventory() {
             className="modal-backdrop fixed inset-0 flex items-center justify-center z-50 p-4"
           >
             <motion.div
+              ref={categoryModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="category-form-title"
+              tabIndex={-1}
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               className="modal-card max-w-sm w-full p-8 space-y-6"
             >
               <div className="flex justify-between items-center">
-                <h3 className="font-sans font-bold text-white text-xl flex items-center gap-3">
+                <h3 id="category-form-title" className="font-sans font-bold text-white text-xl flex items-center gap-3">
                   <FolderPlus size={24} className="text-emerald-500" />{' '}
                   {t('inventory.addNewCategory')}
                 </h3>
                 <button
                   onClick={() => setCategoryModalOpen(false)}
+                  aria-label={t('inventory.cancel')}
                   className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl transition-colors"
                 >
                   <X size={20} />
@@ -1141,18 +1170,24 @@ export default function Inventory() {
         {receiveOpen && (
           <div className="modal-backdrop fixed inset-0 flex items-center justify-center z-50 p-4">
             <motion.div
+              ref={receiveModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="receive-stock-title"
+              tabIndex={-1}
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               className="modal-card max-w-md w-full"
             >
               <div className="px-8 py-6 border-b border-white/10 bg-slate-900/50 flex items-center justify-between">
-                <h3 className="font-bold text-white text-xl flex items-center gap-3">
+                <h3 id="receive-stock-title" className="font-bold text-white text-xl flex items-center gap-3">
                   <PackagePlus size={24} className="text-emerald-500" />{' '}
                   {t('inventory.receiveStock')}
                 </h3>
                 <button
                   onClick={() => setReceiveOpen(false)}
+                  aria-label={t('inventory.cancel')}
                   className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl transition-colors"
                 >
                   <X size={20} />
@@ -1166,6 +1201,7 @@ export default function Inventory() {
                   <select
                     value={recvProductId}
                     onChange={(e) => setRecvProductId(e.target.value)}
+                    aria-label={t('inventory.products')}
                     className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 text-lg font-bold"
                   >
                     {products.map((p) => (
@@ -1208,6 +1244,7 @@ export default function Inventory() {
                       type="number"
                       value={recvQty}
                       onChange={(e) => setRecvQty(e.target.value)}
+                      aria-label="Quantity change"
                       placeholder={recvReason === 'waste' ? "-5" : "10"}
                       className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-xl text-center focus:outline-none focus:border-emerald-500"
                     />
@@ -1219,6 +1256,7 @@ export default function Inventory() {
                     <select
                       value={recvSupplierId}
                       onChange={(e) => setRecvSupplierId(e.target.value)}
+                      aria-label={t('inventory.suppliers')}
                       disabled={recvReason !== 'received'}
                       className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 disabled:opacity-50"
                     >
@@ -1239,6 +1277,7 @@ export default function Inventory() {
                     type="text"
                     value={recvNote}
                     onChange={(e) => setRecvNote(e.target.value)}
+                    aria-label={t('inventory.noteOptional')}
                     placeholder={t('inventory.noteOptional')}
                     className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
                   />
@@ -1269,17 +1308,23 @@ export default function Inventory() {
         {supplierModalOpen && (
           <div className="modal-backdrop fixed inset-0 flex items-center justify-center z-50 p-4">
             <motion.div
+              ref={supplierModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="supplier-form-title"
+              tabIndex={-1}
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               className="modal-card max-w-sm w-full overflow-hidden"
             >
               <div className="px-8 py-6 border-b border-white/10 bg-slate-900/50 flex items-center justify-between">
-                <h3 className="font-bold text-white text-xl flex items-center gap-3">
+                <h3 id="supplier-form-title" className="font-bold text-white text-xl flex items-center gap-3">
                   <Truck size={24} className="text-emerald-500" /> {t('inventory.addSupplier')}
                 </h3>
                 <button
                   onClick={() => setSupplierModalOpen(false)}
+                  aria-label={t('inventory.cancel')}
                   className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl transition-colors"
                 >
                   <X size={20} />

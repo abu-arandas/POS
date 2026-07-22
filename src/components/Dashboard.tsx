@@ -33,12 +33,18 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
 import { useTranslation } from 'react-i18next';
 
-const CustomTooltip = ({ active, payload, label, currency }: { active?: boolean; payload?: any[]; label?: string; currency: string }) => {
+interface TooltipEntry {
+  color?: string;
+  name?: string | number;
+  value?: string | number;
+}
+
+const CustomTooltip = ({ active, payload, label, currency }: { active?: boolean; payload?: TooltipEntry[]; label?: string; currency: string }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-[#0f172a]/95 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-xl">
         <p className="text-white font-bold mb-2">{label}</p>
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry, index) => (
           <div key={index} className="flex items-center gap-2 text-sm font-mono mt-1">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
             <span className="text-slate-400 capitalize">{entry.name}:</span>
@@ -300,7 +306,8 @@ export default function Dashboard() {
               <button
                 key={r.id}
                 onClick={() => setRange(r.id)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase transition-all \${
+                aria-pressed={range === r.id}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${
                   range === r.id
                     ? 'bg-emerald-500/20 text-emerald-400 shadow-sm'
                     : 'text-slate-500 hover:text-slate-300'
@@ -325,14 +332,14 @@ export default function Dashboard() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`flex items-center space-x-2 border px-4 py-2 rounded-xl text-xs font-bold shadow-inner \${
+            className={`flex items-center space-x-2 border px-4 py-2 rounded-xl text-xs font-bold shadow-inner ${
               cloudLive
                 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                 : 'bg-slate-500/10 border-slate-400/20 text-slate-400'
             }`}
           >
             <span
-              className={`w-2 h-2 rounded-full \${
+              className={`w-2 h-2 rounded-full ${
                 cloudLive
                   ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]'
                   : 'bg-slate-400'
@@ -448,12 +455,12 @@ export default function Dashboard() {
             transition={{ delay: 0.4 }}
             className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[#1e293b] transition-colors"
           >
-            <div className={`absolute -inset-e-6 -top-6 w-32 h-32 rounded-full blur-3xl transition-colors \${kpis.lowStockItems > 0 ? 'bg-amber-500/10 group-hover:bg-amber-500/20' : 'bg-slate-500/10'}`} />
+            <div className={`absolute -inset-e-6 -top-6 w-32 h-32 rounded-full blur-3xl transition-colors ${kpis.lowStockItems > 0 ? 'bg-amber-500/10 group-hover:bg-amber-500/20' : 'bg-slate-500/10'}`} />
             <div className="flex justify-between items-start mb-4 relative z-10">
               <span className="text-xs text-slate-400 font-bold uppercase tracking-wider font-mono">
                 {t('dashboard.stockWarnings')}
               </span>
-              <div className={`p-2.5 rounded-xl shadow-inner \${kpis.lowStockItems > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-800 text-slate-400'}`}>
+              <div className={`p-2.5 rounded-xl shadow-inner ${kpis.lowStockItems > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-800 text-slate-400'}`}>
                 <Package size={20} className="stroke-[2.5]" />
               </div>
             </div>
@@ -588,7 +595,7 @@ export default function Dashboard() {
                     <Tooltip content={<CustomTooltip currency={settings.currency} />} cursor={{ fill: '#1e293b', opacity: 0.4 }} />
                     <Bar dataKey="quantity" radius={[0, 8, 8, 0]} barSize={28}>
                       {topProductsData.map((entry, index) => (
-                        <Cell key={`cell-\${index}`} fill={index === 0 ? '#10b981' : '#3b82f6'} />
+                        <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#3b82f6'} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -628,7 +635,7 @@ export default function Dashboard() {
                       stroke="none"
                     >
                       {categoryShareData.map((entry, index) => (
-                        <Cell key={`cell-\${index}`} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip content={<CustomTooltip currency={settings.currency} />} />
@@ -674,7 +681,7 @@ export default function Dashboard() {
                 return (
                   <div key={method} className="bg-[#0f172a] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono block mb-2">
-                      {t(`dashboard.\${method}`, { defaultValue: method })}
+                      {t(`dashboard.${method}`, { defaultValue: method })}
                     </span>
                     <span className="font-mono font-extrabold text-2xl text-white block mb-2">
                       {settings.currency}{val.toFixed(2)}

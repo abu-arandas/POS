@@ -5,7 +5,6 @@ import {
   UserPlus,
   Edit2,
   Trash2,
-  Calendar,
   Phone,
   Mail,
   X,
@@ -20,6 +19,7 @@ import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
+import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
 
 export default function Customers() {
@@ -42,6 +42,12 @@ export default function Customers() {
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+
+  const customerModalRef = useModalA11y(customerModalOpen, () => setCustomerModalOpen(false));
+  const deleteModalRef = useModalA11y(deleteModalOpen, () => {
+    setDeleteModalOpen(false);
+    setCustomerToDelete(null);
+  });
 
   const activeCustomer = useMemo(() => {
     return customers.find((c) => c.id === selectedCustomerId) || null;
@@ -261,6 +267,18 @@ export default function Customers() {
                     layoutId={`crm-card-${cust.id}`}
                     id={`crm-card-${cust.id}`}
                     onClick={() => setSelectedCustomerId(cust.id)}
+                    onKeyDown={(e) => {
+                      // Only when the card itself is focused — keys on the nested
+                      // edit/delete buttons must keep their native activation.
+                      if (e.target !== e.currentTarget) return;
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedCustomerId(cust.id);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={isSelected}
                     className={`glass-dark rounded-3xl border p-5 shadow-lg hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between card-hover group ${
                       isSelected
                         ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-slate-800/80'
@@ -304,7 +322,7 @@ export default function Customers() {
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -456,13 +474,18 @@ export default function Customers() {
         {customerModalOpen && (
           <div id="crm-form-modal" className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
             <motion.div
+              ref={customerModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="crm-form-title"
+              tabIndex={-1}
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: -20 }}
               className="modal-card max-w-sm w-full overflow-hidden"
             >
               <div className="p-6 border-b border-white/10 flex justify-between items-center bg-slate-800/30">
-                <h3 className="font-sans font-bold text-white text-lg">
+                <h3 id="crm-form-title" className="font-sans font-bold text-white text-lg">
                   {editingCustomer ? t('customers.editCustomerRecord') : t('customers.registerNewCustomer')}
                 </h3>
                 <button
@@ -564,6 +587,11 @@ export default function Customers() {
         {deleteModalOpen && customerToDelete && (
           <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
             <motion.div
+              ref={deleteModalRef}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="crm-delete-title"
+              tabIndex={-1}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -573,7 +601,7 @@ export default function Customers() {
                 <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mb-4">
                   <AlertTriangle size={32} />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">{t('customers.deleteConfirm', { name: customerToDelete.name })}</h3>
+                <h3 id="crm-delete-title" className="text-xl font-bold text-white mb-2">{t('customers.deleteConfirm', { name: customerToDelete.name })}</h3>
                 <p className="text-sm text-slate-400 mb-6">
                   This action cannot be undone. All related customer data will be permanently removed.
                 </p>

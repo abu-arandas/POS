@@ -111,7 +111,7 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
       </div>
 
       {/* ── Navigation ── */}
-      <nav id="sidebar-navigation" className="flex-1 px-3 py-4 space-y-1 relative z-10 overflow-y-auto scrollbar-none">
+      <nav id="sidebar-navigation" aria-label="Main navigation" className="flex-1 px-3 py-4 space-y-1 relative z-10 overflow-y-auto scrollbar-none">
         {allowedItems.map((item, i) => {
           const Icon = item.icon;
           const isActive = currentScreen === item.id;
@@ -125,6 +125,7 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.04, duration: 0.3 }}
               onClick={() => setScreen(item.id)}
+              aria-current={isActive ? 'page' : undefined}
               className={`relative flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 group ${
                 isActive
                   ? 'text-white bg-white/8'

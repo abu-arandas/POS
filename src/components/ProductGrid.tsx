@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
 import { Search, X, LayoutGrid, GripHorizontal, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, Category, StoreSettings } from '../types';
+import { Product, StoreSettings } from '../types';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
@@ -112,6 +112,24 @@ const SortableProductCard = memo(function SortableProductCard({
       }}
       {...(isEditMode ? attributes : {})}
       {...(isEditMode ? listeners : {})}
+      {...(!isEditMode
+        ? {
+            // dnd-kit supplies role/tabIndex/keyboard handling in edit mode;
+            // outside it the card must be a keyboard-operable button itself.
+            role: 'button' as const,
+            tabIndex: isOutOfStock ? -1 : 0,
+            'aria-disabled': isOutOfStock || undefined,
+            'aria-label': `${prod.name}, ${settings.currency}${prod.price.toFixed(2)}${
+              isOutOfStock ? ` — ${t('register.outOfStock')}` : ''
+            }`,
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (!isOutOfStock) addToCart(prod);
+              }
+            },
+          }
+        : {})}
     >
       {/* Status overlays */}
       <div className="absolute top-2 start-2 z-20 flex flex-col gap-1.5">
@@ -278,6 +296,7 @@ const ProductGrid = ({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label={t('register.searchProducts')}
               placeholder={`${t('register.searchProducts')} (Ctrl+K)`}
               className="w-36 sm:w-48 ps-8 pe-7 py-1.5 rounded-xl text-xs transition-all"
               style={{
@@ -326,7 +345,8 @@ const ProductGrid = ({
                 <button
                   key={catId}
                   onClick={() => setSelectedCategory(catId)}
-                  className="px-3.5 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 transition-all duration-200 focus-visible:outline-none"
+                  aria-pressed={isActive}
+                  className="px-3.5 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 transition-all duration-200"
                   style={{
                     background: isActive
                       ? 'linear-gradient(135deg, #059669, #10b981)'
@@ -348,7 +368,9 @@ const ProductGrid = ({
           {isAdmin && (
             <button
               onClick={() => setIsEditMode(!isEditMode)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 transition-all focus-visible:outline-none"
+              aria-pressed={isEditMode}
+              aria-label={isEditMode ? t('register.doneEditing') : t('register.editLayout')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 transition-all"
               style={{
                 background: isEditMode ? 'rgba(244,63,94,0.12)' : 'rgba(255,255,255,0.06)',
                 border: isEditMode ? '1px solid rgba(244,63,94,0.3)' : '1px solid rgba(255,255,255,0.08)',
