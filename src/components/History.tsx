@@ -463,6 +463,9 @@ export default function History() {
                             key={tx.id}
                             onClick={() => setSelectedTxId(tx.id)}
                             onKeyDown={(e) => {
+                              // Only when the row itself is focused — keys on the
+                              // nested checkbox must keep their native behavior.
+                              if (e.target !== e.currentTarget) return;
                               if (e.key === 'Enter' || e.key === ' ') {
                                 e.preventDefault();
                                 setSelectedTxId(tx.id);

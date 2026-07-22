@@ -268,6 +268,9 @@ export default function Customers() {
                     id={`crm-card-${cust.id}`}
                     onClick={() => setSelectedCustomerId(cust.id)}
                     onKeyDown={(e) => {
+                      // Only when the card itself is focused — keys on the nested
+                      // edit/delete buttons must keep their native activation.
+                      if (e.target !== e.currentTarget) return;
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         setSelectedCustomerId(cust.id);
