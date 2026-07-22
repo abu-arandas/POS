@@ -27,7 +27,11 @@ import { StoreSettings, UserAccount, PrinterConfig, SupabaseConfig, ScannerConfi
 import { useModalA11y } from '../lib/useModalA11y';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useTranslation } from 'react-i18next';
-import { useSettingsStore, DEFAULT_EMAIL_TEMPLATE } from '../stores/settingsStore';
+import {
+  useSettingsStore,
+  DEFAULT_EMAIL_TEMPLATE,
+  DEFAULT_SCANNER,
+} from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
@@ -292,6 +296,9 @@ export default function Settings() {
       setSettings(INITIAL_SETTINGS);
       setPrinterConfig(DEFAULT_PRINTER);
       setPrinterForm(DEFAULT_PRINTER);
+      setScannerConfig(DEFAULT_SCANNER);
+      setScannerForm(DEFAULT_SCANNER);
+      setEmailTemplate(DEFAULT_EMAIL_TEMPLATE);
       setSupabaseConfig(DEFAULT_SUPABASE);
       setSbUrl('');
       setSbKey('');
