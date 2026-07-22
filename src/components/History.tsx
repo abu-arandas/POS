@@ -44,15 +44,12 @@ export default function History() {
   const { settings, printerConfig } = useSettingsStore();
   const { currentUser, users } = useAuthStore();
   const { handleUpdateProduct } = useProductStore();
-  const { updateCustomerPoints, customers } = useCustomerStore();
+  const { updateCustomerPoints } = useCustomerStore();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | 'custom'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'refunded'>('all');
   const [paymentFilter, setPaymentFilter] = useState<string[]>([]);
-  
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
 
   const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
 
@@ -102,22 +99,11 @@ export default function History() {
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
         matchesDate = txDate >= sevenDaysAgo;
-      } else if (dateFilter === 'custom') {
-        const start = customStartDate ? new Date(customStartDate) : null;
-        const end = customEndDate ? new Date(customEndDate) : null;
-
-        if (start && end) {
-          matchesDate = txDate >= start && txDate <= end;
-        } else if (start) {
-          matchesDate = txDate >= start;
-        } else if (end) {
-          matchesDate = txDate <= end;
-        }
       }
 
       return matchesSearch && matchesStatus && matchesDate && matchesPayment;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, searchQuery, dateFilter, statusFilter, paymentFilter, customStartDate, customEndDate]);
+  }, [transactions, searchQuery, dateFilter, statusFilter, paymentFilter]);
 
   // Group by date
   const groupedTransactions = useMemo(() => {

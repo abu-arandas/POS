@@ -371,7 +371,7 @@ export default function Inventory() {
             key={tab.id}
             role="tab"
             aria-selected={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setActiveTab(tab.id)}
             className={`pb-3 text-sm font-semibold transition-colors relative z-10 ${
               activeTab === tab.id
                 ? 'text-emerald-500'

@@ -33,12 +33,18 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
 import { useTranslation } from 'react-i18next';
 
-const CustomTooltip = ({ active, payload, label, currency }: { active?: boolean; payload?: any[]; label?: string; currency: string }) => {
+interface TooltipEntry {
+  color?: string;
+  name?: string | number;
+  value?: string | number;
+}
+
+const CustomTooltip = ({ active, payload, label, currency }: { active?: boolean; payload?: TooltipEntry[]; label?: string; currency: string }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-[#0f172a]/95 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-xl">
         <p className="text-white font-bold mb-2">{label}</p>
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry, index) => (
           <div key={index} className="flex items-center gap-2 text-sm font-mono mt-1">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
             <span className="text-slate-400 capitalize">{entry.name}:</span>

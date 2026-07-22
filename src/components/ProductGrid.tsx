@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
 import { Search, X, LayoutGrid, GripHorizontal, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, Category, StoreSettings } from '../types';
+import { Product, StoreSettings } from '../types';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';

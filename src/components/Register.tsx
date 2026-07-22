@@ -291,6 +291,14 @@ export default function Register() {
   const removeSplitPayment = useCallback((idx: number) =>
     setSplitPayments((prev) => prev.filter((_, i) => i !== idx)), []);
 
+  const notifyPrint = useCallback((outcome: HardwarePrintOutcome) => {
+    if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+    else if (outcome === 'unsupported')
+      alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
+    else if (outcome === 'no-device') alert(t('print.noDevice'));
+    else if (outcome === 'error') alert(t('print.error'));
+  }, [t, printerConfig]);
+
   const handleCompletePayment = useCallback(() => {
     const req: CheckoutRequest = {
       cartItems,
@@ -367,15 +375,7 @@ export default function Register() {
     } else if (isCashSale) {
       openCashDrawer(printerConfig);
     }
-  }, [cartItems, subtotal, discountType, discountValue, discountAmount, taxAmount, totalAmount, paymentMethod, splitMode, splitPayments, cashPaidText, cashChangeDue, selectedCustomerId, activeCustomer, currentUser, currentShiftId, settings, cart, handleUpdateProduct, updateCustomerPoints, addTransaction, printerConfig, clearCart, t]);
-
-  const notifyPrint = useCallback((outcome: HardwarePrintOutcome) => {
-    if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
-    else if (outcome === 'unsupported')
-      alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
-    else if (outcome === 'no-device') alert(t('print.noDevice'));
-    else if (outcome === 'error') alert(t('print.error'));
-  }, [t, printerConfig]);
+  }, [cartItems, subtotal, discountType, discountValue, discountAmount, taxAmount, totalAmount, paymentMethod, splitMode, splitPayments, cashPaidText, cashChangeDue, selectedCustomerId, activeCustomer, currentUser, currentShiftId, settings, cart, handleUpdateProduct, updateCustomerPoints, addTransaction, printerConfig, clearCart, t, notifyPrint]);
 
   const handlePrintActiveReceipt = useCallback(async () => {
     if (!activeReceipt) return;

@@ -14,7 +14,6 @@ import {
   Trash2,
   Check,
   X,
-  Shield,
   Monitor,
   Usb,
   Bluetooth,

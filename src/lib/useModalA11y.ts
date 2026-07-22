@@ -27,7 +27,9 @@ export function useModalA11y<T extends HTMLElement = HTMLDivElement>(
   const ref = useRef<T | null>(null);
   // Keep the latest onClose without re-running the trap effect.
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;

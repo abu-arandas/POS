@@ -32,7 +32,7 @@ export default function ShiftScreen() {
   const [openFloat, setOpenFloat] = useState('');
   const [countedCash, setCountedCash] = useState('');
   const [closeNote, setCloseNote] = useState('');
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 60000);
