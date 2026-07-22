@@ -17,10 +17,16 @@
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
 
-::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: #334155; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.5); background-clip: padding-box; }
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 
 /* ─── CSS Custom Properties ───────────────────────────────────────────────── */
 :root {
@@ -33,12 +39,45 @@
   --color-amber-dim: rgba(245, 158, 11, 0.15);
   --color-blue: #3b82f6;
   --color-blue-dim: rgba(59, 130, 246, 0.15);
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+
+  /* Semantic surface/border tokens — light theme (default). One place to
+     tune every elevated panel, input, and hairline in the app. */
+  --surface-1: #ffffff;            /* elevated card / panel */
+  --surface-2: #f8fafc;            /* inset areas, table headers */
+  --surface-hover: #f1f5f9;        /* row/card hover */
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.14);
+  --input-bg: #ffffff;
+  --input-border: rgba(15, 23, 42, 0.12);
+
+  /* Layered elevation — soft, close ambient + a longer cast for depth. */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 2px 6px rgba(15, 23, 42, 0.06), 0 8px 24px -8px rgba(15, 23, 42, 0.12);
+  --shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.08), 0 24px 48px -16px rgba(15, 23, 42, 0.22);
+  --shadow-card: var(--shadow-md);
   --shadow-glow-emerald: 0 0 24px rgba(16, 185, 129, 0.35);
   --shadow-glow-rose: 0 0 24px rgba(244, 63, 94, 0.35);
+
+  --radius-card: 1rem;
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-spring: 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Dark theme token overrides. Applied whenever the app sits in a dark context —
+   either the user's toggle (.dark on <html>) or the dark-first operational
+   screens that render on a near-black canvas. */
+.dark {
+  --surface-1: #0f172a;
+  --surface-2: rgba(255, 255, 255, 0.03);
+  --surface-hover: rgba(255, 255, 255, 0.05);
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6);
 }
 
 /* ─── Number Inputs — remove arrows ──────────────────────────────────────── */
@@ -274,6 +313,33 @@ input[type='number'] { -moz-appearance: textfield; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   SURFACES  (semantic, token-driven — the app's primary card/panel)
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Layered so component-level Tailwind utilities (rounded-*, shadow-*, bg-*)
+   still win — .surface only fills in the background/border/elevation that the
+   components assume but never set themselves. */
+@layer components {
+  .surface {
+    background: var(--surface-1);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Inset/subtle surface for nested areas (table headers, wells). */
+  .surface-2 {
+    background: var(--surface-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-card);
+  }
+}
+
+/* Hide scrollbars but keep scrolling (used in tab strips / rails). */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
    GLASS MORPHISM
 ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -302,16 +368,21 @@ input[type='number'] { -moz-appearance: textfield; }
 }
 
 .glass-input {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: inherit;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    background var(--transition-fast);
 }
 
-.glass-input:focus {
-  background: rgba(255, 255, 255, 0.07);
+.glass-input:focus,
+.glass-input:focus-within {
   border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
   outline: none;
 }
+
+.glass-input::placeholder { color: rgba(100, 116, 139, 0.7); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    GRADIENT TEXT
@@ -426,11 +497,11 @@ input[type='number'] { -moz-appearance: textfield; }
 .tap-scale:active { transform: scale(0.95); }
 
 .card-hover {
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
 .card-hover:hover {
   transform: translateY(-3px);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--shadow-lg);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -578,7 +649,8 @@ select {
   background: #0f172a;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 24px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+  /* Long ambient cast + a hairline top highlight for a lifted glass edge. */
+  box-shadow: 0 32px 80px -12px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

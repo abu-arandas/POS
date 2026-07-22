@@ -67,7 +67,10 @@ export const useSettingsStore = create<SettingsState>()(
       scannerConfig: DEFAULT_SCANNER,
       emailTemplate: DEFAULT_EMAIL_TEMPLATE,
       kitchenStations: [],
-      darkMode: false,
+      // Dark-first: the whole UI is designed for a dark canvas. New terminals
+      // start dark and stay cohesive; a saved light preference is restored on
+      // rehydrate and the toggle still switches freely.
+      darkMode: true,
       language: 'en',
 
       setSettings: (settings) => set({ settings }),
