@@ -82,6 +82,51 @@ ipcMain.handle('list-printers', async (event) => {
   }
 });
 
+// Probes one host:port for an open TCP socket, resolving true only on a clean
+// connect within the timeout. Used by the subnet printer scan below.
+function probeTcp(ip, port, timeoutMs) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    let settled = false;
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(ok);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.on('timeout', () => done(false));
+    socket.on('error', () => done(false));
+    socket.connect(port, ip, () => done(true));
+  });
+}
+
+// Scans the terminal's own /24 subnet for hosts with TCP 9100 (RAW/JetDirect)
+// open — the port network thermal printers listen on. Returns the responding
+// IPs. Probes run in bounded-size batches so we never open 254 sockets at once.
+ipcMain.handle('scan-network-printers', async (event, opts) => {
+  const port = (opts && opts.port) || 9100;
+  const timeoutMs = (opts && opts.timeoutMs) || 400;
+  const base = getLocalIp();
+  if (base === 'localhost') return [];
+  const prefix = base.slice(0, base.lastIndexOf('.') + 1); // "192.168.1."
+  const self = base.slice(base.lastIndexOf('.') + 1);
+  const found = [];
+  const BATCH = 32;
+  for (let start = 1; start <= 254; start += BATCH) {
+    const batch = [];
+    for (let host = start; host < start + BATCH && host <= 254; host++) {
+      if (String(host) === self) continue; // don't probe ourselves
+      const ip = `${prefix}${host}`;
+      batch.push(probeTcp(ip, port, timeoutMs).then((ok) => (ok ? ip : null)));
+    }
+    for (const ip of await Promise.all(batch)) {
+      if (ip) found.push(ip);
+    }
+  }
+  return found;
+});
+
 // Streams raw ESC/POS bytes to a network thermal printer (RAW/JetDirect on TCP
 // 9100). Resolves true on a clean write, false on any socket error/timeout.
 ipcMain.handle('print-escpos', (event, payload) => {

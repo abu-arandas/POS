@@ -208,6 +208,17 @@ export interface ScannerConfig {
   maxInterKeyMs: number; // a keystroke gap above this resets the burst
 }
 
+// A kitchen/prep station that prints its own ticket for the sale's items whose
+// product category is routed to it (e.g. "Bar", "Grill", "Cold Line"). When
+// ipAddress is set the ticket goes to that network printer; otherwise it uses
+// the terminal's configured printer transport.
+export interface KitchenStation {
+  id: string;
+  name: string;
+  categoryIds: string[]; // product categories routed to this station
+  ipAddress?: string; // optional dedicated network printer (TCP 9100)
+}
+
 // Placeholder-based template for the pre-filled receipt email. Supported
 // placeholders (single braces, so they can't collide with i18next syntax):
 // {storeName}, {receiptId}, {date}, {total}, {customerName} — customerName

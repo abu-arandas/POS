@@ -117,12 +117,18 @@ export function buildReceiptHtml(
 }
 
 // Kitchen ticket HTML: order id, time, who rang it, and large-type
-// quantities/items — no prices or payment details. Exported for unit testing.
-export function buildKitchenTicketHtml(tx: SaleTransaction, settings: StoreSettings): string {
+// quantities/items — no prices or payment details. An optional stationName
+// titles the ticket for per-station routing. Exported for unit testing.
+export function buildKitchenTicketHtml(
+  tx: SaleTransaction,
+  settings: StoreSettings,
+  stationName?: string,
+): string {
   const unitCount = tx.items.reduce((s, i) => s + i.quantity, 0);
+  const title = stationName ? `*** ${esc(stationName.toUpperCase())} ***` : '*** KITCHEN ***';
   return `
     <div class="receipt">
-      <div class="center bold kitchen-title">*** KITCHEN ***</div>
+      <div class="center bold kitchen-title">${title}</div>
       <div class="center">${esc(settings.storeName)}</div>
       <div class="divider"></div>
 
@@ -217,13 +223,15 @@ export function printTransactions(
   return openPrintWindow(receiptsHtml, rollWidth);
 }
 
-// System-print path for the kitchen ticket format.
+// System-print path for the kitchen ticket format. Optionally titled with a
+// station name for per-station routing.
 export function printKitchenTicketSystem(
   tx: SaleTransaction,
   settings: StoreSettings,
   printerConfig: PrinterConfig,
+  stationName?: string,
 ): PrintOutcome {
   if (printerConfig.type !== 'system') return 'esc-pos';
   const rollWidth = printerConfig.paperSize === '58mm' ? '58mm' : '80mm';
-  return openPrintWindow(buildKitchenTicketHtml(tx, settings), rollWidth);
+  return openPrintWindow(buildKitchenTicketHtml(tx, settings, stationName), rollWidth);
 }

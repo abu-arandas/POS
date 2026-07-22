@@ -47,6 +47,11 @@ declare global {
           isDefault: boolean;
         }>
       >;
+      // Scans the local /24 subnet for open TCP 9100 hosts; resolves responding IPs.
+      scanNetworkPrinters?: (opts?: {
+        port?: number;
+        timeoutMs?: number;
+      }) => Promise<string[]>;
     };
   }
 }

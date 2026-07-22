@@ -34,7 +34,7 @@ import { syncToCloudIfEnabled } from '../lib/sync';
 import { buildSaleTransaction, CheckoutRequest } from '../lib/checkout';
 import {
   printReceipt,
-  printKitchenTicket,
+  printKitchenTickets,
   openCashDrawer,
   HardwarePrintOutcome,
 } from '../lib/hardwarePrint';
@@ -53,6 +53,7 @@ export default function Register() {
   const printerConfig = useSettingsStore((s) => s.printerConfig);
   const scannerConfig = useSettingsStore((s) => s.scannerConfig);
   const emailTemplate = useSettingsStore((s) => s.emailTemplate);
+  const kitchenStations = useSettingsStore((s) => s.kitchenStations);
   const addTransaction = useTransactionStore((s) => s.addTransaction);
   const currentUser = useAuthStore((s) => s.currentUser);
   const heldOrders = useHeldOrderStore((s) => s.heldOrders);
@@ -391,9 +392,13 @@ export default function Register() {
       openCashDrawer(printerConfig);
     }
     if (printerConfig.kitchenTicketOnCheckout) {
-      printKitchenTicket(transaction, settings, printerConfig).then(notifyPrint);
+      const catOf = (productId: string) =>
+        useProductStore.getState().products.find((p) => p.id === productId)?.category;
+      printKitchenTickets(transaction, settings, printerConfig, kitchenStations, catOf).then(
+        notifyPrint,
+      );
     }
-  }, [cartItems, subtotal, discountType, discountValue, discountAmount, taxAmount, totalAmount, paymentMethod, splitMode, splitPayments, cashPaidText, cashChangeDue, selectedCustomerId, activeCustomer, currentUser, currentShiftId, settings, cart, handleUpdateProduct, updateCustomerPoints, addTransaction, printerConfig, clearCart, t, notifyPrint]);
+  }, [cartItems, subtotal, discountType, discountValue, discountAmount, taxAmount, totalAmount, paymentMethod, splitMode, splitPayments, cashPaidText, cashChangeDue, selectedCustomerId, activeCustomer, currentUser, currentShiftId, settings, cart, handleUpdateProduct, updateCustomerPoints, addTransaction, printerConfig, kitchenStations, clearCart, t, notifyPrint]);
 
   const handlePrintActiveReceipt = useCallback(async () => {
     if (!activeReceipt) return;
@@ -402,8 +407,12 @@ export default function Register() {
 
   const handlePrintKitchenTicket = useCallback(async () => {
     if (!activeReceipt) return;
-    notifyPrint(await printKitchenTicket(activeReceipt, settings, printerConfig));
-  }, [activeReceipt, settings, printerConfig, notifyPrint]);
+    const catOf = (productId: string) =>
+      useProductStore.getState().products.find((p) => p.id === productId)?.category;
+    notifyPrint(
+      await printKitchenTickets(activeReceipt, settings, printerConfig, kitchenStations, catOf),
+    );
+  }, [activeReceipt, settings, printerConfig, kitchenStations, notifyPrint]);
 
   const paymentMethodsArray = useMemo(() => [
     { id: 'card', label: t('register.payCard'), icon: CreditCard, activeClass: 'active-card' },

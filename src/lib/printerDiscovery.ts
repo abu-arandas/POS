@@ -8,9 +8,10 @@
 export interface DetectedPrinter {
   id: string;
   name: string;
-  kind: 'system' | 'serial';
+  kind: 'system' | 'serial' | 'network';
   detail?: string;
   isDefault?: boolean;
+  ipAddress?: string; // set for network printers, for one-click config
 }
 
 interface SerialPortInfoLike {
@@ -82,6 +83,31 @@ export async function listGrantedSerialPorts(): Promise<DetectedPrinter[]> {
 export async function detectPrinters(): Promise<DetectedPrinter[]> {
   const [system, serial] = await Promise.all([listSystemPrinters(), listGrantedSerialPorts()]);
   return [...system, ...serial];
+}
+
+export function networkScanSupported(): boolean {
+  return !!window.electronAPI?.scanNetworkPrinters;
+}
+
+// Scans the LAN for network thermal printers (TCP 9100). Desktop app only —
+// a browser can't open raw sockets, so this resolves []. Each hit maps to a
+// DetectedPrinter carrying the IP so the operator can apply it in one click.
+export async function scanNetworkPrinters(): Promise<DetectedPrinter[]> {
+  const api = window.electronAPI;
+  if (!api?.scanNetworkPrinters) return [];
+  try {
+    const ips = await api.scanNetworkPrinters();
+    return ips.map((ip) => ({
+      id: `net-${ip}`,
+      name: `Network printer ${ip}`,
+      kind: 'network' as const,
+      detail: `${ip}:9100`,
+      ipAddress: ip,
+    }));
+  } catch (e) {
+    console.error('Network printer scan failed:', e);
+    return [];
+  }
 }
 
 // Prompts the operator to grant a new serial device (must run in a user

@@ -21,15 +21,26 @@ import {
   AlertTriangle,
   RotateCcw,
   ScanLine,
-  Mail
+  Mail,
+  ChefHat,
+  Plus
 } from 'lucide-react';
-import { StoreSettings, UserAccount, PrinterConfig, SupabaseConfig, ScannerConfig } from '../types';
+import {
+  StoreSettings,
+  UserAccount,
+  PrinterConfig,
+  SupabaseConfig,
+  ScannerConfig,
+  KitchenStation,
+} from '../types';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import {
   detectPrinters,
   requestSerialPort,
   serialSupported,
+  scanNetworkPrinters,
+  networkScanSupported,
   DetectedPrinter,
 } from '../lib/printerDiscovery';
 import { useTranslation } from 'react-i18next';
@@ -83,6 +94,8 @@ export default function Settings() {
     setScannerConfig,
     emailTemplate,
     setEmailTemplate,
+    kitchenStations,
+    setKitchenStations,
   } = useSettingsStore();
   const { products, categories, setProducts, setCategories } = useProductStore();
   const { customers, setCustomers } = useCustomerStore();
@@ -133,6 +146,60 @@ export default function Settings() {
   }, [activeTab]);
   const handlePairSerial = async () => {
     if (await requestSerialPort()) await refreshPrinters();
+  };
+  // Subnet scan for network printers, merged into the detected list (replacing
+  // any prior network hits so a re-scan doesn't accumulate stale entries).
+  const [scanningNetwork, setScanningNetwork] = useState(false);
+  const handleScanNetwork = async () => {
+    setScanningNetwork(true);
+    try {
+      const netPrinters = await scanNetworkPrinters();
+      setDetectedPrinters((prev) => [...prev.filter((p) => p.kind !== 'network'), ...netPrinters]);
+    } finally {
+      setScanningNetwork(false);
+    }
+  };
+  // One-click apply a discovered network printer to the config form.
+  const handleUseNetworkPrinter = (ip: string) => {
+    setPrinterForm((f) => ({ ...f, type: 'network', ipAddress: ip }));
+  };
+
+  // --- Kitchen station routing form state ---
+  const [stationForm, setStationForm] = useState<KitchenStation[]>(kitchenStations);
+  const addStation = () =>
+    setStationForm((prev) => [
+      ...prev,
+      { id: `station-${crypto.randomUUID?.() ?? Date.now()}`, name: '', categoryIds: [] },
+    ]);
+  const updateStation = (id: string, patch: Partial<KitchenStation>) =>
+    setStationForm((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  const removeStation = (id: string) =>
+    setStationForm((prev) => prev.filter((s) => s.id !== id));
+  const toggleStationCategory = (id: string, categoryId: string) =>
+    setStationForm((prev) =>
+      prev.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              categoryIds: s.categoryIds.includes(categoryId)
+                ? s.categoryIds.filter((c) => c !== categoryId)
+                : [...s.categoryIds, categoryId],
+            }
+          : s,
+      ),
+    );
+  const handleSaveStations = () => {
+    // Drop stations with a blank name; trim IPs.
+    const cleaned = stationForm
+      .filter((s) => s.name.trim())
+      .map((s) => ({
+        ...s,
+        name: s.name.trim(),
+        ipAddress: s.ipAddress?.trim() || undefined,
+      }));
+    setKitchenStations(cleaned);
+    setStationForm(cleaned);
+    alert(t('settings.stationsSaved'));
   };
 
   // --- Scanner config form state + live test ---
@@ -335,6 +402,8 @@ export default function Settings() {
       setScannerConfig(DEFAULT_SCANNER);
       setScannerForm(DEFAULT_SCANNER);
       setEmailTemplate(DEFAULT_EMAIL_TEMPLATE);
+      setKitchenStations([]);
+      setStationForm([]);
       setSupabaseConfig(DEFAULT_SUPABASE);
       setSbUrl('');
       setSbKey('');
@@ -672,7 +741,7 @@ export default function Settings() {
                       <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
                         {t('settings.connectedPrinters')}
                       </h3>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
                         {serialSupported() && (
                           <button
                             type="button"
@@ -681,6 +750,17 @@ export default function Settings() {
                           >
                             <Usb size={14} />
                             {t('settings.pairSerial')}
+                          </button>
+                        )}
+                        {networkScanSupported() && (
+                          <button
+                            type="button"
+                            onClick={handleScanNetwork}
+                            disabled={scanningNetwork}
+                            className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 rounded-xl flex items-center gap-2 transition-colors"
+                          >
+                            <Wifi size={14} className={scanningNetwork ? 'animate-pulse' : ''} />
+                            {scanningNetwork ? t('settings.scanningNetwork') : t('settings.scanNetwork')}
                           </button>
                         )}
                         <button
@@ -707,7 +787,13 @@ export default function Settings() {
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
-                                {p.kind === 'system' ? <Monitor size={16} /> : <Usb size={16} />}
+                                {p.kind === 'system' ? (
+                                  <Monitor size={16} />
+                                ) : p.kind === 'network' ? (
+                                  <Wifi size={16} />
+                                ) : (
+                                  <Usb size={16} />
+                                )}
                               </div>
                               <div className="min-w-0">
                                 <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block truncate">
@@ -721,6 +807,17 @@ export default function Settings() {
                             <div className="flex items-center gap-2 shrink-0">
                               {p.isDefault && (
                                 <span className="badge badge-emerald">{t('settings.printerDefault')}</span>
+                              )}
+                              {p.kind === 'network' && p.ipAddress && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUseNetworkPrinter(p.ipAddress!)}
+                                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+                                >
+                                  {printerForm.type === 'network' && printerForm.ipAddress === p.ipAddress
+                                    ? t('settings.printerInUse')
+                                    : t('settings.useThisPrinter')}
+                                </button>
                               )}
                               <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true" />
                             </div>
@@ -863,6 +960,106 @@ export default function Settings() {
                       <Save size={18} />
                       {t('settings.savePrinter')}
                     </button>
+                  </div>
+
+                  {/* Kitchen station routing */}
+                  <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
+                        <ChefHat size={16} className="text-emerald-500" />
+                        {t('settings.kitchenStations')}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={addStation}
+                        className="px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl flex items-center gap-2 transition-colors"
+                      >
+                        <Plus size={14} />
+                        {t('settings.addStation')}
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+                      {t('settings.kitchenStationsHint')}
+                    </p>
+
+                    {stationForm.length === 0 ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl px-4 py-4">
+                        {t('settings.noStations')}
+                      </p>
+                    ) : (
+                      <div className="space-y-4">
+                        {stationForm.map((station) => (
+                          <div
+                            key={station.id}
+                            className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100/60 dark:bg-slate-800/40 p-4 space-y-3"
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={station.name}
+                                onChange={(e) => updateStation(station.id, { name: e.target.value })}
+                                placeholder={t('settings.stationNamePlaceholder')}
+                                aria-label={t('settings.stationName')}
+                                className="glass-input flex-1 px-4 py-2.5 rounded-xl font-bold"
+                              />
+                              <input
+                                type="text"
+                                dir="ltr"
+                                value={station.ipAddress || ''}
+                                onChange={(e) => updateStation(station.id, { ipAddress: e.target.value })}
+                                placeholder={t('settings.stationPrinterIp')}
+                                aria-label={t('settings.stationPrinterIp')}
+                                className="glass-input w-40 px-4 py-2.5 rounded-xl font-mono text-sm"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeStation(station.id)}
+                                aria-label={t('settings.removeStation')}
+                                className="p-2.5 text-slate-400 hover:text-rose-500 bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/10 rounded-xl transition-colors shrink-0"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                                {t('settings.stationCategories')}
+                              </span>
+                              <div className="flex flex-wrap gap-2">
+                                {categories.map((cat) => {
+                                  const on = station.categoryIds.includes(cat.id);
+                                  return (
+                                    <button
+                                      key={cat.id}
+                                      type="button"
+                                      aria-pressed={on}
+                                      onClick={() => toggleStationCategory(station.id, cat.id)}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                                        on
+                                          ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-400'
+                                          : 'bg-slate-200/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                      }`}
+                                    >
+                                      {cat.name}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="pt-4 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleSaveStations}
+                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                      >
+                        <Save size={18} />
+                        {t('settings.saveStations')}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

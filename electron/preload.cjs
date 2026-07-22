@@ -15,4 +15,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   printEscpos: (payload) => ipcRenderer.invoke('print-escpos', payload),
   // Lists the OS printers visible to the app window (Printer settings screen).
   listPrinters: () => ipcRenderer.invoke('list-printers'),
+  // Scans the local /24 subnet for hosts with TCP 9100 open (network thermal
+  // printers). Resolves an array of responding IP strings. { port?, timeoutMs? }.
+  scanNetworkPrinters: (opts) => ipcRenderer.invoke('scan-network-printers', opts),
 });

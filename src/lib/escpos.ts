@@ -121,16 +121,19 @@ export function encodeReceipt(
 
 // Kitchen ticket: what the line cooks need and nothing else — order id, time,
 // who rang it, and big-type quantities/items. Deliberately no prices, no
-// payment info, no drawer kick.
+// payment info, no drawer kick. An optional stationName titles the ticket for
+// per-station routing (e.g. "BAR", "GRILL").
 export function encodeKitchenTicket(
   tx: SaleTransaction,
   settings: StoreSettings,
   printerConfig: PrinterConfig,
+  stationName?: string,
 ): Uint8Array {
   const width = printerConfig.paperSize === '58mm' ? 32 : 48;
   const b = new EscPosBuilder();
 
-  b.init().align('center').bold(true).doubleHeight(true).line('*** KITCHEN ***');
+  const title = stationName ? `*** ${stationName.toUpperCase()} ***` : '*** KITCHEN ***';
+  b.init().align('center').bold(true).doubleHeight(true).line(title);
   b.doubleHeight(false).line(settings.storeName).bold(false);
   b.line('-'.repeat(width));
 
