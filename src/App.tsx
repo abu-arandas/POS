@@ -225,7 +225,7 @@ export default function App() {
             </button>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Menu"
+              aria-label={t('sidebar.menu')}
               aria-expanded={mobileMenuOpen}
               className="p-1.5 text-slate-300 hover:text-white rounded-lg"
             >

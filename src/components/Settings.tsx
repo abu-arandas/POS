@@ -19,12 +19,15 @@ import {
   Bluetooth,
   Wifi,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  ScanLine,
+  Mail
 } from 'lucide-react';
-import { StoreSettings, UserAccount, PrinterConfig, SupabaseConfig } from '../types';
+import { StoreSettings, UserAccount, PrinterConfig, SupabaseConfig, ScannerConfig } from '../types';
 import { useModalA11y } from '../lib/useModalA11y';
+import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useTranslation } from 'react-i18next';
-import { useSettingsStore } from '../stores/settingsStore';
+import { useSettingsStore, DEFAULT_EMAIL_TEMPLATE } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
@@ -39,7 +42,7 @@ import {
   deleteUsersCloudIfEnabled,
 } from '../lib/sync';
 
-type SettingsTab = 'profile' | 'printer' | 'supabase' | 'users' | 'danger';
+type SettingsTab = 'profile' | 'printer' | 'scanner' | 'supabase' | 'users' | 'danger';
 
 const DEFAULT_PRINTER: PrinterConfig = {
   type: 'system',
@@ -66,6 +69,10 @@ export default function Settings() {
     setSupabaseConfig,
     printerConfig,
     setPrinterConfig,
+    scannerConfig,
+    setScannerConfig,
+    emailTemplate,
+    setEmailTemplate,
   } = useSettingsStore();
   const { products, categories, setProducts, setCategories } = useProductStore();
   const { customers, setCustomers } = useCustomerStore();
@@ -87,6 +94,17 @@ export default function Settings() {
 
   // --- Printer config form state ---
   const [printerForm, setPrinterForm] = useState<PrinterConfig>(printerConfig);
+
+  // --- Scanner config form state + live test ---
+  const [scannerForm, setScannerForm] = useState<ScannerConfig>(scannerConfig);
+  const [lastTestScan, setLastTestScan] = useState<{ code: string; at: string } | null>(null);
+  useBarcodeScanner({
+    onScan: (code) => setLastTestScan({ code, at: new Date().toLocaleTimeString() }),
+    // Live test uses the unsaved form values so thresholds can be tuned first.
+    enabled: activeTab === 'scanner' && scannerForm.enabled,
+    minLength: scannerForm.minLength,
+    maxInterKeyMs: scannerForm.maxInterKeyMs,
+  });
 
   // --- Supabase form state ---
   const [sbUrl, setSbUrl] = useState(supabaseConfig.url);
@@ -178,6 +196,15 @@ export default function Settings() {
   const handleSavePrinter = () => {
     setPrinterConfig(printerForm);
     alert(t('settings.printerSaved'));
+  };
+
+  const handleSaveScanner = () => {
+    setScannerConfig({
+      enabled: scannerForm.enabled,
+      minLength: Math.max(1, Math.floor(scannerForm.minLength) || 3),
+      maxInterKeyMs: Math.max(10, Math.floor(scannerForm.maxInterKeyMs) || 50),
+    });
+    alert(t('settings.scannerSaved'));
   };
 
   const buildConfig = (enabled: boolean, status: 'disconnected' | 'connected' | 'error') => ({
@@ -283,6 +310,7 @@ export default function Settings() {
   }> = [
     { id: 'profile', label: t('settings.title', 'Store'), icon: SettingsIcon },
     { id: 'printer', label: t('settings.printerTab', 'Printer'), icon: PrinterIcon },
+    { id: 'scanner', label: t('settings.scannerTab', 'Scanner'), icon: ScanLine },
     { id: 'supabase', label: t('settings.supabaseSync', 'Supabase Sync'), icon: Cloud },
     { id: 'users', label: t('settings.usersTab', 'Users'), icon: Users },
     { id: 'danger', label: t('settings.dangerZone', 'Danger Zone'), icon: AlertTriangle, danger: true },
@@ -531,6 +559,64 @@ export default function Settings() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Receipt Email Template */}
+                  <div className="surface rounded-2xl p-6">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <Mail size={16} className="text-emerald-500" />
+                      {t('settings.emailTemplateTitle')}
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+                      {t('settings.emailTemplateHint')}
+                    </p>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                          {t('settings.emailSubject')}
+                        </label>
+                        <input
+                          type="text"
+                          value={emailTemplate.subject}
+                          onChange={(e) => setEmailTemplate({ ...emailTemplate, subject: e.target.value })}
+                          className="glass-input w-full px-4 py-2.5 rounded-xl font-mono text-sm"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                            {t('settings.emailHeader')}
+                          </label>
+                          <textarea
+                            rows={4}
+                            value={emailTemplate.header}
+                            onChange={(e) => setEmailTemplate({ ...emailTemplate, header: e.target.value })}
+                            className="glass-input w-full px-4 py-2.5 rounded-xl text-sm resize-y"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                            {t('settings.emailFooter')}
+                          </label>
+                          <textarea
+                            rows={4}
+                            value={emailTemplate.footer}
+                            onChange={(e) => setEmailTemplate({ ...emailTemplate, footer: e.target.value })}
+                            className="glass-input w-full px-4 py-2.5 rounded-xl text-sm resize-y"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setEmailTemplate(DEFAULT_EMAIL_TEMPLATE)}
+                          className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center gap-2 transition-colors"
+                        >
+                          <RotateCcw size={14} />
+                          {t('settings.resetTemplate')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -657,6 +743,106 @@ export default function Settings() {
                     >
                       <Save size={18} />
                       {t('settings.savePrinter')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Scanner Tab */}
+              {activeTab === 'scanner' && (
+                <div className="surface rounded-2xl p-6 max-w-3xl mx-auto space-y-8">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <ScanLine size={16} className="text-emerald-500" />
+                      {t('settings.scannerTitle')}
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                      {t('settings.scannerHint')}
+                    </p>
+                  </div>
+
+                  <label className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={scannerForm.enabled}
+                      onChange={(e) => setScannerForm({ ...scannerForm, enabled: e.target.checked })}
+                      className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                    />
+                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      {t('settings.scannerEnabled')}
+                    </span>
+                  </label>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        {t('settings.scannerMinLength')}
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={scannerForm.minLength}
+                        onChange={(e) =>
+                          setScannerForm({ ...scannerForm, minLength: parseInt(e.target.value) || 0 })
+                        }
+                        className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
+                      />
+                      <p className="text-xs text-slate-500 mt-2">{t('settings.scannerMinLengthHint')}</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        {t('settings.scannerSpeed')}
+                      </label>
+                      <input
+                        type="number"
+                        min="10"
+                        step="5"
+                        value={scannerForm.maxInterKeyMs}
+                        onChange={(e) =>
+                          setScannerForm({ ...scannerForm, maxInterKeyMs: parseInt(e.target.value) || 0 })
+                        }
+                        className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
+                      />
+                      <p className="text-xs text-slate-500 mt-2">{t('settings.scannerSpeedHint')}</p>
+                    </div>
+                  </div>
+
+                  {/* Live scan test area */}
+                  <div className="rounded-2xl border-2 border-dashed border-emerald-500/30 bg-emerald-500/5 p-5">
+                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+                      <ScanLine size={14} /> {t('settings.scannerTest')}
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                      {t('settings.scannerTestHint')}
+                    </p>
+                    <div
+                      className="rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 px-4 py-3 font-mono text-sm"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {lastTestScan ? (
+                        <span className="text-emerald-600 dark:text-emerald-400">
+                          {t('settings.scannerLastScan')}: <strong>{lastTestScan.code}</strong>
+                          <span className="text-slate-400 dark:text-slate-500 ms-2 text-xs">
+                            {lastTestScan.at}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 dark:text-slate-500">
+                          {t('settings.scannerNoScan')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      id="save-scanner-btn"
+                      onClick={handleSaveScanner}
+                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                    >
+                      <Save size={18} />
+                      {t('settings.saveScanner')}
                     </button>
                   </div>
                 </div>

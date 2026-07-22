@@ -16,9 +16,13 @@ import {
   Mail,
   Phone,
   User,
+  ClipboardList,
+  Send,
+  Ban,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product } from '../types';
+import { Product, PurchaseOrder, PurchaseOrderStatus } from '../types';
+import { poTotal, poUnitCount, normalizePoLines } from '../lib/purchaseOrders';
 
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -55,13 +59,17 @@ export default function Inventory() {
   const addSupplier = useSupplyStore((s) => s.addSupplier);
   const removeSupplier = useSupplyStore((s) => s.removeSupplier);
   const logAdjustment = useSupplyStore((s) => s.logAdjustment);
-  
+  const purchaseOrders = useSupplyStore((s) => s.purchaseOrders);
+  const createPurchaseOrder = useSupplyStore((s) => s.createPurchaseOrder);
+  const setPurchaseOrderStatus = useSupplyStore((s) => s.setPurchaseOrderStatus);
+  const deletePurchaseOrder = useSupplyStore((s) => s.deletePurchaseOrder);
+
   const currentUser = useAuthStore((s) => s.currentUser);
 
   // Tab control
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'suppliers' | 'log'>(
-    'products'
-  );
+  const [activeTab, setActiveTab] = useState<
+    'products' | 'categories' | 'suppliers' | 'orders' | 'log'
+  >('products');
 
   // Receive-stock (lightweight purchase order) modal
   const [receiveOpen, setReceiveOpen] = useState(false);
@@ -77,6 +85,101 @@ export default function Inventory() {
   const [supContact, setSupContact] = useState('');
   const [supPhone, setSupPhone] = useState('');
   const [supEmail, setSupEmail] = useState('');
+
+  // Purchase order form. Lines are kept as strings while editing so partially
+  // typed numbers don't get clobbered; they're parsed on save.
+  const [poModalOpen, setPoModalOpen] = useState(false);
+  const [poSupplierId, setPoSupplierId] = useState('');
+  const [poNote, setPoNote] = useState('');
+  const [poLines, setPoLines] = useState<
+    Array<{ productId: string; quantity: string; unitCost: string }>
+  >([]);
+
+  const handleOpenPoModal = useCallback(() => {
+    const first = products[0];
+    setPoSupplierId('');
+    setPoNote('');
+    setPoLines([
+      { productId: first?.id ?? '', quantity: '', unitCost: first ? String(first.cost) : '' },
+    ]);
+    setPoModalOpen(true);
+  }, [products]);
+
+  const handlePoLineChange = (
+    idx: number,
+    patch: Partial<{ productId: string; quantity: string; unitCost: string }>,
+  ) => {
+    setPoLines((prev) =>
+      prev.map((l, i) => {
+        if (i !== idx) return l;
+        const next = { ...l, ...patch };
+        // Picking a product pre-fills the unit cost from the catalog.
+        if (patch.productId) {
+          const prod = products.find((p) => p.id === patch.productId);
+          if (prod) next.unitCost = String(prod.cost);
+        }
+        return next;
+      }),
+    );
+  };
+
+  const handleSavePoDraft = useCallback(() => {
+    const lines = normalizePoLines(
+      poLines.map((l) => {
+        const prod = products.find((p) => p.id === l.productId);
+        return {
+          productId: prod?.id ?? '',
+          productName: prod?.name ?? '',
+          quantity: parseInt(l.quantity) || 0,
+          unitCost: parseFloat(l.unitCost) || 0,
+        };
+      }),
+    );
+    if (lines.length === 0) {
+      alert(t('inventory.poNeedLines'));
+      return;
+    }
+    const supplier = suppliers.find((s) => s.id === poSupplierId);
+    createPurchaseOrder({
+      supplierId: supplier?.id ?? null,
+      supplierName: supplier?.name ?? null,
+      lines,
+      note: poNote.trim() || null,
+      createdBy: currentUser?.name ?? null,
+    });
+    setPoModalOpen(false);
+  }, [poLines, poSupplierId, poNote, products, suppliers, currentUser, createPurchaseOrder, t]);
+
+  // Receiving applies stock to the LIVE catalog and writes one audit-log entry
+  // per line, exactly like a manual receive — then locks the PO as received.
+  const handleReceivePo = useCallback(
+    (po: PurchaseOrder) => {
+      if (!confirm(t('inventory.poReceiveConfirm'))) return;
+      const liveProducts = useProductStore.getState().products;
+      const updatedProducts: Product[] = [];
+      for (const line of po.lines) {
+        const prod = liveProducts.find((p) => p.id === line.productId);
+        if (!prod) continue; // product deleted since ordering — skip its line
+        const updated = { ...prod, stock: prod.stock + line.quantity };
+        handleUpdateProduct(updated);
+        updatedProducts.push(updated);
+        logAdjustment({
+          productId: updated.id,
+          productName: updated.name,
+          delta: line.quantity,
+          newStock: updated.stock,
+          reason: 'received',
+          note: `PO ${po.id}`,
+          supplierId: po.supplierId,
+          supplierName: po.supplierName,
+          operatorName: currentUser?.name ?? null,
+        });
+      }
+      if (updatedProducts.length > 0) syncToCloudIfEnabled(updatedProducts);
+      setPurchaseOrderStatus(po.id, 'received');
+    },
+    [handleUpdateProduct, logAdjustment, setPurchaseOrderStatus, currentUser, t],
+  );
 
   const handleReceiveStock = useCallback(() => {
     const product = products.find((p) => p.id === recvProductId);
@@ -149,6 +252,7 @@ export default function Inventory() {
   const categoryModalRef = useModalA11y(categoryModalOpen, () => setCategoryModalOpen(false));
   const receiveModalRef = useModalA11y(receiveOpen, () => setReceiveOpen(false));
   const supplierModalRef = useModalA11y(supplierModalOpen, () => setSupplierModalOpen(false));
+  const poModalRef = useModalA11y(poModalOpen, () => setPoModalOpen(false));
 
   // Product Form Fields
   const [prodName, setProdName] = useState('');
@@ -303,8 +407,16 @@ export default function Inventory() {
     { id: 'products', label: t('inventory.products') },
     { id: 'categories', label: t('inventory.categories') },
     { id: 'suppliers', label: t('inventory.suppliers') },
+    { id: 'orders', label: t('inventory.purchaseOrders') },
     { id: 'log', label: t('inventory.stockLog') },
   ] as const;
+
+  const PO_STATUS_BADGE: Record<PurchaseOrderStatus, string> = {
+    draft: 'badge badge-slate',
+    ordered: 'badge badge-blue',
+    received: 'badge badge-emerald',
+    cancelled: 'badge badge-rose',
+  };
 
   return (
     <motion.div
@@ -347,7 +459,9 @@ export default function Inventory() {
                   ? handleOpenAddProduct
                   : activeTab === 'categories'
                     ? () => setCategoryModalOpen(true)
-                    : () => setSupplierModalOpen(true)
+                    : activeTab === 'orders'
+                      ? handleOpenPoModal
+                      : () => setSupplierModalOpen(true)
               }
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-bold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
             >
@@ -357,7 +471,9 @@ export default function Inventory() {
                   ? t('inventory.addProduct')
                   : activeTab === 'categories'
                     ? t('inventory.addCategory')
-                    : t('inventory.addSupplier')}
+                    : activeTab === 'orders'
+                      ? t('inventory.newPurchaseOrder')
+                      : t('inventory.addSupplier')}
               </span>
             </button>
           )}
@@ -771,6 +887,133 @@ export default function Inventory() {
                           >
                             <Trash2 size={16} />
                           </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'orders' && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="flex-1 overflow-hidden flex flex-col surface rounded-2xl"
+          >
+            <div className="flex-1 overflow-y-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-900/80 text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-white/5 sticky top-0 z-10 backdrop-blur-md">
+                    <th className="py-4 px-6">{t('inventory.poOrder')}</th>
+                    <th className="py-4 px-4">{t('inventory.poSupplier')}</th>
+                    <th className="py-4 px-4">{t('inventory.poItems')}</th>
+                    <th className="py-4 px-4 text-right">{t('inventory.poTotalCost')}</th>
+                    <th className="py-4 px-4 text-center">{t('inventory.poStatus')}</th>
+                    <th className="py-4 px-6 text-right">{t('inventory.actions')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-sm text-slate-200">
+                  {purchaseOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={6}>
+                        <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
+                          <ClipboardList size={48} className="opacity-20" />
+                          <p className="font-medium font-mono">{t('inventory.noPurchaseOrders')}</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    purchaseOrders.map((po) => (
+                      <tr key={po.id} className="hover:bg-slate-800/50 transition-colors">
+                        <td className="py-4 px-6">
+                          <span className="font-mono font-bold text-white block text-xs">{po.id}</span>
+                          <span className="text-[10px] text-slate-500 font-mono mt-1 block">
+                            {new Date(po.createdAt).toLocaleString()}
+                            {po.createdBy && <> · {po.createdBy}</>}
+                          </span>
+                          {po.note && (
+                            <span className="text-[10px] text-slate-400 mt-1 block truncate max-w-[220px]">
+                              {po.note}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4 px-4 text-slate-300">
+                          <div className="flex items-center gap-2">
+                            <Truck size={14} className="text-slate-500" />
+                            {po.supplierName || '—'}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-slate-300 font-mono text-xs">
+                          {t('inventory.poLinesUnits', {
+                            lines: po.lines.length,
+                            units: poUnitCount(po),
+                          })}
+                        </td>
+                        <td className="py-4 px-4 text-right font-mono font-bold text-white">
+                          {settings.currency}{poTotal(po).toFixed(2)}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span className={PO_STATUS_BADGE[po.status]}>
+                            {t(`inventory.poStatus_${po.status}`)}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center justify-end gap-2">
+                            {po.status === 'draft' && (
+                              <>
+                                <button
+                                  onClick={() => setPurchaseOrderStatus(po.id, 'ordered')}
+                                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
+                                  style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.25)' }}
+                                >
+                                  <Send size={12} /> {t('inventory.poMarkOrdered')}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm(t('inventory.poDeleteConfirm'))) deletePurchaseOrder(po.id);
+                                  }}
+                                  aria-label={t('inventory.poDeleteDraft')}
+                                  className="p-2 text-slate-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </>
+                            )}
+                            {po.status === 'ordered' && (
+                              <>
+                                <button
+                                  onClick={() => handleReceivePo(po)}
+                                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
+                                  style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.25)' }}
+                                >
+                                  <PackagePlus size={12} /> {t('inventory.poReceive')}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm(t('inventory.poCancelConfirm')))
+                                      setPurchaseOrderStatus(po.id, 'cancelled');
+                                  }}
+                                  aria-label={t('inventory.poCancelOrder')}
+                                  className="p-2 text-slate-400 hover:text-rose-400 bg-slate-800 hover:bg-rose-500/10 rounded-xl transition-colors"
+                                >
+                                  <Ban size={14} />
+                                </button>
+                              </>
+                            )}
+                            {po.status === 'cancelled' && (
+                              <button
+                                onClick={() => {
+                                  if (confirm(t('inventory.poDeleteConfirm'))) deletePurchaseOrder(po.id);
+                                }}
+                                aria-label={t('inventory.poDeleteDraft')}
+                                className="p-2 text-slate-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1244,7 +1487,7 @@ export default function Inventory() {
                       type="number"
                       value={recvQty}
                       onChange={(e) => setRecvQty(e.target.value)}
-                      aria-label="Quantity change"
+                      aria-label={t('inventory.qtyChange')}
                       placeholder={recvReason === 'waste' ? "-5" : "10"}
                       className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-xl text-center focus:outline-none focus:border-emerald-500"
                     />
@@ -1398,6 +1641,170 @@ export default function Inventory() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: New Purchase Order */}
+      <AnimatePresence>
+        {poModalOpen && (
+          <div className="modal-backdrop fixed inset-0 flex items-center justify-center z-50 p-4">
+            <motion.div
+              ref={poModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="po-form-title"
+              tabIndex={-1}
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="modal-card max-w-2xl w-full flex flex-col max-h-[90vh]"
+            >
+              <div className="px-8 py-6 border-b border-white/10 bg-slate-900/50 flex items-center justify-between">
+                <h3 id="po-form-title" className="font-bold text-white text-xl flex items-center gap-3">
+                  <ClipboardList size={24} className="text-emerald-500" />{' '}
+                  {t('inventory.newPurchaseOrder')}
+                </h3>
+                <button
+                  onClick={() => setPoModalOpen(false)}
+                  aria-label={t('inventory.cancel')}
+                  className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-8 space-y-6 overflow-y-auto flex-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                      {t('inventory.poSupplier')}
+                    </label>
+                    <select
+                      value={poSupplierId}
+                      onChange={(e) => setPoSupplierId(e.target.value)}
+                      className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+                    >
+                      <option value="">{t('inventory.poNoSupplier')}</option>
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                      {t('inventory.poNote')}
+                    </label>
+                    <input
+                      type="text"
+                      value={poNote}
+                      onChange={(e) => setPoNote(e.target.value)}
+                      placeholder={t('inventory.noteOptional')}
+                      className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {poLines.map((lineRow, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <select
+                        value={lineRow.productId}
+                        onChange={(e) => handlePoLineChange(idx, { productId: e.target.value })}
+                        aria-label={t('inventory.products')}
+                        className="flex-1 bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 min-w-0"
+                      >
+                        {products.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        min="1"
+                        value={lineRow.quantity}
+                        onChange={(e) => handlePoLineChange(idx, { quantity: e.target.value })}
+                        aria-label={t('inventory.poQty')}
+                        placeholder={t('inventory.poQty')}
+                        className="w-24 bg-slate-900/50 border border-white/10 rounded-xl px-3 py-3 text-white font-mono text-center focus:outline-none focus:border-emerald-500"
+                      />
+                      <div className="w-32 flex items-center bg-slate-900/50 border border-white/10 rounded-xl overflow-hidden focus-within:border-emerald-500">
+                        <span className="ps-3 text-slate-500 font-mono text-sm">{settings.currency}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={lineRow.unitCost}
+                          onChange={(e) => handlePoLineChange(idx, { unitCost: e.target.value })}
+                          aria-label={t('inventory.poUnitCost')}
+                          placeholder="0.00"
+                          className="w-full bg-transparent px-2 py-3 text-white font-mono focus:outline-none"
+                        />
+                      </div>
+                      <button
+                        onClick={() => setPoLines((prev) => prev.filter((_, i) => i !== idx))}
+                        disabled={poLines.length <= 1}
+                        aria-label={t('inventory.poRemoveLine')}
+                        className="p-2.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl disabled:opacity-25 transition-colors shrink-0"
+                        style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const first = products[0];
+                      setPoLines((prev) => [
+                        ...prev,
+                        {
+                          productId: first?.id ?? '',
+                          quantity: '',
+                          unitCost: first ? String(first.cost) : '',
+                        },
+                      ]);
+                    }}
+                    className="text-xs font-bold px-3 py-2 rounded-lg transition-colors"
+                    style={{ color: '#34d399', border: '1px dashed rgba(16,185,129,0.35)' }}
+                  >
+                    + {t('inventory.poAddLine')}
+                  </button>
+                </div>
+
+                <div className="flex justify-between items-center pt-4 border-t border-white/5 text-sm">
+                  <span className="text-slate-400 font-bold uppercase text-xs tracking-wider">
+                    {t('inventory.poTotalCost')}
+                  </span>
+                  <span className="font-mono font-bold text-emerald-400 text-lg">
+                    {settings.currency}
+                    {poLines
+                      .reduce(
+                        (sum, l) => sum + (parseInt(l.quantity) || 0) * (parseFloat(l.unitCost) || 0),
+                        0,
+                      )
+                      .toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="px-8 py-5 border-t border-white/10 bg-slate-900/80 flex justify-end gap-3">
+                <button
+                  onClick={() => setPoModalOpen(false)}
+                  className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors"
+                >
+                  {t('inventory.cancel')}
+                </button>
+                <button
+                  onClick={handleSavePoDraft}
+                  className="px-6 py-3 font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+                >
+                  <Check size={20} /> {t('inventory.poSaveDraft')}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

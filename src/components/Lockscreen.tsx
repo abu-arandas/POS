@@ -237,10 +237,7 @@ export default function Lockscreen() {
                 {/* PIN dots */}
                 <div className="flex flex-col items-center mb-7">
                   <span className="sr-only" role="status">
-                    {t('lockscreen.pinProgress', {
-                      defaultValue: '{{count}} of 4 digits entered',
-                      count: pin.length,
-                    })}
+                    {t('lockscreen.pinProgress', { count: pin.length })}
                   </span>
                   <motion.div
                     aria-hidden="true"

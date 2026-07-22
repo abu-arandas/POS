@@ -45,6 +45,8 @@ export default function Register() {
   const updateCustomerPoints = useCustomerStore((s) => s.updateCustomerPoints);
   const settings = useSettingsStore((s) => s.settings);
   const printerConfig = useSettingsStore((s) => s.printerConfig);
+  const scannerConfig = useSettingsStore((s) => s.scannerConfig);
+  const emailTemplate = useSettingsStore((s) => s.emailTemplate);
   const addTransaction = useTransactionStore((s) => s.addTransaction);
   const currentUser = useAuthStore((s) => s.currentUser);
   const heldOrders = useHeldOrderStore((s) => s.heldOrders);
@@ -202,7 +204,14 @@ export default function Register() {
 
   useBarcodeScanner({
     onScan: handleScan,
-    enabled: !checkoutModalOpen && !addCustomerOpen && !receiptModalOpen && !heldModalOpen,
+    enabled:
+      scannerConfig.enabled &&
+      !checkoutModalOpen &&
+      !addCustomerOpen &&
+      !receiptModalOpen &&
+      !heldModalOpen,
+    minLength: scannerConfig.minLength,
+    maxInterKeyMs: scannerConfig.maxInterKeyMs,
   });
 
   useEffect(() => {
@@ -410,10 +419,10 @@ export default function Register() {
       onClick: () => {
         if (!activeReceipt) return;
         const email = activeReceipt.customerId ? customers.find((c) => c.id === activeReceipt.customerId)?.email : undefined;
-        emailReceipt(activeReceipt, settings, email || undefined);
+        emailReceipt(activeReceipt, settings, email || undefined, emailTemplate);
       },
     }
-  ], [t, handlePrintActiveReceipt, activeReceipt, settings, customers]);
+  ], [t, handlePrintActiveReceipt, activeReceipt, settings, customers, emailTemplate]);
 
   return (
     <div
@@ -503,7 +512,7 @@ export default function Register() {
                 </h3>
                 <button
                   onClick={() => setHeldModalOpen(false)}
-                  aria-label="Close"
+                  aria-label={t('register.close')}
                   className="p-1.5 text-slate-500 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
                 >
                   <X size={16} />
@@ -596,7 +605,7 @@ export default function Register() {
                 </div>
                 <button
                   onClick={() => setCheckoutModalOpen(false)}
-                  aria-label="Close"
+                  aria-label={t('register.close')}
                   className="p-1.5 text-slate-500 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
                 >
                   <X size={16} />
@@ -682,7 +691,7 @@ export default function Register() {
                         <button
                           onClick={() => removeSplitPayment(idx)}
                           disabled={splitPayments.length <= 1}
-                          aria-label="Remove payment"
+                          aria-label={t('register.removePayment')}
                           className="p-2.5 text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl disabled:opacity-25 transition-colors"
                           style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}
                         >
@@ -839,7 +848,7 @@ export default function Register() {
                 </h3>
                 <button
                   onClick={() => setAddCustomerOpen(false)}
-                  aria-label="Close"
+                  aria-label={t('register.close')}
                   className="p-1.5 text-slate-500 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
                 >
                   <X size={16} />

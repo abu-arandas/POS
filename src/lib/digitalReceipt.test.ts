@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { receiptPlainText } from './digitalReceipt';
-import { SaleTransaction, StoreSettings } from '../types';
+import { receiptPlainText, renderEmailTemplate, buildReceiptEmail } from './digitalReceipt';
+import { SaleTransaction, StoreSettings, ReceiptEmailTemplate } from '../types';
 
 const settings: StoreSettings = {
   storeName: 'Test Store',
@@ -52,5 +52,60 @@ describe('receiptPlainText', () => {
 
   it('shows a refunded amount when present', () => {
     expect(receiptPlainText({ ...tx, refundedAmount: 4.4 }, settings)).toContain('Refunded: $4.40');
+  });
+});
+
+describe('renderEmailTemplate', () => {
+  it('fills every supported placeholder', () => {
+    const out = renderEmailTemplate(
+      'From {storeName}: receipt {receiptId} for {total}',
+      tx,
+      settings,
+    );
+    expect(out).toBe('From Test Store: receipt TX-9 for $8.80');
+  });
+
+  it('uses the customer name when the sale has one', () => {
+    const out = renderEmailTemplate('Hi {customerName}', { ...tx, customerName: 'Eleanor' }, settings);
+    expect(out).toBe('Hi Eleanor');
+  });
+
+  it('falls back to a generic greeting for walk-in sales', () => {
+    expect(renderEmailTemplate('Hi {customerName}', tx, settings)).toBe('Hi there');
+  });
+
+  it('leaves unknown placeholders untouched so typos stay visible', () => {
+    expect(renderEmailTemplate('{storeName} {bogusToken}', tx, settings)).toBe(
+      'Test Store {bogusToken}',
+    );
+  });
+});
+
+describe('buildReceiptEmail', () => {
+  const template: ReceiptEmailTemplate = {
+    subject: 'Receipt {receiptId} — {storeName}',
+    header: 'Hi {customerName}, thanks for shopping at {storeName}!',
+    footer: 'See you soon — {storeName}',
+  };
+
+  it('renders subject and wraps the receipt with header and footer', () => {
+    const { subject, body } = buildReceiptEmail(tx, settings, template);
+    expect(subject).toBe('Receipt TX-9 — Test Store');
+    const [head, ...rest] = body.split('\n\n');
+    expect(head).toBe('Hi there, thanks for shopping at Test Store!');
+    expect(body).toContain('Receipt: TX-9');
+    expect(rest[rest.length - 1]).toBe('See you soon — Test Store');
+  });
+
+  it('omits empty header/footer sections instead of leaving blank gaps', () => {
+    const { body } = buildReceiptEmail(tx, settings, { ...template, header: '', footer: '  ' });
+    expect(body.startsWith('Test Store')).toBe(true);
+    expect(body.endsWith('Thank you for your visit!')).toBe(true);
+  });
+
+  it('falls back to the bare receipt when no template is given', () => {
+    const { subject, body } = buildReceiptEmail(tx, settings);
+    expect(subject).toBe('Receipt TX-9 — Test Store');
+    expect(body).toBe(receiptPlainText(tx, settings));
   });
 });

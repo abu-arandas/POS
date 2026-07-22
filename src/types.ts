@@ -88,6 +88,33 @@ export interface Supplier {
   createdAt: string;
 }
 
+// One product line on a purchase order. unitCost is the agreed buy price at
+// order time — a snapshot, deliberately not a live reference to product.cost.
+export interface PurchaseOrderLine {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitCost: number;
+}
+
+export type PurchaseOrderStatus = 'draft' | 'ordered' | 'received' | 'cancelled';
+
+// A lightweight purchase order: drafted, marked as ordered with the supplier,
+// then received (which applies stock and writes audit-log entries) or
+// cancelled. Terminal-local like suppliers and the stock log.
+export interface PurchaseOrder {
+  id: string;
+  supplierId: string | null;
+  supplierName: string | null;
+  status: PurchaseOrderStatus;
+  lines: PurchaseOrderLine[];
+  note?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+  orderedAt?: string | null;
+  receivedAt?: string | null;
+}
+
 // One entry in the stock audit log. Every stock change — receiving a shipment,
 // a manual correction, waste — is recorded with who/why for traceability.
 export interface StockAdjustment {
@@ -167,6 +194,25 @@ export interface PrinterConfig {
   showBarcode: boolean;
   footerMessage: string;
   autoPrintOnCheckout: boolean;
+}
+
+// Keyboard-wedge barcode scanner tuning. Wedge scanners "type" the code as a
+// fast keystroke burst ending in Enter; these thresholds separate a scan from
+// human typing.
+export interface ScannerConfig {
+  enabled: boolean;
+  minLength: number; // shortest keystroke burst treated as a scan
+  maxInterKeyMs: number; // a keystroke gap above this resets the burst
+}
+
+// Placeholder-based template for the pre-filled receipt email. Supported
+// placeholders (single braces, so they can't collide with i18next syntax):
+// {storeName}, {receiptId}, {date}, {total}, {customerName} — customerName
+// falls back to a generic greeting when the sale has none.
+export interface ReceiptEmailTemplate {
+  subject: string;
+  header: string; // body text above the receipt
+  footer: string; // body text below the receipt
 }
 
 export interface SupabaseConfig {
