@@ -10,6 +10,7 @@ import {
   X as XIcon,
   QrCode,
   Clock,
+  Building2,
   Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence, MotionConfig } from 'motion/react';
@@ -26,11 +27,13 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const Settings = lazy(() => import('./components/Settings'));
 const QRMenu = lazy(() => import('./components/QRMenu'));
 const ShiftScreen = lazy(() => import('./components/ShiftScreen'));
+const FleetBoard = lazy(() => import('./components/FleetBoard'));
 import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
 import { ScreenId, isScreenAllowed } from './lib/access';
 import { startRealtimeSync, stopRealtimeSync } from './lib/realtimeSync';
+import { startFleetHeartbeat, stopFleetHeartbeat, fetchSuperadminOrg } from './lib/fleetClient';
 
 function ScreenLoader() {
   return (
@@ -58,6 +61,29 @@ export default function App() {
       return () => stopRealtimeSync();
     }
   }, [syncEnabled, syncConnected]);
+
+  // Multi-store (super-admin) plumbing. While sync is connected: send this
+  // terminal's store heartbeat, and resolve whether the device account is a
+  // super-admin (which reveals the Fleet board). All no-ops without a
+  // multi-store backend, so single-store installs are unaffected.
+  const [superadminOrg, setSuperadminOrg] = useState<string | null>(null);
+  useEffect(() => {
+    if (!(syncEnabled && syncConnected)) return;
+    startFleetHeartbeat();
+    let cancelled = false;
+    fetchSuperadminOrg().then((org) => {
+      if (!cancelled) setSuperadminOrg(org);
+    });
+    // Leaving the connected state stops the heartbeat and clears super-admin
+    // access. Resetting in cleanup (not the effect body) avoids a synchronous
+    // state update during render.
+    return () => {
+      cancelled = true;
+      stopFleetHeartbeat();
+      setSuperadminOrg(null);
+    };
+  }, [syncEnabled, syncConnected]);
+  const isSuperadmin = superadminOrg !== null;
 
   useEffect(() => {
     i18n.changeLanguage(language);
@@ -99,14 +125,26 @@ export default function App() {
     });
   }, [products, categories, settings]);
 
+  // A screen is viewable if the terminal role allows it AND, for the super-admin
+  // Fleet board, the cloud account resolved as a super-admin.
+  const canView = (screen: ScreenId): boolean =>
+    !!currentUser &&
+    isScreenAllowed(screen, currentUser.role) &&
+    (screen !== 'fleet' || isSuperadmin);
+
   // Reset navigation state when the signed-in role cannot view the current
-  // screen (e.g. an admin locked the terminal on Settings and a cashier logs in).
+  // screen (e.g. an admin locked the terminal on Settings and a cashier logs in,
+  // or a super-admin session ends while the Fleet board is open).
   useEffect(() => {
-    if (currentUser && !isScreenAllowed(currentScreen, currentUser.role)) {
+    if (!currentUser) return;
+    const ok =
+      isScreenAllowed(currentScreen, currentUser.role) &&
+      (currentScreen !== 'fleet' || isSuperadmin);
+    if (!ok) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setScreen('register');
     }
-  }, [currentUser, currentScreen]);
+  }, [currentUser, currentScreen, isSuperadmin]);
 
   if (!currentUser) {
     return (
@@ -118,9 +156,7 @@ export default function App() {
 
   // Guard at render time too: effects run after paint, so relying on the
   // effect alone would flash one frame of a prohibited screen.
-  const activeScreen: ScreenId = isScreenAllowed(currentScreen, currentUser.role)
-    ? currentScreen
-    : 'register';
+  const activeScreen: ScreenId = canView(currentScreen) ? currentScreen : 'register';
 
   const renderActiveScreen = () => {
     switch (activeScreen) {
@@ -140,6 +176,8 @@ export default function App() {
         return <QRMenu />;
       case 'settings':
         return <Settings />;
+      case 'fleet':
+        return superadminOrg ? <FleetBoard orgId={superadminOrg} /> : <Register />;
       default:
         return <div className="p-8 font-mono text-xs">VIEW ROUTING ERROR</div>;
     }
@@ -163,12 +201,13 @@ export default function App() {
     { id: 'customers', label: t('sidebar.customers'), icon: Users },
     { id: 'shift', label: t('sidebar.shift'), icon: Clock },
     { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode },
+    ...(isSuperadmin
+      ? [{ id: 'fleet' as ScreenId, label: t('sidebar.fleet'), icon: Building2 }]
+      : []),
     { id: 'settings', label: t('sidebar.settings'), icon: SettingsIcon },
   ];
 
-  const allowedMobileItems = mobileMenuItems.filter((item) =>
-    isScreenAllowed(item.id, currentUser.role),
-  );
+  const allowedMobileItems = mobileMenuItems.filter((item) => canView(item.id));
 
   return (
     <MotionConfig reducedMotion="user">
@@ -177,7 +216,7 @@ export default function App() {
       className={`flex min-h-screen overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300 ${darkMode ? 'mesh-bg-dark' : 'mesh-bg'}`}
     >
       <div id="desktop-sidebar-rail" className="hidden lg:block shrink-0">
-        <Sidebar currentScreen={activeScreen} setScreen={setScreen} />
+        <Sidebar currentScreen={activeScreen} setScreen={setScreen} isSuperadmin={isSuperadmin} />
       </div>
 
       {/* Main column: mobile top bar (small screens only) plus the active screen.
