@@ -40,14 +40,15 @@ export const syncToCloudIfEnabled = async (
   const client = getSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
   if (!client) return;
 
+  const storeId = useSettingsStore.getState().storeId;
   try {
     await ensureDeviceSession(client);
     // By passing only modified items as arrays to these functions, we do an incremental upsert!
-    if (prods && prods.length > 0) await pushProducts(client, prods);
-    if (cats && cats.length > 0) await pushCategories(client, cats);
-    if (custs && custs.length > 0) await pushCustomers(client, custs);
-    if (txs && txs.length > 0) await pushTransactions(client, txs);
-    if (accts && accts.length > 0) await pushUserAccounts(client, accts);
+    if (prods && prods.length > 0) await pushProducts(client, prods, storeId);
+    if (cats && cats.length > 0) await pushCategories(client, cats, storeId);
+    if (custs && custs.length > 0) await pushCustomers(client, custs, storeId);
+    if (txs && txs.length > 0) await pushTransactions(client, txs, storeId);
+    if (accts && accts.length > 0) await pushUserAccounts(client, accts, storeId);
   } catch (err) {
     console.warn('Background live sync push postponed:', err);
   }
@@ -93,12 +94,13 @@ export const pushAllToCloud = async (
   if (!client) return false;
   await ensureDeviceSession(client);
 
+  const storeId = useSettingsStore.getState().storeId;
   const results = await Promise.all([
-    pushCategories(client, data.categories),
-    pushProducts(client, data.products),
-    pushCustomers(client, data.customers),
-    pushUserAccounts(client, data.users),
-    pushTransactions(client, data.transactions),
+    pushCategories(client, data.categories, storeId),
+    pushProducts(client, data.products, storeId),
+    pushCustomers(client, data.customers, storeId),
+    pushUserAccounts(client, data.users, storeId),
+    pushTransactions(client, data.transactions, storeId),
   ]);
   return results.every(Boolean);
 };
@@ -120,12 +122,13 @@ export const pullAllFromCloud = async (
   if (!client) return null;
   await ensureDeviceSession(client);
 
+  const storeId = useSettingsStore.getState().storeId;
   const [categories, products, customers, users, transactions] = await Promise.all([
-    pullCategories(client),
-    pullProducts(client),
-    pullCustomers(client),
-    pullUserAccounts(client),
-    pullTransactions(client),
+    pullCategories(client, storeId),
+    pullProducts(client, storeId),
+    pullCustomers(client, storeId),
+    pullUserAccounts(client, storeId),
+    pullTransactions(client, storeId),
   ]);
   return { categories, products, customers, users, transactions };
 };

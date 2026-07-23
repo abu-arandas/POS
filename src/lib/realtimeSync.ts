@@ -36,20 +36,22 @@ export async function startRealtimeSync(): Promise<boolean> {
   const refresh = (table: string) => {
     clearTimeout(timers[table]);
     timers[table] = setTimeout(async () => {
+      // Re-read the store scope each pull so it tracks config changes.
+      const storeId = useSettingsStore.getState().storeId;
       if (table === 'products') {
-        const d = await pullProducts(client);
+        const d = await pullProducts(client, storeId);
         if (d) useProductStore.getState().setProducts(d);
       } else if (table === 'categories') {
-        const d = await pullCategories(client);
+        const d = await pullCategories(client, storeId);
         if (d) useProductStore.getState().setCategories(d);
       } else if (table === 'customers') {
-        const d = await pullCustomers(client);
+        const d = await pullCustomers(client, storeId);
         if (d) useCustomerStore.getState().setCustomers(d);
       } else if (table === 'transactions') {
-        const d = await pullTransactions(client);
+        const d = await pullTransactions(client, storeId);
         if (d) useTransactionStore.getState().setTransactions(d);
       } else if (table === 'user_accounts') {
-        const d = await pullUserAccounts(client);
+        const d = await pullUserAccounts(client, storeId);
         if (d) useAuthStore.getState().setUsers(d);
       }
     }, 400);

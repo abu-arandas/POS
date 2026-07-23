@@ -5,6 +5,14 @@ import { hashPin } from './hash';
 // A stored PIN is valid only if it is already a SHA-256 hex digest.
 const isHashedPin = (pin: string) => /^[a-f0-9]{64}$/i.test(pin);
 
+// Adds store_id to each outgoing record when a store scope is configured.
+// A no-op in single-store mode (empty storeId), so existing deployments push
+// exactly the same payload as before. Pure and unit-tested.
+export function stampStoreId<T extends object>(records: T[], storeId?: string): T[] {
+  if (!storeId) return records;
+  return records.map((r) => ({ ...r, store_id: storeId }));
+}
+
 let supabaseInstance: SupabaseClient | null = null;
 let currentUrl = '';
 let currentKey = '';
@@ -122,20 +130,27 @@ export async function testSupabaseConnection(url: string, anonKey: string): Prom
 }
 
 // Push local products to Supabase
-export async function pushProducts(client: SupabaseClient, products: Product[]): Promise<boolean> {
+export async function pushProducts(
+  client: SupabaseClient,
+  products: Product[],
+  storeId?: string,
+): Promise<boolean> {
   if (products.length === 0) return true;
   try {
-    const records = products.map((p) => ({
-      id: p.id,
-      name: p.name,
-      price: p.price,
-      cost: p.cost,
-      category: p.category || null,
-      sku: p.sku,
-      stock: p.stock,
-      min_stock: p.minStock,
-      image: p.image,
-    }));
+    const records = stampStoreId(
+      products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        cost: p.cost,
+        category: p.category || null,
+        sku: p.sku,
+        stock: p.stock,
+        min_stock: p.minStock,
+        image: p.image,
+      })),
+      storeId,
+    );
 
     const { error } = await client.from('products').upsert(records);
     if (error) throw error;
@@ -147,9 +162,14 @@ export async function pushProducts(client: SupabaseClient, products: Product[]):
 }
 
 // Pull products from Supabase
-export async function pullProducts(client: SupabaseClient): Promise<Product[] | null> {
+export async function pullProducts(
+  client: SupabaseClient,
+  storeId?: string,
+): Promise<Product[] | null> {
   try {
-    const { data, error } = await client.from('products').select('*');
+    let query = client.from('products').select('*');
+    if (storeId) query = query.eq('store_id', storeId);
+    const { data, error } = await query;
     if (error) throw error;
     return (data || []).map((r) => ({
       id: r.id,
@@ -172,10 +192,11 @@ export async function pullProducts(client: SupabaseClient): Promise<Product[] | 
 export async function pushCategories(
   client: SupabaseClient,
   categories: Category[],
+  storeId?: string,
 ): Promise<boolean> {
   if (categories.length === 0) return true;
   try {
-    const { error } = await client.from('categories').upsert(categories);
+    const { error } = await client.from('categories').upsert(stampStoreId(categories, storeId));
     if (error) throw error;
     return true;
   } catch (err) {
@@ -185,11 +206,17 @@ export async function pushCategories(
 }
 
 // Pull categories
-export async function pullCategories(client: SupabaseClient): Promise<Category[] | null> {
+export async function pullCategories(
+  client: SupabaseClient,
+  storeId?: string,
+): Promise<Category[] | null> {
   try {
-    const { data, error } = await client.from('categories').select('*');
+    let query = client.from('categories').select('*');
+    if (storeId) query = query.eq('store_id', storeId);
+    const { data, error } = await query;
     if (error) throw error;
-    return data || [];
+    // store_id is a sync-only column; strip it so the domain object stays clean.
+    return (data || []).map((r) => ({ id: r.id, name: r.name, color: r.color }));
   } catch (err) {
     console.error('Failed pulling categories:', err);
     return null;
@@ -200,17 +227,21 @@ export async function pullCategories(client: SupabaseClient): Promise<Category[]
 export async function pushCustomers(
   client: SupabaseClient,
   customers: Customer[],
+  storeId?: string,
 ): Promise<boolean> {
   if (customers.length === 0) return true;
   try {
-    const records = customers.map((c) => ({
-      id: c.id,
-      name: c.name,
-      email: c.email,
-      phone: c.phone,
-      points: c.points,
-      created_at: c.createdAt,
-    }));
+    const records = stampStoreId(
+      customers.map((c) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        points: c.points,
+        created_at: c.createdAt,
+      })),
+      storeId,
+    );
     const { error } = await client.from('customers').upsert(records);
     if (error) throw error;
     return true;
@@ -221,9 +252,14 @@ export async function pushCustomers(
 }
 
 // Pull customers
-export async function pullCustomers(client: SupabaseClient): Promise<Customer[] | null> {
+export async function pullCustomers(
+  client: SupabaseClient,
+  storeId?: string,
+): Promise<Customer[] | null> {
   try {
-    const { data, error } = await client.from('customers').select('*');
+    let query = client.from('customers').select('*');
+    if (storeId) query = query.eq('store_id', storeId);
+    const { data, error } = await query;
     if (error) throw error;
     return (data || []).map((r) => ({
       id: r.id,
@@ -243,10 +279,11 @@ export async function pullCustomers(client: SupabaseClient): Promise<Customer[] 
 export async function pushTransactions(
   client: SupabaseClient,
   transactions: SaleTransaction[],
+  storeId?: string,
 ): Promise<boolean> {
   if (transactions.length === 0) return true;
   try {
-    const records = transactions.map((t) => ({
+    const records = stampStoreId(transactions.map((t) => ({
       id: t.id,
       date: t.date,
       items: t.items, // JSONB structure
@@ -271,7 +308,7 @@ export async function pushTransactions(
       refund_date: t.refundDate || null,
       refund_authorized_by: t.refundAuthorizedBy || null,
       shift_id: t.shiftId || null,
-    }));
+    })), storeId);
     const { error } = await client.from('transactions').upsert(records);
     if (error) throw error;
     return true;
@@ -303,12 +340,14 @@ export async function deleteRowsSupabase(
 }
 
 // Pull transactions
-export async function pullTransactions(client: SupabaseClient): Promise<SaleTransaction[] | null> {
+export async function pullTransactions(
+  client: SupabaseClient,
+  storeId?: string,
+): Promise<SaleTransaction[] | null> {
   try {
-    const { data, error } = await client
-      .from('transactions')
-      .select('*')
-      .order('date', { ascending: false });
+    let query = client.from('transactions').select('*').order('date', { ascending: false });
+    if (storeId) query = query.eq('store_id', storeId);
+    const { data, error } = await query;
     if (error) throw error;
     return (data || []).map((r) => ({
       id: r.id,
@@ -346,17 +385,21 @@ export async function pullTransactions(client: SupabaseClient): Promise<SaleTran
 export async function pushUserAccounts(
   client: SupabaseClient,
   accounts: UserAccount[],
+  storeId?: string,
 ): Promise<boolean> {
   if (accounts.length === 0) return true;
   try {
-    const records = accounts.map((a) => ({
-      id: a.id,
-      name: a.name,
-      role: a.role,
-      pin: a.pin,
-      active: a.active,
-      created_at: a.createdAt,
-    }));
+    const records = stampStoreId(
+      accounts.map((a) => ({
+        id: a.id,
+        name: a.name,
+        role: a.role,
+        pin: a.pin,
+        active: a.active,
+        created_at: a.createdAt,
+      })),
+      storeId,
+    );
     const { error } = await client.from('user_accounts').upsert(records);
     if (error) throw error;
     return true;
@@ -367,9 +410,14 @@ export async function pushUserAccounts(
 }
 
 // Pull user accounts
-export async function pullUserAccounts(client: SupabaseClient): Promise<UserAccount[] | null> {
+export async function pullUserAccounts(
+  client: SupabaseClient,
+  storeId?: string,
+): Promise<UserAccount[] | null> {
   try {
-    const { data, error } = await client.from('user_accounts').select('*');
+    let query = client.from('user_accounts').select('*');
+    if (storeId) query = query.eq('store_id', storeId);
+    const { data, error } = await query;
     if (error) throw error;
     // Older cloud data may hold plaintext PINs. The app authenticates against
     // SHA-256 hashes, so re-hash anything that isn't already a hash — otherwise

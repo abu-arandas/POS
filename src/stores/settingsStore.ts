@@ -21,6 +21,10 @@ interface SettingsState {
   // Auto-scan the LAN for network printers when the Printer settings tab opens
   // (desktop only). Off keeps discovery manual for large/locked-down networks.
   autoScanPrinters: boolean;
+  // This terminal's store id for multi-store cloud scoping (see
+  // docs/super-admin-plan.md). Empty = single-store mode: sync behaves exactly
+  // as before (no store_id stamped or filtered).
+  storeId: string;
   darkMode: boolean;
   language: 'en' | 'ar';
 
@@ -31,6 +35,7 @@ interface SettingsState {
   setEmailTemplate: (template: ReceiptEmailTemplate) => void;
   setKitchenStations: (stations: KitchenStation[]) => void;
   setAutoScanPrinters: (on: boolean) => void;
+  setStoreId: (storeId: string) => void;
   setDarkMode: (darkMode: boolean) => void;
   setLanguage: (lang: 'en' | 'ar') => void;
 }
@@ -72,6 +77,7 @@ export const useSettingsStore = create<SettingsState>()(
       emailTemplate: DEFAULT_EMAIL_TEMPLATE,
       kitchenStations: [],
       autoScanPrinters: true,
+      storeId: '',
       // Dark-first: the whole UI is designed for a dark canvas. New terminals
       // start dark and stay cohesive; a saved light preference is restored on
       // rehydrate and the toggle still switches freely.
@@ -85,6 +91,7 @@ export const useSettingsStore = create<SettingsState>()(
       setEmailTemplate: (emailTemplate) => set({ emailTemplate }),
       setKitchenStations: (kitchenStations) => set({ kitchenStations }),
       setAutoScanPrinters: (autoScanPrinters) => set({ autoScanPrinters }),
+      setStoreId: (storeId) => set({ storeId }),
       setDarkMode: (darkMode) => {
         // Apply the theme class immediately; without this the `dark:` variants
         // only take effect after a reload (the class was set on rehydrate only).
