@@ -18,6 +18,9 @@ interface SettingsState {
   scannerConfig: ScannerConfig;
   emailTemplate: ReceiptEmailTemplate;
   kitchenStations: KitchenStation[];
+  // Auto-scan the LAN for network printers when the Printer settings tab opens
+  // (desktop only). Off keeps discovery manual for large/locked-down networks.
+  autoScanPrinters: boolean;
   darkMode: boolean;
   language: 'en' | 'ar';
 
@@ -27,6 +30,7 @@ interface SettingsState {
   setScannerConfig: (config: ScannerConfig) => void;
   setEmailTemplate: (template: ReceiptEmailTemplate) => void;
   setKitchenStations: (stations: KitchenStation[]) => void;
+  setAutoScanPrinters: (on: boolean) => void;
   setDarkMode: (darkMode: boolean) => void;
   setLanguage: (lang: 'en' | 'ar') => void;
 }
@@ -67,6 +71,7 @@ export const useSettingsStore = create<SettingsState>()(
       scannerConfig: DEFAULT_SCANNER,
       emailTemplate: DEFAULT_EMAIL_TEMPLATE,
       kitchenStations: [],
+      autoScanPrinters: true,
       // Dark-first: the whole UI is designed for a dark canvas. New terminals
       // start dark and stay cohesive; a saved light preference is restored on
       // rehydrate and the toggle still switches freely.
@@ -79,6 +84,7 @@ export const useSettingsStore = create<SettingsState>()(
       setScannerConfig: (scannerConfig) => set({ scannerConfig }),
       setEmailTemplate: (emailTemplate) => set({ emailTemplate }),
       setKitchenStations: (kitchenStations) => set({ kitchenStations }),
+      setAutoScanPrinters: (autoScanPrinters) => set({ autoScanPrinters }),
       setDarkMode: (darkMode) => {
         // Apply the theme class immediately; without this the `dark:` variants
         // only take effect after a reload (the class was set on rehydrate only).

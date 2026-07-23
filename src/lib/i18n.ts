@@ -151,6 +151,7 @@ const en = {
       pairSerial: 'Pair Serial',
       scanNetwork: 'Scan Network',
       scanningNetwork: 'Scanning…',
+      autoScanPrinters: 'Auto-scan the network for printers when this tab opens',
       useThisPrinter: 'Use',
       printerInUse: 'In use',
       noPrintersFound:
@@ -744,6 +745,7 @@ const ar = {
       pairSerial: 'إقران تسلسلي',
       scanNetwork: 'فحص الشبكة',
       scanningNetwork: 'جارٍ الفحص…',
+      autoScanPrinters: 'فحص الشبكة تلقائيًا بحثًا عن الطابعات عند فتح هذا التبويب',
       useThisPrinter: 'استخدام',
       printerInUse: 'قيد الاستخدام',
       noPrintersFound:
