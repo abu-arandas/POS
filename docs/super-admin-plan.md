@@ -1,17 +1,39 @@
 # Super-Admin & Multi-Store Plan
 
-Status: **Phases 0–3 implemented — Phase 4 proposed**
+Status: **Phases 0–4 implemented — roadmap complete**
 Audience: maintainers deciding how EA POS should grow from a single-store app into
 a multi-store platform overseen by a super-admin.
 
-**Implemented so far (Phase 0):** `Store` / `Membership` / `Role` types
-(`src/types.ts`); the pure fleet helpers `storeStatus` / `summarizeFleet`
-(`src/lib/fleet.ts`, unit-tested); the additive backend migration
-(`scripts/multi-store-schema.sql` — stores, memberships, `store_id` columns +
-backfill, RLS predicates/policies, `store_heartbeat` + `fleet_summary` RPCs); a
-terminal `storeId` in the settings store; and backward-compatible `store_id`
-stamping/filtering in the sync layer (a no-op while `storeId` is empty, so
-single-store installs are unchanged). Phases 1–4 below are still proposed.
+**Implemented (Phases 0–4):** the full roadmap is built and behind a single
+super-admin-gated Fleet surface (`src/components/FleetView.tsx`, tabs: Live
+board / Reports / Stores / Catalog).
+
+- **Phase 0 — Foundations:** `Store` / `Membership` / `Role` types
+  (`src/types.ts`); pure fleet helpers `storeStatus` / `summarizeFleet`
+  (`src/lib/fleet.ts`); the additive backend migration
+  (`scripts/multi-store-schema.sql` — stores, memberships, `store_id` columns +
+  backfill, RLS predicates/policies, `store_heartbeat` + `fleet_summary` +
+  `fleet_daily` RPCs); a terminal `storeId` in settings; backward-compatible
+  `store_id` stamping/filtering in the sync layer (a no-op while `storeId` is
+  empty, so single-store installs are unchanged).
+- **Phase 1 — Fleet board:** `src/lib/fleetClient.ts` (heartbeat +
+  `fetchSuperadminOrg` + `fetchFleetSummary`) and `src/components/FleetBoard.tsx`
+  (live online/offline board with today's totals), gated on super-admin
+  membership.
+- **Phase 2 — Consolidated reporting:** pure `src/lib/fleetReport.ts`
+  (totals / ranking / daily series) and `src/components/FleetDashboard.tsx`
+  (period selector, per-store drill-in, recharts trend).
+- **Phase 3 — Central management:** pure `src/lib/storeForm.ts`,
+  `src/components/StoreAdmin.tsx` (store CRUD + per-store staff/role
+  management), and the **opt-in** `scripts/multi-store-rls-enforce.sql`.
+- **Phase 4 — Central catalog push:** pure `src/lib/catalogPush.ts` (diff by
+  SKU/name, remap categories, adds + price updates only) and
+  `src/components/CatalogPush.tsx` (source → targets, preview-first, additive).
+
+The pure libs are all unit-tested. What remains is operational, not code:
+provisioning a shared multi-tenant Supabase project, seeding super-admin
+memberships, and running the opt-in RLS script when every terminal is scoped —
+see §7 and §11.
 
 ---
 
@@ -277,7 +299,7 @@ UI rather than rebuilding it.
 | **1. Fleet board (MVP)** ✅ | Heartbeat RPC + `src/lib/fleet.ts`, `superadmin` role, read-only Fleet board of online/offline stores with today's totals | **Done.** Delivers the core "check all connected stores" ask |
 | **2. Consolidated reporting** ✅ | `fleet_daily` RPC, cross-store dashboard (period selector, per-store drill-in, revenue trend, ranked revenue-by-store), pure `fleetReport` lib | **Done.** Reuses the Dashboard's recharts language; a Reports tab beside the Live board |
 | **3. Central management** ✅ | Store CRUD + suspend/activate, per-store membership/role management (pure `storeForm` lib), and an **opt-in** `multi-store-rls-enforce.sql` to flip RLS on | **Done.** A Stores tab beside Live/Reports; the RLS flip is a deliberate, guarded, reversible script — not auto-applied |
-| **4. Central catalog push** | Edit-once, push catalog/prices/users to chosen stores | Highest effort; optional |
+| **4. Central catalog push** ✅ | Push one store's products/prices/categories to chosen stores, preview-first (pure `catalogPush` diff) | **Done.** A Catalog tab; additive only (never deletes, never touches per-store stock) |
 
 Phases 0–1 are the smallest slice that satisfies the request. Each phase is a
 shippable PR.

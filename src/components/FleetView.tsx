@@ -1,21 +1,22 @@
 import { lazy, Suspense, useState } from 'react';
-import { Radio, BarChart3, Building2 } from 'lucide-react';
+import { Radio, BarChart3, Building2, PackageOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import FleetBoard from './FleetBoard';
 
 const FleetDashboard = lazy(() => import('./FleetDashboard'));
 const StoreAdmin = lazy(() => import('./StoreAdmin'));
+const CatalogPush = lazy(() => import('./CatalogPush'));
 
 interface FleetViewProps {
   orgId: string;
 }
 
-type Tab = 'live' | 'reports' | 'stores';
+type Tab = 'live' | 'reports' | 'stores' | 'catalog';
 
 // Super-admin surface container: a tab switch between the live "connected
 // stores" board (Phase 1), the consolidated cross-store reporting dashboard
-// (Phase 2), and central store & staff management (Phase 3). Keeps the sidebar
-// to a single Fleet entry.
+// (Phase 2), central store & staff management (Phase 3), and central catalog
+// push (Phase 4). Keeps the sidebar to a single Fleet entry.
 export default function FleetView({ orgId }: FleetViewProps) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('live');
@@ -24,6 +25,7 @@ export default function FleetView({ orgId }: FleetViewProps) {
     { id: 'live', labelKey: 'fleet.tab_live', icon: Radio },
     { id: 'reports', labelKey: 'fleet.tab_reports', icon: BarChart3 },
     { id: 'stores', labelKey: 'fleet.tab_stores', icon: Building2 },
+    { id: 'catalog', labelKey: 'fleet.tab_catalog', icon: PackageOpen },
   ];
 
   return (
@@ -50,7 +52,13 @@ export default function FleetView({ orgId }: FleetViewProps) {
           <FleetBoard orgId={orgId} />
         ) : (
           <Suspense fallback={<div className="flex-1" />}>
-            {tab === 'reports' ? <FleetDashboard orgId={orgId} /> : <StoreAdmin orgId={orgId} />}
+            {tab === 'reports' ? (
+              <FleetDashboard orgId={orgId} />
+            ) : tab === 'stores' ? (
+              <StoreAdmin orgId={orgId} />
+            ) : (
+              <CatalogPush orgId={orgId} />
+            )}
           </Suspense>
         )}
       </div>

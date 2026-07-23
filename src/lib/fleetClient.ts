@@ -8,7 +8,7 @@ import { getSupabaseClient, signInDevice } from './supabase';
 import { useSettingsStore } from '../stores/settingsStore';
 import { FleetStoreRow } from './fleet';
 import { FleetDailyRow } from './fleetReport';
-import { Store, Membership, Role } from '../types';
+import { Store, Membership, Role, Product, Category } from '../types';
 
 function activeClient() {
   const { supabaseConfig } = useSettingsStore.getState();
@@ -234,6 +234,99 @@ export async function removeMembership(userId: string, storeId: string): Promise
     return !error;
   } catch (err) {
     console.warn('removeMembership failed:', err);
+    return false;
+  }
+}
+
+// ── Central catalog push (Phase 4) ───────────────────────────────────────────
+// Reads a store's catalog and writes catalog rows into a target store, both as
+// a super-admin. Only additive/price writes flow through here (the diff is
+// computed by lib/catalogPush); never any deletes.
+
+export async function fetchStoreProducts(storeId: string): Promise<Product[]> {
+  const client = await withSession();
+  if (!client) return [];
+  try {
+    const { data, error } = await client.from('products').select('*').eq('store_id', storeId);
+    if (error || !data) return [];
+    return (data as Record<string, unknown>[]).map((r) => ({
+      id: String(r.id),
+      name: String(r.name),
+      price: Number(r.price ?? 0),
+      cost: Number(r.cost ?? 0),
+      category: (r.category as string | null) ?? '',
+      sku: String(r.sku ?? ''),
+      stock: Number(r.stock ?? 0),
+      minStock: Number(r.min_stock ?? 0),
+      image: String(r.image ?? ''),
+    }));
+  } catch (err) {
+    console.warn('fetchStoreProducts failed:', err);
+    return [];
+  }
+}
+
+export async function fetchStoreCategories(storeId: string): Promise<Category[]> {
+  const client = await withSession();
+  if (!client) return [];
+  try {
+    const { data, error } = await client.from('categories').select('*').eq('store_id', storeId);
+    if (error || !data) return [];
+    return (data as Record<string, unknown>[]).map((r) => ({
+      id: String(r.id),
+      name: String(r.name),
+      color: String(r.color ?? ''),
+    }));
+  } catch (err) {
+    console.warn('fetchStoreCategories failed:', err);
+    return [];
+  }
+}
+
+// Writes categories first (so product category FKs resolve), then products, all
+// stamped with the target store_id. Returns true on success.
+export async function pushStoreCatalog(
+  storeId: string,
+  categories: Category[],
+  products: Product[],
+): Promise<boolean> {
+  const client = await withSession();
+  if (!client) return false;
+  try {
+    if (categories.length > 0) {
+      const { error: catErr } = await client.from('categories').upsert(
+        categories.map((c) => ({ id: c.id, name: c.name, color: c.color, store_id: storeId })),
+        { onConflict: 'id' },
+      );
+      if (catErr) {
+        console.warn('pushStoreCatalog categories failed:', catErr);
+        return false;
+      }
+    }
+    if (products.length > 0) {
+      const { error: prodErr } = await client.from('products').upsert(
+        products.map((p) => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          cost: p.cost,
+          category: p.category || null, // empty → NULL to satisfy the FK
+          sku: p.sku,
+          stock: p.stock,
+          min_stock: p.minStock,
+          image: p.image,
+          store_id: storeId,
+        })),
+        { onConflict: 'id' },
+      );
+      if (prodErr) {
+        console.warn('pushStoreCatalog products failed:', prodErr);
+        return false;
+      }
+    }
+    return true;
+  } catch (err) {
+    console.warn('pushStoreCatalog failed:', err);
     return false;
   }
 }
