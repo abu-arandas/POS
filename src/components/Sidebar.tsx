@@ -11,6 +11,7 @@ import {
   Moon,
   QrCode,
   Clock,
+  Building2,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +23,7 @@ import { useProductStore } from '../stores/productStore';
 interface SidebarProps {
   currentScreen: ScreenId;
   setScreen: (screen: ScreenId) => void;
+  isSuperadmin?: boolean;
 }
 
 const NAV_ITEMS: Array<{ id: ScreenId; labelKey: string; icon: typeof ShoppingBag }> = [
@@ -32,6 +34,7 @@ const NAV_ITEMS: Array<{ id: ScreenId; labelKey: string; icon: typeof ShoppingBa
   { id: 'customers', labelKey: 'sidebar.customers', icon: Users },
   { id: 'shift', labelKey: 'sidebar.shift', icon: Clock },
   { id: 'qrmenu', labelKey: 'sidebar.qrmenu', icon: QrCode },
+  { id: 'fleet', labelKey: 'sidebar.fleet', icon: Building2 },
   { id: 'settings', labelKey: 'sidebar.settings', icon: Settings },
 ];
 
@@ -51,7 +54,7 @@ function getInitials(name: string) {
   return name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
 }
 
-export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
+export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: SidebarProps) {
   const { currentUser, setCurrentUser } = useAuthStore();
   const { settings, darkMode, setDarkMode } = useSettingsStore();
   const { products } = useProductStore();
@@ -59,8 +62,12 @@ export default function Sidebar({ currentScreen, setScreen }: SidebarProps) {
 
   const lowStockCount = products.filter((p) => p.stock <= p.minStock && p.stock > 0).length;
 
+  // The Fleet board is additionally gated on a resolved super-admin membership,
+  // so it's hidden unless the cloud account is actually a super-admin.
   const allowedItems = NAV_ITEMS.filter(
-    (item) => !currentUser || isScreenAllowed(item.id, currentUser.role),
+    (item) =>
+      (!currentUser || isScreenAllowed(item.id, currentUser.role)) &&
+      (item.id !== 'fleet' || isSuperadmin),
   );
 
   return (

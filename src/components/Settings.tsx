@@ -96,6 +96,8 @@ export default function Settings() {
     setEmailTemplate,
     kitchenStations,
     setKitchenStations,
+    autoScanPrinters,
+    setAutoScanPrinters,
   } = useSettingsStore();
   const { products, categories, setProducts, setCategories } = useProductStore();
   const { customers, setCustomers } = useCustomerStore();
@@ -159,6 +161,23 @@ export default function Settings() {
       setScanningNetwork(false);
     }
   };
+  // Auto-scan the LAN once when the Printer tab opens (if enabled + supported),
+  // so network printers and the station IP picker populate without a click.
+  // Runs post-await only — no synchronous setState inside the effect.
+  useEffect(() => {
+    if (activeTab !== 'printer' || !autoScanPrinters || !networkScanSupported()) return;
+    let cancelled = false;
+    scanNetworkPrinters()
+      .then((list) => {
+        if (!cancelled && list.length > 0) {
+          setDetectedPrinters((prev) => [...prev.filter((p) => p.kind !== 'network'), ...list]);
+        }
+      })
+      .catch((e) => console.error('Auto network-printer scan failed:', e));
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, autoScanPrinters]);
   // One-click apply a discovered network printer to the config form.
   const handleUseNetworkPrinter = (ip: string) => {
     setPrinterForm((f) => ({ ...f, type: 'network', ipAddress: ip }));
@@ -404,6 +423,7 @@ export default function Settings() {
       setEmailTemplate(DEFAULT_EMAIL_TEMPLATE);
       setKitchenStations([]);
       setStationForm([]);
+      setAutoScanPrinters(true);
       setSupabaseConfig(DEFAULT_SUPABASE);
       setSbUrl('');
       setSbKey('');
@@ -824,6 +844,17 @@ export default function Settings() {
                           </li>
                         ))}
                       </ul>
+                    )}
+                    {networkScanSupported() && (
+                      <label className="mt-3 flex items-center gap-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={autoScanPrinters}
+                          onChange={(e) => setAutoScanPrinters(e.target.checked)}
+                          className="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                        />
+                        {t('settings.autoScanPrinters')}
+                      </label>
                     )}
                   </div>
 

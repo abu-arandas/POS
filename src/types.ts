@@ -186,6 +186,36 @@ export interface UserAccount {
   createdAt: string;
 }
 
+// ── Multi-store / super-admin foundations (see docs/super-admin-plan.md) ──
+// These describe the cloud/fleet dimension. They are deliberately separate from
+// the per-store UserAccount above: a super-admin is an org-level MEMBERSHIP, not
+// a terminal login. Nothing in the single-store terminal flow depends on them.
+
+// Membership role — spans the org (superadmin) or applies within one store.
+export type Role = 'superadmin' | 'admin' | 'manager' | 'cashier';
+
+// A physical location. `lastSeenAt` is refreshed by a terminal heartbeat and
+// drives the fleet board's online/offline state.
+export interface Store {
+  id: string;
+  orgId: string;
+  name: string;
+  address?: string;
+  timezone: string;
+  currency: string;
+  status: 'active' | 'suspended';
+  lastSeenAt?: string | null;
+  createdAt: string;
+}
+
+// Links a cloud auth user to a store (or the whole org when storeId is null).
+export interface Membership {
+  userId: string;
+  orgId: string;
+  storeId: string | null; // null = org-wide (super-admin)
+  role: Role;
+}
+
 export interface PrinterConfig {
   type: 'system' | 'serial' | 'bluetooth' | 'network';
   paperSize: '58mm' | '80mm';
