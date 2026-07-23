@@ -1,6 +1,6 @@
 # Super-Admin & Multi-Store Plan
 
-Status: **Phases 0–2 implemented — later phases proposed**
+Status: **Phases 0–3 implemented — Phase 4 proposed**
 Audience: maintainers deciding how EA POS should grow from a single-store app into
 a multi-store platform overseen by a super-admin.
 
@@ -276,7 +276,7 @@ UI rather than rebuilding it.
 | **0. Foundations** ✅ | `stores` + `memberships` tables, `store_id` columns + backfill, RLS + heartbeat/summary RPCs, `storeId` in settings + backward-compatible sync scoping, fleet helpers | **Done.** No visible UI change; unlocks everything else |
 | **1. Fleet board (MVP)** ✅ | Heartbeat RPC + `src/lib/fleet.ts`, `superadmin` role, read-only Fleet board of online/offline stores with today's totals | **Done.** Delivers the core "check all connected stores" ask |
 | **2. Consolidated reporting** ✅ | `fleet_daily` RPC, cross-store dashboard (period selector, per-store drill-in, revenue trend, ranked revenue-by-store), pure `fleetReport` lib | **Done.** Reuses the Dashboard's recharts language; a Reports tab beside the Live board |
-| **3. Central management** | Store CRUD, staff invites/memberships, RLS enforced (flip on) | Security-hardened multi-tenant |
+| **3. Central management** ✅ | Store CRUD + suspend/activate, per-store membership/role management (pure `storeForm` lib), and an **opt-in** `multi-store-rls-enforce.sql` to flip RLS on | **Done.** A Stores tab beside Live/Reports; the RLS flip is a deliberate, guarded, reversible script — not auto-applied |
 | **4. Central catalog push** | Edit-once, push catalog/prices/users to chosen stores | Highest effort; optional |
 
 Phases 0–1 are the smallest slice that satisfies the request. Each phase is a
