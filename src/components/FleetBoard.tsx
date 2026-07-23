@@ -70,7 +70,7 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
   return (
     <div
       id="fleet-root"
-      className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-[#020617] p-6"
+      className="flex-1 flex flex-col min-h-0 overflow-hidden p-6"
     >
       <div className="mb-6 shrink-0 flex items-center justify-between">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>

@@ -135,6 +135,31 @@ RETURNS TABLE (
   ORDER BY s.name;
 $$;
 
+-- 8b. Fleet daily: per-store, per-day revenue + order counts over a window, for
+--     the consolidated cross-store reporting dashboard (Phase 2). Days are
+--     bucketed in each store's own timezone so a store's "day" matches its local
+--     books. SECURITY INVOKER so it stays RLS-scoped to the caller's memberships.
+--     Days with no sales are omitted (the client fills gaps).
+CREATE OR REPLACE FUNCTION fleet_daily(p_org TEXT, p_since TIMESTAMPTZ)
+RETURNS TABLE (
+  store_id   TEXT,
+  store_name TEXT,
+  day        DATE,
+  revenue    NUMERIC,
+  orders     BIGINT
+) LANGUAGE SQL STABLE SECURITY INVOKER AS $$
+  SELECT s.id, s.name,
+         (date_trunc('day', t.date AT TIME ZONE s.timezone))::date AS day,
+         COALESCE(SUM(t.total - COALESCE(t.refunded_amount, 0)), 0),
+         COUNT(t.id)
+  FROM stores s
+  JOIN transactions t
+    ON t.store_id = s.id AND t.status <> 'refunded' AND t.date >= p_since
+  WHERE s.org_id = p_org
+  GROUP BY s.id, s.name, day
+  ORDER BY day, s.name;
+$$;
+
 -- 9. Realtime for the fleet board (live online/offline transitions).
 DO $$
 BEGIN

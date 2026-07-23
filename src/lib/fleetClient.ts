@@ -7,6 +7,7 @@
 import { getSupabaseClient, signInDevice } from './supabase';
 import { useSettingsStore } from '../stores/settingsStore';
 import { FleetStoreRow } from './fleet';
+import { FleetDailyRow } from './fleetReport';
 
 function activeClient() {
   const { supabaseConfig } = useSettingsStore.getState();
@@ -80,6 +81,30 @@ export async function fetchFleetSummary(orgId: string, since: Date): Promise<Fle
     }));
   } catch (err) {
     console.warn('fleet_summary failed:', err);
+    return [];
+  }
+}
+
+// Pulls per-store, per-day revenue/order buckets for the consolidated reporting
+// dashboard via the fleet_daily RPC. Returns [] on any failure.
+export async function fetchFleetDaily(orgId: string, since: Date): Promise<FleetDailyRow[]> {
+  const client = await withSession();
+  if (!client) return [];
+  try {
+    const { data, error } = await client.rpc('fleet_daily', {
+      p_org: orgId,
+      p_since: since.toISOString(),
+    });
+    if (error || !data) return [];
+    return (data as Record<string, unknown>[]).map((r) => ({
+      storeId: String(r.store_id),
+      storeName: String(r.store_name),
+      day: String(r.day),
+      revenue: Number(r.revenue ?? 0),
+      orders: Number(r.orders ?? 0),
+    }));
+  } catch (err) {
+    console.warn('fleet_daily failed:', err);
     return [];
   }
 }

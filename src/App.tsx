@@ -27,7 +27,7 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const Settings = lazy(() => import('./components/Settings'));
 const QRMenu = lazy(() => import('./components/QRMenu'));
 const ShiftScreen = lazy(() => import('./components/ShiftScreen'));
-const FleetBoard = lazy(() => import('./components/FleetBoard'));
+const FleetView = lazy(() => import('./components/FleetView'));
 import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
@@ -177,7 +177,7 @@ export default function App() {
       case 'settings':
         return <Settings />;
       case 'fleet':
-        return superadminOrg ? <FleetBoard orgId={superadminOrg} /> : <Register />;
+        return superadminOrg ? <FleetView orgId={superadminOrg} /> : <Register />;
       default:
         return <div className="p-8 font-mono text-xs">VIEW ROUTING ERROR</div>;
     }
