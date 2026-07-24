@@ -35,8 +35,7 @@
       "target": [
         "nsis"
       ],
-      "publisherName": "abu-arandas",
-      "verifyUpdateCodeSignature": false
+      "publisherName": "abu-arandas"
     },
     "nsis": {
       "oneClick": false,
