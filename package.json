@@ -34,8 +34,7 @@
     "win": {
       "target": [
         "nsis"
-      ],
-      "publisherName": "abu-arandas"
+      ]
     },
     "nsis": {
       "oneClick": false,
