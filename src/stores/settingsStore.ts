@@ -7,9 +7,11 @@ import {
   ScannerConfig,
   ReceiptEmailTemplate,
   KitchenStation,
+  ReceiptLayout,
 } from '../types';
 import { INITIAL_SETTINGS } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
+import { defaultReceiptLayout, defaultKitchenLayout } from '../lib/receiptFormat';
 
 interface SettingsState {
   settings: StoreSettings;
@@ -18,6 +20,10 @@ interface SettingsState {
   scannerConfig: ScannerConfig;
   emailTemplate: ReceiptEmailTemplate;
   kitchenStations: KitchenStation[];
+  // Configurable content/typography for the customer receipt and the kitchen
+  // ticket (header/footer, font, date/time format, per-field show toggles).
+  receiptLayout: ReceiptLayout;
+  kitchenLayout: ReceiptLayout;
   // Auto-scan the LAN for network printers when the Printer settings tab opens
   // (desktop only). Off keeps discovery manual for large/locked-down networks.
   autoScanPrinters: boolean;
@@ -34,6 +40,8 @@ interface SettingsState {
   setScannerConfig: (config: ScannerConfig) => void;
   setEmailTemplate: (template: ReceiptEmailTemplate) => void;
   setKitchenStations: (stations: KitchenStation[]) => void;
+  setReceiptLayout: (layout: ReceiptLayout) => void;
+  setKitchenLayout: (layout: ReceiptLayout) => void;
   setAutoScanPrinters: (on: boolean) => void;
   setStoreId: (storeId: string) => void;
   setDarkMode: (darkMode: boolean) => void;
@@ -76,6 +84,8 @@ export const useSettingsStore = create<SettingsState>()(
       scannerConfig: DEFAULT_SCANNER,
       emailTemplate: DEFAULT_EMAIL_TEMPLATE,
       kitchenStations: [],
+      receiptLayout: defaultReceiptLayout(),
+      kitchenLayout: defaultKitchenLayout(),
       autoScanPrinters: true,
       storeId: '',
       // Dark-first: the whole UI is designed for a dark canvas. New terminals
@@ -90,6 +100,8 @@ export const useSettingsStore = create<SettingsState>()(
       setScannerConfig: (scannerConfig) => set({ scannerConfig }),
       setEmailTemplate: (emailTemplate) => set({ emailTemplate }),
       setKitchenStations: (kitchenStations) => set({ kitchenStations }),
+      setReceiptLayout: (receiptLayout) => set({ receiptLayout }),
+      setKitchenLayout: (kitchenLayout) => set({ kitchenLayout }),
       setAutoScanPrinters: (autoScanPrinters) => set({ autoScanPrinters }),
       setStoreId: (storeId) => set({ storeId }),
       setDarkMode: (darkMode) => {

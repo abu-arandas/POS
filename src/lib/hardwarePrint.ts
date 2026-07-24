@@ -1,4 +1,4 @@
-import { SaleTransaction, StoreSettings, PrinterConfig, KitchenStation } from '../types';
+import { SaleTransaction, StoreSettings, PrinterConfig, KitchenStation, ReceiptLayout } from '../types';
 import { encodeReceipt, encodeKitchenTicket } from './escpos';
 import { printTransactions, printKitchenTicketSystem } from './receiptPrinter';
 import { routeKitchenTickets } from './kitchenRouting';
@@ -59,13 +59,14 @@ export async function printReceipt(
   settings: StoreSettings,
   printerConfig: PrinterConfig,
   openDrawer = false,
+  layout?: ReceiptLayout,
 ): Promise<HardwarePrintOutcome> {
   if (printerConfig.type === 'system') {
-    const outcome = printTransactions([tx], settings, printerConfig);
+    const outcome = printTransactions([tx], settings, printerConfig, layout);
     return outcome === 'popup-blocked' ? 'popup-blocked' : 'printed';
   }
 
-  const bytes = encodeReceipt(tx, settings, printerConfig, openDrawer);
+  const bytes = encodeReceipt(tx, settings, printerConfig, openDrawer, layout);
   if (printerConfig.type === 'serial') return printSerial(bytes, printerConfig.baudRate);
   if (printerConfig.type === 'network') {
     if (!printerConfig.ipAddress) return 'no-device';
@@ -85,20 +86,21 @@ export async function printKitchenTicket(
   printerConfig: PrinterConfig,
   stationName?: string,
   ipOverride?: string,
+  layout?: ReceiptLayout,
 ): Promise<HardwarePrintOutcome> {
   // A station with its own network printer always goes over the network,
   // regardless of the terminal's default transport.
   if (ipOverride) {
-    const bytes = encodeKitchenTicket(tx, settings, printerConfig, stationName);
+    const bytes = encodeKitchenTicket(tx, settings, printerConfig, stationName, layout);
     return printNetwork(bytes, ipOverride);
   }
 
   if (printerConfig.type === 'system') {
-    const outcome = printKitchenTicketSystem(tx, settings, printerConfig, stationName);
+    const outcome = printKitchenTicketSystem(tx, settings, printerConfig, stationName, layout);
     return outcome === 'popup-blocked' ? 'popup-blocked' : 'printed';
   }
 
-  const bytes = encodeKitchenTicket(tx, settings, printerConfig, stationName);
+  const bytes = encodeKitchenTicket(tx, settings, printerConfig, stationName, layout);
   if (printerConfig.type === 'serial') return printSerial(bytes, printerConfig.baudRate);
   if (printerConfig.type === 'network') {
     if (!printerConfig.ipAddress) return 'no-device';
@@ -118,9 +120,10 @@ export async function printKitchenTickets(
   printerConfig: PrinterConfig,
   stations: KitchenStation[],
   categoryOf: (productId: string) => string | undefined,
+  layout?: ReceiptLayout,
 ): Promise<HardwarePrintOutcome> {
   if (stations.length === 0) {
-    return printKitchenTicket(tx, settings, printerConfig);
+    return printKitchenTicket(tx, settings, printerConfig, undefined, undefined, layout);
   }
 
   const tickets = routeKitchenTickets(tx, stations, categoryOf);
@@ -133,6 +136,7 @@ export async function printKitchenTickets(
       printerConfig,
       ticket.station.name,
       ticket.station.ipAddress,
+      layout,
     );
     if (outcome !== 'printed') worst = outcome;
   }

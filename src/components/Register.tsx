@@ -55,6 +55,8 @@ export default function Register() {
   const scannerConfig = useSettingsStore((s) => s.scannerConfig);
   const emailTemplate = useSettingsStore((s) => s.emailTemplate);
   const kitchenStations = useSettingsStore((s) => s.kitchenStations);
+  const receiptLayout = useSettingsStore((s) => s.receiptLayout);
+  const kitchenLayout = useSettingsStore((s) => s.kitchenLayout);
   const addTransaction = useTransactionStore((s) => s.addTransaction);
   const currentUser = useAuthStore((s) => s.currentUser);
   const heldOrders = useHeldOrderStore((s) => s.heldOrders);
@@ -388,32 +390,32 @@ export default function Register() {
       saleMethod === 'cash' || (payments?.some((p) => p.method === 'cash') ?? false);
 
     if (printerConfig.autoPrintOnCheckout) {
-      printReceipt(transaction, settings, printerConfig, isCashSale).then(notifyPrint);
+      printReceipt(transaction, settings, printerConfig, isCashSale, receiptLayout).then(notifyPrint);
     } else if (isCashSale) {
       openCashDrawer(printerConfig);
     }
     if (printerConfig.kitchenTicketOnCheckout) {
       const catOf = (productId: string) =>
         useProductStore.getState().products.find((p) => p.id === productId)?.category;
-      printKitchenTickets(transaction, settings, printerConfig, kitchenStations, catOf).then(
+      printKitchenTickets(transaction, settings, printerConfig, kitchenStations, catOf, kitchenLayout).then(
         notifyPrint,
       );
     }
-  }, [cartItems, subtotal, discountType, discountValue, discountAmount, taxAmount, totalAmount, paymentMethod, splitMode, splitPayments, cashPaidText, cashChangeDue, selectedCustomerId, activeCustomer, currentUser, currentShiftId, settings, cart, handleUpdateProduct, updateCustomerPoints, addTransaction, printerConfig, kitchenStations, clearCart, t, notifyPrint]);
+  }, [cartItems, subtotal, discountType, discountValue, discountAmount, taxAmount, totalAmount, paymentMethod, splitMode, splitPayments, cashPaidText, cashChangeDue, selectedCustomerId, activeCustomer, currentUser, currentShiftId, settings, cart, handleUpdateProduct, updateCustomerPoints, addTransaction, printerConfig, kitchenStations, receiptLayout, kitchenLayout, clearCart, t, notifyPrint]);
 
   const handlePrintActiveReceipt = useCallback(async () => {
     if (!activeReceipt) return;
-    notifyPrint(await printReceipt(activeReceipt, settings, printerConfig, false));
-  }, [activeReceipt, settings, printerConfig, notifyPrint]);
+    notifyPrint(await printReceipt(activeReceipt, settings, printerConfig, false, receiptLayout));
+  }, [activeReceipt, settings, printerConfig, receiptLayout, notifyPrint]);
 
   const handlePrintKitchenTicket = useCallback(async () => {
     if (!activeReceipt) return;
     const catOf = (productId: string) =>
       useProductStore.getState().products.find((p) => p.id === productId)?.category;
     notifyPrint(
-      await printKitchenTickets(activeReceipt, settings, printerConfig, kitchenStations, catOf),
+      await printKitchenTickets(activeReceipt, settings, printerConfig, kitchenStations, catOf, kitchenLayout),
     );
-  }, [activeReceipt, settings, printerConfig, kitchenStations, notifyPrint]);
+  }, [activeReceipt, settings, printerConfig, kitchenStations, kitchenLayout, notifyPrint]);
 
   const paymentMethodsArray = useMemo(() => [
     { id: 'card', label: t('register.payCard'), icon: CreditCard, activeClass: 'active-card' },

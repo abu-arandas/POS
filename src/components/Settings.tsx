@@ -23,6 +23,7 @@ import {
   ScanLine,
   Mail,
   ChefHat,
+  Receipt,
   Plus
 } from 'lucide-react';
 import {
@@ -35,6 +36,7 @@ import {
 } from '../types';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
+import ReceiptSettingsPanel from './ReceiptSettingsPanel';
 import {
   detectPrinters,
   requestSerialPort,
@@ -96,6 +98,10 @@ export default function Settings() {
     setEmailTemplate,
     kitchenStations,
     setKitchenStations,
+    receiptLayout,
+    setReceiptLayout,
+    kitchenLayout,
+    setKitchenLayout,
     autoScanPrinters,
     setAutoScanPrinters,
   } = useSettingsStore();
@@ -551,6 +557,28 @@ export default function Settings() {
                           className="glass-input w-full px-4 py-2.5 rounded-xl"
                         />
                       </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                          {t('settings.branchName')}
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.branchName || ''}
+                          onChange={(e) => handleUpdateSetting('branchName', e.target.value)}
+                          className="glass-input w-full px-4 py-2.5 rounded-xl"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                          {t('settings.taxNumber')}
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.taxNumber || ''}
+                          onChange={(e) => handleUpdateSetting('taxNumber', e.target.value)}
+                          className="glass-input w-full px-4 py-2.5 rounded-xl"
+                        />
+                      </div>
                       <div className="md:col-span-2">
                         <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
                           {t('settings.storeAddress')}
@@ -991,6 +1019,30 @@ export default function Settings() {
                       <Save size={18} />
                       {t('settings.savePrinter')}
                     </button>
+                  </div>
+
+                  {/* Customer receipt layout */}
+                  <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2 mb-1">
+                      <Receipt size={16} className="text-emerald-500" />
+                      {t('receiptCfg.customerTitle')}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+                      {t('receiptCfg.customerHint')}
+                    </p>
+                    <ReceiptSettingsPanel kind="customer" layout={receiptLayout} onChange={setReceiptLayout} />
+                  </div>
+
+                  {/* Kitchen ticket layout */}
+                  <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2 mb-1">
+                      <ChefHat size={16} className="text-emerald-500" />
+                      {t('receiptCfg.kitchenTitle')}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+                      {t('receiptCfg.kitchenHint')}
+                    </p>
+                    <ReceiptSettingsPanel kind="kitchen" layout={kitchenLayout} onChange={setKitchenLayout} />
                   </div>
 
                   {/* Kitchen station routing */}
