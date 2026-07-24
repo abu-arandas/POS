@@ -171,10 +171,50 @@ export interface StoreSettings {
   storeAddress: string;
   storePhone: string;
   storeLogo?: string;
+  branchName?: string; // optional branch/location label printed under the name
+  taxNumber?: string; // VAT / tax registration number printed on receipts
   taxRate: number; // e.g., 8 for 8%
   currency: string; // e.g., "$"
   loyaltyPointsRate: number; // points earned per unit of currency (e.g. 1 point per $1)
   loyaltyPointValue: number; // discount value per point (e.g. $0.05 per point)
+}
+
+// ── Configurable receipt layout ──────────────────────────────────────────────
+// Which blocks a printed receipt shows. A receipt renders every block by default
+// (legacy behavior); operators trim it down per store via Receipt Settings.
+export interface ReceiptToggles {
+  logo: boolean;
+  storeName: boolean;
+  branchName: boolean;
+  address: boolean;
+  phone: boolean;
+  taxNumber: boolean;
+  date: boolean;
+  time: boolean;
+  receiptNumber: boolean; // order/receipt id
+  operator: boolean;
+  customer: boolean;
+  itemUnitPrice: boolean; // the "@ price ea" breakdown line
+  priceColumn: boolean; // per-line price/total column (kitchen tickets drop this)
+  totals: boolean; // subtotal / discount / tax / total block
+  paymentDetails: boolean; // method + split payments
+  changeDue: boolean; // cash tendered + change (the "balance")
+  loyalty: boolean; // points earned
+  barcode: boolean;
+}
+
+// Header/footer text, typography, and datetime formatting for a receipt kind
+// (customer or kitchen). fontSizePx drives HTML receipts; thermal ESC/POS is a
+// fixed-font device, so it maps a larger size onto emphasized (double-height)
+// headers instead.
+export interface ReceiptLayout {
+  header: string;
+  footer: string;
+  fontFamily: string;
+  fontSizePx: number;
+  dateFormat: string; // token pattern, e.g. 'yyyy-MM-dd'
+  timeFormat: string; // token pattern, e.g. 'h:mm a'
+  show: ReceiptToggles;
 }
 
 export interface UserAccount {

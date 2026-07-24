@@ -41,7 +41,7 @@ import { useTranslation } from 'react-i18next';
 export default function History() {
   const { t } = useTranslation();
   const { transactions, applyRefund, deleteTransactions } = useTransactionStore();
-  const { settings, printerConfig } = useSettingsStore();
+  const { settings, printerConfig, receiptLayout } = useSettingsStore();
   const { currentUser, users } = useAuthStore();
   const { handleUpdateProduct } = useProductStore();
   const { updateCustomerPoints } = useCustomerStore();
@@ -240,7 +240,7 @@ export default function History() {
   };
 
   const handlePrintReceipt = async (tx: SaleTransaction) => {
-    notifyPrint(await printReceipt(tx, settings, printerConfig, false));
+    notifyPrint(await printReceipt(tx, settings, printerConfig, false, receiptLayout));
   };
 
   const handleToggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -263,12 +263,12 @@ export default function History() {
   const handleBulkPrint = async () => {
     const txsToPrint = transactions.filter((tx) => selectedTxIds.includes(tx.id));
     if (printerConfig.type === 'system') {
-      const outcome = printTransactions(txsToPrint, settings, printerConfig);
+      const outcome = printTransactions(txsToPrint, settings, printerConfig, receiptLayout);
       if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
       return;
     }
     for (const tx of txsToPrint) {
-      const outcome = await printReceipt(tx, settings, printerConfig, false);
+      const outcome = await printReceipt(tx, settings, printerConfig, false, receiptLayout);
       if (outcome !== 'printed') { notifyPrint(outcome); break; }
     }
   };
@@ -655,7 +655,7 @@ export default function History() {
 
                 <div className="space-y-1 text-center text-[10px] text-slate-500">
                   <p>PAID VIA {activeTransaction.paymentMethod.toUpperCase()}</p>
-                  <p className="mt-2 font-bold uppercase">{printerConfig.footerMessage}</p>
+                  <p className="mt-2 font-bold uppercase">{receiptLayout.footer}</p>
                 </div>
               </div>
             </div>
