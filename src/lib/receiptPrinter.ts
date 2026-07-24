@@ -217,7 +217,7 @@ export function receiptDocHtml(
         <title>POS Receipts</title>
         <style>
           body {
-            font-family: ${fontFamily}, 'Courier New', Courier, monospace;
+            font-family: "${fontFamily}", 'Courier New', Courier, monospace;
             width: ${rollWidth};
             padding: 8px;
             margin: 0;

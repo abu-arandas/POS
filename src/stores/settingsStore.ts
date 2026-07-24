@@ -117,6 +117,26 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'pos-settings-storage',
       storage: createJSONStorage(() => idbStorage),
+      // Installs saved before configurable receipts existed have no
+      // receiptLayout/kitchenLayout. Seed them from the defaults, carrying the
+      // operator's existing footer message and barcode toggle onto the customer
+      // receipt so nothing silently changes on their printed output.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<SettingsState> & {
+          printerConfig?: Partial<PrinterConfig>;
+        };
+        const merged = { ...current, ...(persisted as object) } as SettingsState;
+        if (!p.receiptLayout) {
+          const base = defaultReceiptLayout();
+          merged.receiptLayout = {
+            ...base,
+            footer: p.printerConfig?.footerMessage ?? base.footer,
+            show: { ...base.show, barcode: p.printerConfig?.showBarcode ?? base.show.barcode },
+          };
+        }
+        if (!p.kitchenLayout) merged.kitchenLayout = defaultKitchenLayout();
+        return merged;
+      },
       onRehydrateStorage: () => (state) => {
         if (state) {
           if (state.darkMode) {

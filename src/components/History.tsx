@@ -655,7 +655,7 @@ export default function History() {
 
                 <div className="space-y-1 text-center text-[10px] text-slate-500">
                   <p>PAID VIA {activeTransaction.paymentMethod.toUpperCase()}</p>
-                  <p className="mt-2 font-bold uppercase">{printerConfig.footerMessage}</p>
+                  <p className="mt-2 font-bold uppercase">{receiptLayout.footer}</p>
                 </div>
               </div>
             </div>
