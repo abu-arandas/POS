@@ -208,7 +208,10 @@ export async function setMembership(m: Membership): Promise<boolean> {
   const client = await withSession();
   if (!client) return false;
   try {
-    await client.from('memberships').delete().eq('user_id', m.userId).eq('store_id', m.storeId);
+    // Match the existing row precisely: an org-wide membership stores NULL, which
+    // PostgREST only matches with `is`, not `eq`.
+    const del = client.from('memberships').delete().eq('user_id', m.userId);
+    await (m.storeId === null ? del.is('store_id', null) : del.eq('store_id', m.storeId));
     const { error } = await client.from('memberships').insert({
       user_id: m.userId,
       org_id: m.orgId,

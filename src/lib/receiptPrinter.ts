@@ -232,6 +232,10 @@ export function receiptDocHtml(
           .muted { color: #555; }
           .text-lg { font-size: 1.25em; font-weight: bold; }
           .divider { border-top: 1px dashed #000; margin: 8px 0; }
+          /* Collapse dividers around a section hidden by receipt-layout toggles,
+             so an empty block never leaves a double rule or a stray edge line. */
+          .divider + .divider { display: none; }
+          .receipt > .divider:first-child, .receipt > .divider:last-child { display: none; }
           .logo { text-align: center; margin-bottom: 8px; }
           .logo svg { width: 32px; height: 32px; }
           .flex-row { display: flex; justify-content: space-between; }

@@ -93,4 +93,27 @@ describe('encodeReceipt honors the layout', () => {
     expect(ascii).not.toContain('$');
     expect(ascii).toContain('2x Latte'); // item name still prints
   });
+
+  it('never prints two dashed rules back-to-back when a section is hidden', () => {
+    // Hide the entire info section (date/time/receipt/operator/customer); the
+    // dividers around it must collapse rather than double up.
+    const layout: ReceiptLayout = {
+      ...defaultReceiptLayout(),
+      show: {
+        ...defaultReceiptLayout().show,
+        date: false,
+        time: false,
+        receiptNumber: false,
+        operator: false,
+        customer: false,
+      },
+    };
+    const lines = Array.from(encodeReceipt(tx, settings, printer, false, layout))
+      .map((b) => (b === 10 ? '\n' : b >= 32 && b < 127 ? String.fromCharCode(b) : ''))
+      .join('')
+      .split('\n');
+    const isRule = (l: string) => /^-+$/.test(l);
+    const doubled = lines.some((l, i) => i > 0 && isRule(l) && isRule(lines[i - 1]));
+    expect(doubled).toBe(false);
+  });
 });
