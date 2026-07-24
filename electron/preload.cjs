@@ -13,6 +13,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Streams a raw ESC/POS byte array to a network thermal printer over TCP.
   // Resolves true on success. { ip, port, data:number[] }.
   printEscpos: (payload) => ipcRenderer.invoke('print-escpos', payload),
+  // Silently prints a receipt HTML document to a named OS printer (no dialog).
+  // { html, deviceName? }.
+  printHtml: (payload) => ipcRenderer.invoke('print-html', payload),
+  // Streams raw ESC/POS bytes to a named local/USB Windows printer via the
+  // spooler (RAW) — silent receipt + cash-drawer pulse. { printerName, data:number[] }.
+  printRaw: (payload) => ipcRenderer.invoke('print-raw', payload),
   // Lists the OS printers visible to the app window (Printer settings screen).
   listPrinters: () => ipcRenderer.invoke('list-printers'),
   // Scans the local /24 subnet for hosts with TCP 9100 open (network thermal

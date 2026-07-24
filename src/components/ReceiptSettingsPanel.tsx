@@ -84,7 +84,7 @@ export default function ReceiptSettingsPanel({ kind, layout, onChange }: Receipt
   const setToggle = (key: keyof ReceiptToggles, value: boolean) =>
     onChange({ ...layout, show: { ...layout.show, [key]: value } });
 
-  const previewWidth = printerConfig.paperSize === '58mm' ? 232 : 322;
+  const previewWidth = printerConfig.paperSize === '58mm' ? 240 : 322;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">

@@ -232,6 +232,10 @@ export function receiptDocHtml(
           .muted { color: #555; }
           .text-lg { font-size: 1.25em; font-weight: bold; }
           .divider { border-top: 1px dashed #000; margin: 8px 0; }
+          /* Collapse dividers around a section hidden by receipt-layout toggles,
+             so an empty block never leaves a double rule or a stray edge line. */
+          .divider + .divider { display: none; }
+          .receipt > .divider:first-child, .receipt > .divider:last-child { display: none; }
           .logo { text-align: center; margin-bottom: 8px; }
           .logo svg { width: 32px; height: 32px; }
           .flex-row { display: flex; justify-content: space-between; }
@@ -279,6 +283,41 @@ function openPrintWindow(
   printWindow.document.write(receiptDocHtml(bodyHtml, rollWidth, fontFamily, fontSizePx, true));
   printWindow.document.close();
   return 'printed';
+}
+
+// Full standalone receipt document(s) for silent Electron printing (no window,
+// no dialog). Mirrors what printTransactions writes into the print window.
+export function receiptsPrintDoc(
+  txs: SaleTransaction[],
+  settings: StoreSettings,
+  printerConfig: PrinterConfig,
+  layout?: ReceiptLayout,
+): string {
+  const L = resolveCustomerLayout(layout, printerConfig);
+  const rollWidth = printerConfig.paperSize === '58mm' ? '58mm' : '80mm';
+  const body = txs
+    .map((tx) => buildReceiptHtml(tx, settings, printerConfig, L))
+    .join('<div class="page-break"></div>');
+  return receiptDocHtml(body, rollWidth, L.fontFamily, L.fontSizePx, false);
+}
+
+// Full standalone kitchen-ticket document for silent Electron printing.
+export function kitchenPrintDoc(
+  tx: SaleTransaction,
+  settings: StoreSettings,
+  printerConfig: PrinterConfig,
+  stationName?: string,
+  layout?: ReceiptLayout,
+): string {
+  const L = resolveKitchenLayout(layout);
+  const rollWidth = printerConfig.paperSize === '58mm' ? '58mm' : '80mm';
+  return receiptDocHtml(
+    buildKitchenTicketHtml(tx, settings, stationName, L),
+    rollWidth,
+    L.fontFamily,
+    L.fontSizePx,
+    false,
+  );
 }
 
 // Full standalone HTML doc for the settings live preview (rendered in an

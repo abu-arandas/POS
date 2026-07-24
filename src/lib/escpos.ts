@@ -11,6 +11,7 @@ const GS = 0x1d;
 class EscPosBuilder {
   private chunks: number[] = [];
   private enc = new TextEncoder();
+  private lastWasDivider = false;
 
   raw(...bytes: number[]) {
     this.chunks.push(...bytes);
@@ -26,6 +27,15 @@ class EscPosBuilder {
   }
   line(s = '') {
     this.text(s).raw(0x0a);
+    this.lastWasDivider = false;
+    return this;
+  }
+  // A dashed separator that collapses consecutive calls, so hiding a whole
+  // section (via receipt-layout toggles) never prints two rules back-to-back.
+  divider(width: number) {
+    if (this.lastWasDivider) return this;
+    this.text('-'.repeat(width)).raw(0x0a);
+    this.lastWasDivider = true;
     return this;
   }
   init() {
@@ -101,7 +111,7 @@ export function encodeReceipt(
   if (S.address && settings.storeAddress) b.line(settings.storeAddress);
   if (S.phone && settings.storePhone) b.line(settings.storePhone);
   if (S.taxNumber && settings.taxNumber) b.line(`VAT: ${settings.taxNumber}`);
-  b.line('-'.repeat(width));
+  b.divider(width);
 
   const d = new Date(tx.date);
   b.align('left');
@@ -110,7 +120,7 @@ export function encodeReceipt(
   if (S.receiptNumber) b.line(twoCol('RECEIPT', tx.id, width));
   if (S.operator && tx.operatorName) b.line(twoCol('OPERATOR', tx.operatorName, width));
   if (S.customer && tx.customerName) b.line(twoCol('MEMBER', tx.customerName, width));
-  b.line('-'.repeat(width));
+  b.divider(width);
 
   for (const item of tx.items) {
     if (S.priceColumn) {
@@ -125,7 +135,7 @@ export function encodeReceipt(
       b.line(`${item.quantity}x ${item.productName}`);
     }
   }
-  b.line('-'.repeat(width));
+  b.divider(width);
 
   if (S.totals) {
     const itemCount = tx.items.reduce((s, i) => s + i.quantity, 0);
@@ -161,7 +171,7 @@ export function encodeReceipt(
     b.align('center').line(`Points earned: ${tx.pointsEarned}`);
   }
 
-  b.align('center').line('-'.repeat(width));
+  b.align('center').divider(width);
   if (L.footer) b.line(L.footer);
 
   // Real, scannable barcode of the receipt id for quick lookup/returns.
@@ -196,7 +206,7 @@ export function encodeKitchenTicket(
   if (L.header) b.line(L.header);
   if (S.storeName) b.line(settings.storeName);
   b.bold(false);
-  b.line('-'.repeat(width));
+  b.divider(width);
 
   const d = new Date(tx.date);
   b.align('left');
@@ -205,14 +215,14 @@ export function encodeKitchenTicket(
   if (S.time) b.line(twoCol('TIME', formatDateTime(d, L.timeFormat), width));
   if (S.operator && tx.operatorName) b.line(twoCol('OPERATOR', tx.operatorName, width));
   if (S.customer && tx.customerName) b.line(twoCol('CUSTOMER', tx.customerName, width));
-  b.line('-'.repeat(width));
+  b.divider(width);
 
   b.doubleHeight(true).bold(true);
   for (const item of tx.items) {
     b.line(`${item.quantity}x ${item.productName}`);
   }
   b.bold(false).doubleHeight(false);
-  b.line('-'.repeat(width));
+  b.divider(width);
 
   b.align('center').line(`${tx.items.reduce((s, i) => s + i.quantity, 0)} ITEMS`);
   if (L.footer) b.line(L.footer);
