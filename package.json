@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "description": "EA POS — offline-first point-of-sale for retail and café: inventory, checkout, QR digital menu server, and network thermal-printer support.",
-  "author": "abu-arandas",
+  "author": {
+    "name": "abu-arandas",
+    "email": "e00arandas@gmail.com"
+  },
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
@@ -22,14 +25,18 @@
   "build": {
     "appId": "com.eapos.app",
     "productName": "EA POS",
+    "copyright": "Copyright © 2026 abu-arandas",
     "artifactName": "EA-POS-Setup-${version}.${ext}",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "buildResources"
     },
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "publisherName": "abu-arandas",
+      "verifyUpdateCodeSignature": false
     },
     "nsis": {
       "oneClick": false,

@@ -255,6 +255,13 @@ const en = {
       printerSerial: 'Serial / USB',
       printerBluetooth: 'Bluetooth',
       printerNetwork: 'Network (IP)',
+      printerWindows: 'USB / Windows',
+      printerName: 'Printer',
+      printerNamePlaceholder: 'e.g. XP-80C',
+      printerWindowsHint:
+        'Prints silently to this installed Windows printer and opens the cash drawer — no dialog. Best for a USB thermal printer (raw ESC/POS).',
+      printerSystemHint:
+        'In the desktop app this prints silently (no dialog). Leave the printer blank to use the Windows default. The cash drawer needs the USB/Windows or Network mode.',
       paperSize: 'Paper Width',
       ipAddress: 'Printer IP Address',
       baudRate: 'Baud Rate',
@@ -979,6 +986,13 @@ const ar = {
       printerSerial: 'تسلسلي / USB',
       printerBluetooth: 'بلوتوث',
       printerNetwork: 'شبكة (IP)',
+      printerWindows: 'USB / ويندوز',
+      printerName: 'الطابعة',
+      printerNamePlaceholder: 'مثال: XP-80C',
+      printerWindowsHint:
+        'يطبع تلقائيًا على طابعة ويندوز هذه ويفتح درج النقد — بدون نافذة. الأفضل لطابعة حرارية USB (ESC/POS خام).',
+      printerSystemHint:
+        'في تطبيق سطح المكتب يطبع تلقائيًا (بدون نافذة). اترك الطابعة فارغة لاستخدام طابعة ويندوز الافتراضية. يحتاج درج النقد وضع USB/ويندوز أو الشبكة.',
       paperSize: 'عرض الورق',
       ipAddress: 'عنوان IP للطابعة',
       baudRate: 'معدل الباود',

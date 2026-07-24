@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const { spawn } = require('child_process');
 const express = require('express');
 const cors = require('cors');
 const os = require('os');
@@ -156,6 +158,100 @@ ipcMain.handle('print-escpos', (event, payload) => {
   });
 });
 
+// Silent print of a receipt HTML document to a named OS printer (or the default
+// when deviceName is empty). Renders the doc in a hidden window and prints with
+// no dialog — the operator is never prompted. Resolves true on success.
+ipcMain.handle('print-html', async (event, payload) => {
+  const { html, deviceName } = payload || {};
+  if (typeof html !== 'string') return false;
+  const win = new BrowserWindow({ show: false, webPreferences: { offscreen: false } });
+  try {
+    await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    return await new Promise((resolve) => {
+      win.webContents.print(
+        {
+          silent: true,
+          deviceName: deviceName || undefined,
+          printBackground: true,
+          margins: { marginType: 'none' },
+        },
+        (success) => resolve(success),
+      );
+    });
+  } catch (err) {
+    console.error('print-html failed:', err.message);
+    return false;
+  } finally {
+    if (!win.isDestroyed()) win.close();
+  }
+});
+
+// PowerShell that streams RAW bytes straight to a Windows printer by name via
+// the winspool spooler (RAW datatype) — bypassing the driver so ESC/POS
+// (receipt text, barcode, and the cash-drawer pulse) reaches a USB thermal
+// printer unmodified, silently, with no dialog. Windows-only.
+const RAW_PRINT_PS1 = `param([Parameter(Mandatory=$true)][string]$PrinterName,[Parameter(Mandatory=$true)][string]$DataPath)
+$ErrorActionPreference = 'Stop'
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class EAPosRaw {
+  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
+  public struct DOCINFO { [MarshalAs(UnmanagedType.LPWStr)] public string pDocName; [MarshalAs(UnmanagedType.LPWStr)] public string pOutputFile; [MarshalAs(UnmanagedType.LPWStr)] public string pDataType; }
+  [DllImport("winspool.Drv", EntryPoint="OpenPrinterW", SetLastError=true, CharSet=CharSet.Unicode)] public static extern bool OpenPrinter(string src, out IntPtr h, IntPtr pd);
+  [DllImport("winspool.Drv", EntryPoint="ClosePrinter", SetLastError=true)] public static extern bool ClosePrinter(IntPtr h);
+  [DllImport("winspool.Drv", EntryPoint="StartDocPrinterW", SetLastError=true, CharSet=CharSet.Unicode)] public static extern bool StartDocPrinter(IntPtr h, int level, ref DOCINFO di);
+  [DllImport("winspool.Drv", EntryPoint="EndDocPrinter", SetLastError=true)] public static extern bool EndDocPrinter(IntPtr h);
+  [DllImport("winspool.Drv", EntryPoint="StartPagePrinter", SetLastError=true)] public static extern bool StartPagePrinter(IntPtr h);
+  [DllImport("winspool.Drv", EntryPoint="EndPagePrinter", SetLastError=true)] public static extern bool EndPagePrinter(IntPtr h);
+  [DllImport("winspool.Drv", EntryPoint="WritePrinter", SetLastError=true)] public static extern bool WritePrinter(IntPtr h, byte[] buf, int count, out int written);
+  public static bool Send(string printer, byte[] bytes) {
+    IntPtr h;
+    if(!OpenPrinter(printer, out h, IntPtr.Zero)) return false;
+    var di = new DOCINFO(); di.pDocName = "EA POS"; di.pDataType = "RAW";
+    bool ok = false;
+    try {
+      if(StartDocPrinter(h, 1, ref di)) {
+        if(StartPagePrinter(h)) { int w; ok = WritePrinter(h, bytes, bytes.Length, out w); EndPagePrinter(h); }
+        EndDocPrinter(h);
+      }
+    } finally { ClosePrinter(h); }
+    return ok;
+  }
+}
+"@
+$bytes = [System.IO.File]::ReadAllBytes($DataPath)
+if([EAPosRaw]::Send($PrinterName, $bytes)) { exit 0 } else { exit 1 }`;
+
+ipcMain.handle('print-raw', async (event, payload) => {
+  const { printerName, data } = payload || {};
+  if (process.platform !== 'win32') return false; // spooler RAW path is Windows-only
+  if (!printerName || !Array.isArray(data) || data.length === 0) return false;
+  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const dataPath = path.join(os.tmpdir(), `eapos-${stamp}.bin`);
+  const psPath = path.join(os.tmpdir(), `eapos-${stamp}.ps1`);
+  try {
+    fs.writeFileSync(dataPath, Buffer.from(data));
+    fs.writeFileSync(psPath, RAW_PRINT_PS1, 'utf8');
+    return await new Promise((resolve) => {
+      const ps = spawn(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', psPath,
+          '-PrinterName', printerName, '-DataPath', dataPath],
+        { windowsHide: true },
+      );
+      ps.on('error', () => resolve(false));
+      ps.on('exit', (code) => resolve(code === 0));
+    });
+  } catch (err) {
+    console.error('print-raw failed:', err.message);
+    return false;
+  } finally {
+    try { fs.unlinkSync(dataPath); } catch { /* ignore */ }
+    try { fs.unlinkSync(psPath); } catch { /* ignore */ }
+  }
+});
+
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
@@ -167,7 +263,7 @@ function createWindow() {
     height: 800,
     title: 'EA POS',
     autoHideMenuBar: true,
-    icon: path.join(__dirname, 'icon.ico'), // Ensure you have an icon, or this is ignored
+    icon: path.join(__dirname, '../buildResources/icon.png'), // dev icon; packaged app uses the exe's embedded icon
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,

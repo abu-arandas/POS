@@ -257,10 +257,15 @@ export interface Membership {
 }
 
 export interface PrinterConfig {
-  type: 'system' | 'serial' | 'bluetooth' | 'network';
+  // 'windows' = a named local/USB printer driven by raw ESC/POS through the
+  // Windows spooler (silent, opens the cash drawer). 'system' = the OS print
+  // path (silent in Electron, print dialog in a plain browser).
+  type: 'system' | 'serial' | 'bluetooth' | 'network' | 'windows';
   paperSize: '58mm' | '80mm';
   ipAddress?: string;
   baudRate?: number;
+  // The OS printer name to target for the 'windows' (and silent 'system') path.
+  printerName?: string;
   showBarcode: boolean;
   footerMessage: string;
   autoPrintOnCheckout: boolean;

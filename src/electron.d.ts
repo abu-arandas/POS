@@ -37,6 +37,11 @@ declare global {
       }) => void;
       // Streams raw ESC/POS bytes to a network printer over TCP; resolves true on success.
       printEscpos?: (payload: { ip: string; port: number; data: number[] }) => Promise<boolean>;
+      // Silently prints a receipt HTML document to a named OS printer (no dialog).
+      printHtml?: (payload: { html: string; deviceName?: string }) => Promise<boolean>;
+      // Streams raw ESC/POS bytes to a named local/USB Windows printer via the
+      // spooler (RAW datatype) — silent receipt + cash-drawer pulse.
+      printRaw?: (payload: { printerName: string; data: number[] }) => Promise<boolean>;
       // Lists the OS printers visible to the app window (undefined pre-upgrade builds).
       listPrinters?: () => Promise<
         Array<{
