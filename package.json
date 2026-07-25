@@ -42,7 +42,8 @@
       "target": [
         "nsis"
       ],
-      "requestedExecutionLevel": "requireAdministrator"
+      "requestedExecutionLevel": "requireAdministrator",
+      "verifyUpdateCodeSignature": true
     },
     "nsis": {
       "oneClick": false,

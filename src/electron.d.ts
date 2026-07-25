@@ -67,7 +67,17 @@ declare global {
       // The first argument is Electron's IpcRendererEvent. Typing it as unknown
       // keeps the renderer free of an electron import; callers ignore it.
       onMenuServerError?: (callback: (event: unknown, message: string) => void) => void;
-      checkForUpdates?: () => Promise<{ status: string; version?: string; error?: string }>;
+      checkForUpdates?: () => Promise<{
+        status: string;
+        version?: string;
+        error?: string;
+        // Why the updater is behaving as it is — see electron/updatePolicy.cjs.
+        policy?: string;
+        // False when the build is unsigned: a downloaded update waits for an
+        // operator to apply it via installUpdate().
+        installSilently?: boolean;
+      }>;
+      installUpdate?: () => Promise<boolean>;
       onUpdateAvailable?: (callback: (event: unknown, info: UpdateInfo) => void) => void;
       onUpdateDownloaded?: (callback: (event: unknown, info: UpdateInfo) => void) => void;
     };

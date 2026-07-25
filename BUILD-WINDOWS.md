@@ -82,9 +82,61 @@ later builds reuse it.
 
 ---
 
-## Optional: code signing
+## Code signing — and what it means for auto-updates
 
-Unsigned installers trigger SmartScreen. To sign, obtain an Authenticode
-certificate and set `CSC_LINK` (path/base64 of the `.pfx`) and
-`CSC_KEY_PASSWORD` before `electron-builder` runs. See
-<https://www.electron.build/code-signing>.
+Unsigned installers trigger SmartScreen. Less obviously, **signing is what makes
+the auto-updater safe**, so this is not merely cosmetic.
+
+### Why it matters here
+
+`electron-updater` only verifies a downloaded update's Authenticode signature
+when a **`publisherName`** is baked into `app-update.yml`. Read
+`NsisUpdater#verifySignature`: when `publisherName` is null it returns `null`,
+which the caller treats as "nothing wrong", and the installer is executed.
+Setting `win.verifyUpdateCodeSignature: true` (the default, and set explicitly
+in `package.json`) does **not** change that — the publisher name is the gate.
+
+This app runs `requestedExecutionLevel: requireAdministrator`. So an unsigned
+build that auto-installed updates would grant anyone able to serve a release
+artifact — a compromised repo or release token — silent **administrator-level**
+code execution on every terminal.
+
+### How the app behaves
+
+`electron/updatePolicy.cjs` therefore fails closed:
+
+| Build | Updates downloaded | Installed unattended |
+| --- | --- | --- |
+| Signed (`publisherName` present) | yes | yes, as before |
+| Unsigned | yes, and the operator is notified | **no** — applied only via `installUpdate()` |
+
+An unsigned deployment still learns that an update exists and can apply it
+deliberately; it just never runs unverified elevated code on its own. The main
+process logs a warning at startup when it is in this state.
+
+### Signing the build
+
+1. Obtain an Authenticode certificate (OV or EV; EV avoids SmartScreen warm-up).
+2. Provide it to electron-builder — either environment variables:
+   ```powershell
+   $env:CSC_LINK="C:\path\to\cert.pfx"      # or a base64 blob
+   $env:CSC_KEY_PASSWORD="…"
+   ```
+   or `build.win.signtoolOptions.certificateFile` / `certificatePassword`.
+3. **Set the publisher name**, exactly as it appears in the certificate's
+   subject — this is the part that actually enables update verification:
+   ```jsonc
+   "win": {
+     "verifyUpdateCodeSignature": true,
+     "signtoolOptions": {
+       "publisherName": "Your Company Ltd"
+     }
+   }
+   ```
+   Note that in electron-builder 26 `publisherName` lives under
+   `signtoolOptions`, not directly on `win`.
+4. Rebuild. Confirm `publisherName` appears in the generated
+   `release/win-unpacked/resources/app-update.yml` — if it is missing, updates
+   are still unverified and the app will keep refusing to self-install.
+
+See <https://www.electron.build/code-signing>.

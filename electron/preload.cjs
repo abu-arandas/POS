@@ -26,8 +26,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scanNetworkPrinters: (opts) => ipcRenderer.invoke('scan-network-printers', opts),
   // Listen for fatal errors from the embedded QR menu server
   onMenuServerError: (callback) => ipcRenderer.on('menu-server-error', callback),
-  // Auto-updater API for daily checks & automatic installation
+  // Auto-updater API for daily checks & installation.
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  // Applies a downloaded update now. Needed for unsigned builds, where the main
+  // process refuses to install unattended (see electron/updatePolicy.cjs).
+  installUpdate: () => ipcRenderer.invoke('install-update'),
   onUpdateAvailable: (callback) => ipcRenderer.on('update-available', callback),
   onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', callback),
 });

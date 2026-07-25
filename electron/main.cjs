@@ -6,6 +6,7 @@ const express = require('express');
 const cors = require('cors');
 const os = require('os');
 const net = require('net');
+const { hasPublisherName, resolveUpdatePolicy } = require('./updatePolicy.cjs');
 
 let menuData = { products: [], categories: [], settings: {} };
 
@@ -364,11 +365,36 @@ try {
   console.log('electron-updater not available in dev mode');
 }
 
+// Reads the publisher name out of the packaged app-update.yml — the only thing
+// that makes electron-updater actually verify an update's signature.
+function updateSignatureVerified() {
+  try {
+    const ymlPath = path.join(process.resourcesPath, 'app-update.yml');
+    return hasPublisherName(fs.readFileSync(ymlPath, 'utf8'));
+  } catch {
+    return false; // unreadable/absent config => assume unverified
+  }
+}
+
+let updatePolicy = { enabled: false, installSilently: false, reason: 'not-initialized' };
+
 function setupAutoUpdater() {
   if (!autoUpdater) return;
 
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  updatePolicy = resolveUpdatePolicy({
+    signatureVerified: updateSignatureVerified(),
+    isPackaged: app.isPackaged,
+  });
+  autoUpdater.autoDownload = updatePolicy.autoDownload;
+  autoUpdater.autoInstallOnAppQuit = updatePolicy.autoInstallOnAppQuit;
+
+  if (updatePolicy.reason === 'unverified-no-publisher-name') {
+    console.warn(
+      'AutoUpdater: no publisherName in app-update.yml, so downloaded updates ' +
+        'are NOT signature-verified. Automatic installation is disabled — see ' +
+        'BUILD-WINDOWS.md. Sign the build to restore unattended updates.',
+    );
+  }
 
   autoUpdater.on('checking-for-update', () => {
     console.log('AutoUpdater: Checking for updates...');
@@ -386,8 +412,17 @@ function setupAutoUpdater() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('update-downloaded', info);
     }
-    // Automatically install the update and restart with admin privileges
-    autoUpdater.quitAndInstall(false, true);
+    // Only install unattended when the artifact's signature was actually
+    // checked. Without that, silently running a downloaded installer as
+    // administrator means trusting whoever served the file.
+    if (updatePolicy.installSilently) {
+      autoUpdater.quitAndInstall(false, true);
+    } else {
+      console.warn(
+        'AutoUpdater: update staged but not installed (unverified build). ' +
+          'It will be applied when an operator confirms.',
+      );
+    }
   });
 
   autoUpdater.on('error', (err) => {
@@ -416,9 +451,30 @@ ipcMain.handle('check-for-updates', async () => {
   if (!autoUpdater || !app.isPackaged) return { status: 'dev' };
   try {
     const result = await autoUpdater.checkForUpdates();
-    return { status: 'ok', version: result?.updateInfo?.version };
+    return {
+      status: 'ok',
+      version: result?.updateInfo?.version,
+      // So the UI can tell the operator whether an update will apply on its own
+      // or is waiting on them (see resolveUpdatePolicy).
+      policy: updatePolicy.reason,
+      installSilently: updatePolicy.installSilently,
+    };
   } catch (err) {
     return { status: 'error', error: err?.message };
+  }
+});
+
+// Applies an already-downloaded update on the operator's say-so. This is the
+// path for unsigned builds, where unattended installation is refused: a person
+// is choosing to trust the artifact.
+ipcMain.handle('install-update', () => {
+  if (!autoUpdater || !app.isPackaged) return false;
+  try {
+    autoUpdater.quitAndInstall(false, true);
+    return true;
+  } catch (err) {
+    console.error('install-update failed:', err?.message);
+    return false;
   }
 });
 
@@ -450,12 +506,28 @@ app.on('web-contents-created', (_event, contents) => {
   contents.setWindowOpenHandler(({ url }) => {
     // The app opens blank windows it then writes print documents into — the
     // product-label sheet (lib/productLabels), the Z-report (ShiftScreen), and
-    // the browser-fallback receipt path (lib/receiptPrinter). These are allowed
-    // through unmodified: the opener reaches into them with document.write, and
-    // overriding the child's webPreferences can sever that same-origin access.
-    // They inherit the main window's hardening (contextIsolation on, no Node)
-    // and only ever render HTML this app escaped itself.
-    if (url === '' || url === 'about:blank') return { action: 'allow' };
+    // the browser-fallback receipt path (lib/receiptPrinter). Allowed, but
+    // stripped of the preload bridge and sandboxed: a print window renders
+    // operator-entered text and never needs electronAPI.
+    //
+    // Verified against Electron 43 that this override keeps the opener's
+    // document.write working, along with the inline `onload="window.print()"`
+    // the print documents rely on — sandbox disables Node integration, not
+    // scripting or same-origin access.
+    if (url === '' || url === 'about:blank') {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          autoHideMenuBar: true,
+          webPreferences: {
+            preload: undefined,
+            sandbox: true,
+            nodeIntegration: false,
+            contextIsolation: true,
+          },
+        },
+      };
+    }
     if (isInternal(url)) return { action: 'allow' };
     shell.openExternal(url);
     return { action: 'deny' };
