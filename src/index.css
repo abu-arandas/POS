@@ -50,6 +50,16 @@
   --input-bg: #ffffff;
   --input-border: rgba(15, 23, 42, 0.12);
 
+  /* Operational canvas + chrome. The register, sidebar, and cart panel used to
+     hardcode near-black values, which pinned those screens to dark whatever the
+     toggle said. They read these instead so the theme actually applies. */
+  --app-bg: #f8fafc;               /* full-screen canvas behind a screen */
+  --panel-bg: #ffffff;             /* sidebar / cart rail */
+  --panel-border: rgba(15, 23, 42, 0.10);
+  --receipt-bg: #ffffff;           /* on-screen thermal receipt card */
+  --text-strong: #0f172a;          /* highest-contrast body text */
+  --chip-text: #475569;            /* inactive chip / toolbar label */
+
   /* Layered elevation — soft, close ambient + a longer cast for depth. */
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05);
   --shadow-md: 0 2px 6px rgba(15, 23, 42, 0.06), 0 8px 24px -8px rgba(15, 23, 42, 0.12);
@@ -75,6 +85,12 @@
   --border-strong: rgba(255, 255, 255, 0.12);
   --input-bg: rgba(255, 255, 255, 0.05);
   --input-border: rgba(255, 255, 255, 0.1);
+  --app-bg: #020617;
+  --panel-bg: rgba(2, 6, 23, 0.95);
+  --panel-border: rgba(30, 41, 59, 0.6);
+  --receipt-bg: #0a0f1e;
+  --text-strong: #e2e8f0;
+  --chip-text: #94a3b8;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6);

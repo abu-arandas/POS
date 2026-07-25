@@ -109,12 +109,13 @@ const CartPanel = ({
     <aside
       id="cart-section"
       aria-label={t('register.checkout')}
-      className="flex flex-col h-full shrink-0 relative z-10 w-[300px] bg-slate-950/95 border-s border-slate-800/60"
+      className="flex flex-col h-full shrink-0 relative z-10 w-[300px] border-s"
+      style={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}
     >
       {/* ── Customer Header ── */}
       <div
         id="cart-customer-header"
-        className="shrink-0 p-3 border-b border-slate-800/60"
+        className="shrink-0 p-3 border-b border-slate-200 dark:border-slate-800/60"
       >
         {activeCustomer ? (
           <motion.div
@@ -151,7 +152,7 @@ const CartPanel = ({
                 value={selectedCustomerId || ''}
                 onChange={(e) => setSelectedCustomerId(e.target.value || null)}
                 aria-label={t('register.link')}
-                className="w-full ps-3 pe-8 py-2 rounded-xl text-xs font-medium transition-all focus:outline-none appearance-none bg-slate-800/50 border border-slate-700/60 text-slate-400"
+                className="w-full ps-3 pe-8 py-2 rounded-xl text-xs font-medium transition-all focus:outline-none appearance-none bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 text-slate-400"
               >
                 <option value="">{t('register.link')}</option>
                 {customers.map((c) => (
@@ -181,7 +182,7 @@ const CartPanel = ({
               animate={{ opacity: 1 }}
               className="h-full flex flex-col items-center justify-center text-center py-12"
             >
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-slate-800/40 border border-slate-700/50">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50">
                 <ShoppingCart size={28} className="text-slate-600" />
               </div>
               <p className="text-slate-500 text-xs font-medium">{t('register.cartEmpty')}</p>
@@ -196,7 +197,7 @@ const CartPanel = ({
                 animate={{ opacity: 1, x: 0, height: 'auto' }}
                 exit={{ opacity: 0, x: -20, height: 0 }}
                 transition={{ duration: 0.22 }}
-                className="flex items-center gap-2.5 p-2.5 rounded-xl group bg-slate-800/30 border border-slate-700/40 hover:bg-slate-800/50 transition-colors"
+                className="flex items-center gap-2.5 p-2.5 rounded-xl group bg-slate-100/70 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700/40 hover:bg-slate-800/50 transition-colors"
               >
                 {/* Product thumbnail */}
                 {item.product.image && (
@@ -227,7 +228,7 @@ const CartPanel = ({
 
                 {/* Qty controls */}
                 <div className="flex items-center shrink-0">
-                  <div className="flex items-center rounded-lg overflow-hidden border border-slate-700/60">
+                  <div className="flex items-center rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700/60">
                     <button
                       onClick={() => updateCartQty(item.product.id, -1)}
                       aria-label={`${t('register.decreaseQty')} — ${item.product.name}`}
@@ -235,7 +236,7 @@ const CartPanel = ({
                     >
                       <Minus size={11} />
                     </button>
-                    <span className="font-mono text-xs font-bold text-slate-900 dark:text-white px-2 min-w-[1.5rem] text-center bg-slate-800/40">
+                    <span className="font-mono text-xs font-bold text-slate-900 dark:text-white px-2 min-w-[1.5rem] text-center bg-slate-100 dark:bg-slate-800/40">
                       {item.quantity}
                     </span>
                     <button
@@ -264,7 +265,7 @@ const CartPanel = ({
       {/* ── Discount Section ── */}
       <div
         id="cart-promos-box"
-        className="shrink-0 px-3 py-2.5 space-y-2 border-t border-slate-800/60"
+        className="shrink-0 px-3 py-2.5 space-y-2 border-t border-slate-200 dark:border-slate-800/60"
       >
         {/* Loyalty points offer */}
         {activeCustomer && activeCustomer.points > 0 && discountType !== 'loyalty' && (
@@ -329,14 +330,14 @@ const CartPanel = ({
               <>
                 <button
                   onClick={() => { setDiscountType('percentage'); setShowPromoInput(true); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all bg-slate-800/40 border border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-white"
                 >
                   <Percent size={12} />
                   <span dir="ltr">{t('register.addPercent')}</span>
                 </button>
                 <button
                   onClick={() => { setDiscountType('fixed'); setShowPromoInput(true); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all bg-slate-800/40 border border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-white"
                 >
                   <DollarSign size={12} />
                   {t('register.fixed')}
@@ -346,7 +347,7 @@ const CartPanel = ({
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="w-full flex items-center gap-2 p-1 rounded-xl bg-slate-800/40 border border-emerald-500/30"
+                className="w-full flex items-center gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-emerald-500/30"
               >
                 <input
                   type="number"
@@ -380,7 +381,7 @@ const CartPanel = ({
       {/* ── Pricing Summary ── */}
       <div
         id="cart-pricing-summary"
-        className="shrink-0 px-4 pt-3 pb-4 space-y-4 border-t border-slate-800/60"
+        className="shrink-0 px-4 pt-3 pb-4 space-y-4 border-t border-slate-200 dark:border-slate-800/60"
       >
         <div className="space-y-1.5">
           <div className="flex justify-between text-slate-500 text-[11px]">
@@ -405,7 +406,7 @@ const CartPanel = ({
           )}
 
           <div
-            className="flex justify-between items-center pt-2.5 border-t border-slate-800/60"
+            className="flex justify-between items-center pt-2.5 border-t border-slate-200 dark:border-slate-800/60"
             aria-live="polite"
             aria-atomic="true"
           >
@@ -427,7 +428,7 @@ const CartPanel = ({
             onClick={clearCart}
             disabled={cart.length === 0}
             aria-label={t('register.clearCart')}
-            className="p-2.5 rounded-xl transition-all disabled:opacity-30 border border-slate-700/50 bg-slate-800/40 text-slate-400 hover:bg-slate-800 hover:text-rose-400"
+            className="p-2.5 rounded-xl transition-all disabled:opacity-30 border border-slate-200 dark:border-slate-700/50 bg-slate-100 dark:bg-slate-800/40 text-slate-400 hover:bg-slate-800 hover:text-rose-400"
           >
             <Trash2 size={15} />
           </button>

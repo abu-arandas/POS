@@ -43,7 +43,8 @@
         "nsis"
       ],
       "requestedExecutionLevel": "requireAdministrator",
-      "verifyUpdateCodeSignature": true
+      "verifyUpdateCodeSignature": true,
+      "icon": "buildResources/icon.ico"
     },
     "nsis": {
       "oneClick": false,

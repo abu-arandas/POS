@@ -192,7 +192,7 @@ const SortableProductCard = memo(function SortableProductCard({
             {prod.name}
           </h3>
         </div>
-        <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-800/60">
+        <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-200 dark:border-slate-800/60">
           <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
             {settings.currency}{prod.price.toFixed(2)}
           </span>
@@ -278,7 +278,7 @@ const ProductGrid = ({
       >
         <div
           className="flex items-center gap-3 p-3 rounded-2xl"
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
         >
           {/* Search */}
           <div className="relative shrink-0">
@@ -296,9 +296,9 @@ const ProductGrid = ({
               placeholder={`${t('register.searchProducts')} (Ctrl+K)`}
               className="w-36 sm:w-48 ps-8 pe-7 py-1.5 rounded-xl text-xs transition-all"
               style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: '#e2e8f0',
+                background: 'var(--input-bg)',
+                border: '1px solid var(--input-border)',
+                color: 'var(--text-strong, inherit)',
                 outline: 'none',
               }}
               onFocus={(e) => {
@@ -306,7 +306,7 @@ const ProductGrid = ({
                 (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(16,185,129,0.12)';
               }}
               onBlur={(e) => {
-                (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.08)';
+                (e.target as HTMLInputElement).style.borderColor = 'var(--input-border)';
                 (e.target as HTMLInputElement).style.boxShadow = 'none';
               }}
             />
@@ -346,11 +346,11 @@ const ProductGrid = ({
                   style={{
                     background: isActive
                       ? 'linear-gradient(135deg, #059669, #10b981)'
-                      : 'rgba(255,255,255,0.05)',
+                      : 'var(--surface-2)',
                     border: isActive
                       ? '1px solid rgba(16,185,129,0.4)'
-                      : '1px solid rgba(255,255,255,0.07)',
-                    color: isActive ? '#fff' : '#64748b',
+                      : '1px solid var(--border-subtle)',
+                    color: isActive ? '#fff' : 'var(--chip-text)',
                     boxShadow: isActive ? '0 4px 14px rgba(16,185,129,0.25)' : 'none',
                   }}
                 >
@@ -368,9 +368,9 @@ const ProductGrid = ({
               aria-label={isEditMode ? t('register.doneEditing') : t('register.editLayout')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 transition-all"
               style={{
-                background: isEditMode ? 'rgba(244,63,94,0.12)' : 'rgba(255,255,255,0.06)',
-                border: isEditMode ? '1px solid rgba(244,63,94,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                color: isEditMode ? '#fb7185' : '#64748b',
+                background: isEditMode ? 'rgba(244,63,94,0.12)' : 'var(--surface-2)',
+                border: isEditMode ? '1px solid rgba(244,63,94,0.3)' : '1px solid var(--border-subtle)',
+                color: isEditMode ? '#fb7185' : 'var(--chip-text)',
               }}
             >
               <LayoutGrid size={13} />

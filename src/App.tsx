@@ -243,18 +243,21 @@ export default function App() {
         id="app-shell"
         className="relative flex flex-col flex-1 min-w-0 h-screen overflow-hidden"
       >
-        <header className="lg:hidden bg-slate-900 text-slate-100 px-4 py-3 flex items-center justify-between shadow-md shrink-0">
+        <header
+          className="lg:hidden text-slate-800 dark:text-slate-100 px-4 py-3 flex items-center justify-between shadow-md shrink-0 border-b"
+          style={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}
+        >
           <div className="flex items-center space-x-2">
             <div className="bg-emerald-500 text-slate-950 p-1.5 rounded-lg">
               <ShoppingBag size={16} className="stroke-[2.5]" />
             </div>
             <h1
-              className="font-sans font-bold tracking-tight text-white text-sm truncate max-w-[120px]"
+              className="font-sans font-bold tracking-tight text-slate-900 dark:text-white text-sm truncate max-w-[120px]"
               title={settings.storeName}
             >
               {settings.storeName}
             </h1>
-            <span className="text-[9px] uppercase font-mono font-bold bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">
+            <span className="text-[9px] uppercase font-mono font-bold bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400">
               {currentUser.role}
             </span>
           </div>
@@ -296,7 +299,8 @@ export default function App() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="lg:hidden absolute top-[48px] inset-x-0 bg-slate-900 border-b border-slate-800 shadow-2xl z-40 p-4 space-y-2 flex flex-col"
+              className="lg:hidden absolute top-[48px] inset-x-0 border-b shadow-2xl z-40 p-4 space-y-2 flex flex-col"
+              style={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}
             >
               {allowedMobileItems.map((item) => {
                 const Icon = item.icon;
@@ -311,7 +315,7 @@ export default function App() {
                     className={`flex items-center justify-between w-full p-3 rounded-xl text-xs font-semibold ${
                       isSel
                         ? 'bg-slate-800 text-white border-s-4 border-emerald-500 ps-2'
-                        : 'text-slate-400 bg-slate-950/20'
+                        : 'text-slate-500 dark:text-slate-400 bg-slate-100/60 dark:bg-slate-950/20'
                     }`}
                   >
                     <div className="flex items-center space-x-2.5">

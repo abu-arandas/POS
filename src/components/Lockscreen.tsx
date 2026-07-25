@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { UserAccount } from '../types';
-import { Delete, ArrowLeft, Lock, ChevronRight } from 'lucide-react';
+import { Delete, ArrowLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { hashPin, hashPinSalted } from '../lib/hash';
 import { cloudLogin } from '../lib/sync';
+import Logo from './Logo';
 import { useAuthStore } from '../stores/authStore';
 import { usePinAttemptStore } from '../stores/pinAttemptStore';
 import { lockoutStatus, formatRemaining, FREE_ATTEMPTS } from '../lib/pinThrottle';
@@ -160,8 +161,8 @@ export default function Lockscreen() {
         className="text-center mb-8 z-10"
       >
         <div className="inline-flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-            <Lock size={18} className="text-slate-950 stroke-[2.5]" />
+          <div className="w-11 h-11 flex items-center justify-center">
+            <Logo size={44} title="Arandas IT Solutions" />
           </div>
           <span className="font-mono text-2xl font-extrabold tracking-tight text-white">
             EA POS

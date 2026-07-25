@@ -466,7 +466,7 @@ export default function Register() {
     <div
       id="register-root"
       className="flex flex-1 h-full overflow-hidden"
-      style={{ background: '#020617' }}
+      style={{ background: 'var(--app-bg)' }}
     >
       <ProductGrid
         selectedCategory={selectedCategory}
@@ -949,7 +949,7 @@ export default function Register() {
               exit={{ scale: 0.88, opacity: 0, y: 32 }}
               transition={{ type: 'spring', stiffness: 260, damping: 20 }}
               className="max-w-sm w-full overflow-hidden flex flex-col rounded-3xl"
-              style={{ background: '#0a0f1e', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.8)' }}
+              style={{ background: 'var(--receipt-bg)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-lg)' }}
             >
               <div className="bg-linear-to-br from-emerald-500 to-emerald-600 text-slate-900 dark:text-white p-8 pb-10 text-center flex flex-col items-center relative overflow-hidden">
                 {/* Decorative background circle */}

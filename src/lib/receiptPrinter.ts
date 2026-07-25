@@ -10,8 +10,17 @@ import {
 
 export type PrintOutcome = 'printed' | 'popup-blocked' | 'esc-pos';
 
+// The brand mark, flattened to solid black. Thermal paper is one-colour, so the
+// gradients from src/assets/logo-mark.svg would just dither — this keeps the
+// silhouette (A + swoosh + sparkle) legible at receipt size.
 const FALLBACK_LOGO_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>';
+  '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 512 512">' +
+  '<g fill="none" stroke="#000" stroke-width="48" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M148 402 L256 148"/><path d="M256 148 L364 402"/><path d="M205 352 L307 352"/></g>' +
+  '<path d="M96 322 C 150 232, 262 190, 356 214" fill="none" stroke="#000" stroke-width="28" stroke-linecap="round"/>' +
+  '<path d="M330 168 L410 206 L344 258 Z" fill="#000"/>' +
+  '<path d="M398 62 L411 104 L453 117 L411 130 L398 172 L385 130 L343 117 L385 104 Z" fill="#000"/>' +
+  '</svg>';
 
 // Builds the escaped HTML for a single receipt. Exported for unit testing; the
 // print path composes these into a print window below.

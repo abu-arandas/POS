@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
+import Logo from './Logo';
 import { ScreenId, isScreenAllowed } from '../lib/access';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -73,10 +74,12 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
   return (
     <aside
       id="sidebar-container"
-      className="flex flex-col w-60 min-h-screen transition-colors duration-300 relative overflow-hidden shrink-0 bg-slate-950/95 border-e border-slate-800/60"
+      className="flex flex-col w-60 min-h-screen transition-colors duration-300 relative overflow-hidden shrink-0 border-e"
+      style={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}
     >
-      {/* Ambient glow orbs */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Ambient glow orbs — dark canvas only. Over a white panel the large
+          blur radius bands into visible concentric rings instead of a glow. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden hidden dark:block">
         <div className="absolute top-0 left-0 w-48 h-48 rounded-full opacity-20 blur-3xl bg-emerald-500/40" />
         <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full opacity-10 blur-3xl bg-blue-500/40" />
       </div>
@@ -89,11 +92,11 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
           transition={{ duration: 0.4 }}
           className="flex items-center gap-3"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30 shrink-0">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
             {settings.storeLogo ? (
-              <img src={settings.storeLogo} alt="Logo" className="w-6 h-6 object-contain rounded-sm" />
+              <img src={settings.storeLogo} alt="Logo" className="w-full h-full object-contain rounded-sm" />
             ) : (
-              <ShoppingBag size={18} className="text-slate-950 stroke-[2.5]" />
+              <Logo size={36} />
             )}
           </div>
           <div className="min-w-0">
@@ -129,8 +132,8 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
               aria-current={isActive ? 'page' : undefined}
               className={`relative flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 group ${
                 isActive
-                  ? 'text-slate-900 dark:text-white bg-slate-800/60'
-                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-200 hover:bg-slate-800/40'
+                  ? 'text-slate-900 dark:text-white bg-slate-200/70 dark:bg-slate-800/60'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40'
               }`}
             >
               {/* Active left indicator */}
@@ -146,7 +149,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
                 <Icon
                   size={16}
                   className={`transition-colors duration-200 ${
-                    isActive ? 'text-emerald-400' : 'text-slate-600 group-hover:text-slate-500 dark:text-slate-400'
+                    isActive ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-400'
                   }`}
                 />
                 <span className="tracking-wide">{t(item.labelKey)}</span>
@@ -173,7 +176,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
         {/* Dark mode toggle */}
         <button
           onClick={() => setDarkMode(!darkMode)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all bg-slate-800/40 border border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200"
           aria-label={darkMode ? t('sidebar.lightMode') : t('sidebar.darkMode')}
         >
           {darkMode ? (
@@ -187,7 +190,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
         {currentUser && (
           <div
             id="sidebar-user-card"
-            className="flex items-center justify-between p-3 rounded-xl bg-slate-800/40 border border-slate-700/50"
+            className="flex items-center justify-between p-3 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50"
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <div
@@ -209,7 +212,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
               onClick={() => setCurrentUser(null)}
               title={t('sidebar.lockTerminal')}
               aria-label={t('sidebar.lockTerminal')}
-              className="p-1.5 text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0"
+              className="p-1.5 text-slate-500 dark:text-slate-600 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0"
             >
               <LogOut size={14} />
             </button>
