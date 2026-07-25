@@ -46,13 +46,13 @@ interface TooltipEntry {
 const CustomTooltip = ({ active, payload, label, currency }: { active?: boolean; payload?: TooltipEntry[]; label?: string; currency: string }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-[#0f172a]/95 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-xl">
-        <p className="text-white font-bold mb-2">{label}</p>
+      <div className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-xl">
+        <p className="text-slate-900 dark:text-white font-bold mb-2">{label}</p>
         {payload.map((entry, index) => (
           <div key={index} className="flex items-center gap-2 text-sm font-mono mt-1">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-            <span className="text-slate-400 capitalize">{entry.name}:</span>
-            <span className="text-white font-bold">
+            <span className="text-slate-500 dark:text-slate-400 capitalize">{entry.name}:</span>
+            <span className="text-slate-900 dark:text-white font-bold">
               {currency}{Number(entry.value).toFixed(2)}
             </span>
           </div>
@@ -304,7 +304,7 @@ export default function Dashboard() {
         </motion.div>
 
         <div className="flex items-center gap-4">
-          <div className="flex bg-[#0f172a] p-1 rounded-xl border border-white/5 shadow-inner">
+          <div className="flex bg-[#0f172a] p-1 rounded-xl border border-slate-200 dark:border-white/5 shadow-inner">
             {(
               [
                 { id: 'today', label: t('dashboard.rangeToday') },
@@ -320,7 +320,7 @@ export default function Dashboard() {
                 className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${
                   range === r.id
                     ? 'bg-emerald-500/20 text-emerald-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-300'
+                    : 'text-slate-500 hover:text-slate-600 dark:text-slate-300'
                 }`}
               >
                 {r.label}
@@ -332,7 +332,7 @@ export default function Dashboard() {
             id="dashboard-export-btn"
             onClick={exportRange}
             disabled={rangeTxns.length === 0}
-            className="flex items-center gap-2 bg-[#0f172a] border border-white/5 hover:border-white/10 disabled:opacity-40 text-slate-300 hover:text-white text-xs font-bold uppercase px-4 py-2 rounded-xl shadow-sm transition-colors h-full"
+            className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold uppercase px-4 py-2 rounded-xl shadow-sm transition-colors h-full"
             title={t('dashboard.exportRange')}
           >
             <Download size={14} />
@@ -345,7 +345,7 @@ export default function Dashboard() {
             className={`flex items-center space-x-2 border px-4 py-2 rounded-xl text-xs font-bold shadow-inner ${
               cloudLive
                 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                : 'bg-slate-500/10 border-slate-400/20 text-slate-400'
+                : 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400'
             }`}
           >
             <span
@@ -373,7 +373,7 @@ export default function Dashboard() {
           >
             <div className="absolute -inset-e-6 -top-6 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-colors" />
             <div className="flex justify-between items-start mb-4 relative z-10">
-              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider font-mono">
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
                 {t('dashboard.todaysRevenue')}
               </span>
               <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 shadow-inner">
@@ -381,7 +381,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="relative z-10">
-              <h3 className="font-mono font-extrabold text-white text-3xl mb-2">
+              <h3 className="font-mono font-extrabold text-slate-900 dark:text-white text-3xl mb-2">
                 {settings.currency}{kpis.revenueToday.toFixed(2)}
               </h3>
               <div className="flex items-center gap-2 text-xs font-medium">
@@ -410,7 +410,7 @@ export default function Dashboard() {
           >
             <div className="absolute -inset-e-6 -top-6 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors" />
             <div className="flex justify-between items-start mb-4 relative z-10">
-              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider font-mono">
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
                 {t('dashboard.netProfit')}
               </span>
               <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 shadow-inner">
@@ -418,7 +418,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="relative z-10">
-              <h3 className="font-mono font-extrabold text-white text-3xl mb-2">
+              <h3 className="font-mono font-extrabold text-slate-900 dark:text-white text-3xl mb-2">
                 {settings.currency}{kpis.profitToday.toFixed(2)}
               </h3>
               <div className="flex items-center gap-2 text-xs font-medium">
@@ -439,7 +439,7 @@ export default function Dashboard() {
           >
             <div className="absolute -inset-e-6 -top-6 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-colors" />
             <div className="flex justify-between items-start mb-4 relative z-10">
-              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider font-mono">
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
                 {t('dashboard.completedSales')}
               </span>
               <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 shadow-inner">
@@ -447,7 +447,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="relative z-10">
-              <h3 className="font-mono font-extrabold text-white text-3xl mb-2">
+              <h3 className="font-mono font-extrabold text-slate-900 dark:text-white text-3xl mb-2">
                 {kpis.ordersToday}
               </h3>
               <div className="flex items-center gap-2 text-xs font-medium">
@@ -467,15 +467,15 @@ export default function Dashboard() {
           >
             <div className={`absolute -inset-e-6 -top-6 w-32 h-32 rounded-full blur-3xl transition-colors ${kpis.lowStockItems > 0 ? 'bg-amber-500/10 group-hover:bg-amber-500/20' : 'bg-slate-500/10'}`} />
             <div className="flex justify-between items-start mb-4 relative z-10">
-              <span className="text-xs text-slate-400 font-bold uppercase tracking-wider font-mono">
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
                 {t('dashboard.stockWarnings')}
               </span>
-              <div className={`p-2.5 rounded-xl shadow-inner ${kpis.lowStockItems > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-800 text-slate-400'}`}>
+              <div className={`p-2.5 rounded-xl shadow-inner ${kpis.lowStockItems > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
                 <Package size={20} className="stroke-[2.5]" />
               </div>
             </div>
             <div className="relative z-10">
-              <h3 className="font-mono font-extrabold text-white text-3xl mb-2">
+              <h3 className="font-mono font-extrabold text-slate-900 dark:text-white text-3xl mb-2">
                 {kpis.lowStockItems}
               </h3>
               <div className="flex items-center gap-2 text-xs font-medium">
@@ -502,20 +502,20 @@ export default function Dashboard() {
         >
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="font-sans font-bold text-white text-lg flex items-center gap-2">
+              <h3 className="font-sans font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
                 <Activity size={20} className="text-emerald-500" />
                 {t('dashboard.salesTrend')}
               </h3>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                 {t('dashboard.historicalPerf')}
               </p>
             </div>
-            <div className="flex items-center gap-4 text-xs font-mono bg-[#0f172a] px-4 py-2 rounded-xl border border-white/5">
-              <span className="flex items-center gap-2 text-slate-300">
+            <div className="flex items-center gap-4 text-xs font-mono bg-[#0f172a] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
+              <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                 <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" /> 
                 {t('dashboard.revenue')}
               </span>
-              <span className="flex items-center gap-2 text-slate-300">
+              <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                 <span className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" /> 
                 {t('dashboard.profit')}
               </span>
@@ -583,16 +583,16 @@ export default function Dashboard() {
             className="surface rounded-3xl p-8 shadow-xl lg:col-span-2"
           >
             <div className="mb-8">
-              <h3 className="font-sans font-bold text-white text-lg">
+              <h3 className="font-sans font-bold text-slate-900 dark:text-white text-lg">
                 {t('dashboard.bestSellers')}
               </h3>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                 {t('dashboard.topMenu')}
               </p>
             </div>
             <div className="h-72 w-full">
               {topProductsData.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-white/10">
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
                   <Package size={32} className="mb-3 opacity-50" />
                   <span>{t('dashboard.noSales')}</span>
                 </div>
@@ -622,13 +622,13 @@ export default function Dashboard() {
             className="surface rounded-3xl p-8 shadow-xl flex flex-col"
           >
             <div className="mb-4">
-              <h3 className="font-sans font-bold text-white text-lg">
+              <h3 className="font-sans font-bold text-slate-900 dark:text-white text-lg">
                 {t('dashboard.salesByCategory')}
               </h3>
             </div>
             <div className="flex-1 min-h-[220px] w-full relative">
               {categoryShareData.length === 0 ? (
-                <div className="w-full h-full flex items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-white/10">
+                <div className="w-full h-full flex items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
                   {t('dashboard.noCategoryStats')}
                 </div>
               ) : (
@@ -658,8 +658,8 @@ export default function Dashboard() {
                 <div key={idx} className="flex items-center gap-2">
                   <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-400 truncate w-20">{item.name}</span>
-                    <span className="text-xs font-bold text-white font-mono">
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate w-20">{item.name}</span>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white font-mono">
                       {settings.currency}{item.value.toFixed(0)}
                     </span>
                   </div>
@@ -678,7 +678,7 @@ export default function Dashboard() {
             className="surface rounded-3xl p-8 shadow-xl"
           >
             <div className="mb-6">
-              <h3 className="font-sans font-bold text-white text-lg">
+              <h3 className="font-sans font-bold text-slate-900 dark:text-white text-lg">
                 {t('dashboard.paymentMethods')}
               </h3>
             </div>
@@ -689,14 +689,14 @@ export default function Dashboard() {
                 const pct = totalSalesVolume > 0 ? (val / totalSalesVolume) * 100 : 0;
 
                 return (
-                  <div key={method} className="bg-[#0f172a] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono block mb-2">
+                  <div key={method} className="bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl p-5 hover:border-slate-200 dark:border-white/10 transition-colors">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block mb-2">
                       {t(`dashboard.${method}`, { defaultValue: method })}
                     </span>
-                    <span className="font-mono font-extrabold text-2xl text-white block mb-2">
+                    <span className="font-mono font-extrabold text-2xl text-slate-900 dark:text-white block mb-2">
                       {settings.currency}{val.toFixed(2)}
                     </span>
-                    <div className="w-full bg-slate-800 rounded-full h-1.5 mb-2">
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mb-2">
                       <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
                     </div>
                     <span className="text-xs text-slate-500 font-mono">{pct.toFixed(1)}% of total</span>
@@ -713,12 +713,12 @@ export default function Dashboard() {
             className="surface rounded-3xl p-8 shadow-xl"
           >
             <div className="mb-6 flex items-center justify-between">
-              <h3 className="font-sans font-bold text-white text-lg flex items-center gap-2">
+              <h3 className="font-sans font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
                 <Users size={20} className="text-emerald-500" /> {t('dashboard.byOperator')}
               </h3>
             </div>
             {operatorBreakdown.length === 0 ? (
-              <div className="w-full py-12 flex items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-white/10">
+              <div className="w-full py-12 flex items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
                 {t('dashboard.noSales')}
               </div>
             ) : (
@@ -727,18 +727,18 @@ export default function Dashboard() {
                   const max = operatorBreakdown[0].revenue || 1;
                   return (
                     <div key={idx} className="flex items-center gap-4">
-                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-xs shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs shrink-0">
                         {op.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-end mb-1.5">
-                          <span className="text-sm font-semibold text-slate-200 truncate">{op.name}</span>
-                          <span className="font-mono font-bold text-sm text-white">
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{op.name}</span>
+                          <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
                             {settings.currency}{op.revenue.toFixed(2)}
                           </span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-emerald-500 rounded-full"
                               style={{ width: `${Math.max(2, (op.revenue / max) * 100)}%` }}
@@ -765,33 +765,33 @@ export default function Dashboard() {
           className="surface rounded-3xl p-8 shadow-xl"
         >
           <div className="mb-6 flex items-center justify-between">
-            <h3 className="font-sans font-bold text-white text-lg flex items-center gap-2">
+            <h3 className="font-sans font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
               <ClipboardList size={20} className="text-emerald-500" /> {t('dashboard.purchasing')}
             </h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div className="bg-[#0f172a] border border-white/5 rounded-2xl p-5">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono block mb-2">
+            <div className="bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block mb-2">
                 {t('dashboard.poReceived')}
               </span>
               <span className="font-mono font-extrabold text-2xl text-emerald-400 block">
                 {settings.currency}{poReport.receivedValue.toFixed(2)}
               </span>
             </div>
-            <div className="bg-[#0f172a] border border-white/5 rounded-2xl p-5">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono block mb-2">
+            <div className="bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block mb-2">
                 {t('dashboard.poOutstanding')}
               </span>
               <span className="font-mono font-extrabold text-2xl text-amber-400 block">
                 {settings.currency}{poReport.outstandingValue.toFixed(2)}
               </span>
             </div>
-            <div className="bg-[#0f172a] border border-white/5 rounded-2xl p-5">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono block mb-2">
+            <div className="bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block mb-2">
                 {t('dashboard.poOpenOrders')}
               </span>
-              <span className="font-mono font-extrabold text-2xl text-white block">
+              <span className="font-mono font-extrabold text-2xl text-slate-900 dark:text-white block">
                 {poReport.countByStatus.draft + poReport.countByStatus.ordered}
               </span>
               <span className="text-[10px] font-mono text-slate-500">
@@ -801,12 +801,12 @@ export default function Dashboard() {
           </div>
 
           {poReport.suppliers.length === 0 ? (
-            <div className="w-full py-10 flex items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-white/10">
+            <div className="w-full py-10 flex items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
               {t('dashboard.noPurchaseData')}
             </div>
           ) : (
             <div className="space-y-3">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
                 {t('dashboard.topSuppliers')}
               </span>
               {poReport.suppliers.slice(0, 5).map((s) => {
@@ -814,13 +814,13 @@ export default function Dashboard() {
                 const spend = s.received || s.outstanding;
                 return (
                   <div key={s.supplierId ?? 'none'} className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-emerald-400 shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-emerald-400 shrink-0">
                       <Truck size={15} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-end mb-1.5">
-                        <span className="text-sm font-semibold text-slate-200 truncate">{s.supplierName}</span>
-                        <span className="font-mono font-bold text-sm text-white">
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{s.supplierName}</span>
+                        <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
                           {settings.currency}{s.received.toFixed(2)}
                           {s.outstanding > 0 && (
                             <span className="text-amber-400 ms-2 text-xs">
@@ -830,7 +830,7 @@ export default function Dashboard() {
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-emerald-500 rounded-full"
                             style={{ width: `${Math.max(2, (spend / maxSpend) * 100)}%` }}

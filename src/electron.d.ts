@@ -57,6 +57,10 @@ declare global {
         port?: number;
         timeoutMs?: number;
       }) => Promise<string[]>;
+      onMenuServerError?: (callback: (event: any, message: string) => void) => void;
+      checkForUpdates?: () => Promise<{ status: string; version?: string; error?: string }>;
+      onUpdateAvailable?: (callback: (event: any, info: any) => void) => void;
+      onUpdateDownloaded?: (callback: (event: any, info: any) => void) => void;
     };
   }
 }

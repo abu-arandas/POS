@@ -149,7 +149,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
           onClick={load}
           disabled={loading || working}
           aria-label={t('fleet.refresh')}
-          className="flex items-center gap-2 bg-[#0f172a] border border-white/5 hover:border-white/10 disabled:opacity-40 text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+          className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
@@ -168,7 +168,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1.5fr] gap-6 items-start">
                 {/* Source */}
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     {t('catalogPush.source')}
                   </span>
                   <select
@@ -179,7 +179,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                       setPreview(null);
                       setResults(null);
                     }}
-                    className="mt-1 w-full bg-[#0f172a] border border-white/10 focus:border-emerald-500/40 text-slate-200 text-sm px-3 py-2 rounded-lg focus:outline-none"
+                    className="mt-1 w-full bg-[#0f172a] border border-slate-200 dark:border-white/10 focus:border-emerald-500/40 text-slate-700 dark:text-slate-200 text-sm px-3 py-2 rounded-lg focus:outline-none"
                   >
                     <option value="">{t('catalogPush.chooseSource')}</option>
                     {stores.map((s) => (
@@ -196,7 +196,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
 
                 {/* Targets */}
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     {t('catalogPush.targets')}
                   </span>
                   <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -215,8 +215,8 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                             }}
                             className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-colors ${
                               on
-                                ? 'border-emerald-500/40 bg-emerald-500/10 text-white'
-                                : 'border-white/8 bg-[#0f172a] text-slate-400 hover:text-slate-200'
+                                ? 'border-emerald-500/40 bg-emerald-500/10 text-slate-900 dark:text-white'
+                                : 'border-white/8 bg-[#0f172a] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200'
                             }`}
                           >
                             <span className="truncate">{s.name}</span>
@@ -230,7 +230,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
               </div>
 
               {/* Options */}
-              <div className="mt-6 flex flex-wrap gap-4 border-t border-white/5 pt-4">
+              <div className="mt-6 flex flex-wrap gap-4 border-t border-slate-200 dark:border-white/5 pt-4">
                 {(
                   [
                     ['addNewProducts', 'optAddProducts'],
@@ -248,7 +248,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                       }}
                       className="accent-emerald-500 w-4 h-4"
                     />
-                    <span className="text-xs font-semibold text-slate-300">{t(`catalogPush.${label}`)}</span>
+                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{t(`catalogPush.${label}`)}</span>
                   </label>
                 ))}
               </div>
@@ -258,7 +258,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                 <button
                   onClick={runPreview}
                   disabled={!canRun}
-                  className="flex items-center gap-2 bg-[#0f172a] border border-white/10 hover:border-emerald-500/40 disabled:opacity-40 text-slate-200 text-xs font-bold uppercase px-4 py-2 rounded-xl transition-colors"
+                  className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/10 hover:border-emerald-500/40 disabled:opacity-40 text-slate-700 dark:text-slate-200 text-xs font-bold uppercase px-4 py-2 rounded-xl transition-colors"
                 >
                   <Eye size={14} /> {t('catalogPush.preview')}
                 </button>
@@ -277,14 +277,14 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
             {/* Preview */}
             {preview && (
               <div className="surface rounded-3xl shadow-xl overflow-hidden">
-                <div className="px-6 py-4 border-b border-white/5 flex items-center gap-2">
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5 flex items-center gap-2">
                   <Eye size={16} className="text-emerald-500" />
-                  <h3 className="font-sans font-bold text-white text-sm">{t('catalogPush.previewTitle')}</h3>
+                  <h3 className="font-sans font-bold text-slate-900 dark:text-white text-sm">{t('catalogPush.previewTitle')}</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="text-[10px] font-mono uppercase text-slate-500 border-b border-white/5">
+                      <tr className="text-[10px] font-mono uppercase text-slate-500 border-b border-slate-200 dark:border-white/5">
                         <th className="text-start px-6 py-2 font-semibold">{t('catalogPush.store')}</th>
                         <th className="text-end px-4 py-2 font-semibold">{t('catalogPush.colProducts')}</th>
                         <th className="text-end px-4 py-2 font-semibold">{t('catalogPush.colPrices')}</th>
@@ -294,8 +294,8 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                     </thead>
                     <tbody>
                       {preview.map((r) => (
-                        <tr key={r.storeId} className="border-b border-white/5 last:border-0">
-                          <td className="px-6 py-3 font-bold text-white">{r.storeName}</td>
+                        <tr key={r.storeId} className="border-b border-slate-200 dark:border-white/5 last:border-0">
+                          <td className="px-6 py-3 font-bold text-slate-900 dark:text-white">{r.storeName}</td>
                           <td className="px-4 py-3 text-end font-mono text-emerald-400">+{r.summary.productsAdded}</td>
                           <td className="px-4 py-3 text-end font-mono text-blue-400">{r.summary.pricesUpdated}</td>
                           <td className="px-4 py-3 text-end font-mono text-violet-400">+{r.summary.categoriesAdded}</td>
@@ -305,7 +305,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                     </tbody>
                   </table>
                 </div>
-                <p className="px-6 py-3 text-[10px] font-mono text-slate-500 border-t border-white/5">
+                <p className="px-6 py-3 text-[10px] font-mono text-slate-500 border-t border-slate-200 dark:border-white/5">
                   {t('catalogPush.previewHint')}
                 </p>
               </div>
@@ -314,13 +314,13 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
             {/* Results */}
             {results && (
               <div className="surface rounded-3xl shadow-xl overflow-hidden">
-                <div className="px-6 py-4 border-b border-white/5">
-                  <h3 className="font-sans font-bold text-white text-sm">{t('catalogPush.resultsTitle')}</h3>
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5">
+                  <h3 className="font-sans font-bold text-slate-900 dark:text-white text-sm">{t('catalogPush.resultsTitle')}</h3>
                 </div>
                 <ul className="divide-y divide-white/5">
                   {results.map((r) => (
                     <li key={r.storeId} className="px-6 py-3 flex items-center justify-between">
-                      <span className="text-sm font-bold text-white">{r.storeName}</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">{r.storeName}</span>
                       {r.ok ? (
                         <span className="badge badge-emerald flex items-center gap-1">
                           <Check size={11} /> {t('catalogPush.pushed')}

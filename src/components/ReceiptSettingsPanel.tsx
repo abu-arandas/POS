@@ -165,7 +165,7 @@ export default function ReceiptSettingsPanel({ kind, layout, onChange }: Receipt
 
         {/* Field toggles */}
         <div>
-          <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-2">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
             {t('receiptCfg.fields')}
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
@@ -177,7 +177,7 @@ export default function ReceiptSettingsPanel({ kind, layout, onChange }: Receipt
                   onChange={(e) => setToggle(key, e.target.checked)}
                   className="accent-emerald-500 w-4 h-4 shrink-0"
                 />
-                <span className="text-xs text-slate-300 truncate">{t(`receiptCfg.tg_${key}`)}</span>
+                <span className="text-xs text-slate-600 dark:text-slate-300 truncate">{t(`receiptCfg.tg_${key}`)}</span>
               </label>
             ))}
           </div>
@@ -186,10 +186,10 @@ export default function ReceiptSettingsPanel({ kind, layout, onChange }: Receipt
 
       {/* Live preview */}
       <div className="lg:sticky lg:top-0 self-start">
-        <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+        <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
           <Eye size={12} /> {t('receiptCfg.preview')}
         </p>
-        <div className="rounded-2xl overflow-x-auto border border-white/10 bg-white shadow-xl">
+        <div className="rounded-2xl overflow-x-auto border border-slate-200 dark:border-white/10 bg-white shadow-xl">
           <iframe
             title={t('receiptCfg.preview')}
             srcDoc={previewDoc}
@@ -204,12 +204,12 @@ export default function ReceiptSettingsPanel({ kind, layout, onChange }: Receipt
 }
 
 const INPUT =
-  'w-full bg-[#0f172a] border border-white/10 focus:border-emerald-500/40 text-slate-200 text-sm px-3 py-2 rounded-lg focus:outline-none placeholder:text-slate-600';
+  'w-full bg-[#0f172a] border border-slate-200 dark:border-white/10 focus:border-emerald-500/40 text-slate-700 dark:text-slate-200 text-sm px-3 py-2 rounded-lg focus:outline-none placeholder:text-slate-600';
 
 function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">{label}</span>
+      <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
       <div className="mt-1">{children}</div>
     </label>
   );

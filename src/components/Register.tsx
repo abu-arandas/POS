@@ -81,6 +81,17 @@ export default function Register() {
   const [receiptModalOpen, setReceiptModalOpen] = useState<boolean>(false);
   const [activeReceipt, setActiveReceipt] = useState<SaleTransaction | null>(null);
 
+  // Auto-close receipt modal if auto-printing is enabled
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (receiptModalOpen && printerConfig.autoPrintOnCheckout) {
+      timer = setTimeout(() => {
+        setReceiptModalOpen(false);
+      }, 3000);
+    }
+    return () => clearTimeout(timer);
+  }, [receiptModalOpen, printerConfig.autoPrintOnCheckout]);
+
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
   const [custEmail, setCustEmail] = useState('');
@@ -501,7 +512,7 @@ export default function Register() {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] ring-1 ring-black/5 text-sm font-semibold tracking-wide ${
-              scanFeedback.ok ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+              scanFeedback.ok ? 'bg-emerald-600 text-slate-900 dark:text-white' : 'bg-rose-600 text-slate-900 dark:text-white'
             }`}
           >
             <ScanLine size={18} className="opacity-90" />
@@ -529,8 +540,8 @@ export default function Register() {
               transition={{ type: 'spring', stiffness: 300, damping: 24 }}
               className="modal-card max-w-md w-full overflow-hidden flex flex-col max-h-[80vh]"
             >
-              <div className="p-5 flex justify-between items-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                <h3 id="held-orders-title" className="font-sans font-bold text-white text-base flex items-center gap-2.5">
+              <div className="p-5 flex justify-between items-center border-b border-slate-800/60">
+                <h3 id="held-orders-title" className="font-sans font-bold text-slate-900 dark:text-white text-base flex items-center gap-2.5">
                   <div className="p-1.5 bg-amber-500/15 rounded-xl text-amber-400">
                     <Clock size={16} />
                   </div>
@@ -558,11 +569,10 @@ export default function Register() {
                     return (
                       <div
                         key={order.id}
-                        className="group flex items-center justify-between gap-3 rounded-2xl p-3.5 transition-all"
-                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+                        className="group flex items-center justify-between gap-3 rounded-2xl p-3.5 transition-all bg-slate-800/40 border border-slate-700/50 hover:bg-slate-800/70"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="font-sans font-bold text-slate-100 text-sm truncate">
+                          <p className="font-sans font-bold text-slate-800 dark:text-slate-100 text-sm truncate">
                             {order.label}
                           </p>
                           <p className="text-[10px] font-mono text-slate-500 mt-1">
@@ -577,8 +587,7 @@ export default function Register() {
                         <div className="flex items-center gap-2 shrink-0">
                           <button
                             onClick={() => resumeHeldOrder(order)}
-                            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
-                            style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.25)' }}
+                            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"
                           >
                             <Play size={12} className="fill-current" /> {t('register.resume')}
                           </button>
@@ -620,7 +629,7 @@ export default function Register() {
             >
               <div className="p-5 flex justify-between items-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                 <div>
-                  <h3 id="payment-modal-title" className="font-sans font-bold text-white text-lg">
+                  <h3 id="payment-modal-title" className="font-sans font-bold text-slate-900 dark:text-white text-lg">
                     {t('register.selectPaymentMethod')}
                   </h3>
                   <p className="text-xs text-slate-500 font-mono mt-1 flex items-center gap-2">
@@ -695,7 +704,7 @@ export default function Register() {
                             value={p.method}
                             onChange={(e) => updateSplitPayment(idx, { method: e.target.value as PaymentMethod })}
                             aria-label={t('register.method')}
-                            className="bg-transparent text-xs font-semibold ps-3 pe-7 py-3 text-slate-300 focus:outline-none cursor-pointer"
+                            className="bg-transparent text-xs font-semibold ps-3 pe-7 py-3 text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
                             style={{ borderRight: '1px solid rgba(255,255,255,0.08)' }}
                           >
                             <option value="cash">{t('register.payCash')}</option>
@@ -710,7 +719,7 @@ export default function Register() {
                               value={p.amount || ''}
                               onChange={(e) => updateSplitPayment(idx, { amount: parseFloat(e.target.value) || 0 })}
                               aria-label={t('register.amountToPay')}
-                              className="flex-1 bg-transparent text-white text-base font-mono font-bold px-2 py-2.5 focus:outline-none w-full"
+                              className="flex-1 bg-transparent text-slate-900 dark:text-white text-base font-mono font-bold px-2 py-2.5 focus:outline-none w-full"
                               placeholder="0.00"
                             />
                           </div>
@@ -794,7 +803,7 @@ export default function Register() {
                               value={cashPaidText}
                               onChange={(e) => setCashPaidText(e.target.value)}
                               aria-label={t('register.cashTendered')}
-                              className="flex-1 bg-transparent text-white text-xl font-mono font-bold px-2 py-2.5 focus:outline-none"
+                              className="flex-1 bg-transparent text-slate-900 dark:text-white text-xl font-mono font-bold px-2 py-2.5 focus:outline-none"
                             />
                           </div>
                         </div>
@@ -867,7 +876,7 @@ export default function Register() {
               className="modal-card max-w-sm w-full p-6 space-y-5"
             >
               <div className="flex justify-between items-center pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                <h3 id="add-customer-title" className="font-sans font-bold text-white text-base flex items-center gap-2.5">
+                <h3 id="add-customer-title" className="font-sans font-bold text-slate-900 dark:text-white text-base flex items-center gap-2.5">
                   <div className="p-1.5 rounded-xl" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>
                     <UserPlus size={16} />
                   </div>
@@ -892,7 +901,7 @@ export default function Register() {
                       placeholder={placeholder}
                       value={value}
                       onChange={(e) => onChange(e.target.value)}
-                      className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-white focus:outline-none transition-all placeholder:text-slate-600"
+                      className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:outline-none transition-all placeholder:text-slate-600"
                       style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}
                       onFocus={(e) => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.12)'; }}
                       onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.09)'; e.target.style.boxShadow = 'none'; }}
@@ -911,7 +920,7 @@ export default function Register() {
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all active:scale-95"
+                    className="px-6 py-2.5 text-sm font-bold text-slate-900 dark:text-white rounded-xl transition-all active:scale-95"
                     style={{ background: 'linear-gradient(135deg, #059669, #10b981)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}
                   >
                     {t('register.saveLink')}
@@ -942,7 +951,7 @@ export default function Register() {
               className="max-w-sm w-full overflow-hidden flex flex-col rounded-3xl"
               style={{ background: '#0a0f1e', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.8)' }}
             >
-              <div className="bg-linear-to-br from-emerald-500 to-emerald-600 text-white p-8 pb-10 text-center flex flex-col items-center relative overflow-hidden">
+              <div className="bg-linear-to-br from-emerald-500 to-emerald-600 text-slate-900 dark:text-white p-8 pb-10 text-center flex flex-col items-center relative overflow-hidden">
                 {/* Decorative background circle */}
                 <div className="absolute -top-12 -right-12 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
                 <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-black opacity-10 rounded-full blur-xl"></div>
@@ -951,14 +960,14 @@ export default function Register() {
                   initial={{ scale: 0, rotate: -45 }}
                   animate={{ scale: 1, rotate: 0 }}
                   transition={{ type: 'spring', damping: 12, delay: 0.1 }}
-                  className="bg-white/20 p-3 rounded-full text-white shadow-inner mb-4 backdrop-blur-sm z-10"
+                  className="bg-white/20 p-3 rounded-full text-slate-900 dark:text-white shadow-inner mb-4 backdrop-blur-sm z-10"
                 >
                   <Check size={36} strokeWidth={3} />
                 </motion.div>
-                <h3 id="receipt-modal-title" className="font-sans font-bold text-white text-2xl tracking-tight z-10 mb-1.5">
+                <h3 id="receipt-modal-title" className="font-sans font-bold text-slate-900 dark:text-white text-2xl tracking-tight z-10 mb-1.5">
                   {t('register.paymentSuccessful')}
                 </h3>
-                <p className="text-emerald-100 text-[11px] uppercase tracking-wider font-bold bg-black/15 px-3.5 py-1 rounded-full z-10 shadow-sm border border-white/10">
+                <p className="text-emerald-100 text-[11px] uppercase tracking-wider font-bold bg-black/15 px-3.5 py-1 rounded-full z-10 shadow-sm border border-slate-200 dark:border-white/10">
                   {t('register.receipt')} {activeReceipt.id}
                 </p>
               </div>
@@ -1102,7 +1111,7 @@ export default function Register() {
                     )}
                   </div>
 
-                  <div className="text-center pt-5 border-t border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-slate-400 dark:text-slate-500">
+                  <div className="text-center pt-5 border-t border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-slate-500 dark:text-slate-400 dark:text-slate-500">
                     <p className="tracking-widest">{t('register.thankYou')}</p>
                   </div>
 

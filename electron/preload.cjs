@@ -24,4 +24,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Scans the local /24 subnet for hosts with TCP 9100 open (network thermal
   // printers). Resolves an array of responding IP strings. { port?, timeoutMs? }.
   scanNetworkPrinters: (opts) => ipcRenderer.invoke('scan-network-printers', opts),
+  // Listen for fatal errors from the embedded QR menu server
+  onMenuServerError: (callback) => ipcRenderer.on('menu-server-error', callback),
+  // Auto-updater API for daily checks & automatic installation
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  onUpdateAvailable: (callback) => ipcRenderer.on('update-available', callback),
+  onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', callback),
 });

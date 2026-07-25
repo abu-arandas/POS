@@ -59,8 +59,8 @@ function TrendTooltip({
 }) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="bg-[#0f172a] border border-white/10 rounded-xl px-3 py-2 shadow-xl">
-      <p className="text-[10px] font-mono text-slate-400 mb-1">{label}</p>
+    <div className="bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 shadow-xl">
+      <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mb-1">{label}</p>
       <p className="text-sm font-mono font-bold text-emerald-400">
         {currency}
         {Number(payload[0].value).toFixed(2)}
@@ -157,7 +157,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             value={activeFilter}
             onChange={(e) => setStoreFilter(e.target.value)}
             aria-label={t('fleetReport.storeFilter')}
-            className="bg-[#0f172a] border border-white/5 text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-emerald-500/40"
+            className="bg-[#0f172a] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-emerald-500/40"
           >
             <option value="">{t('fleetReport.allStores')}</option>
             {ranked.map((s) => (
@@ -167,13 +167,13 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             ))}
           </select>
           {/* Period selector */}
-          <div className="flex bg-[#0f172a] border border-white/5 rounded-xl p-1">
+          <div className="flex bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-xl p-1">
             {periods.map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
                 className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-colors ${
-                  period === p ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                  period === p ? 'bg-emerald-500 text-slate-950' : 'text-slate-500 dark:text-slate-400 hover:text-white'
                 }`}
               >
                 {t(`fleetReport.period_${p}`)}
@@ -184,7 +184,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             onClick={load}
             disabled={loading}
             aria-label={t('fleet.refresh')}
-            className="flex items-center gap-2 bg-[#0f172a] border border-white/5 hover:border-white/10 disabled:opacity-40 text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+            className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -227,7 +227,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             {/* Revenue trend */}
             <div className="surface rounded-3xl p-6 shadow-xl">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="font-sans font-bold text-white text-base flex items-center gap-2">
+                <h3 className="font-sans font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
                   <Activity size={18} className="text-emerald-500" />
                   {t('fleetReport.revenueTrend')}
                 </h3>
@@ -271,8 +271,8 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
 
             {/* Revenue by store (ranked, click to drill in) */}
             <div className="surface rounded-3xl shadow-xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
-                <h3 className="font-sans font-bold text-white text-base">{t('fleetReport.revenueByStore')}</h3>
+              <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
+                <h3 className="font-sans font-bold text-slate-900 dark:text-white text-base">{t('fleetReport.revenueByStore')}</h3>
                 <span className="text-[10px] font-mono text-slate-500 uppercase">{t('fleetReport.clickToDrill')}</span>
               </div>
               <ul className="divide-y divide-white/5">
@@ -283,13 +283,13 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                       <button
                         onClick={() => setStoreFilter(selected ? '' : s.storeId)}
                         className={`w-full text-start px-6 py-4 transition-colors ${
-                          selected ? 'bg-emerald-500/10' : 'hover:bg-slate-800/30'
+                          selected ? 'bg-emerald-500/10' : 'hover:bg-slate-100 dark:bg-slate-800/30'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-4 mb-2">
-                          <span className="text-sm font-bold text-white truncate">{s.storeName}</span>
+                          <span className="text-sm font-bold text-slate-900 dark:text-white truncate">{s.storeName}</span>
                           <div className="flex items-center gap-4 shrink-0">
-                            <span className="font-mono font-bold text-white text-sm">
+                            <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
                               {cur}
                               {s.revenue.toFixed(2)}
                             </span>
@@ -298,7 +298,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                             </span>
                           </div>
                         </div>
-                        <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                        <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                           <div
                             className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
                             style={{ width: `${Math.max(s.share * 100, s.revenue > 0 ? 2 : 0)}%` }}
@@ -321,7 +321,7 @@ function KpiTile({
   label,
   value,
   icon,
-  accent = 'text-white',
+  accent = 'text-slate-900 dark:text-white',
 }: {
   label: string;
   value: string;
@@ -331,7 +331,7 @@ function KpiTile({
   return (
     <div className="surface rounded-3xl p-5 shadow-xl">
       <div className="flex justify-between items-start mb-2">
-        <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider font-mono">{label}</span>
+        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">{label}</span>
         {icon}
       </div>
       <p className={`font-mono font-extrabold text-2xl ${accent}`}>{value}</p>

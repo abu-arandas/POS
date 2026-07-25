@@ -500,7 +500,7 @@ export default function Settings() {
                     ? tab.danger 
                       ? 'text-rose-600 dark:text-rose-500'
                       : 'text-emerald-600 dark:text-emerald-500'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-700 dark:text-slate-200'
                 }`}
               >
                 <Icon size={16} />
@@ -664,7 +664,7 @@ export default function Settings() {
                               onChange={(e) => handleUpdateSetting('taxRate', parseFloat(e.target.value) || 0)}
                               className="glass-input w-full px-4 py-2.5 rounded-xl pr-8"
                             />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm">%</span>
                           </div>
                         </div>
                         <div>
@@ -705,7 +705,7 @@ export default function Settings() {
                             {t('settings.loyaltyPointValue', 'Discount Value per Point')}
                           </label>
                           <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{settings.currency}</span>
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm">{settings.currency}</span>
                             <input
                               type="number"
                               min="0"
@@ -770,7 +770,7 @@ export default function Settings() {
                         <button
                           type="button"
                           onClick={() => setEmailTemplate(DEFAULT_EMAIL_TEMPLATE)}
-                          className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center gap-2 transition-colors"
+                          className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center gap-2 transition-colors"
                         >
                           <RotateCcw size={14} />
                           {t('settings.resetTemplate')}
@@ -1033,7 +1033,7 @@ export default function Settings() {
                     <button
                       id="save-printer-btn"
                       onClick={handleSavePrinter}
-                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-900 dark:text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                     >
                       <Save size={18} />
                       {t('settings.savePrinter')}
@@ -1143,7 +1143,7 @@ export default function Settings() {
                                 type="button"
                                 onClick={() => removeStation(station.id)}
                                 aria-label={t('settings.removeStation')}
-                                className="p-2.5 text-slate-400 hover:text-rose-500 bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/10 rounded-xl transition-colors shrink-0"
+                                className="p-2.5 text-slate-500 dark:text-slate-400 hover:text-rose-500 bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/10 rounded-xl transition-colors shrink-0"
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -1164,7 +1164,7 @@ export default function Settings() {
                                       className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
                                         on
                                           ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-400'
-                                          : 'bg-slate-200/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                          : 'bg-slate-200/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-slate-700 dark:text-slate-200'
                                       }`}
                                     >
                                       {cat.name}
@@ -1182,7 +1182,7 @@ export default function Settings() {
                       <button
                         type="button"
                         onClick={handleSaveStations}
-                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-900 dark:text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                       >
                         <Save size={18} />
                         {t('settings.saveStations')}
@@ -1267,12 +1267,12 @@ export default function Settings() {
                       {lastTestScan ? (
                         <span className="text-emerald-600 dark:text-emerald-400">
                           {t('settings.scannerLastScan')}: <strong>{lastTestScan.code}</strong>
-                          <span className="text-slate-400 dark:text-slate-500 ms-2 text-xs">
+                          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 ms-2 text-xs">
                             {lastTestScan.at}
                           </span>
                         </span>
                       ) : (
-                        <span className="text-slate-400 dark:text-slate-500">
+                        <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
                           {t('settings.scannerNoScan')}
                         </span>
                       )}
@@ -1283,7 +1283,7 @@ export default function Settings() {
                     <button
                       id="save-scanner-btn"
                       onClick={handleSaveScanner}
-                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-900 dark:text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                     >
                       <Save size={18} />
                       {t('settings.saveScanner')}
@@ -1400,7 +1400,7 @@ export default function Settings() {
                       <button
                         onClick={handleSaveConfig}
                         disabled={busy !== null}
-                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-slate-900 dark:text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                       >
                         <Save size={16} />
                         {t('settings.saveConfig')}
@@ -1417,7 +1417,7 @@ export default function Settings() {
                       <button
                         onClick={handlePull}
                         disabled={busy !== null}
-                        className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                        className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-900 dark:text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                       >
                         <DownloadCloud size={16} />
                         {busy === 'pull' ? t('settings.pulling') : t('settings.pullFromCloud')}
@@ -1425,7 +1425,7 @@ export default function Settings() {
                       <button
                         onClick={handlePush}
                         disabled={busy !== null}
-                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-slate-900 dark:text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                       >
                         <UploadCloud size={16} />
                         {busy === 'push' ? t('settings.pushing') : t('settings.pushToCloud')}
@@ -1451,7 +1451,7 @@ export default function Settings() {
                     <button
                       id="add-user-btn"
                       onClick={openAddUser}
-                      className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                      className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-900 dark:text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                     >
                       <UserPlus size={16} />
                       {t('settings.addUser')}
@@ -1462,7 +1462,7 @@ export default function Settings() {
                       <div
                         key={u.id}
                         id={`user-row-${u.id}`}
-                        className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
+                        className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-100 dark:bg-slate-800/30 transition-colors"
                       >
                         <div className="flex items-center gap-4 min-w-0">
                           <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300 font-bold">
@@ -1484,7 +1484,7 @@ export default function Settings() {
                                 {roleLabel[u.role]}
                               </span>
                               <span
-                                className={`text-[10px] font-mono font-bold uppercase ${u.active ? 'text-emerald-500' : 'text-slate-400'}`}
+                                className={`text-[10px] font-mono font-bold uppercase ${u.active ? 'text-emerald-500' : 'text-slate-500 dark:text-slate-400'}`}
                               >
                                 {u.active ? t('settings.statusActive') : t('settings.statusInactive')}
                               </span>
@@ -1495,7 +1495,7 @@ export default function Settings() {
                           <button
                             onClick={() => openEditUser(u)}
                             aria-label={t('settings.editUser')}
-                            className="p-2 text-slate-400 hover:text-blue-500 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl transition-colors"
+                            className="p-2 text-slate-500 dark:text-slate-400 hover:text-blue-500 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl transition-colors"
                           >
                             <Edit2 size={16} />
                           </button>
@@ -1503,7 +1503,7 @@ export default function Settings() {
                             id={`del-user-${u.id}`}
                             onClick={() => handleRemoveUser(u)}
                             aria-label={t('settings.deleteUser')}
-                            className="p-2 text-slate-400 hover:text-rose-500 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors"
+                            className="p-2 text-slate-500 dark:text-slate-400 hover:text-rose-500 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -1544,7 +1544,7 @@ export default function Settings() {
                           </div>
                           <button
                             onClick={handleDeleteAllTransactions}
-                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-colors shrink-0"
+                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-slate-900 dark:text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-colors shrink-0"
                           >
                             <Trash2 size={16} />
                             {t('settings.deleteNow', 'Delete')}
@@ -1562,7 +1562,7 @@ export default function Settings() {
                           </div>
                           <button
                             onClick={handleResetDefaults}
-                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-colors shrink-0"
+                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-slate-900 dark:text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-colors shrink-0"
                           >
                             <RotateCcw size={16} />
                             Reset
@@ -1604,7 +1604,7 @@ export default function Settings() {
                 <button
                   onClick={() => setUserModalOpen(false)}
                   aria-label={t('settings.cancel')}
-                  className="p-1.5 text-slate-400 hover:text-slate-200 bg-slate-800/50 hover:bg-slate-700 rounded-lg transition-colors"
+                  className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
                 >
                   <X size={16} />
                 </button>
@@ -1653,15 +1653,15 @@ export default function Settings() {
                     className="glass-input w-full px-4 py-2.5 rounded-xl font-mono tracking-[0.5em] text-lg text-center"
                   />
                 </div>
-                <label className="flex items-center gap-3 p-4 bg-slate-800/30 rounded-xl cursor-pointer">
+                <label className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-slate-800/30 rounded-xl cursor-pointer">
                   <input
                     id="user-active-checkbox"
                     type="checkbox"
                     checked={uActive}
                     onChange={(e) => setUActive(e.target.checked)}
-                    className="w-5 h-5 rounded border-slate-600 text-emerald-500 focus:ring-emerald-500 bg-slate-900"
+                    className="w-5 h-5 rounded border-slate-600 text-emerald-500 focus:ring-emerald-500 bg-white dark:bg-slate-900"
                   />
-                  <span className="text-sm font-bold text-slate-200">
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
                     {t('settings.statusActive')}
                   </span>
                 </label>
@@ -1669,14 +1669,14 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={() => setUserModalOpen(false)}
-                    className="px-5 py-2.5 text-sm font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+                    className="px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
                   >
                     {t('settings.cancel')}
                   </button>
                   <button
                     id="user-save-btn"
                     type="submit"
-                    className="px-5 py-2.5 text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                    className="px-5 py-2.5 text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-900 dark:text-white rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                   >
                     <Check size={16} />
                     {t('settings.saveUser')}

@@ -646,11 +646,10 @@ select {
 ═══════════════════════════════════════════════════════════════════════════ */
 
 .modal-card {
-  background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
   border-radius: 24px;
-  /* Long ambient cast + a hairline top highlight for a lifted glass edge. */
-  box-shadow: 0 32px 80px -12px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

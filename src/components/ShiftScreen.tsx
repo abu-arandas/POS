@@ -134,23 +134,23 @@ export default function ShiftScreen() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="glass-dark border border-white/10 rounded-3xl p-10 max-w-lg mx-auto text-center shadow-2xl relative overflow-hidden group"
+              className="glass dark:glass-dark border border-slate-200 dark:border-white/10 rounded-3xl p-10 max-w-lg mx-auto text-center shadow-2xl relative overflow-hidden group"
             >
               <div className="absolute -inset-e-6 -top-6 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-colors" />
               <div className="relative z-10">
                 <div className="mx-auto w-20 h-20 rounded-3xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-6 shadow-inner animate-bounce-in">
                   <Unlock size={32} />
                 </div>
-                <h3 className="font-bold text-2xl text-white mb-2">
+                <h3 className="font-bold text-2xl text-slate-900 dark:text-white mb-2">
                   {t('shift.noOpenShift')}
                 </h3>
-                <p className="text-sm text-slate-400 mb-8">{t('shift.openHint')}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-8">{t('shift.openHint')}</p>
                 
-                <div className="text-left bg-[#0f172a]/50 p-6 rounded-2xl border border-white/5 shadow-inner">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                <div className="text-left bg-[#0f172a]/50 p-6 rounded-2xl border border-slate-200 dark:border-white/5 shadow-inner">
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
                     {t('shift.openingFloat')}
                   </label>
-                  <div className="flex items-center rounded-xl bg-[#020617] px-4 py-2 border border-slate-700/50 focus-within:border-emerald-500/50 transition-colors">
+                  <div className="flex items-center rounded-xl bg-white dark:bg-[#020617] px-4 py-2 border border-slate-200 dark:border-slate-700/50 focus-within:border-emerald-500/50 transition-colors">
                     <span className="font-mono text-xl text-slate-500">{cur}</span>
                     <input
                       id="opening-float-input"
@@ -160,7 +160,7 @@ export default function ShiftScreen() {
                       value={openFloat}
                       onChange={(e) => setOpenFloat(e.target.value)}
                       placeholder="0.00"
-                      className="flex-1 bg-transparent border-none px-3 py-3 font-mono text-2xl font-bold text-white focus:outline-none"
+                      className="flex-1 bg-transparent border-none px-3 py-3 font-mono text-2xl font-bold text-slate-900 dark:text-white focus:outline-none"
                     />
                   </div>
                 </div>
@@ -189,7 +189,7 @@ export default function ShiftScreen() {
                   <div className="absolute -inset-e-6 -top-6 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl" />
                   <div className="relative z-10 flex items-start justify-between">
                     <div>
-                      <h3 className="font-bold text-2xl text-white flex items-center gap-3">
+                      <h3 className="font-bold text-2xl text-slate-900 dark:text-white flex items-center gap-3">
                         {t('shift.currentShift')}
                         <span className="badge badge-emerald flex items-center gap-1.5 px-3 py-1 text-xs">
                           <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
@@ -197,19 +197,19 @@ export default function ShiftScreen() {
                         </span>
                       </h3>
                       <div className="flex items-center gap-6 mt-4">
-                        <div className="flex items-center gap-2 text-sm text-slate-400 bg-[#0f172a] px-4 py-2 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[#0f172a] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
                           <User size={16} className="text-emerald-500" />
-                          <span className="font-medium text-slate-200">{currentShift.openedBy}</span>
+                          <span className="font-medium text-slate-700 dark:text-slate-200">{currentShift.openedBy}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-400 bg-[#0f172a] px-4 py-2 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[#0f172a] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
                           <Timer size={16} className="text-blue-500" />
-                          <span className="font-mono font-medium text-slate-200">
+                          <span className="font-mono font-medium text-slate-700 dark:text-slate-200">
                             {getShiftDuration(currentShift.openedAt)}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-400 bg-[#0f172a] px-4 py-2 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[#0f172a] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
                           <ShoppingBag size={16} className="text-purple-500" />
-                          <span className="font-mono font-medium text-slate-200">
+                          <span className="font-mono font-medium text-slate-700 dark:text-slate-200">
                             {summary.saleCount} {t('shift.sales')}
                           </span>
                         </div>
@@ -236,7 +236,7 @@ export default function ShiftScreen() {
                       <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono block mb-2">
                         {s.label}
                       </span>
-                      <span className="font-mono font-extrabold text-xl text-white">
+                      <span className="font-mono font-extrabold text-xl text-slate-900 dark:text-white">
                         {s.val}
                       </span>
                     </motion.div>
@@ -248,41 +248,41 @@ export default function ShiftScreen() {
               <div className="surface rounded-3xl p-6 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 inset-x-0 h-2 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjQiPgo8cGF0aCBkPSJNIDAgMCBMIDQgNCBMIDggMCBaIiBmaWxsPSIjMGYxNzJhIi8+Cjwvc3ZnPg==')] opacity-50 bg-repeat-x" />
                 
-                <h3 className="font-bold text-lg text-white flex items-center gap-2 mb-6 mt-2">
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2 mb-6 mt-2">
                   <LockKeyhole size={18} className="text-amber-500" /> {t('shift.closeReconcile')}
                 </h3>
 
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center text-sm font-mono border-b border-dashed border-slate-700/50 pb-3">
-                    <span className="text-slate-400">{t('shift.openingFloat')}</span>
-                    <span className="font-medium text-slate-300">
+                  <div className="flex justify-between items-center text-sm font-mono border-b border-dashed border-slate-200 dark:border-slate-700/50 pb-3">
+                    <span className="text-slate-500 dark:text-slate-400">{t('shift.openingFloat')}</span>
+                    <span className="font-medium text-slate-600 dark:text-slate-300">
                       {cur}{currentShift.openingFloat.toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-sm font-mono border-b border-dashed border-slate-700/50 pb-3">
-                    <span className="text-slate-400">{t('shift.cashSales')}</span>
-                    <span className="font-medium text-slate-300">
+                  <div className="flex justify-between items-center text-sm font-mono border-b border-dashed border-slate-200 dark:border-slate-700/50 pb-3">
+                    <span className="text-slate-500 dark:text-slate-400">{t('shift.cashSales')}</span>
+                    <span className="font-medium text-slate-600 dark:text-slate-300">
                       +{cur}{summary.cashSales.toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-sm font-mono border-b border-dashed border-slate-700/50 pb-3">
-                    <span className="text-slate-400">{t('shift.cashRefunds')}</span>
+                  <div className="flex justify-between items-center text-sm font-mono border-b border-dashed border-slate-200 dark:border-slate-700/50 pb-3">
+                    <span className="text-slate-500 dark:text-slate-400">{t('shift.cashRefunds')}</span>
                     <span className="font-medium text-rose-400">
                       -{cur}{summary.cashRefunds.toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-sm font-mono border-b-2 border-slate-700/50 pb-3 mb-4">
-                    <span className="font-bold text-slate-300">{t('shift.expectedCash')}</span>
+                  <div className="flex justify-between items-center text-sm font-mono border-b-2 border-slate-200 dark:border-slate-700/50 pb-3 mb-4">
+                    <span className="font-bold text-slate-600 dark:text-slate-300">{t('shift.expectedCash')}</span>
                     <span className="font-extrabold text-emerald-400 text-lg">
                       {cur}{expectedCash.toFixed(2)}
                     </span>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                       {t('shift.countedCash')}
                     </label>
-                    <div className="flex items-center rounded-xl bg-[#020617] px-3 border border-slate-700/50 focus-within:border-blue-500/50 transition-colors">
+                    <div className="flex items-center rounded-xl bg-white dark:bg-[#020617] px-3 border border-slate-200 dark:border-slate-700/50 focus-within:border-blue-500/50 transition-colors">
                       <DollarSign size={16} className="text-slate-500" />
                       <input
                         id="counted-cash-input"
@@ -292,7 +292,7 @@ export default function ShiftScreen() {
                         value={countedCash}
                         onChange={(e) => setCountedCash(e.target.value)}
                         placeholder="0.00"
-                        className="flex-1 bg-transparent border-none px-2 py-3 font-mono text-lg font-bold text-white focus:outline-none"
+                        className="flex-1 bg-transparent border-none px-2 py-3 font-mono text-lg font-bold text-slate-900 dark:text-white focus:outline-none"
                       />
                     </div>
                   </div>
@@ -322,7 +322,7 @@ export default function ShiftScreen() {
                     value={closeNote}
                     onChange={(e) => setCloseNote(e.target.value)}
                     placeholder={t('shift.notePlaceholder')}
-                    className="w-full bg-[#020617] border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500/50 transition-colors"
+                    className="w-full bg-white dark:bg-[#020617] border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500/50 transition-colors"
                   />
 
                   <button
@@ -346,15 +346,15 @@ export default function ShiftScreen() {
             animate={{ opacity: 1 }}
             className="surface rounded-3xl p-6 shadow-xl mt-8"
           >
-            <h3 className="font-bold text-white mb-6 flex items-center gap-2">
-              <Clock size={18} className="text-slate-400" />
+            <h3 className="font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+              <Clock size={18} className="text-slate-500 dark:text-slate-400" />
               {t('shift.pastShifts')}
             </h3>
             
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-white/5 text-slate-400 font-medium">
+                  <tr className="border-b border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 font-medium">
                     <th className="pb-3 px-4">{t('shift.operator') || 'Opened By'}</th>
                     <th className="pb-3 px-4">{t('shift.closedBy') || 'Closed By'}</th>
                     <th className="pb-3 px-4">{t('shift.openedAt') || 'Opened'}</th>
@@ -373,31 +373,31 @@ export default function ShiftScreen() {
                       <tr key={shift.id} className="hover:bg-white/5 transition-colors group">
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-xs">
+                            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs">
                               {shift.openedBy.charAt(0).toUpperCase()}
                             </div>
-                            <span className="font-medium text-slate-200">{shift.openedBy}</span>
+                            <span className="font-medium text-slate-700 dark:text-slate-200">{shift.openedBy}</span>
                           </div>
                         </td>
                         <td className="py-4 px-4">
                           {shift.closedBy ? (
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 font-bold text-xs">
+                              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold text-xs">
                                 {shift.closedBy.charAt(0).toUpperCase()}
                               </div>
-                              <span className="text-sm text-slate-300">{shift.closedBy}</span>
+                              <span className="text-sm text-slate-600 dark:text-slate-300">{shift.closedBy}</span>
                             </div>
                           ) : (
                             <span className="text-slate-600">—</span>
                           )}
                         </td>
-                        <td className="py-4 px-4 font-mono text-slate-400 text-xs">
+                        <td className="py-4 px-4 font-mono text-slate-500 dark:text-slate-400 text-xs">
                           {new Date(shift.openedAt).toLocaleString()}
                         </td>
-                        <td className="py-4 px-4 font-mono text-slate-400 text-xs">
+                        <td className="py-4 px-4 font-mono text-slate-500 dark:text-slate-400 text-xs">
                           {shift.closedAt ? new Date(shift.closedAt).toLocaleString() : '—'}
                         </td>
-                        <td className="py-4 px-4 text-right font-mono font-medium text-white">
+                        <td className="py-4 px-4 text-right font-mono font-medium text-slate-900 dark:text-white">
                           {cur}{s.grossSales.toFixed(2)}
                         </td>
                         <td className="py-4 px-4 text-right">
@@ -409,7 +409,7 @@ export default function ShiftScreen() {
                           <button
                             onClick={() => printReport(shift)}
                             aria-label={t('shift.printReport')}
-                            className="p-2 text-slate-500 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                            className="p-2 text-slate-500 hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                             title={t('shift.printReport')}
                           >
                             <Printer size={16} />

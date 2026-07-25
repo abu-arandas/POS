@@ -95,6 +95,14 @@ export default function App() {
     }
   }, [language, i18n]);
 
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
   // We only pull what we absolutely need in App to minimize re-renders.
   // lowStockCount can be derived here, or passed.
   const products = useProductStore((state) => state.products);
@@ -124,6 +132,15 @@ export default function App() {
       },
     });
   }, [products, categories, settings]);
+
+  useEffect(() => {
+    if (window.electronAPI?.onMenuServerError) {
+      window.electronAPI.onMenuServerError((_event, msg) => {
+        console.error('QR Menu Server Error:', msg);
+        alert(msg);
+      });
+    }
+  }, []);
 
   // A screen is viewable if the terminal role allows it AND, for the super-admin
   // Fleet board, the cloud account resolved as a super-admin.

@@ -39,6 +39,9 @@ function startMenuServer(port, attemptsLeft) {
       startMenuServer(port + 1, attemptsLeft - 1);
     } else {
       console.error('Menu server failed to start:', err.message);
+      if (mainWindow) {
+        mainWindow.webContents.send('menu-server-error', 'Menu server failed to start: ' + err.message);
+      }
     }
   });
 }
@@ -47,6 +50,23 @@ startMenuServer(3001, 10);
 
 function getLocalIp() {
   const interfaces = os.networkInterfaces();
+  
+  // 1. Prioritize typical physical adapter names (ignore virtual ones)
+  for (const name of Object.keys(interfaces)) {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('veth') || lowerName.includes('virtual') || lowerName.includes('tailscale') || lowerName.includes('wg') || lowerName.includes('vmware')) {
+      continue;
+    }
+    if (lowerName.includes('eth') || lowerName.includes('en') || lowerName.includes('wlan') || lowerName.includes('wi-fi') || lowerName.includes('ethernet')) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address;
+        }
+      }
+    }
+  }
+
+  // 2. Fallback to any non-internal IPv4
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
       // Skip over non-ipv4 and internal (i.e. 127.0.0.1) addresses
@@ -63,6 +83,18 @@ ipcMain.handle('get-menu-info', () => {
 });
 
 ipcMain.on('update-menu-data', (event, data) => {
+  if (!data || typeof data !== 'object') return;
+  try {
+    const serialized = JSON.stringify(data);
+    // Limit to ~5MB to prevent OOM
+    if (serialized.length > 5 * 1024 * 1024) {
+      console.error('Menu data payload too large. Update rejected.');
+      return;
+    }
+  } catch (err) {
+    console.error('Failed to serialize menu data:', err);
+    return;
+  }
   menuData = data;
 });
 
@@ -296,10 +328,95 @@ function createWindow() {
   });
 }
 
+function cleanupTempFiles() {
+  try {
+    const tmpdir = os.tmpdir();
+    const files = fs.readdirSync(tmpdir);
+    for (const file of files) {
+      if (/^eapos-.*\.(bin|ps1)$/.test(file)) {
+        try {
+          fs.unlinkSync(path.join(tmpdir, file));
+        } catch (e) { /* ignore */ }
+      }
+    }
+  } catch (err) {
+    console.error('Failed to clean up temp files:', err);
+  }
+}
+
+let autoUpdater = null;
+try {
+  autoUpdater = require('electron-updater').autoUpdater;
+} catch (e) {
+  console.log('electron-updater not available in dev mode');
+}
+
+function setupAutoUpdater() {
+  if (!autoUpdater) return;
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('checking-for-update', () => {
+    console.log('AutoUpdater: Checking for updates...');
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('AutoUpdater: Update available:', info?.version);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-available', info);
+    }
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('AutoUpdater: Update downloaded:', info?.version);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-downloaded', info);
+    }
+    // Automatically install the update and restart with admin privileges
+    autoUpdater.quitAndInstall(false, true);
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('AutoUpdater Error:', err?.message);
+  });
+
+  // Perform initial check on startup
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('Initial update check failed:', err?.message);
+    });
+  }
+
+  // Schedule daily check every 24 hours
+  const DAILY_MS = 24 * 60 * 60 * 1000;
+  setInterval(() => {
+    if (app.isPackaged) {
+      autoUpdater.checkForUpdates().catch((err) => {
+        console.error('Daily update check failed:', err?.message);
+      });
+    }
+  }, DAILY_MS);
+}
+
+ipcMain.handle('check-for-updates', async () => {
+  if (!autoUpdater || !app.isPackaged) return { status: 'dev' };
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return { status: 'ok', version: result?.updateInfo?.version };
+  } catch (err) {
+    return { status: 'error', error: err?.message };
+  }
+});
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow);
+app.on('ready', () => {
+  cleanupTempFiles();
+  createWindow();
+  setupAutoUpdater();
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits

@@ -100,15 +100,6 @@ const SortableProductCard = memo(function SortableProductCard({
         transition: isEditMode ? style?.transition : undefined,
         zIndex: isDragging ? 50 : 1,
         opacity: isDragging ? 0.4 : 1,
-        background: 'rgba(255,255,255,0.04)',
-        border: isLimitReached && !isEditMode
-          ? '1.5px solid rgba(16,185,129,0.5)'
-          : isOutOfStock
-          ? '1.5px solid rgba(255,255,255,0.04)'
-          : '1.5px solid rgba(255,255,255,0.07)',
-        boxShadow: isLimitReached && !isEditMode
-          ? '0 0 18px rgba(16,185,129,0.15)'
-          : '0 2px 12px rgba(0,0,0,0.25)',
       }}
       {...(isEditMode ? attributes : {})}
       {...(isEditMode ? listeners : {})}
@@ -134,7 +125,7 @@ const SortableProductCard = memo(function SortableProductCard({
       {/* Status overlays */}
       <div className="absolute top-2 start-2 z-20 flex flex-col gap-1.5">
         {isOutOfStock && (
-          <span className="bg-rose-500/90 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+          <span className="bg-rose-500/90 backdrop-blur-sm text-slate-900 dark:text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
             {t('register.outOfStock')}
           </span>
         )}
@@ -147,7 +138,7 @@ const SortableProductCard = memo(function SortableProductCard({
           <motion.span
             initial={{ scale: 0, rotate: -10 }}
             animate={{ scale: 1, rotate: 0 }}
-            className="flex items-center gap-1 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-lg shadow-emerald-500/30"
+            className="flex items-center gap-1 bg-emerald-500 text-slate-900 dark:text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-lg shadow-emerald-500/30"
           >
             <Check size={9} className="stroke-[3]" />
             {cartQty}
@@ -157,13 +148,13 @@ const SortableProductCard = memo(function SortableProductCard({
 
       {/* Edit mode drag handle */}
       {isEditMode && (
-        <div className="absolute top-2 end-2 z-20 bg-slate-900/70 backdrop-blur-sm text-slate-400 p-1.5 rounded-lg">
+        <div className="absolute top-2 end-2 z-20 bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm text-slate-500 dark:text-slate-400 p-1.5 rounded-lg">
           <GripHorizontal size={13} />
         </div>
       )}
 
       {/* Product image */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-800/50 pointer-events-none">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800/50 pointer-events-none">
         {prod.image && !imgError ? (
           <img
             src={prod.image}
@@ -173,8 +164,7 @@ const SortableProductCard = memo(function SortableProductCard({
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))' }}>
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800/40 to-slate-900/40">
             <span className="text-4xl transition-transform duration-400 group-hover:scale-110 group-hover:rotate-6 opacity-70">
               {getCategoryEmoji(categoryName)}
             </span>
@@ -190,14 +180,12 @@ const SortableProductCard = memo(function SortableProductCard({
           <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-400 block mb-1">
             {t(`categories.${categoryName.toLowerCase()}`, { defaultValue: categoryName })}
           </span>
-          <h3 className="font-sans font-semibold text-slate-100 text-[13px] tracking-tight line-clamp-2 leading-snug"
-            style={{ minHeight: '2.4em' }}>
+          <h3 className="font-sans font-semibold text-slate-800 dark:text-slate-100 text-[13px] tracking-tight line-clamp-2 leading-snug min-h-[2.4em]">
             {prod.name}
           </h3>
         </div>
-        <div className="flex items-center justify-between mt-2.5 pt-2"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <span className="font-mono font-bold text-white text-sm">
+        <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-800/60">
+          <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
             {settings.currency}{prod.price.toFixed(2)}
           </span>
           <span className="text-[9px] font-mono text-slate-600 uppercase tracking-wider">
@@ -322,7 +310,7 @@ const ProductGrid = ({
                   exit={{ opacity: 0, scale: 0.8 }}
                   onClick={() => setSearch('')}
                   aria-label={t('register.clearSearch')}
-                  className="absolute end-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  className="absolute end-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 dark:text-slate-300 transition-colors"
                 >
                   <X size={12} />
                 </motion.button>
@@ -397,7 +385,7 @@ const ProductGrid = ({
               className="h-64 flex flex-col items-center justify-center text-center"
             >
               <span className="text-5xl mb-4 animate-float-slow">🔍</span>
-              <p className="text-slate-400 text-sm font-semibold">{t('register.noProducts')}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-semibold">{t('register.noProducts')}</p>
               <p className="text-slate-600 text-xs mt-1">Try a different category or search term</p>
             </motion.div>
           ) : (

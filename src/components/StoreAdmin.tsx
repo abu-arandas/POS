@@ -40,7 +40,7 @@ type Draft = StoreFormInput & { id?: string };
 const EMPTY_DRAFT: Draft = { name: '', address: '', timezone: 'UTC', currency: '$' };
 
 const FLD =
-  'w-full bg-[#0f172a] border border-white/10 focus:border-emerald-500/40 text-slate-200 text-sm px-3 py-2 rounded-lg focus:outline-none placeholder:text-slate-600';
+  'w-full bg-[#0f172a] border border-slate-200 dark:border-white/10 focus:border-emerald-500/40 text-slate-700 dark:text-slate-200 text-sm px-3 py-2 rounded-lg focus:outline-none placeholder:text-slate-600';
 
 // Central store & staff management (Phase 3). A super-admin can create, rename,
 // and suspend/activate stores, and manage each store's cloud memberships
@@ -175,7 +175,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
             onClick={reload}
             disabled={loading || busy}
             aria-label={t('fleet.refresh')}
-            className="flex items-center gap-2 bg-[#0f172a] border border-white/5 hover:border-white/10 disabled:opacity-40 text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+            className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -195,7 +195,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
         {/* New/edit store form */}
         {draft && (
           <div className="surface rounded-3xl p-6 shadow-xl">
-            <h3 className="font-sans font-bold text-white text-sm mb-4">
+            <h3 className="font-sans font-bold text-slate-900 dark:text-white text-sm mb-4">
               {draft.id ? t('storeAdmin.editStore') : t('storeAdmin.newStore')}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -244,7 +244,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                   setDraft(null);
                   setErrors({});
                 }}
-                className="flex items-center gap-2 bg-[#0f172a] border border-white/5 text-slate-300 hover:text-white text-xs font-bold uppercase px-4 py-2 rounded-xl transition-colors"
+                className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold uppercase px-4 py-2 rounded-xl transition-colors"
               >
                 <X size={14} /> {t('storeAdmin.cancel')}
               </button>
@@ -267,7 +267,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                 <div className="px-6 py-4 flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-white truncate">{s.name}</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white truncate">{s.name}</span>
                       <span className={s.status === 'active' ? 'badge badge-emerald' : 'badge badge-slate'}>
                         {t(`storeAdmin.status_${s.status}`)}
                       </span>
@@ -310,14 +310,14 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
 
                 {/* Staff roster */}
                 {expanded && (
-                  <div className="border-t border-white/5 px-6 py-4 bg-slate-900/30">
+                  <div className="border-t border-slate-200 dark:border-white/5 px-6 py-4 bg-slate-900/30">
                     {roster.length === 0 ? (
                       <p className="text-[11px] font-mono text-slate-500 mb-3">{t('storeAdmin.noMembers')}</p>
                     ) : (
                       <ul className="space-y-2 mb-4">
                         {roster.map((m) => (
                           <li key={m.userId} className="flex items-center justify-between gap-3">
-                            <span className="text-[11px] font-mono text-slate-300 truncate" title={m.userId}>
+                            <span className="text-[11px] font-mono text-slate-600 dark:text-slate-300 truncate" title={m.userId}>
                               {m.userId.slice(0, 12)}…
                             </span>
                             <div className="flex items-center gap-2 shrink-0">
@@ -325,7 +325,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                                 value={m.role}
                                 onChange={(e) => changeRole(m, e.target.value as Role)}
                                 disabled={busy}
-                                className="bg-[#0f172a] border border-white/5 text-slate-200 text-[11px] font-semibold px-2 py-1 rounded-lg focus:outline-none focus:border-emerald-500/40"
+                                className="bg-[#0f172a] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-[11px] font-semibold px-2 py-1 rounded-lg focus:outline-none focus:border-emerald-500/40"
                               >
                                 {ASSIGNABLE_ROLES.map((r) => (
                                   <option key={r} value={r}>
@@ -352,7 +352,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                       <select
                         value={memberRole}
                         onChange={(e) => setMemberRole(e.target.value as Role)}
-                        className="bg-[#0f172a] border border-white/5 text-slate-200 text-[11px] font-semibold px-2 py-2 rounded-lg focus:outline-none focus:border-emerald-500/40"
+                        className="bg-[#0f172a] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-[11px] font-semibold px-2 py-2 rounded-lg focus:outline-none focus:border-emerald-500/40"
                       >
                         {ASSIGNABLE_ROLES.map((r) => (
                           <option key={r} value={r}>
@@ -384,8 +384,8 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
           <h3 className="font-sans font-bold text-amber-300/90 text-xs uppercase tracking-wider flex items-center gap-2 mb-1.5">
             <ShieldCheck size={14} /> {t('storeAdmin.rlsTitle')}
           </h3>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
-            {t('storeAdmin.rlsBody')} <code className="font-mono text-slate-300">scripts/multi-store-rls-enforce.sql</code>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+            {t('storeAdmin.rlsBody')} <code className="font-mono text-slate-600 dark:text-slate-300">scripts/multi-store-rls-enforce.sql</code>
           </p>
         </div>
       </div>
@@ -404,7 +404,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">{label}</span>
+      <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
       <div className="mt-1">{children}</div>
       {error && <span className="text-[10px] font-mono text-rose-400 mt-1 block">{error}</span>}
     </label>
@@ -433,8 +433,8 @@ function IconBtn({
         active
           ? 'bg-emerald-500/15 text-emerald-300'
           : danger
-            ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10'
-            : 'text-slate-400 hover:text-white hover:bg-white/5'
+            ? 'text-slate-500 dark:text-slate-400 hover:text-rose-400 hover:bg-rose-500/10'
+            : 'text-slate-500 dark:text-slate-400 hover:text-white hover:bg-white/5'
       }`}
     >
       {children}

@@ -73,22 +73,16 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
   return (
     <aside
       id="sidebar-container"
-      className="flex flex-col w-60 min-h-screen transition-colors duration-300 relative overflow-hidden shrink-0"
-      style={{
-        background: 'rgba(9, 14, 28, 0.97)',
-        borderRight: '1px solid rgba(255, 255, 255, 0.06)',
-      }}
+      className="flex flex-col w-60 min-h-screen transition-colors duration-300 relative overflow-hidden shrink-0 bg-slate-950/95 border-e border-slate-800/60"
     >
       {/* Ambient glow orbs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute top-0 left-0 w-48 h-48 rounded-full opacity-20 blur-3xl"
-          style={{ background: 'radial-gradient(circle, #10b981 0%, transparent 70%)' }} />
-        <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full opacity-10 blur-3xl"
-          style={{ background: 'radial-gradient(circle, #3b82f6 0%, transparent 70%)' }} />
+        <div className="absolute top-0 left-0 w-48 h-48 rounded-full opacity-20 blur-3xl bg-emerald-500/40" />
+        <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full opacity-10 blur-3xl bg-blue-500/40" />
       </div>
 
       {/* ── Brand ── */}
-      <div id="brand-header" className="relative z-10 px-5 py-5 border-b border-white/[0.06]">
+      <div id="brand-header" className="relative z-10 px-5 py-5 border-b border-slate-800/60">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -104,7 +98,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
           </div>
           <div className="min-w-0">
             <h1
-              className="font-sans font-bold text-white text-sm truncate tracking-tight"
+              className="font-sans font-bold text-slate-900 dark:text-white text-sm truncate tracking-tight"
               title={settings.storeName}
             >
               {settings.storeName}
@@ -135,16 +129,15 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
               aria-current={isActive ? 'page' : undefined}
               className={`relative flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 group ${
                 isActive
-                  ? 'text-white bg-white/8'
-                  : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'
+                  ? 'text-slate-900 dark:text-white bg-slate-800/60'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-200 hover:bg-slate-800/40'
               }`}
             >
               {/* Active left indicator */}
               {isActive && (
                 <motion.div
                   layoutId="sidebar-active-bar"
-                  className="absolute inset-y-2 start-0 w-0.5 rounded-full bg-emerald-400"
-                  style={{ boxShadow: '0 0 8px rgba(16,185,129,0.7)' }}
+                  className="absolute inset-y-2 start-0 w-0.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-500/50"
                   transition={{ type: 'spring', stiffness: 350, damping: 28 }}
                 />
               )}
@@ -153,7 +146,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
                 <Icon
                   size={16}
                   className={`transition-colors duration-200 ${
-                    isActive ? 'text-emerald-400' : 'text-slate-600 group-hover:text-slate-400'
+                    isActive ? 'text-emerald-400' : 'text-slate-600 group-hover:text-slate-500 dark:text-slate-400'
                   }`}
                 />
                 <span className="tracking-wide">{t(item.labelKey)}</span>
@@ -164,12 +157,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   id={`nav-badge-${item.id}`}
-                  className="relative z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-full font-mono text-[9px] font-bold"
-                  style={{
-                    background: 'rgba(245, 158, 11, 0.15)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    color: '#fbbf24',
-                  }}
+                  className="relative z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-full font-mono text-[9px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-400"
                 >
                   <AlertTriangle size={9} />
                   {badge}
@@ -185,26 +173,13 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
         {/* Dark mode toggle */}
         <button
           onClick={() => setDarkMode(!darkMode)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all"
-          style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.07)',
-            color: '#64748b',
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)';
-            (e.currentTarget as HTMLButtonElement).style.color = '#cbd5e1';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)';
-            (e.currentTarget as HTMLButtonElement).style.color = '#64748b';
-          }}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all bg-slate-800/40 border border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
           aria-label={darkMode ? t('sidebar.lightMode') : t('sidebar.darkMode')}
         >
           {darkMode ? (
-            <><Sun size={13} className="text-amber-400" /><span className="text-slate-400">{t('sidebar.lightMode')}</span></>
+            <><Sun size={13} className="text-amber-400" /><span className="text-slate-500 dark:text-slate-400">{t('sidebar.lightMode')}</span></>
           ) : (
-            <><Moon size={13} className="text-indigo-400" /><span className="text-slate-400">{t('sidebar.darkMode')}</span></>
+            <><Moon size={13} className="text-indigo-400" /><span className="text-slate-500 dark:text-slate-400">{t('sidebar.darkMode')}</span></>
           )}
         </button>
 
@@ -212,20 +187,16 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
         {currentUser && (
           <div
             id="sidebar-user-card"
-            className="flex items-center justify-between p-3 rounded-xl"
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.07)',
-            }}
+            className="flex items-center justify-between p-3 rounded-xl bg-slate-800/40 border border-slate-700/50"
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <div
-                className={`w-8 h-8 rounded-lg bg-gradient-to-br ${ROLE_COLOR[currentUser.role] || ROLE_COLOR.cashier} flex items-center justify-center text-white font-bold text-[11px] shrink-0`}
+                className={`w-8 h-8 rounded-lg bg-gradient-to-br ${ROLE_COLOR[currentUser.role] || ROLE_COLOR.cashier} flex items-center justify-center text-slate-900 dark:text-white font-bold text-[11px] shrink-0`}
               >
                 {getInitials(currentUser.name)}
               </div>
               <div className="min-w-0">
-                <p className="text-white text-xs font-bold truncate leading-tight">
+                <p className="text-slate-900 dark:text-white text-xs font-bold truncate leading-tight">
                   {currentUser.name.split(' ')[0]}
                 </p>
                 <span className={`text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border inline-block mt-0.5 ${ROLE_BADGE[currentUser.role] || ROLE_BADGE.cashier}`}>
