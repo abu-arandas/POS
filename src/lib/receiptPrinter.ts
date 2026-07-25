@@ -1,7 +1,12 @@
 import { SaleTransaction, StoreSettings, PrinterConfig, ReceiptLayout } from '../types';
 import { escapeHtml as esc } from './escapeHtml';
 import { code128Svg } from './barcode';
-import { formatDateTime, resolveCustomerLayout, resolveKitchenLayout } from './receiptFormat';
+import {
+  formatDateTime,
+  resolveCustomerLayout,
+  resolveKitchenLayout,
+  safeFontFamily,
+} from './receiptFormat';
 
 export type PrintOutcome = 'printed' | 'popup-blocked' | 'esc-pos';
 
@@ -212,16 +217,20 @@ export function receiptDocHtml(
   fontSizePx = 12,
   autoPrint = false,
 ): string {
+  // Both values land inside a <style> block, so neither may carry arbitrary
+  // text: the font is whitelisted and the size is coerced to a bounded number.
+  const font = safeFontFamily(fontFamily);
+  const size = Math.max(8, Math.min(40, Number(fontSizePx) || 12));
   return `<html>
       <head>
         <title>POS Receipts</title>
         <style>
           body {
-            font-family: "${fontFamily}", 'Courier New', Courier, monospace;
+            font-family: "${font}", 'Courier New', Courier, monospace;
             width: ${rollWidth};
             padding: 8px;
             margin: 0;
-            font-size: ${fontSizePx}px;
+            font-size: ${size}px;
             color: #000;
             line-height: 1.3;
           }

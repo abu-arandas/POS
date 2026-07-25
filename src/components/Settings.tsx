@@ -534,7 +534,7 @@ export default function Settings() {
                 <div className="space-y-6">
                   {/* General Info Card */}
                   <div className="surface rounded-2xl p-6">
-                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">General Details</h3>
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">{t('settings.generalDetails')}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
@@ -638,7 +638,7 @@ export default function Settings() {
                   {/* Regional & Loyalty Settings */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="surface rounded-2xl p-6">
-                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">Regional</h3>
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">{t('settings.regional')}</h3>
                       <div className="space-y-4">
                         <div>
                           <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
@@ -684,7 +684,7 @@ export default function Settings() {
                     </div>
 
                     <div className="surface rounded-2xl p-6">
-                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">Loyalty Program</h3>
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">{t('settings.loyaltyProgram')}</h3>
                       <div className="space-y-4">
                         <div>
                           <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">

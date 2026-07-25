@@ -97,16 +97,86 @@ ALTER TABLE transactions ADD CONSTRAINT transactions_status_check
 -- hash never leaves the database. The client sends SHA-256(entered PIN); see
 -- src/lib/hash.ts. This lets you keep user_accounts unreadable by clients while
 -- still supporting the PIN lockscreen against the cloud copy.
+-- Failed-attempt ledger backing the throttle below. Not readable by clients:
+-- only the SECURITY DEFINER function touches it.
+CREATE TABLE IF NOT EXISTS login_attempts (
+  name          TEXT CONSTRAINT login_attempts_pkey PRIMARY KEY,
+  failures      INTEGER NOT NULL DEFAULT 0,
+  locked_until  TIMESTAMPTZ,
+  last_failure  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
+-- No policies: RLS with zero policies denies every client. verify_login()
+-- reaches it as SECURITY DEFINER (the owner bypasses RLS).
+
+-- verify_login is granted to `anon`, so anyone holding the public key that ships
+-- in the client bundle can call it. A 4-digit PIN is only 10,000 combinations,
+-- so without a throttle the whole space is walkable over the open internet.
+-- Failures are counted per account name and, past a threshold, the function
+-- refuses to check the PIN at all for a cool-off window.
+--
+-- These mirror src/lib/pinThrottle.ts, which throttles the on-device keypad.
 CREATE OR REPLACE FUNCTION public.verify_login(p_name TEXT, p_pin_hash TEXT)
 RETURNS TABLE (id TEXT, name TEXT, role TEXT, active BOOLEAN, created_at TIMESTAMPTZ)
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT id, name, role, active, created_at
-  FROM public.user_accounts
-  WHERE name = p_name AND pin = p_pin_hash AND active = TRUE
+DECLARE
+  free_attempts CONSTANT INTEGER  := 5;
+  streak_reset  CONSTANT INTERVAL := INTERVAL '30 minutes';
+  att           login_attempts%ROWTYPE;
+  matched       user_accounts%ROWTYPE;
+  cool_off      INTERVAL;
+BEGIN
+  SELECT * INTO att FROM login_attempts la WHERE la.name = p_name;
+
+  -- Still inside a cool-off: refuse without even looking at the PIN, so a
+  -- locked-out account leaks nothing about which guesses are close.
+  IF att.locked_until IS NOT NULL AND att.locked_until > NOW() THEN
+    RETURN;
+  END IF;
+
+  -- A streak that has gone quiet is forgotten (an honest mistyped PIN days ago
+  -- shouldn't count against today).
+  IF att.name IS NOT NULL AND att.last_failure < NOW() - streak_reset THEN
+    att.failures := 0;
+  END IF;
+
+  SELECT * INTO matched
+  FROM user_accounts ua
+  WHERE ua.name = p_name AND ua.pin = p_pin_hash AND ua.active = TRUE
   LIMIT 1;
+
+  IF FOUND THEN
+    DELETE FROM login_attempts la WHERE la.name = p_name;
+    RETURN QUERY SELECT matched.id, matched.name, matched.role, matched.active, matched.created_at;
+    RETURN;
+  END IF;
+
+  -- Wrong PIN: record it and escalate the cool-off once past the free attempts.
+  cool_off := CASE
+    WHEN COALESCE(att.failures, 0) + 1 <  free_attempts THEN NULL
+    WHEN COALESCE(att.failures, 0) + 1 =  free_attempts THEN INTERVAL '30 seconds'
+    WHEN COALESCE(att.failures, 0) + 1 =  free_attempts + 1 THEN INTERVAL '1 minute'
+    WHEN COALESCE(att.failures, 0) + 1 =  free_attempts + 2 THEN INTERVAL '2 minutes'
+    WHEN COALESCE(att.failures, 0) + 1 =  free_attempts + 3 THEN INTERVAL '5 minutes'
+    ELSE INTERVAL '15 minutes'
+  END;
+
+  -- Conflict target is named by constraint, not by column: `name` is also an
+  -- OUT column of this function, so `ON CONFLICT (name)` is ambiguous between
+  -- the PL/pgSQL variable and the table column and fails at runtime.
+  INSERT INTO login_attempts AS la (name, failures, locked_until, last_failure)
+  VALUES (p_name, COALESCE(att.failures, 0) + 1,
+          CASE WHEN cool_off IS NULL THEN NULL ELSE NOW() + cool_off END, NOW())
+  ON CONFLICT ON CONSTRAINT login_attempts_pkey DO UPDATE
+    SET failures     = EXCLUDED.failures,
+        locked_until = EXCLUDED.locked_until,
+        last_failure = EXCLUDED.last_failure;
+
+  RETURN; -- no rows = rejected
+END;
 $$;
 REVOKE ALL ON FUNCTION public.verify_login(TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.verify_login(TEXT, TEXT) TO anon, authenticated;
@@ -203,8 +273,15 @@ BEGIN
   END LOOP;
 END $$;
 
--- 9. Seed the default admin (PIN 1234, stored as its SHA-256 hash)
+-- 9. Seed the default admin (PIN 1234)
+-- The stored value is SHA-256('<id>:<pin>') — salted with the account id, the
+-- same scheme the app uses (see hashPinSalted in src/lib/hash.ts). The previous
+-- seed stored the bare SHA-256 of '1234', which is a publicly known digest that
+-- anyone can recognize on sight in a leaked table.
+--
+-- ⚠️  This PIN is public in this repository. Change it in Settings → Users
+-- before the terminal handles real data.
 INSERT INTO user_accounts (id, name, role, pin, active, created_at)
 VALUES ('admin-1', 'Default Administrator', 'admin',
-        '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4', TRUE, NOW())
+        '2b2aa6698b009065652d34c08b24aa244edc29e5a737d090f80f3b46505a5001', TRUE, NOW())
 ON CONFLICT (id) DO NOTHING;

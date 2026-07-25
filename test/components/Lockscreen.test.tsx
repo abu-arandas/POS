@@ -3,7 +3,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Lockscreen from '../../src/components/Lockscreen';
 import { useAuthStore } from '../../src/stores/authStore';
+import { usePinAttemptStore } from '../../src/stores/pinAttemptStore';
 import { hashPinSaltedSync } from '../../src/lib/hash';
+import { FREE_ATTEMPTS, recordFailure } from '../../src/lib/pinThrottle';
 import { UserAccount } from '../../src/types';
 
 const makeUser = (overrides: Partial<UserAccount> & { id: string }): UserAccount => ({
@@ -32,6 +34,7 @@ const typePin = async (pin: string) => {
 
 beforeEach(() => {
   useAuthStore.setState({ currentUser: null });
+  usePinAttemptStore.setState({ attempts: {} });
 });
 
 describe('Lockscreen staff selection', () => {
@@ -58,6 +61,52 @@ describe('Lockscreen staff selection', () => {
     await typePin('1234');
 
     await waitFor(() => expect(useAuthStore.getState().currentUser?.id).toBe('u-1'));
+  });
+
+  it('counts a wrong PIN against the account', async () => {
+    useAuthStore.setState({ users: [makeUser({ id: 'u-1', name: 'Active Alice' })] });
+    render(<Lockscreen />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: /Active Alice/ }));
+    await typePin('9999');
+
+    await waitFor(() =>
+      expect(usePinAttemptStore.getState().attempts['u-1']?.failures).toBe(1),
+    );
+    expect(useAuthStore.getState().currentUser).toBeNull();
+  });
+
+  it('refuses further guesses once the account is locked out', async () => {
+    const alice = makeUser({ id: 'u-1', name: 'Active Alice' });
+    useAuthStore.setState({ users: [alice] });
+    // Arrive at the screen already locked out (as a returning attacker would).
+    let attempts = {};
+    for (let i = 0; i < FREE_ATTEMPTS; i++) attempts = recordFailure(attempts, 'u-1', Date.now());
+    usePinAttemptStore.setState({ attempts });
+
+    render(<Lockscreen />);
+    await userEvent.setup().click(screen.getByRole('button', { name: /Active Alice/ }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByRole('alert').textContent).toMatch(/try again in/i);
+
+    // The keypad is inert — even the CORRECT PIN must not get through.
+    const key = document.querySelector<HTMLButtonElement>('#pin-key-1');
+    expect(key?.disabled).toBe(true);
+    await typePin('1234');
+    expect(useAuthStore.getState().currentUser).toBeNull();
+  });
+
+  it('clears the failure streak after a successful sign-in', async () => {
+    useAuthStore.setState({ users: [makeUser({ id: 'u-1', name: 'Active Alice' })] });
+    usePinAttemptStore.setState({ attempts: recordFailure({}, 'u-1', Date.now()) });
+
+    render(<Lockscreen />);
+    await userEvent.setup().click(screen.getByRole('button', { name: /Active Alice/ }));
+    await typePin('1234');
+
+    await waitFor(() => expect(useAuthStore.getState().currentUser?.id).toBe('u-1'));
+    expect(usePinAttemptStore.getState().attempts['u-1']).toBeUndefined();
   });
 
   it('rejects the PIN if the account is deactivated after selection', async () => {

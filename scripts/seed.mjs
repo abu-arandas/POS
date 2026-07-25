@@ -18,10 +18,13 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const usingServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-// The app authenticates by comparing SHA-256(entered PIN) against the stored
-// value (see src/lib/hash.ts), so seeded PINs must be stored as hashes too —
-// storing them in plaintext makes the account impossible to log into.
-const hashPin = (pin) => createHash('sha256').update(pin).digest('hex');
+// The app authenticates by comparing SHA-256('<accountId>:<entered PIN>')
+// against the stored value (hashPinSalted in src/lib/hash.ts), so seeded PINs
+// must be hashed the same way — plaintext makes the account impossible to log
+// into, and an unsalted digest means well-known PINs like '1234' show up as
+// their publicly recognizable hash.
+const hashPinSalted = (userId, pin) =>
+  createHash('sha256').update(`${userId}:${pin}`).digest('hex');
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error(
@@ -81,10 +84,12 @@ const CUSTOMERS = [
   { id: 'cust-4', name: 'David Wilson',    email: 'david.wilson@gmail.com',    phone: '555-0188', points: 10,  created_at: '2026-06-25' },
 ];
 
+// ⚠️  Demo PINs, public in this repository — change them in Settings → Users
+// before the terminal handles real data.
 const USER_ACCOUNTS = [
-  { id: 'user-admin',   name: 'Admin Manager',        role: 'admin',   pin: hashPin('1234'), active: true, created_at: '2026-01-01T00:00:00.000Z' },
-  { id: 'user-manager', name: 'Sarah Store Manager',  role: 'manager', pin: hashPin('5555'), active: true, created_at: '2026-01-10T00:00:00.000Z' },
-  { id: 'user-cashier', name: 'John Cashier',         role: 'cashier', pin: hashPin('0000'), active: true, created_at: '2026-01-20T00:00:00.000Z' },
+  { id: 'user-admin',   name: 'Admin Manager',        role: 'admin',   pin: hashPinSalted('user-admin', '1234'),   active: true, created_at: '2026-01-01T00:00:00.000Z' },
+  { id: 'user-manager', name: 'Sarah Store Manager',  role: 'manager', pin: hashPinSalted('user-manager', '5555'), active: true, created_at: '2026-01-10T00:00:00.000Z' },
+  { id: 'user-cashier', name: 'John Cashier',         role: 'cashier', pin: hashPinSalted('user-cashier', '0000'), active: true, created_at: '2026-01-20T00:00:00.000Z' },
 ];
 
 const SETTINGS_TAX_RATE = 8.5;

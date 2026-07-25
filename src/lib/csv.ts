@@ -1,12 +1,23 @@
 import { SaleTransaction } from '../types';
 
+// Spreadsheets treat a leading =, +, -, @ (or a leading tab/CR, which Excel
+// strips before parsing) as the start of a formula. A product or customer name
+// like `=HYPERLINK(...)` would then execute in the recipient's spreadsheet
+// rather than display as text. Prefixing with an apostrophe is the standard
+// mitigation: Excel/Sheets/LibreOffice read it as "this cell is literal text"
+// and don't render the apostrophe itself.
+export function neutralizeFormula(value: string): string {
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+}
+
 // Serializes rows to RFC-4180 CSV. Values containing quotes, commas, or
-// newlines are quoted and inner quotes doubled.
+// newlines are quoted and inner quotes doubled; values that a spreadsheet would
+// read as a formula are neutralized first.
 export function toCsv(rows: Array<Record<string, unknown>>, columns?: string[]): string {
   if (rows.length === 0) return columns ? columns.join(',') : '';
   const cols = columns ?? Object.keys(rows[0]);
   const esc = (v: unknown) => {
-    const s = v == null ? '' : String(v);
+    const s = neutralizeFormula(v == null ? '' : String(v));
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const header = cols.join(',');

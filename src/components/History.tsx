@@ -34,9 +34,15 @@ import { printTransactions } from '../lib/receiptPrinter';
 import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { computeRefund, refundableQuantities } from '../lib/refunds';
 import { useModalA11y } from '../lib/useModalA11y';
+import { usePinAttemptStore } from '../stores/pinAttemptStore';
+import { lockoutStatus, formatRemaining } from '../lib/pinThrottle';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
 import type { RefundPatch } from '../stores/transactionStore';
 import { useTranslation } from 'react-i18next';
+
+// Single throttle bucket for the manager-override PIN (it is not tied to one
+// account — any manager/admin PIN authorizes, so the guesser names no user).
+const OVERRIDE_THROTTLE_KEY = '__manager_override__';
 
 export default function History() {
   const { t } = useTranslation();
@@ -45,6 +51,9 @@ export default function History() {
   const { currentUser, users } = useAuthStore();
   const { handleUpdateProduct } = useProductStore();
   const { updateCustomerPoints } = useCustomerStore();
+  const pinAttempts = usePinAttemptStore((s) => s.attempts);
+  const registerPinFailure = usePinAttemptStore((s) => s.registerFailure);
+  const registerPinSuccess = usePinAttemptStore((s) => s.registerSuccess);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days'>('all');
@@ -217,15 +226,24 @@ export default function History() {
 
   const handleAuthorizeOverride = async () => {
     setOverrideError('');
+    // The override accepts ANY manager/admin PIN, so it is the widest PIN
+    // surface in the app — throttle it like the lock screen. Keyed to the
+    // override rather than an account, since the guesser hasn't named one.
+    const gate = lockoutStatus(pinAttempts, OVERRIDE_THROTTLE_KEY, Date.now());
+    if (gate.locked) {
+      setOverrideError(t('history.overrideLockedOut', { time: formatRemaining(gate.remainingMs) }));
+      return;
+    }
+
     const eligible = users.filter((u) => u.active && (u.role === 'manager' || u.role === 'admin'));
+    const legacyHash = await hashPin(overridePin);
     let authorizedUser: (typeof eligible)[number] | undefined;
     for (const u of eligible) {
       const saltedHash = await hashPinSalted(u.id, overridePin);
-      if (u.pin === saltedHash) { authorizedUser = u; break; }
-      const legacyHash = await hashPin(overridePin);
-      if (u.pin === legacyHash) { authorizedUser = u; break; }
+      if (u.pin === saltedHash || u.pin === legacyHash) { authorizedUser = u; break; }
     }
     if (authorizedUser && refundModalTx) {
+      registerPinSuccess(OVERRIDE_THROTTLE_KEY);
       applyRefundWithSelection(
         refundModalTx,
         refundSelection,
@@ -233,7 +251,17 @@ export default function History() {
       );
       setRefundModalTx(null);
     } else {
-      setOverrideError(t('history.invalidPasscode'));
+      registerPinFailure(OVERRIDE_THROTTLE_KEY);
+      const after = lockoutStatus(
+        usePinAttemptStore.getState().attempts,
+        OVERRIDE_THROTTLE_KEY,
+        Date.now(),
+      );
+      setOverrideError(
+        after.locked
+          ? t('history.overrideLockedOut', { time: formatRemaining(after.remainingMs) })
+          : t('history.invalidPasscode'),
+      );
     }
   };
 
@@ -306,16 +334,16 @@ export default function History() {
       <div className="bg-white/80 dark:bg-slate-900/50 rounded-2xl p-4 border border-slate-300 dark:border-slate-700 space-y-2 mt-4">
         {computed.pointsReversal !== 0 && (
           <div className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
-            <span>Loyalty Points Adjustment</span>
+            <span>{t('history.loyaltyAdjustment')}</span>
             <span className="font-mono">{computed.pointsReversal > 0 ? '+' : ''}{computed.pointsReversal} pts</span>
           </div>
         )}
         <div className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
-          <span>Total Refunded After This</span>
+          <span>{t('history.totalRefundedAfter')}</span>
           <span className="font-mono">{settings.currency}{computed.refundedAmount.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-lg font-bold text-slate-900 dark:text-white pt-2 border-t border-slate-300 dark:border-slate-700">
-          <span>Refund Amount</span>
+          <span>{t('history.refundAmount')}</span>
           <span className="text-emerald-400 font-mono">{settings.currency}{computed.refundAmount.toFixed(2)}</span>
         </div>
       </div>
@@ -402,7 +430,7 @@ export default function History() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <Filter size={14} className="text-slate-500" />
-              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Payment:</span>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('history.paymentFilter')}</span>
             </div>
             <div className="flex gap-2 flex-wrap">
               {['cash', 'card', 'mobile', 'gift'].map(method => (
@@ -682,7 +710,7 @@ export default function History() {
                   onClick={() => openRefundModal(activeTransaction)}
                   className="flex-1 bg-rose-500 hover:bg-rose-600 text-slate-900 dark:text-white py-3 rounded-xl text-xs font-bold transition-colors shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2"
                 >
-                  <RotateCcw size={16} /> Refund
+                  <RotateCcw size={16} /> {t('history.refund')}
                 </button>
               )}
             </div>
@@ -702,21 +730,21 @@ export default function History() {
               <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
                 {selectedTxIds.length}
               </div>
-              <span className="text-slate-900 dark:text-white font-bold text-sm">Selected</span>
+              <span className="text-slate-900 dark:text-white font-bold text-sm">{t('history.selected')}</span>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={handleBulkPrint}
                 className="bg-slate-700 hover:bg-slate-600 text-slate-900 dark:text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-colors"
               >
-                <Printer size={16} /> Print
+                <Printer size={16} /> {t('history.print')}
               </button>
               {canDelete && (
                 <button
                   onClick={() => setShowDeleteModal(true)}
                   className="bg-rose-500 hover:bg-rose-600 text-slate-900 dark:text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-colors"
                 >
-                  <Trash2 size={16} /> Delete
+                  <Trash2 size={16} /> {t('history.delete')}
                 </button>
               )}
               <button
@@ -748,22 +776,22 @@ export default function History() {
               <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle size={32} />
               </div>
-              <h3 id="delete-tx-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">Delete Transactions?</h3>
+              <h3 id="delete-tx-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('history.deleteTitle')}</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-                Are you sure you want to delete {selectedTxIds.length} transactions? This action cannot be undone.
+                {t('history.deleteBody', { count: selectedTxIds.length })}
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteModal(false)}
                   className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
                 >
-                  Cancel
+                  {t('history.cancel')}
                 </button>
                 <button
                   onClick={confirmBulkDelete}
                   className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
                 >
-                  Delete
+                  {t('history.delete')}
                 </button>
               </div>
             </motion.div>
@@ -787,7 +815,7 @@ export default function History() {
             >
               <div className="p-6 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 flex justify-between items-center">
                 <h3 id="refund-modal-title" className="font-sans font-bold text-slate-900 dark:text-white text-lg">
-                  {refundStep === 1 ? 'Step 1: Select Items' : 'Step 2: Review & Confirm'}
+                  {refundStep === 1 ? t('history.refundStep1') : t('history.refundStep2')}
                 </h3>
                 <button onClick={() => setRefundModalTx(null)} aria-label={t('history.close')} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 hover:text-white">
                   <X size={16} />
@@ -797,7 +825,7 @@ export default function History() {
               <div className="p-6 overflow-y-auto flex-1">
                 {refundStep === 1 && (
                   <div className="space-y-4">
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Select the quantity of each item to refund.</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('history.selectQtyHint')}</p>
                     {refundModalTx.items.map((item, idx) => {
                       const max = refundableQuantities(refundModalTx)[item.productId] || 0;
                       if (max <= 0) return null;
@@ -806,7 +834,7 @@ export default function History() {
                         <div key={idx} className="flex items-center justify-between bg-slate-100 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200 dark:border-white/5">
                           <div className="flex-1 min-w-0 pr-4">
                             <h4 className="text-slate-900 dark:text-white font-bold truncate">{item.productName}</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{settings.currency}{(item.total / item.quantity).toFixed(2)} each</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{settings.currency}{(item.total / item.quantity).toFixed(2)} {t('history.each')}</p>
                           </div>
                           <div className="flex items-center gap-3 bg-white dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-white/10">
                             <button
@@ -837,11 +865,11 @@ export default function History() {
                     {(!currentUser || currentUser.role === 'cashier') && (
                       <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-5">
                         <div className="flex items-center gap-2 text-rose-400 mb-3 font-bold text-sm">
-                          <Lock size={16} /> Manager Authorization Required
+                          <Lock size={16} /> {t('history.managerAuthRequired')}
                         </div>
                         <input
                           type="password"
-                          placeholder="Manager PIN"
+                          placeholder={t('history.managerPin')}
                           aria-label={t('history.managerPin')}
                           data-autofocus
                           value={overridePin}
@@ -861,7 +889,7 @@ export default function History() {
                     onClick={() => setRefundStep(1)}
                     className="px-5 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
                   >
-                    Back
+                    {t('history.back')}
                   </button>
                 )}
                 <button
@@ -869,7 +897,7 @@ export default function History() {
                   disabled={refundStep === 1 && Object.values(refundSelection).reduce((a,b)=>a+b,0) === 0}
                   className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-900 dark:text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
                 >
-                  {refundStep === 1 ? 'Next' : 'Confirm Refund'} {refundStep === 1 && <ChevronRight size={16} />}
+                  {refundStep === 1 ? t('history.next') : t('history.confirmRefund')} {refundStep === 1 && <ChevronRight size={16} />}
                 </button>
               </div>
             </motion.div>

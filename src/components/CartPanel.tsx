@@ -185,7 +185,7 @@ const CartPanel = ({
                 <ShoppingCart size={28} className="text-slate-600" />
               </div>
               <p className="text-slate-500 text-xs font-medium">{t('register.cartEmpty')}</p>
-              <p className="text-slate-700 text-[10px] mt-1">Tap a product to add it</p>
+              <p className="text-slate-700 text-[10px] mt-1">{t('register.tapToAdd')}</p>
             </motion.div>
           ) : (
             cart.map((item) => (

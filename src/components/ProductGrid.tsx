@@ -394,7 +394,7 @@ const ProductGrid = ({
             >
               <span className="text-5xl mb-4 animate-float-slow">🔍</span>
               <p className="text-slate-500 dark:text-slate-400 text-sm font-semibold">{t('register.noProducts')}</p>
-              <p className="text-slate-600 text-xs mt-1">Try a different category or search term</p>
+              <p className="text-slate-600 text-xs mt-1">{t('register.tryDifferentSearch')}</p>
             </motion.div>
           ) : (
             <DndContext

@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { hashPin, hashPinSalted } from '../lib/hash';
 import { cloudLogin } from '../lib/sync';
 import { useAuthStore } from '../stores/authStore';
+import { usePinAttemptStore } from '../stores/pinAttemptStore';
+import { lockoutStatus, formatRemaining, FREE_ATTEMPTS } from '../lib/pinThrottle';
 import { useTranslation } from 'react-i18next';
 
 const ROLE_CONFIG = {
@@ -39,13 +41,28 @@ function getInitials(name: string) {
 
 export default function Lockscreen() {
   const { users, setUsers, setCurrentUser, handleUpdateUser } = useAuthStore();
+  const attempts = usePinAttemptStore((s) => s.attempts);
+  const registerFailure = usePinAttemptStore((s) => s.registerFailure);
+  const registerSuccess = usePinAttemptStore((s) => s.registerSuccess);
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<boolean>(false);
   const [checking, setChecking] = useState<boolean>(false);
+  // Ticks once a second while a lockout runs so the countdown stays live.
+  const [nowTick, setNowTick] = useState(() => Date.now());
   const { t } = useTranslation();
 
   const activeUsers = users.filter((u) => u.active);
+
+  const lockout = selectedUser
+    ? lockoutStatus(attempts, selectedUser.id, nowTick)
+    : { locked: false, remainingMs: 0, attemptsLeft: FREE_ATTEMPTS };
+
+  useEffect(() => {
+    if (!lockout.locked) return;
+    const timer = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [lockout.locked]);
 
   const rejectPin = () => {
     setError(true);
@@ -53,8 +70,20 @@ export default function Lockscreen() {
     setTimeout(() => setError(false), 900);
   };
 
+  // A wrong PIN both shakes the dots and advances the brute-force counter.
+  const failPin = (userId: string) => {
+    registerFailure(userId);
+    setNowTick(Date.now());
+    rejectPin();
+  };
+
+  const acceptPin = (user: UserAccount) => {
+    registerSuccess(user.id);
+    setCurrentUser(user);
+  };
+
   const handleKeyPress = async (num: string) => {
-    if (error || checking) return;
+    if (error || checking || lockout.locked) return;
     if (pin.length < 4) {
       const nextPin = pin + num;
       setPin(nextPin);
@@ -64,14 +93,14 @@ export default function Lockscreen() {
         // screen sits open on it. (The cloud path is already covered — the
         // verify_login RPC filters on active.)
         const live = users.find((u) => u.id === selectedUser.id);
-        if (!live?.active) { rejectPin(); return; }
+        if (!live?.active) { failPin(selectedUser.id); return; }
 
         const saltedHash = await hashPinSalted(selectedUser.id, nextPin);
-        if (selectedUser.pin === saltedHash) { setCurrentUser(selectedUser); return; }
+        if (selectedUser.pin === saltedHash) { acceptPin(selectedUser); return; }
         const legacyHash = await hashPin(nextPin);
         if (selectedUser.pin === legacyHash) {
           handleUpdateUser({ ...selectedUser, pin: saltedHash });
-          setCurrentUser(selectedUser);
+          acceptPin(selectedUser);
           return;
         }
         setChecking(true);
@@ -81,9 +110,9 @@ export default function Lockscreen() {
         if (cloudUser2) {
           const upgraded = { ...selectedUser, ...cloudUser2, pin: saltedHash };
           setUsers(users.map((u) => (u.id === upgraded.id ? upgraded : u)));
-          setCurrentUser(upgraded);
+          acceptPin(upgraded);
         } else {
-          rejectPin();
+          failPin(selectedUser.id);
         }
       }
     }
@@ -260,26 +289,50 @@ export default function Lockscreen() {
                   ))}
                 </motion.div>
 
-                {error && (
+                {lockout.locked ? (
                   <motion.span
+                    id="pin-lockout-message"
+                    role="alert"
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-rose-400 text-xs font-semibold"
+                    className="text-rose-400 text-xs font-semibold text-center"
                   >
-                    {t('lockscreen.incorrectPin')}
+                    {t('lockscreen.lockedOut', {
+                      time: formatRemaining(lockout.remainingMs),
+                    })}
                   </motion.span>
+                ) : (
+                  <>
+                    {error && (
+                      <motion.span
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-rose-400 text-xs font-semibold"
+                      >
+                        {t('lockscreen.incorrectPin')}
+                      </motion.span>
+                    )}
+                    {/* Only warn near the threshold — no need to advertise the
+                        counter to someone who simply mistyped once. */}
+                    {!error && lockout.attemptsLeft <= 2 && lockout.attemptsLeft > 0 && (
+                      <span className="text-amber-400 text-xs font-semibold">
+                        {t('lockscreen.attemptsLeft', { count: lockout.attemptsLeft })}
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
 
-              {/* Keypad */}
+              {/* Keypad — disabled outright while a lockout is running. */}
               <div className="grid grid-cols-3 gap-2.5">
                 {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
                   <motion.button
                     key={num}
                     id={`pin-key-${num}`}
                     onClick={() => handleKeyPress(num)}
+                    disabled={lockout.locked}
                     whileTap={{ scale: 0.88 }}
-                    className="h-[52px] rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-900 dark:text-white font-mono text-lg font-bold transition-all"
+                    className="h-[52px] rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-900 dark:text-white font-mono text-lg font-bold transition-all disabled:opacity-30 disabled:hover:bg-slate-800/40"
                   >
                     {num}
                   </motion.button>
@@ -287,26 +340,29 @@ export default function Lockscreen() {
 
                 <motion.button
                   onClick={handleClear}
+                  disabled={lockout.locked}
                   whileTap={{ scale: 0.9 }}
-                  className="h-[52px] rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 font-semibold text-[11px] uppercase tracking-wider transition-all"
+                  className="h-[52px] rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 font-semibold text-[11px] uppercase tracking-wider transition-all disabled:opacity-30"
                 >
                   {t('lockscreen.clear')}
                 </motion.button>
 
                 <motion.button
                   id="pin-key-0"
+                  disabled={lockout.locked}
                   onClick={() => handleKeyPress('0')}
                   whileTap={{ scale: 0.88 }}
-                  className="h-[52px] rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-900 dark:text-white font-mono text-lg font-bold transition-all"
+                  className="h-[52px] rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-900 dark:text-white font-mono text-lg font-bold transition-all disabled:opacity-30 disabled:hover:bg-slate-800/40"
                 >
                   0
                 </motion.button>
 
                 <motion.button
                   onClick={handleBackspace}
+                  disabled={lockout.locked}
                   whileTap={{ scale: 0.9 }}
                   aria-label={t('lockscreen.backspace')}
-                  className="h-[52px] rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-white flex items-center justify-center transition-all"
+                  className="h-[52px] rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-white flex items-center justify-center transition-all disabled:opacity-30"
                 >
                   <Delete size={18} />
                 </motion.button>

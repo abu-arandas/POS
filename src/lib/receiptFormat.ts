@@ -38,6 +38,16 @@ export const DATE_FORMATS = ['yyyy-MM-dd', 'dd/MM/yyyy', 'MM/dd/yyyy', 'dd-MM-yy
 export const TIME_FORMATS = ['h:mm a', 'HH:mm', 'hh:mm a', 'HH:mm:ss'];
 export const RECEIPT_FONTS = ['monospace', 'Arial', 'Courier New', 'Tahoma', 'Times New Roman'];
 
+// The receipt document interpolates the font name straight into a <style>
+// block, and one of its render targets is a same-origin window.open() print
+// window. A stored value containing `</style><script>` would therefore execute
+// with the app's origin. The settings UI only ever offers RECEIPT_FONTS, but
+// the value is persisted in IndexedDB and arrives here as plain text, so it is
+// re-checked against the whitelist at render time rather than trusted.
+export function safeFontFamily(fontFamily: string | undefined): string {
+  return fontFamily && RECEIPT_FONTS.includes(fontFamily) ? fontFamily : 'monospace';
+}
+
 export function allTogglesOn(): ReceiptToggles {
   return {
     logo: true,

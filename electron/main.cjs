@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -196,7 +196,20 @@ ipcMain.handle('print-escpos', (event, payload) => {
 ipcMain.handle('print-html', async (event, payload) => {
   const { html, deviceName } = payload || {};
   if (typeof html !== 'string') return false;
-  const win = new BrowserWindow({ show: false, webPreferences: { offscreen: false } });
+  // The receipt HTML is assembled from operator-entered data (store name, item
+  // names, footer text). It renders in a throwaway window with no preload, no
+  // Node, and sandboxed — so even if something slipped past the escaping in
+  // src/lib/receiptPrinter.ts it has nothing to reach for.
+  const win = new BrowserWindow({
+    show: false,
+    webPreferences: {
+      offscreen: false,
+      sandbox: true,
+      nodeIntegration: false,
+      contextIsolation: true,
+      javascript: false, // a receipt is static markup; it never needs script
+    },
+  });
   try {
     await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
     return await new Promise((resolve) => {
@@ -407,6 +420,49 @@ ipcMain.handle('check-for-updates', async () => {
   } catch (err) {
     return { status: 'error', error: err?.message };
   }
+});
+
+// Navigation lockdown. The renderer shows operator-supplied content (a store
+// logo URL, product image URLs, receipt text), so a stray or hostile link must
+// never be able to steer the app window somewhere else or spawn a second window
+// that inherits the preload bridge. In-app navigation stays allowed; anything
+// else is handed to the real browser, outside Electron.
+const ALLOWED_ORIGINS = new Set(['http://localhost:3000', 'http://127.0.0.1:3000']);
+
+function isInternal(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol === 'file:') return true; // the packaged dist/index.html
+    return ALLOWED_ORIGINS.has(url.origin); // the Vite dev server
+  } catch {
+    return false;
+  }
+}
+
+app.on('web-contents-created', (_event, contents) => {
+  contents.on('will-navigate', (event, url) => {
+    if (!isInternal(url)) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+
+  contents.setWindowOpenHandler(({ url }) => {
+    // The app opens blank windows it then writes print documents into — the
+    // product-label sheet (lib/productLabels), the Z-report (ShiftScreen), and
+    // the browser-fallback receipt path (lib/receiptPrinter). These are allowed
+    // through unmodified: the opener reaches into them with document.write, and
+    // overriding the child's webPreferences can sever that same-origin access.
+    // They inherit the main window's hardening (contextIsolation on, no Node)
+    // and only ever render HTML this app escaped itself.
+    if (url === '' || url === 'about:blank') return { action: 'allow' };
+    if (isInternal(url)) return { action: 'allow' };
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  // Never hand out camera/mic/geolocation etc. to renderer content.
+  contents.session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
 });
 
 // This method will be called when Electron has finished

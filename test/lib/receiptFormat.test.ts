@@ -7,7 +7,10 @@ import {
   resolveCustomerLayout,
   resolveKitchenLayout,
   allTogglesOn,
+  safeFontFamily,
+  RECEIPT_FONTS,
 } from '../../src/lib/receiptFormat';
+import { receiptDocHtml } from '../../src/lib/receiptPrinter';
 import { PrinterConfig } from '../../src/types';
 
 // A fixed local date: 2026-03-07, 14:05:09.
@@ -87,5 +90,31 @@ describe('legacy resolution (backward compatibility)', () => {
 
   it('allTogglesOn turns every field on', () => {
     expect(Object.values(allTogglesOn()).every(Boolean)).toBe(true);
+  });
+});
+
+describe('safeFontFamily', () => {
+  it('passes through every font the settings UI offers', () => {
+    for (const font of RECEIPT_FONTS) expect(safeFontFamily(font)).toBe(font);
+  });
+
+  it('falls back to monospace for anything not whitelisted', () => {
+    expect(safeFontFamily(undefined)).toBe('monospace');
+    expect(safeFontFamily('')).toBe('monospace');
+    expect(safeFontFamily('Comic Sans')).toBe('monospace');
+  });
+
+  it('rejects a value that would break out of the <style> block', () => {
+    // The receipt doc renders into a same-origin window.open() print window, so
+    // escaping the stylesheet would mean script execution on the app's origin.
+    const attack = 'x</style><script>alert(1)</script>';
+    expect(safeFontFamily(attack)).toBe('monospace');
+    expect(receiptDocHtml('<p>body</p>', '80mm', attack, 12)).not.toContain('<script>');
+  });
+
+  it('coerces the font size so it cannot carry markup either', () => {
+    const doc = receiptDocHtml('<p>body</p>', '80mm', 'monospace', '9px}</style><script>' as never);
+    expect(doc).not.toContain('<script>');
+    expect(doc).toContain('font-size: 12px');
   });
 });

@@ -107,6 +107,24 @@ in this repository:
 | Manager | manager | `5555` |
 | Cashier | cashier | `0000` |
 
+PINs are stored as `SHA-256("<accountId>:<pin>")` — salted with the account id,
+so two accounts sharing a PIN don't share a digest and the well-known hashes for
+`1234`/`0000` never appear in the database.
+
+### Brute-force protection
+
+A 4-digit PIN is only 10,000 combinations, so both PIN surfaces are throttled:
+five wrong attempts, then an escalating cool-off (30s → 1m → 2m → 5m → 15m). A
+streak is forgotten after 30 minutes of quiet, so an honest typo today doesn't
+count against tomorrow.
+
+- **On the terminal** — the lock screen and the manager-override prompt in the
+  refund flow (`src/lib/pinThrottle.ts`). Counters persist to IndexedDB, so
+  reloading the page doesn't reset the lockout.
+- **In the cloud** — the `verify_login` RPC is callable by anyone holding the
+  public anon key, so it applies the same ladder server-side and refuses to check
+  the PIN at all while an account is locked out.
+
 ## ☁️ Cloud Sync (Supabase, optional)
 
 The app runs fully offline by default (IndexedDB). To sync terminals through
