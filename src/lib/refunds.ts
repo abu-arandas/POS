@@ -32,6 +32,7 @@ export function computeRefund(
   tx: SaleTransaction,
   selection: Record<string, number>,
   loyaltyPointsRate: number,
+  loyaltyPointValue?: number,
 ): RefundComputation | null {
   const remaining = refundableQuantities(tx);
   // Clamp the selection to what's actually refundable.
@@ -65,7 +66,17 @@ export function computeRefund(
 
   const earned = tx.pointsEarned ?? Math.floor(tx.total * loyaltyPointsRate);
   let pointsReversal = -Math.round(earned * proportion);
-  if (fullyRefunded && tx.discountType === 'loyalty') pointsReversal += tx.discountValue;
+  if (fullyRefunded && tx.discountType === 'loyalty') {
+    // Return only what the redeemed points were actually worth. Sales written
+    // before checkout clamped this stored the *requested* point count, which can
+    // exceed the redemption the order could absorb — crediting that back would
+    // mint points. Deriving from tx.discount caps the reversal for those rows.
+    const redeemable =
+      loyaltyPointValue && loyaltyPointValue > 0
+        ? Math.round(tx.discount / loyaltyPointValue)
+        : tx.discountValue;
+    pointsReversal += Math.min(tx.discountValue, redeemable);
+  }
 
   const refundedAmount = Number(((tx.refundedAmount ?? 0) + refundAmount).toFixed(2));
 

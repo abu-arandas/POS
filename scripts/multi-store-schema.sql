@@ -27,10 +27,15 @@ CREATE TABLE IF NOT EXISTS memberships (
   user_id  UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   org_id   TEXT NOT NULL,
   store_id TEXT REFERENCES stores(id) ON DELETE CASCADE,  -- NULL = org-wide (super-admin)
-  role     TEXT NOT NULL CHECK (role IN ('superadmin', 'admin', 'manager', 'cashier')),
-  -- One membership per user per store (org-wide rows collapse to a sentinel key).
-  PRIMARY KEY (user_id, COALESCE(store_id, '__org__'))
+  role     TEXT NOT NULL CHECK (role IN ('superadmin', 'admin', 'manager', 'cashier'))
 );
+
+-- One membership per user per store (org-wide rows collapse to a sentinel key).
+-- This has to be a unique INDEX, not a PRIMARY KEY: a PK constraint accepts only
+-- bare column names, so `PRIMARY KEY (user_id, COALESCE(store_id, '__org__'))`
+-- is a syntax error and aborts the whole script.
+CREATE UNIQUE INDEX IF NOT EXISTS memberships_user_store_key
+  ON memberships (user_id, COALESCE(store_id, '__org__'));
 
 -- 2. store_id on every synced table (nullable → backfilled below) ---------
 ALTER TABLE products      ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES stores(id);

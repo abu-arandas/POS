@@ -23,6 +23,13 @@ export interface PublicMenuSettings {
   currency: string;
 }
 
+// Subset of electron-updater's UpdateInfo that the renderer actually reads.
+export interface UpdateInfo {
+  version?: string;
+  releaseName?: string | null;
+  releaseDate?: string;
+}
+
 declare global {
   interface Window {
     // Injected by electron/preload.cjs when running inside Electron.
@@ -57,10 +64,12 @@ declare global {
         port?: number;
         timeoutMs?: number;
       }) => Promise<string[]>;
-      onMenuServerError?: (callback: (event: any, message: string) => void) => void;
+      // The first argument is Electron's IpcRendererEvent. Typing it as unknown
+      // keeps the renderer free of an electron import; callers ignore it.
+      onMenuServerError?: (callback: (event: unknown, message: string) => void) => void;
       checkForUpdates?: () => Promise<{ status: string; version?: string; error?: string }>;
-      onUpdateAvailable?: (callback: (event: any, info: any) => void) => void;
-      onUpdateDownloaded?: (callback: (event: any, info: any) => void) => void;
+      onUpdateAvailable?: (callback: (event: unknown, info: UpdateInfo) => void) => void;
+      onUpdateDownloaded?: (callback: (event: unknown, info: UpdateInfo) => void) => void;
     };
   }
 }

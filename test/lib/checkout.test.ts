@@ -134,4 +134,41 @@ describe('buildSaleTransaction', () => {
     if (!res.success) return;
     expect(res.transaction.paymentMethod).toBe('card');
   });
+
+  // Regression: the operator taps "Apply" on a big cart (redeeming 1000 pts =
+  // $50) and then shrinks the cart to $5 before paying. loyaltyPointsToUse is
+  // not recomputed, so the request still says 1000, but the order can only
+  // absorb $5 = 100 points. Persisting the *request* let a later full refund
+  // hand back 1000 points against 100 deducted — free store credit on repeat.
+  it('persists only the loyalty points the order could actually redeem', () => {
+    const res = buildSaleTransaction({
+      ...baseReq,
+      subtotal: 5,
+      discountType: 'loyalty',
+      discountValue: 1000, // requested
+      discountAmount: 5, // clamped to subtotal by calculateOrderTotals
+      taxAmount: 0,
+      totalAmount: 0,
+      cashPaidText: '0',
+      cashChangeDue: 0,
+    });
+    expect(res.success).toBe(true);
+    if (!res.success) return;
+    // 5 / 0.05 = 100 points redeemed, not the 1000 requested.
+    expect(res.transaction.discountValue).toBe(100);
+    // …and the deduction matches what was stored (no points earned on a $0 total).
+    expect(res.pointsDelta).toBe(-100);
+  });
+
+  it('leaves discountValue untouched for non-loyalty discounts', () => {
+    const res = buildSaleTransaction({
+      ...baseReq,
+      discountType: 'percentage',
+      discountValue: 15, // 15% — a rate, not a point count
+      discountAmount: 3,
+    });
+    expect(res.success).toBe(true);
+    if (!res.success) return;
+    expect(res.transaction.discountValue).toBe(15);
+  });
 });

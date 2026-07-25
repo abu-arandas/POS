@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { UserAccount } from '../types';
-import { ShieldAlert, Delete, ArrowLeft, Lock, ChevronRight } from 'lucide-react';
+import { Delete, ArrowLeft, Lock, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { hashPin, hashPinSalted } from '../lib/hash';
 import { cloudLogin } from '../lib/sync';
 import { useAuthStore } from '../stores/authStore';
-import { useSettingsStore } from '../stores/settingsStore';
 import { useTranslation } from 'react-i18next';
 
 const ROLE_CONFIG = {
@@ -40,7 +39,6 @@ function getInitials(name: string) {
 
 export default function Lockscreen() {
   const { users, setUsers, setCurrentUser, handleUpdateUser } = useAuthStore();
-  const { settings } = useSettingsStore();
   const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<boolean>(false);
@@ -61,6 +59,13 @@ export default function Lockscreen() {
       const nextPin = pin + num;
       setPin(nextPin);
       if (nextPin.length === 4 && selectedUser) {
+        // Re-check `active` against the live list rather than trusting the
+        // captured selection: cloud sync can deactivate an account while this
+        // screen sits open on it. (The cloud path is already covered — the
+        // verify_login RPC filters on active.)
+        const live = users.find((u) => u.id === selectedUser.id);
+        if (!live?.active) { rejectPin(); return; }
+
         const saltedHash = await hashPinSalted(selectedUser.id, nextPin);
         if (selectedUser.pin === saltedHash) { setCurrentUser(selectedUser); return; }
         const legacyHash = await hashPin(nextPin);
@@ -164,7 +169,7 @@ export default function Lockscreen() {
               </p>
 
               <div className="space-y-2.5">
-                {users.map((user, i) => {
+                {activeUsers.map((user, i) => {
                   const cfg = ROLE_CONFIG[user.role];
                   return (
                     <motion.button

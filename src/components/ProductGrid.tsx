@@ -63,7 +63,11 @@ const SortableProductCard = memo(function SortableProductCard({
 
   const isLowStock = prod.stock <= prod.minStock && prod.stock > 0;
   const isOutOfStock = prod.stock === 0;
+  // Every unit is already in the cart, so addToCart would no-op. Treat it like
+  // out-of-stock for interaction purposes (no dead taps, correct a11y state)
+  // while keeping the out-of-stock badge/greyscale styling to itself.
   const isLimitReached = cartQty >= prod.stock;
+  const isUnavailable = isOutOfStock || isLimitReached;
   const [imgError, setImgError] = useState(false);
   const { t } = useTranslation();
 
@@ -85,7 +89,7 @@ const SortableProductCard = memo(function SortableProductCard({
       initial={!isEditMode ? { opacity: 0, y: 18, scale: 0.96 } : false}
       animate={!isEditMode ? { opacity: 1, y: 0, scale: 1 } : false}
       transition={!isEditMode ? { duration: 0.28, delay: index * 0.04 } : {}}
-      onClick={() => { if (!isEditMode && !isOutOfStock) addToCart(prod); }}
+      onClick={() => { if (!isEditMode && !isUnavailable) addToCart(prod); }}
       whileHover={!isEditMode && !isOutOfStock ? { y: -4, scale: 1.02 } : {}}
       whileTap={!isEditMode && !isOutOfStock ? { scale: 0.96 } : {}}
       className={`relative rounded-2xl overflow-hidden flex flex-col transition-all duration-200 select-none group ${
@@ -108,15 +112,19 @@ const SortableProductCard = memo(function SortableProductCard({
             // dnd-kit supplies role/tabIndex/keyboard handling in edit mode;
             // outside it the card must be a keyboard-operable button itself.
             role: 'button' as const,
+            // Tab order tracks stock only. Keying it to isUnavailable would pull
+            // the card out from under a keyboard user the moment their last add
+            // hit the limit, dropping focus mid-interaction; aria-disabled
+            // communicates the state without moving the focus target.
             tabIndex: isOutOfStock ? -1 : 0,
-            'aria-disabled': isOutOfStock || undefined,
+            'aria-disabled': isUnavailable || undefined,
             'aria-label': `${prod.name}, ${settings.currency}${prod.price.toFixed(2)}${
               isOutOfStock ? ` — ${t('register.outOfStock')}` : ''
             }`,
             onKeyDown: (e: React.KeyboardEvent) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                if (!isOutOfStock) addToCart(prod);
+                if (!isUnavailable) addToCart(prod);
               }
             },
           }

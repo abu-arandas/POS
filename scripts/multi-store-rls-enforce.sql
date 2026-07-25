@@ -50,6 +50,12 @@ ALTER TABLE user_accounts ALTER COLUMN store_id SET NOT NULL;
 -- 2. Enable RLS + store-scoped policies on each table. A single helper predicate
 --    (has_store_access, defined in multi-store-schema.sql) does the work: true
 --    for a member of that store and for an org-wide super-admin.
+--
+--    The blanket "staff full access" / "staff manage users" policies from
+--    scripts/schema.sql MUST be dropped here. Postgres combines PERMISSIVE
+--    policies with OR, so leaving a `USING (TRUE)` policy in place means every
+--    authenticated terminal keeps full cross-store read/write and the
+--    store-scoped policies below have no effect whatsoever.
 DO $$
 DECLARE
   tbl text;
@@ -57,6 +63,9 @@ BEGIN
   FOREACH tbl IN ARRAY ARRAY['products', 'categories', 'customers', 'transactions', 'user_accounts']
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', tbl);
+
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I', 'staff full access', tbl);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I', 'staff manage users', tbl);
 
     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', tbl || '_read', tbl);
     EXECUTE format(
@@ -81,7 +90,11 @@ BEGIN
 END $$;
 
 -- ============================================================
--- ROLLBACK (uncomment and run to undo, e.g. to return to advisory mode):
+-- ROLLBACK (uncomment and run to undo, returning to advisory mode: RLS stays on
+-- exactly as scripts/schema.sql leaves it, but the store dimension stops being
+-- enforced). This restores the blanket staff policies that section 2 dropped —
+-- without them, dropping the store-scoped policies would lock every terminal
+-- out of its own data rather than opening access back up.
 -- DO $$
 -- DECLARE tbl text;
 -- BEGIN
@@ -91,7 +104,16 @@ END $$;
 --     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', tbl || '_insert', tbl);
 --     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', tbl || '_update', tbl);
 --     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', tbl || '_delete', tbl);
---     EXECUTE format('ALTER TABLE %I DISABLE ROW LEVEL SECURITY', tbl);
 --   END LOOP;
+--   FOREACH tbl IN ARRAY ARRAY['products','categories','customers','transactions']
+--   LOOP
+--     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', 'staff full access', tbl);
+--     EXECUTE format(
+--       'CREATE POLICY %I ON %I FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE)',
+--       'staff full access', tbl);
+--   END LOOP;
+--   DROP POLICY IF EXISTS "staff manage users" ON user_accounts;
+--   CREATE POLICY "staff manage users" ON user_accounts
+--     FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
 -- END $$;
 -- ============================================================

@@ -129,12 +129,46 @@ ALTER TABLE products      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customers     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions  ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "staff full access" ON categories   FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
-CREATE POLICY "staff full access" ON products      FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
-CREATE POLICY "staff full access" ON customers     FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
-CREATE POLICY "staff full access" ON transactions  FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
--- user_accounts: manageable by authenticated staff; anon logs in via verify_login() only.
-CREATE POLICY "staff manage users" ON user_accounts FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+-- Postgres has no CREATE POLICY IF NOT EXISTS, so each policy is dropped first.
+-- Without this, re-running the script (the documented upgrade path — see the
+-- README) aborts here, and because the SQL editor runs the file in one
+-- transaction the new ALTER TABLE … ADD COLUMN statements above roll back too.
+--
+-- These policies are blanket `USING (TRUE)`: any authenticated terminal may
+-- touch any row. That is correct for a single-store install, but it must NOT be
+-- (re)created once multi-store RLS is enforced — Postgres ORs permissive
+-- policies together, so a blanket policy silently reopens cross-store access and
+-- makes the store-scoped policies meaningless. The guard below detects the
+-- enforced setup (scripts/multi-store-rls-enforce.sql creates products_read) and
+-- leaves it alone, so re-running this script stays safe on a fleet deployment.
+DO $$
+DECLARE
+  tbl            text;
+  store_enforced boolean;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'products' AND policyname = 'products_read'
+  ) INTO store_enforced;
+
+  IF store_enforced THEN
+    RAISE NOTICE 'Store-scoped RLS detected — leaving the blanket staff policies out.';
+    RETURN;
+  END IF;
+
+  FOREACH tbl IN ARRAY ARRAY['categories', 'products', 'customers', 'transactions']
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I', 'staff full access', tbl);
+    EXECUTE format(
+      'CREATE POLICY %I ON %I FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE)',
+      'staff full access', tbl);
+  END LOOP;
+
+  -- user_accounts: manageable by authenticated staff; anon logs in via verify_login() only.
+  DROP POLICY IF EXISTS "staff manage users" ON user_accounts;
+  CREATE POLICY "staff manage users" ON user_accounts
+    FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+END $$;
 
 -- 8b. DEMO / PROTOTYPE ONLY — anon read/write without auth.
 -- ============================================================
@@ -152,16 +186,21 @@ CREATE POLICY "staff manage users" ON user_accounts FOR ALL TO authenticated USI
 -- Add the synced tables to the supabase_realtime publication so the app's
 -- realtime subscription (src/lib/realtimeSync.ts) receives change events and
 -- mirrors another terminal's writes automatically. Safe to re-run.
+-- Each ADD gets its own exception block. With a single block around all five,
+-- the first already-published table aborts the block and the remaining tables
+-- are silently skipped — leaving live sync half-configured.
 DO $$
+DECLARE
+  tbl text;
 BEGIN
-  ALTER PUBLICATION supabase_realtime ADD TABLE products;
-  ALTER PUBLICATION supabase_realtime ADD TABLE categories;
-  ALTER PUBLICATION supabase_realtime ADD TABLE customers;
-  ALTER PUBLICATION supabase_realtime ADD TABLE transactions;
-  ALTER PUBLICATION supabase_realtime ADD TABLE user_accounts;
-EXCEPTION WHEN duplicate_object THEN
-  -- Tables already in the publication; nothing to do.
-  NULL;
+  FOREACH tbl IN ARRAY ARRAY['products', 'categories', 'customers', 'transactions', 'user_accounts']
+  LOOP
+    BEGIN
+      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE %I', tbl);
+    EXCEPTION WHEN duplicate_object THEN
+      NULL; -- already in the publication; nothing to do.
+    END;
+  END LOOP;
 END $$;
 
 -- 9. Seed the default admin (PIN 1234, stored as its SHA-256 hash)

@@ -141,7 +141,12 @@ export default function History() {
     authorizedBy: string,
   ) => {
     const tx = useTransactionStore.getState().transactions.find((t) => t.id === staleTx.id) || staleTx;
-    const result = computeRefund(tx, selection, settings.loyaltyPointsRate);
+    const result = computeRefund(
+      tx,
+      selection,
+      settings.loyaltyPointsRate,
+      settings.loyaltyPointValue,
+    );
     if (!result) return;
 
     const updatedProducts: Product[] = [];
@@ -290,7 +295,12 @@ export default function History() {
 
   const renderRefundAmounts = () => {
     if (!refundModalTx) return null;
-    const computed = computeRefund(refundModalTx, refundSelection, settings.loyaltyPointsRate);
+    const computed = computeRefund(
+      refundModalTx,
+      refundSelection,
+      settings.loyaltyPointsRate,
+      settings.loyaltyPointValue,
+    );
     if (!computed) return null;
     return (
       <div className="bg-white/80 dark:bg-slate-900/50 rounded-2xl p-4 border border-slate-300 dark:border-slate-700 space-y-2 mt-4">

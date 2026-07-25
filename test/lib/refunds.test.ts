@@ -103,4 +103,45 @@ describe('computeRefund', () => {
     const partial = computeRefund(loyaltyTx, { muffin: 1 }, 1)!;
     expect(partial.pointsReversal).toBeLessThan(0);
   });
+
+  // Regression: sales written before checkout clamped discountValue stored the
+  // *requested* point count, which can far exceed what the discount was worth.
+  // Reversing that raw number mints points. Passing loyaltyPointValue lets the
+  // reversal be capped at what tx.discount actually bought.
+  it('caps the loyalty reversal at the value of the discount actually given', () => {
+    const legacyTx: SaleTransaction = {
+      ...baseTx,
+      discountType: 'loyalty',
+      discountValue: 1000, // inflated request persisted by an older build
+      discount: 5, // …but only $5 came off, i.e. 100 points at $0.05
+      pointsEarned: 8,
+    };
+    const full = computeRefund(legacyTx, { latte: 2, muffin: 1 }, 1, 0.05)!;
+    expect(full.pointsReversal).toBe(-8 + 100); // not -8 + 1000
+  });
+
+  it('never credits more than the stored point count', () => {
+    // The inverse guard: a generous point value must not inflate the reversal
+    // beyond the points the sale recorded as redeemed.
+    const tx: SaleTransaction = {
+      ...baseTx,
+      discountType: 'loyalty',
+      discountValue: 100,
+      discount: 5,
+      pointsEarned: 8,
+    };
+    const full = computeRefund(tx, { latte: 2, muffin: 1 }, 1, 0.01)!; // 5/0.01 = 500
+    expect(full.pointsReversal).toBe(-8 + 100);
+  });
+
+  it('falls back to the stored point count when no point value is supplied', () => {
+    const tx: SaleTransaction = {
+      ...baseTx,
+      discountType: 'loyalty',
+      discountValue: 100,
+      discount: 5,
+      pointsEarned: 8,
+    };
+    expect(computeRefund(tx, { latte: 2, muffin: 1 }, 1)!.pointsReversal).toBe(-8 + 100);
+  });
 });

@@ -123,11 +123,29 @@ The app runs fully offline by default (IndexedDB). To sync terminals through
    `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (the anon key cannot insert
    once RLS is on), and run `node scripts/seed.mjs`.
 
-Upgrading an existing database? Re-run `scripts/schema.sql` — its idempotent
-`ALTER TABLE … ADD COLUMN IF NOT EXISTS` block adds the newer transaction
-columns (operator, points earned, refund authorizer, split payments, partial
-refunds, shift id) and the `supabase_realtime` publication for live sync,
-without touching existing data.
+Upgrading an existing database? Re-run `scripts/schema.sql` — the whole script
+is idempotent (policies are dropped before being recreated, and each table is
+added to the `supabase_realtime` publication independently). It adds the newer
+transaction columns (operator, points earned, refund authorizer, split payments,
+partial refunds, shift id) and enables live sync, without touching existing data.
+
+### Multi-store / super-admin (optional)
+
+For a fleet of locations, run `scripts/multi-store-schema.sql` after
+`scripts/schema.sql`. It adds the `stores` and `memberships` tables, stamps a
+`store_id` on every synced row (backfilled to a single `store-default` store),
+and creates the fleet RPCs. Single-store terminals are unaffected — the store
+dimension stays advisory until you opt in.
+
+To make it **enforced** — so the database, not the client, decides which store a
+terminal can touch — run `scripts/multi-store-rls-enforce.sql`. Read its header
+first: every row needs a non-null `store_id`, every terminal needs its Store ID
+set in Settings, and every device account needs a membership row, or you will
+lock terminals out of their own data. That script also drops the permissive
+"staff full access" policies from `schema.sql`; without that they would `OR`
+with the store-scoped policies and leave cross-store access wide open. Re-running
+`schema.sql` later is safe — it detects the enforced setup and skips recreating
+those blanket policies.
 
 ## 🧪 Tests
 

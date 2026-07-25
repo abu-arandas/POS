@@ -79,6 +79,17 @@ export function buildSaleTransaction(req: CheckoutRequest): CheckoutOutcome {
     ? Math.floor(req.totalAmount * req.settings.loyaltyPointsRate)
     : undefined;
 
+  // Points actually redeemed. The requested count (req.discountValue) can exceed
+  // what the order can absorb — calculateOrderTotals clamps the loyalty discount
+  // to the subtotal, and the operator may shrink the cart after tapping Apply.
+  // Only the redeemable count is deducted, so only that count may be persisted:
+  // a refund reverses tx.discountValue, and storing the inflated request would
+  // hand back points that were never taken.
+  const redeemedPoints =
+    req.discountType === 'loyalty' && req.settings.loyaltyPointValue > 0
+      ? Math.round(req.discountAmount / req.settings.loyaltyPointValue)
+      : 0;
+
   const transaction: SaleTransaction = {
     id: nextId,
     date: new Date().toISOString(),
@@ -89,7 +100,7 @@ export function buildSaleTransaction(req: CheckoutRequest): CheckoutOutcome {
     subtotal: req.subtotal,
     discount: req.discountAmount,
     discountType: req.discountType,
-    discountValue: req.discountValue,
+    discountValue: req.discountType === 'loyalty' ? redeemedPoints : req.discountValue,
     tax: req.taxAmount,
     total: req.totalAmount,
     paymentMethod: saleMethod,
@@ -107,11 +118,7 @@ export function buildSaleTransaction(req: CheckoutRequest): CheckoutOutcome {
 
   let pointsDelta = pointsEarned ?? 0;
   if (req.selectedCustomerId && req.discountType === 'loyalty') {
-    const clampedPoints =
-      req.settings.loyaltyPointValue > 0
-        ? Math.round(req.discountAmount / req.settings.loyaltyPointValue)
-        : 0;
-    pointsDelta -= clampedPoints;
+    pointsDelta -= redeemedPoints;
   }
 
   return { success: true, transaction, pointsDelta };
