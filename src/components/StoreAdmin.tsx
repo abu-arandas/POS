@@ -175,7 +175,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
             onClick={reload}
             disabled={loading || busy}
             aria-label={t('fleet.refresh')}
-            className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+            className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -347,7 +347,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                         value={memberUserId}
                         onChange={(e) => setMemberUserId(e.target.value)}
                         placeholder={t('storeAdmin.userIdPlaceholder')}
-                        className={`${FLD} flex-1 min-w-[180px] font-mono text-[11px]`}
+                        className={`${FLD} flex-1 min-w-45 font-mono text-[11px]`}
                       />
                       <select
                         value={memberRole}

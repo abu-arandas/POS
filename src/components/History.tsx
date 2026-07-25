@@ -376,17 +376,17 @@ export default function History() {
           </button>
         </div>
 
-        <div id="history-filters" className="glass dark:glass-dark p-4 rounded-3xl border border-slate-200 dark:border-white/10 shadow-lg mb-6 shrink-0 space-y-4">
+        <div id="history-filters" className="surface p-5 rounded-4xl shadow-2xl mb-6 shrink-0 space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
-            <div className="flex-1 flex items-center space-x-2 glass-input px-4 py-2 rounded-2xl">
-              <Search size={16} className="text-slate-500 dark:text-slate-400" />
+            <div className="flex-1 flex items-center space-x-2 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/10 px-4 py-2 rounded-2xl focus-within:ring-2 focus-within:ring-emerald-500/50 transition-shadow shadow-sm">
+              <Search size={16} className="text-slate-400 dark:text-slate-500" />
               <input
                 id="history-search-input"
                 type="text"
                 placeholder={t('history.searchReceipts')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent border-none text-slate-700 dark:text-slate-200 text-sm focus:outline-none placeholder-slate-500"
+                className="flex-1 bg-transparent border-none text-slate-700 dark:text-slate-200 text-sm focus:outline-none placeholder-slate-400 dark:placeholder-slate-500"
               />
             </div>
             
@@ -395,14 +395,14 @@ export default function History() {
                 id="history-status-select"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as 'all' | 'completed' | 'refunded')}
-                className="glass-input rounded-2xl text-xs font-semibold px-4 py-2 text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/10 rounded-2xl text-xs font-semibold px-4 py-2 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer transition-shadow shadow-sm"
               >
-                <option value="all" className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white">{t('history.allStatuses')}</option>
-                <option value="completed" className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white">{t('history.paidCompleted')}</option>
-                <option value="refunded" className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white">{t('history.refundedReturned')}</option>
+                <option value="all" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{t('history.allStatuses')}</option>
+                <option value="completed" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{t('history.paidCompleted')}</option>
+                <option value="refunded" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{t('history.refundedReturned')}</option>
               </select>
 
-              <div className="flex glass-input p-1 rounded-2xl shrink-0">
+              <div className="flex bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 p-1 rounded-2xl shrink-0 shadow-inner">
                 {(
                   [
                     { id: 'all', label: t('history.allDates') },
@@ -414,10 +414,10 @@ export default function History() {
                   <button
                     key={opt.id}
                     onClick={() => setDateFilter(opt.id)}
-                    className={`px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all shrink-0 ${
+                    className={`px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all shrink-0 border ${
                       dateFilter === opt.id
-                        ? 'bg-slate-700 text-slate-900 dark:text-white shadow-md'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-white hover:bg-white/5'
+                        ? 'bg-white dark:bg-slate-700/50 text-emerald-600 dark:text-emerald-400 shadow-sm border-slate-200/50 dark:border-white/10'
+                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-white/5'
                     }`}
                   >
                     {opt.label}
@@ -427,20 +427,20 @@ export default function History() {
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pt-1">
             <div className="flex items-center gap-2">
-              <Filter size={14} className="text-slate-500" />
-              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('history.paymentFilter')}</span>
+              <Filter size={14} className="text-slate-400 dark:text-slate-500" />
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t('history.paymentFilter')}</span>
             </div>
             <div className="flex gap-2 flex-wrap">
               {['cash', 'card', 'mobile', 'gift'].map(method => (
                 <button
                   key={method}
                   onClick={() => togglePaymentFilter(method)}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 shadow-sm ${
                     paymentFilter.includes(method)
-                      ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
-                      : 'bg-slate-100 dark:bg-slate-800/50 border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-500'
+                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500/30 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-white dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:text-slate-900 dark:hover:text-slate-200'
                   }`}
                 >
                   {getPaymentIcon(method)} <span className="uppercase">{method}</span>
@@ -450,12 +450,12 @@ export default function History() {
           </div>
         </div>
 
-        <div id="history-table-container" className="flex-1 surface rounded-[2rem] shadow-2xl overflow-hidden flex flex-col">
+        <div id="history-table-container" className="flex-1 surface rounded-4xl shadow-2xl overflow-hidden flex flex-col">
           <div className="flex-1 overflow-y-auto scrollbar-none relative">
             <table id="history-table" className="w-full text-left border-collapse table-fixed">
               <thead className="sticky top-0 z-20">
                 <tr className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 shadow-sm">
-                  <th className="py-4 px-4 w-[50px] text-center">
+                  <th className="py-4 px-4 w-12.5 text-center">
                     <input
                       type="checkbox"
                       aria-label={t('history.selectAll')}
@@ -464,12 +464,12 @@ export default function History() {
                       onChange={handleToggleSelectAll}
                     />
                   </th>
-                  <th className="py-4 px-2 w-[140px]">{t('history.receiptId')}</th>
+                  <th className="py-4 px-2 w-35">{t('history.receiptId')}</th>
                   <th className="py-4 px-4 w-1/4">{t('history.customer')}</th>
                   <th className="py-4 px-3 w-1/8 text-center">{t('history.items')}</th>
                   <th className="py-4 px-4 w-1/8 text-right">{t('history.total')}</th>
                   <th className="py-4 px-4 w-1/8 text-center">{t('history.payment')}</th>
-                  <th className="py-4 px-4 w-[120px] text-center">{t('history.status')}</th>
+                  <th className="py-4 px-4 w-30 text-center">{t('history.status')}</th>
                 </tr>
               </thead>
               <tbody className="text-sm font-sans text-slate-700 dark:text-slate-200">
@@ -486,7 +486,7 @@ export default function History() {
                   Object.entries(groupedTransactions).map(([dateLabel, txs]) => (
                     <React.Fragment key={dateLabel}>
                       <tr>
-                        <td colSpan={7} className="py-2 px-4 bg-white/60 dark:bg-slate-900/40 text-xs font-bold text-slate-500 dark:text-slate-400 sticky top-[48px] z-10 backdrop-blur-sm border-y border-slate-200 dark:border-white/5 uppercase tracking-widest">
+                        <td colSpan={7} className="py-2 px-4 bg-white/60 dark:bg-slate-900/40 text-xs font-bold text-slate-500 dark:text-slate-400 sticky top-12 z-10 backdrop-blur-sm border-y border-slate-200 dark:border-white/5 uppercase tracking-widest">
                           {dateLabel}
                         </td>
                       </tr>
@@ -512,7 +512,7 @@ export default function History() {
                             tabIndex={0}
                             className={`transition-colors cursor-pointer border-b border-slate-200 dark:border-white/5 last:border-0 ${
                               isSelected
-                                ? 'bg-slate-200 dark:bg-slate-800/80 hover:bg-slate-200 dark:bg-slate-800/80'
+                                ? 'bg-slate-200 dark:bg-slate-800/80 hover:bg-slate-300 dark:hover:bg-slate-700/80'
                                 : 'hover:bg-slate-100 dark:bg-slate-800/40'
                             } ${isRefunded ? 'opacity-60' : ''}`}
                           >
@@ -587,7 +587,7 @@ export default function History() {
             exit={{ opacity: 0, x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             id="receipt-view-section"
-            className="absolute top-6 right-6 bottom-6 w-96 glass dark:glass-dark border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-2xl flex flex-col overflow-hidden z-30"
+            className="absolute top-6 right-6 bottom-6 w-96 glass dark:glass-dark border border-slate-200 dark:border-white/10 rounded-4xl shadow-2xl flex flex-col overflow-hidden z-30"
           >
             <div className={`p-5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 ${
                 activeTransaction.status === 'refunded' ? 'bg-rose-500/10' : 

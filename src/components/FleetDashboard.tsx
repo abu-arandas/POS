@@ -184,7 +184,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             onClick={load}
             disabled={loading}
             aria-label={t('fleet.refresh')}
-            className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+            className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -300,7 +300,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                         </div>
                         <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
+                            className="h-full rounded-full bg-linear-to-r from-emerald-500 to-teal-400"
                             style={{ width: `${Math.max(s.share * 100, s.revenue > 0 ? 2 : 0)}%` }}
                           />
                         </div>

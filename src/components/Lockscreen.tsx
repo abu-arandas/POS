@@ -146,11 +146,11 @@ export default function Lockscreen() {
     >
       {/* Animated background orbs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="animate-orb-1 absolute top-[-15%] left-[-10%] w-[500px] h-[500px] rounded-full opacity-20 bg-gradient-to-br from-emerald-500/40 to-transparent blur-3xl" />
-        <div className="animate-orb-2 absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full opacity-15 bg-gradient-to-br from-blue-500/40 to-transparent blur-3xl" />
-        <div className="animate-orb-3 absolute top-[40%] left-[50%] w-[350px] h-[350px] rounded-full opacity-10 bg-gradient-to-br from-purple-500/40 to-transparent blur-3xl" />
+        <div className="animate-orb-1 absolute top-[-15%] left-[-10%] w-125 h-125 rounded-full opacity-20 bg-linear-to-br from-emerald-500/40 to-transparent blur-3xl" />
+        <div className="animate-orb-2 absolute bottom-[-20%] right-[-10%] w-150 h-150 rounded-full opacity-15 bg-linear-to-br from-blue-500/40 to-transparent blur-3xl" />
+        <div className="animate-orb-3 absolute top-[40%] left-[50%] w-87.5 h-87.5 rounded-full opacity-10 bg-linear-to-br from-purple-500/40 to-transparent blur-3xl" />
         {/* Dot grid */}
-        <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(#94a3b8_1px,transparent_1px)] bg-[size:24px_24px]" />
+        <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(#94a3b8_1px,transparent_1px)] bg-size-[24px_24px]" />
       </div>
 
       {/* Brand */}
@@ -212,7 +212,7 @@ export default function Lockscreen() {
                     >
                       <div className="flex items-center gap-3.5">
                         {/* Avatar */}
-                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${cfg.gradient} flex items-center justify-center text-slate-900 dark:text-white font-bold text-sm shrink-0 shadow-md shadow-emerald-500/20`}>
+                        <div className={`w-10 h-10 rounded-xl bg-linear-to-br ${cfg.gradient} flex items-center justify-center text-slate-900 dark:text-white font-bold text-sm shrink-0 shadow-md shadow-emerald-500/20`}>
                           {getInitials(user.name)}
                         </div>
                         <div>
@@ -255,7 +255,7 @@ export default function Lockscreen() {
                       {selectedUser.role}
                     </span>
                   </div>
-                  <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${roleCfg.gradient} flex items-center justify-center text-slate-900 dark:text-white font-bold text-xs shrink-0 shadow-md shadow-emerald-500/20`}>
+                  <div className={`w-8 h-8 rounded-xl bg-linear-to-br ${roleCfg.gradient} flex items-center justify-center text-slate-900 dark:text-white font-bold text-xs shrink-0 shadow-md shadow-emerald-500/20`}>
                     {getInitials(selectedUser.name)}
                   </div>
                 </div>
@@ -333,7 +333,7 @@ export default function Lockscreen() {
                     onClick={() => handleKeyPress(num)}
                     disabled={lockout.locked}
                     whileTap={{ scale: 0.88 }}
-                    className="h-[52px] rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-900 dark:text-white font-mono text-lg font-bold transition-all disabled:opacity-30 disabled:hover:bg-slate-800/40"
+                    className="h-13 rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-900 dark:text-white font-mono text-lg font-bold transition-all disabled:opacity-30 disabled:hover:bg-slate-800/40"
                   >
                     {num}
                   </motion.button>
@@ -343,7 +343,7 @@ export default function Lockscreen() {
                   onClick={handleClear}
                   disabled={lockout.locked}
                   whileTap={{ scale: 0.9 }}
-                  className="h-[52px] rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 font-semibold text-[11px] uppercase tracking-wider transition-all disabled:opacity-30"
+                  className="h-13 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 font-semibold text-[11px] uppercase tracking-wider transition-all disabled:opacity-30"
                 >
                   {t('lockscreen.clear')}
                 </motion.button>
@@ -353,7 +353,7 @@ export default function Lockscreen() {
                   disabled={lockout.locked}
                   onClick={() => handleKeyPress('0')}
                   whileTap={{ scale: 0.88 }}
-                  className="h-[52px] rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-900 dark:text-white font-mono text-lg font-bold transition-all disabled:opacity-30 disabled:hover:bg-slate-800/40"
+                  className="h-13 rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-900 dark:text-white font-mono text-lg font-bold transition-all disabled:opacity-30 disabled:hover:bg-slate-800/40"
                 >
                   0
                 </motion.button>
@@ -363,7 +363,7 @@ export default function Lockscreen() {
                   disabled={lockout.locked}
                   whileTap={{ scale: 0.9 }}
                   aria-label={t('lockscreen.backspace')}
-                  className="h-[52px] rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-white flex items-center justify-center transition-all disabled:opacity-30"
+                  className="h-13 rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-white flex items-center justify-center transition-all disabled:opacity-30"
                 >
                   <Delete size={18} />
                 </motion.button>

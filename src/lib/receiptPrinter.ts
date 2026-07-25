@@ -1,4 +1,5 @@
 import { SaleTransaction, StoreSettings, PrinterConfig, ReceiptLayout } from '../types';
+import i18n from './i18n';
 import { escapeHtml as esc } from './escapeHtml';
 import { code128Svg } from './barcode';
 import {
@@ -34,7 +35,8 @@ export function buildReceiptHtml(
   const d = new Date(tx.date);
   const itemCount = tx.items.reduce((s, i) => s + i.quantity, 0);
   const isCash = tx.paymentMethod === 'cash' || (tx.payments ?? []).some((p) => p.method === 'cash');
-  const taxLabel = settings.taxRate > 0 ? `TAX (${settings.taxRate}%)` : 'TAX';
+  const taxStr = i18n.t('history.tax', 'TAX:').replace(':', '');
+  const taxLabel = settings.taxRate > 0 ? `${taxStr} (${settings.taxRate}%)` : taxStr;
   const L = resolveCustomerLayout(layout, printerConfig);
   const S = L.show;
 
@@ -57,17 +59,17 @@ export function buildReceiptHtml(
       ${S.taxNumber && settings.taxNumber ? `<div class="center muted">VAT: ${esc(settings.taxNumber)}</div>` : ''}
       <div class="divider"></div>
 
-      ${S.date ? `<div class="flex-row"><span>DATE:</span><span>${esc(formatDateTime(d, L.dateFormat))}</span></div>` : ''}
-      ${S.time ? `<div class="flex-row"><span>TIME:</span><span>${esc(formatDateTime(d, L.timeFormat))}</span></div>` : ''}
-      ${S.receiptNumber ? `<div class="flex-row"><span>RECEIPT:</span><span class="bold">${esc(tx.id)}</span></div>` : ''}
+      ${S.date ? `<div class="flex-row"><span>${esc(i18n.t('history.date', 'DATE:'))}</span><span>${esc(formatDateTime(d, L.dateFormat))}</span></div>` : ''}
+      ${S.time ? `<div class="flex-row"><span>${esc(i18n.t('receiptCfg.tg_time', 'Time').toUpperCase())}:</span><span>${esc(formatDateTime(d, L.timeFormat))}</span></div>` : ''}
+      ${S.receiptNumber ? `<div class="flex-row"><span>${esc(i18n.t('history.receipt', 'RECEIPT:'))}</span><span class="bold">${esc(tx.id)}</span></div>` : ''}
       ${
         S.operator && tx.operatorName
-          ? `<div class="flex-row"><span>OPERATOR:</span><span>${esc(tx.operatorName)}</span></div>`
+          ? `<div class="flex-row"><span>${esc(i18n.t('history.operator', 'OPERATOR:'))}</span><span>${esc(tx.operatorName)}</span></div>`
           : ''
       }
       ${
         S.customer && tx.customerName
-          ? `<div class="flex-row bold"><span>MEMBER:</span><span>${esc(tx.customerName)}</span></div>`
+          ? `<div class="flex-row bold"><span>${esc(i18n.t('history.member', 'MEMBER:'))}</span><span>${esc(tx.customerName)}</span></div>`
           : ''
       }
 
@@ -92,18 +94,18 @@ export function buildReceiptHtml(
       ${
         S.totals
           ? `
-      <div class="flex-row muted"><span>ITEMS:</span><span>${itemCount}</span></div>
-      <div class="flex-row"><span>SUBTOTAL:</span><span>${cur}${tx.subtotal.toFixed(2)}</span></div>
+      <div class="flex-row muted"><span>${esc(i18n.t('history.itemsUpper', 'ITEMS:'))}</span><span>${itemCount}</span></div>
+      <div class="flex-row"><span>${esc(i18n.t('history.subtotal', 'SUBTOTAL:'))}</span><span>${cur}${tx.subtotal.toFixed(2)}</span></div>
       ${
         tx.discount > 0
-          ? `<div class="flex-row"><span>DISCOUNT:</span><span>-${cur}${tx.discount.toFixed(2)}</span></div>`
+          ? `<div class="flex-row"><span>${esc(i18n.t('history.discount', 'DISCOUNT:'))}</span><span>-${cur}${tx.discount.toFixed(2)}</span></div>`
           : ''
       }
-      <div class="flex-row"><span>${taxLabel}:</span><span>${cur}${tx.tax.toFixed(2)}</span></div>
-      <div class="flex-row text-lg total-row"><span>TOTAL PAID:</span><span>${cur}${tx.total.toFixed(2)}</span></div>
+      <div class="flex-row"><span>${esc(taxLabel)}:</span><span>${cur}${tx.tax.toFixed(2)}</span></div>
+      <div class="flex-row text-lg total-row"><span>${esc(i18n.t('history.totalPaid', 'TOTAL PAID:'))}</span><span>${cur}${tx.total.toFixed(2)}</span></div>
       ${
         tx.discount > 0
-          ? `<div class="center bold savings">YOU SAVED ${cur}${tx.discount.toFixed(2)}</div>`
+          ? `<div class="center bold savings">${esc(i18n.t('history.savings', 'YOU SAVED'))} ${cur}${tx.discount.toFixed(2)}</div>`
           : ''
       }`
           : ''
@@ -113,7 +115,7 @@ export function buildReceiptHtml(
 
       ${
         S.paymentDetails
-          ? `<div class="flex-row"><span>METHOD:</span><span class="bold uppercase">${esc(tx.paymentMethod)}</span></div>
+          ? `<div class="flex-row"><span>${esc(i18n.t('history.payMethod', 'METHOD:'))}</span><span class="bold uppercase">${esc(tx.paymentMethod)}</span></div>
       ${
         tx.payments && tx.payments.length > 1
           ? tx.payments
@@ -129,13 +131,13 @@ export function buildReceiptHtml(
       ${
         S.changeDue && isCash
           ? `
-      <div class="flex-row"><span>CASH PAID:</span><span>${cur}${(tx.cashPaid ?? 0).toFixed(2)}</span></div>
-      <div class="flex-row bold"><span>CHANGE:</span><span>${cur}${(tx.cashChange ?? 0).toFixed(2)}</span></div>`
+      <div class="flex-row"><span>${esc(i18n.t('history.cashPaid', 'CASH PAID:'))}</span><span>${cur}${(tx.cashPaid ?? 0).toFixed(2)}</span></div>
+      <div class="flex-row bold"><span>${esc(i18n.t('history.cashChange', 'CHANGE:'))}</span><span>${cur}${(tx.cashChange ?? 0).toFixed(2)}</span></div>`
           : ''
       }
       ${
         S.loyalty && tx.customerName && (tx.pointsEarned ?? 0) > 0
-          ? `<div class="flex-row"><span>POINTS EARNED:</span><span class="bold">${tx.pointsEarned}</span></div>`
+          ? `<div class="flex-row"><span>${esc(i18n.t('history.pointsEarned', 'POINTS EARNED:'))}</span><span class="bold">${tx.pointsEarned}</span></div>`
           : ''
       }
 
@@ -144,12 +146,12 @@ export function buildReceiptHtml(
       <div class="center bold uppercase status-line status-${esc(tx.status)}">${esc(tx.status)}</div>
       ${
         tx.refundDate
-          ? `<div class="center">REFUND: ${esc(formatDateTime(new Date(tx.refundDate), L.dateFormat))}</div>`
+          ? `<div class="center">${esc(i18n.t('history.refund', 'REFUND:'))} ${esc(formatDateTime(new Date(tx.refundDate), L.dateFormat))}</div>`
           : ''
       }
       ${
         tx.refundAuthorizedBy
-          ? `<div class="center">REFUND AUTH: ${esc(tx.refundAuthorizedBy)}</div>`
+          ? `<div class="center">${esc(i18n.t('history.refundAuthBy', 'REFUND AUTH:'))} ${esc(tx.refundAuthorizedBy)}</div>`
           : ''
       }
 
@@ -176,7 +178,8 @@ export function buildKitchenTicketHtml(
   layout?: ReceiptLayout,
 ): string {
   const unitCount = tx.items.reduce((s, i) => s + i.quantity, 0);
-  const title = stationName ? `*** ${esc(stationName.toUpperCase())} ***` : '*** KITCHEN ***';
+  const kitchenStr = i18n.t('receiptCfg.kitchenTitle', 'KITCHEN').toUpperCase();
+  const title = stationName ? `*** ${esc(stationName.toUpperCase())} ***` : `*** ${esc(kitchenStr)} ***`;
   const d = new Date(tx.date);
   const L = resolveKitchenLayout(layout);
   const S = L.show;
@@ -187,17 +190,17 @@ export function buildKitchenTicketHtml(
       ${S.storeName ? `<div class="center">${esc(settings.storeName)}</div>` : ''}
       <div class="divider"></div>
 
-      ${S.receiptNumber ? `<div class="flex-row"><span>ORDER:</span><span class="bold">${esc(tx.id)}</span></div>` : ''}
-      ${S.date ? `<div class="flex-row"><span>DATE:</span><span>${esc(formatDateTime(d, L.dateFormat))}</span></div>` : ''}
-      ${S.time ? `<div class="flex-row"><span>TIME:</span><span>${esc(formatDateTime(d, L.timeFormat))}</span></div>` : ''}
+      ${S.receiptNumber ? `<div class="flex-row"><span>${esc(i18n.t('receiptCfg.tg_receiptNumber', 'ORDER').toUpperCase())}:</span><span class="bold">${esc(tx.id)}</span></div>` : ''}
+      ${S.date ? `<div class="flex-row"><span>${esc(i18n.t('history.date', 'DATE:'))}</span><span>${esc(formatDateTime(d, L.dateFormat))}</span></div>` : ''}
+      ${S.time ? `<div class="flex-row"><span>${esc(i18n.t('receiptCfg.tg_time', 'Time').toUpperCase())}:</span><span>${esc(formatDateTime(d, L.timeFormat))}</span></div>` : ''}
       ${
         S.operator && tx.operatorName
-          ? `<div class="flex-row"><span>OPERATOR:</span><span>${esc(tx.operatorName)}</span></div>`
+          ? `<div class="flex-row"><span>${esc(i18n.t('history.operator', 'OPERATOR:'))}</span><span>${esc(tx.operatorName)}</span></div>`
           : ''
       }
       ${
         S.customer && tx.customerName
-          ? `<div class="flex-row"><span>CUSTOMER:</span><span>${esc(tx.customerName)}</span></div>`
+          ? `<div class="flex-row"><span>${esc(i18n.t('history.customer', 'CUSTOMER:'))}</span><span>${esc(tx.customerName)}</span></div>`
           : ''
       }
 
@@ -211,7 +214,7 @@ export function buildKitchenTicketHtml(
         .join('')}
 
       <div class="divider"></div>
-      <div class="center bold">${unitCount} ITEMS</div>
+      <div class="center bold">${unitCount} ${esc(i18n.t('history.itemsUpper', 'ITEMS').replace(':', ''))}</div>
       ${L.footer ? `<div class="center footer-msg">${esc(L.footer)}</div>` : ''}
     </div>`;
 }

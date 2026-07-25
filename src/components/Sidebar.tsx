@@ -140,7 +140,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
               {isActive && (
                 <motion.div
                   layoutId="sidebar-active-bar"
-                  className="absolute inset-y-2 start-0 w-0.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-500/50"
+                  className="absolute inset-y-2 inset-s-0 w-0.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-500/50"
                   transition={{ type: 'spring', stiffness: 350, damping: 28 }}
                 />
               )}
@@ -194,7 +194,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <div
-                className={`w-8 h-8 rounded-lg bg-gradient-to-br ${ROLE_COLOR[currentUser.role] || ROLE_COLOR.cashier} flex items-center justify-center text-slate-900 dark:text-white font-bold text-[11px] shrink-0`}
+                className={`w-8 h-8 rounded-lg bg-linear-to-br ${ROLE_COLOR[currentUser.role] || ROLE_COLOR.cashier} flex items-center justify-center text-slate-900 dark:text-white font-bold text-[11px] shrink-0`}
               >
                 {getInitials(currentUser.name)}
               </div>

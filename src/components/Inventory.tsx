@@ -520,7 +520,7 @@ export default function Inventory() {
             {activeTab === tab.id && (
               <motion.div
                 layoutId="inventoryTab"
-                className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-emerald-500 rounded-t-full"
+                className="absolute -bottom-px left-0 right-0 h-0.5 bg-emerald-500 rounded-t-full"
                 initial={false}
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
@@ -541,7 +541,7 @@ export default function Inventory() {
               className="surface p-4 rounded-2xl shadow-lg mb-6 shrink-0 flex flex-wrap gap-4 items-center"
             >
               {/* Search */}
-              <div className="flex-1 min-w-[200px] flex items-center space-x-2 bg-white/80 dark:bg-slate-900/50 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 focus-within:border-emerald-500/50 transition-colors">
+              <div className="flex-1 min-w-50 flex items-center space-x-2 bg-white/80 dark:bg-slate-900/50 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 focus-within:border-emerald-500/50 transition-colors">
                 <Search size={18} className="text-slate-500 dark:text-slate-400" />
                 <input
                   id="inventory-search-input"
@@ -584,7 +584,7 @@ export default function Inventory() {
                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
                       stockFilter === 'all'
                         ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                   >
                     {t('inventory.all')}
@@ -594,7 +594,7 @@ export default function Inventory() {
                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
                       stockFilter === 'low'
                         ? 'bg-amber-500/20 text-amber-400 shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                   >
                     {t('inventory.low')}
@@ -604,7 +604,7 @@ export default function Inventory() {
                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
                       stockFilter === 'out'
                         ? 'bg-rose-500/20 text-rose-400 shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                   >
                     {t('inventory.out')}
@@ -659,7 +659,7 @@ export default function Inventory() {
                           {t('inventory.stock')} <ArrowUpDown size={12} />
                         </button>
                       </th>
-                      <th className="py-4 px-4 w-[100px] text-center">{t('inventory.actions')}</th>
+                      <th className="py-4 px-4 w-25 text-center">{t('inventory.actions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-sm text-slate-700 dark:text-slate-200">
@@ -956,7 +956,7 @@ export default function Inventory() {
                             {po.createdBy && <> · {po.createdBy}</>}
                           </span>
                           {po.note && (
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block truncate max-w-[220px]">
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block truncate max-w-55">
                               {po.note}
                             </span>
                           )}
@@ -1082,7 +1082,7 @@ export default function Inventory() {
                         <td className="py-4 px-4">
                           <span className="font-bold text-slate-900 dark:text-white block">{a.productName}</span>
                           {a.supplierName && (
-                            <span className="text-xs text-slate-500 font-mono mt-1 block flex items-center gap-1">
+                            <span className="text-xs text-slate-500 font-mono mt-1 flex items-center gap-1">
                               <Truck size={12} /> {a.supplierName}
                             </span>
                           )}
@@ -1399,7 +1399,7 @@ export default function Inventory() {
                         className={`py-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
                           newCatColor === colorOption.class
                             ? 'border-emerald-500 bg-slate-100 dark:bg-slate-800'
-                            : 'border-transparent bg-white/80 dark:bg-slate-900/50 hover:bg-slate-100 dark:bg-slate-800'
+                            : 'border-transparent bg-white/80 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
                         <div className={`w-6 h-6 rounded-full ${colorOption.bg}`}></div>

@@ -12,7 +12,7 @@ import {
   Users,
   Activity,
   ClipboardList,
-  Truck
+  Truck,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -43,7 +43,17 @@ interface TooltipEntry {
   value?: string | number;
 }
 
-const CustomTooltip = ({ active, payload, label, currency }: { active?: boolean; payload?: TooltipEntry[]; label?: string; currency: string }) => {
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+  currency,
+}: {
+  active?: boolean;
+  payload?: TooltipEntry[];
+  label?: string;
+  currency: string;
+}) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-xl">
@@ -53,7 +63,8 @@ const CustomTooltip = ({ active, payload, label, currency }: { active?: boolean;
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
             <span className="text-slate-500 dark:text-slate-400 capitalize">{entry.name}:</span>
             <span className="text-slate-900 dark:text-white font-bold">
-              {currency}{Number(entry.value).toFixed(2)}
+              {currency}
+              {Number(entry.value).toFixed(2)}
             </span>
           </div>
         ))}
@@ -98,7 +109,8 @@ export default function Dashboard() {
 
   const kpis = useMemo(() => {
     const revenueToday = todayTransactions.reduce(
-      (sum, t) => sum + t.total - (t.refundedAmount ?? 0), 0,
+      (sum, t) => sum + t.total - (t.refundedAmount ?? 0),
+      0,
     );
     const ordersToday = todayTransactions.length;
     const aovToday = ordersToday > 0 ? revenueToday / ordersToday : 0;
@@ -113,7 +125,8 @@ export default function Dashboard() {
     const uniqueDays = new Set(completedTransactions.map((tx) => new Date(tx.date).toDateString()));
     const daysCount = Math.max(1, uniqueDays.size);
     const totalHistoricalRevenue = completedTransactions.reduce(
-      (sum, t) => sum + t.total - (t.refundedAmount ?? 0), 0,
+      (sum, t) => sum + t.total - (t.refundedAmount ?? 0),
+      0,
     );
     const avgDailyRevenue = totalHistoricalRevenue / daysCount;
 
@@ -283,8 +296,8 @@ export default function Dashboard() {
   }, [rangeTxns, range]);
 
   const paymentMethodsMap = useMemo(
-    () => new Map(paymentMethodsData.map(d => [d.name, d])),
-    [paymentMethodsData]
+    () => new Map(paymentMethodsData.map((d) => [d.name, d])),
+    [paymentMethodsData],
   );
 
   return (
@@ -304,7 +317,7 @@ export default function Dashboard() {
         </motion.div>
 
         <div className="flex items-center gap-4">
-          <div className="flex bg-[#0f172a] p-1 rounded-xl border border-slate-200 dark:border-white/5 shadow-inner">
+          <div className="flex bg-white dark:bg-[#0f172a] p-1 rounded-xl border border-slate-200 dark:border-white/5 shadow-inner">
             {(
               [
                 { id: 'today', label: t('dashboard.rangeToday') },
@@ -319,8 +332,8 @@ export default function Dashboard() {
                 aria-pressed={range === r.id}
                 className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${
                   range === r.id
-                    ? 'bg-emerald-500/20 text-emerald-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-600 dark:text-slate-300'
+                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
                 {r.label}
@@ -332,7 +345,7 @@ export default function Dashboard() {
             id="dashboard-export-btn"
             onClick={exportRange}
             disabled={rangeTxns.length === 0}
-            className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold uppercase px-4 py-2 rounded-xl shadow-sm transition-colors h-full"
+            className="flex items-center gap-2 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-[#1e293b] disabled:opacity-40 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold uppercase px-4 py-2 rounded-xl shadow-sm transition-colors h-full"
             title={t('dashboard.exportRange')}
           >
             <Download size={14} />
@@ -344,8 +357,8 @@ export default function Dashboard() {
             animate={{ opacity: 1, scale: 1 }}
             className={`flex items-center space-x-2 border px-4 py-2 rounded-xl text-xs font-bold shadow-inner ${
               cloudLive
-                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                : 'bg-slate-500/10 border-slate-400/20 text-slate-500 dark:text-slate-400'
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                : 'bg-slate-100 dark:bg-slate-500/10 border-slate-200 dark:border-slate-400/20 text-slate-500 dark:text-slate-400'
             }`}
           >
             <span
@@ -382,7 +395,8 @@ export default function Dashboard() {
             </div>
             <div className="relative z-10">
               <h3 className="font-mono font-extrabold text-slate-900 dark:text-white text-3xl mb-2">
-                {settings.currency}{kpis.revenueToday.toFixed(2)}
+                {settings.currency}
+                {kpis.revenueToday.toFixed(2)}
               </h3>
               <div className="flex items-center gap-2 text-xs font-medium">
                 {kpis.revenueToday >= kpis.avgDailyRevenue ? (
@@ -395,7 +409,8 @@ export default function Dashboard() {
                   </span>
                 )}
                 <span className="text-slate-500 font-mono">
-                  vs {settings.currency}{kpis.avgDailyRevenue.toFixed(0)} avg
+                  vs {settings.currency}
+                  {kpis.avgDailyRevenue.toFixed(0)} avg
                 </span>
               </div>
             </div>
@@ -419,11 +434,16 @@ export default function Dashboard() {
             </div>
             <div className="relative z-10">
               <h3 className="font-mono font-extrabold text-slate-900 dark:text-white text-3xl mb-2">
-                {settings.currency}{kpis.profitToday.toFixed(2)}
+                {settings.currency}
+                {kpis.profitToday.toFixed(2)}
               </h3>
               <div className="flex items-center gap-2 text-xs font-medium">
                 <span className="badge badge-blue px-2 py-0.5">
-                  Margin {kpis.revenueToday > 0 ? ((kpis.profitToday / kpis.revenueToday) * 100).toFixed(0) : 0}%
+                  Margin{' '}
+                  {kpis.revenueToday > 0
+                    ? ((kpis.profitToday / kpis.revenueToday) * 100).toFixed(0)
+                    : 0}
+                  %
                 </span>
                 <span className="text-slate-500 font-mono">excl. tax</span>
               </div>
@@ -452,7 +472,8 @@ export default function Dashboard() {
               </h3>
               <div className="flex items-center gap-2 text-xs font-medium">
                 <span className="badge badge-purple px-2 py-0.5 font-mono">
-                  {settings.currency}{kpis.aovToday} AOV
+                  {settings.currency}
+                  {kpis.aovToday} AOV
                 </span>
               </div>
             </div>
@@ -465,12 +486,16 @@ export default function Dashboard() {
             transition={{ delay: 0.4 }}
             className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[#1e293b] transition-colors"
           >
-            <div className={`absolute -inset-e-6 -top-6 w-32 h-32 rounded-full blur-3xl transition-colors ${kpis.lowStockItems > 0 ? 'bg-amber-500/10 group-hover:bg-amber-500/20' : 'bg-slate-500/10'}`} />
+            <div
+              className={`absolute -inset-e-6 -top-6 w-32 h-32 rounded-full blur-3xl transition-colors ${kpis.lowStockItems > 0 ? 'bg-amber-500/10 group-hover:bg-amber-500/20' : 'bg-slate-500/10'}`}
+            />
             <div className="flex justify-between items-start mb-4 relative z-10">
               <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
                 {t('dashboard.stockWarnings')}
               </span>
-              <div className={`p-2.5 rounded-xl shadow-inner ${kpis.lowStockItems > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
+              <div
+                className={`p-2.5 rounded-xl shadow-inner ${kpis.lowStockItems > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
+              >
                 <Package size={20} className="stroke-[2.5]" />
               </div>
             </div>
@@ -512,18 +537,21 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-4 text-xs font-mono bg-[#0f172a] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
               <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" /> 
+                <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                 {t('dashboard.revenue')}
               </span>
               <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                <span className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" /> 
+                <span className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
                 {t('dashboard.profit')}
               </span>
             </div>
           </div>
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={salesTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart
+                data={salesTrendData}
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              >
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
@@ -535,20 +563,20 @@ export default function Dashboard() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#1e293b" />
-                <XAxis 
-                  dataKey="label" 
-                  stroke="#475569" 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  dy={15} 
+                <XAxis
+                  dataKey="label"
+                  stroke="#475569"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  dy={15}
                 />
-                <YAxis 
-                  stroke="#475569" 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  dx={-15} 
+                <YAxis
+                  stroke="#475569"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  dx={-15}
                   tickFormatter={(val) => `${val}`}
                 />
                 <Tooltip content={<CustomTooltip currency={settings.currency} />} />
@@ -598,11 +626,32 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topProductsData} layout="vertical" margin={{ top: 0, right: 20, left: 20, bottom: 0 }}>
+                  <BarChart
+                    data={topProductsData}
+                    layout="vertical"
+                    margin={{ top: 0, right: 20, left: 20, bottom: 0 }}
+                  >
                     <CartesianGrid strokeDasharray="4 4" horizontal={false} stroke="#1e293b" />
-                    <XAxis type="number" stroke="#475569" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={12} width={120} tickLine={false} axisLine={false} />
-                    <Tooltip content={<CustomTooltip currency={settings.currency} />} cursor={{ fill: '#1e293b', opacity: 0.4 }} />
+                    <XAxis
+                      type="number"
+                      stroke="#475569"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      stroke="#94a3b8"
+                      fontSize={12}
+                      width={120}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip
+                      content={<CustomTooltip currency={settings.currency} />}
+                      cursor={{ fill: '#1e293b', opacity: 0.4 }}
+                    />
                     <Bar dataKey="quantity" radius={[0, 8, 8, 0]} barSize={28}>
                       {topProductsData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#3b82f6'} />
@@ -626,7 +675,7 @@ export default function Dashboard() {
                 {t('dashboard.salesByCategory')}
               </h3>
             </div>
-            <div className="flex-1 min-h-[220px] w-full relative">
+            <div className="flex-1 min-h-55 w-full relative">
               {categoryShareData.length === 0 ? (
                 <div className="w-full h-full flex items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
                   {t('dashboard.noCategoryStats')}
@@ -656,11 +705,17 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 mt-6">
               {categoryShareData.slice(0, 4).map((item, idx) => (
                 <div key={idx} className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                  <span
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: item.color }}
+                  />
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate w-20">{item.name}</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate w-20">
+                      {item.name}
+                    </span>
                     <span className="text-xs font-bold text-slate-900 dark:text-white font-mono">
-                      {settings.currency}{item.value.toFixed(0)}
+                      {settings.currency}
+                      {item.value.toFixed(0)}
                     </span>
                   </div>
                 </div>
@@ -689,17 +744,26 @@ export default function Dashboard() {
                 const pct = totalSalesVolume > 0 ? (val / totalSalesVolume) * 100 : 0;
 
                 return (
-                  <div key={method} className="bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl p-5 hover:border-slate-200 dark:border-white/10 transition-colors">
+                  <div
+                    key={method}
+                    className="bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl p-5 hover:border-slate-200 transition-colors"
+                  >
                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block mb-2">
                       {t(`dashboard.${method}`, { defaultValue: method })}
                     </span>
                     <span className="font-mono font-extrabold text-2xl text-slate-900 dark:text-white block mb-2">
-                      {settings.currency}{val.toFixed(2)}
+                      {settings.currency}
+                      {val.toFixed(2)}
                     </span>
                     <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mb-2">
-                      <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                      <div
+                        className="bg-blue-500 h-1.5 rounded-full"
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
-                    <span className="text-xs text-slate-500 font-mono">{pct.toFixed(1)}% of total</span>
+                    <span className="text-xs text-slate-500 font-mono">
+                      {pct.toFixed(1)}% of total
+                    </span>
                   </div>
                 );
               })}
@@ -732,9 +796,12 @@ export default function Dashboard() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-end mb-1.5">
-                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{op.name}</span>
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
+                            {op.name}
+                          </span>
                           <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
-                            {settings.currency}{op.revenue.toFixed(2)}
+                            {settings.currency}
+                            {op.revenue.toFixed(2)}
                           </span>
                         </div>
                         <div className="flex items-center gap-3">
@@ -776,7 +843,8 @@ export default function Dashboard() {
                 {t('dashboard.poReceived')}
               </span>
               <span className="font-mono font-extrabold text-2xl text-emerald-400 block">
-                {settings.currency}{poReport.receivedValue.toFixed(2)}
+                {settings.currency}
+                {poReport.receivedValue.toFixed(2)}
               </span>
             </div>
             <div className="bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
@@ -784,7 +852,8 @@ export default function Dashboard() {
                 {t('dashboard.poOutstanding')}
               </span>
               <span className="font-mono font-extrabold text-2xl text-amber-400 block">
-                {settings.currency}{poReport.outstandingValue.toFixed(2)}
+                {settings.currency}
+                {poReport.outstandingValue.toFixed(2)}
               </span>
             </div>
             <div className="bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
@@ -810,7 +879,8 @@ export default function Dashboard() {
                 {t('dashboard.topSuppliers')}
               </span>
               {poReport.suppliers.slice(0, 5).map((s) => {
-                const maxSpend = poReport.suppliers[0].received || poReport.suppliers[0].outstanding || 1;
+                const maxSpend =
+                  poReport.suppliers[0].received || poReport.suppliers[0].outstanding || 1;
                 const spend = s.received || s.outstanding;
                 return (
                   <div key={s.supplierId ?? 'none'} className="flex items-center gap-4">
@@ -819,12 +889,16 @@ export default function Dashboard() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-end mb-1.5">
-                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{s.supplierName}</span>
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
+                          {s.supplierName}
+                        </span>
                         <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
-                          {settings.currency}{s.received.toFixed(2)}
+                          {settings.currency}
+                          {s.received.toFixed(2)}
                           {s.outstanding > 0 && (
                             <span className="text-amber-400 ms-2 text-xs">
-                              +{settings.currency}{s.outstanding.toFixed(2)}
+                              +{settings.currency}
+                              {s.outstanding.toFixed(2)}
                             </span>
                           )}
                         </span>

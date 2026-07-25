@@ -131,7 +131,7 @@ const SortableProductCard = memo(function SortableProductCard({
         : {})}
     >
       {/* Status overlays */}
-      <div className="absolute top-2 start-2 z-20 flex flex-col gap-1.5">
+      <div className="absolute top-2 inset-s-2 z-20 flex flex-col gap-1.5">
         {isOutOfStock && (
           <span className="bg-rose-500/90 backdrop-blur-sm text-slate-900 dark:text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
             {t('register.outOfStock')}
@@ -148,7 +148,7 @@ const SortableProductCard = memo(function SortableProductCard({
             animate={{ scale: 1, rotate: 0 }}
             className="flex items-center gap-1 bg-emerald-500 text-slate-900 dark:text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-lg shadow-emerald-500/30"
           >
-            <Check size={9} className="stroke-[3]" />
+            <Check size={9} className="stroke-3" />
             {cartQty}
           </motion.span>
         )}
@@ -156,13 +156,13 @@ const SortableProductCard = memo(function SortableProductCard({
 
       {/* Edit mode drag handle */}
       {isEditMode && (
-        <div className="absolute top-2 end-2 z-20 bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm text-slate-500 dark:text-slate-400 p-1.5 rounded-lg">
+        <div className="absolute top-2 inset-e-2 z-20 bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm text-slate-500 dark:text-slate-400 p-1.5 rounded-lg">
           <GripHorizontal size={13} />
         </div>
       )}
 
       {/* Product image */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800/50 pointer-events-none">
+      <div className="relative aspect-4/3 w-full overflow-hidden bg-slate-100 dark:bg-slate-800/50 pointer-events-none">
         {prod.image && !imgError ? (
           <img
             src={prod.image}
@@ -172,14 +172,14 @@ const SortableProductCard = memo(function SortableProductCard({
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800/40 to-slate-900/40">
+          <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-slate-800/40 to-slate-900/40">
             <span className="text-4xl transition-transform duration-400 group-hover:scale-110 group-hover:rotate-6 opacity-70">
               {getCategoryEmoji(categoryName)}
             </span>
           </div>
         )}
         {/* Bottom gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       </div>
 
       {/* Info */}
@@ -284,7 +284,7 @@ const ProductGrid = ({
           <div className="relative shrink-0">
             <Search
               size={13}
-              className="absolute start-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+              className="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
             />
             <input
               id="register-search-input"
@@ -318,7 +318,7 @@ const ProductGrid = ({
                   exit={{ opacity: 0, scale: 0.8 }}
                   onClick={() => setSearch('')}
                   aria-label={t('register.clearSearch')}
-                  className="absolute end-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 dark:text-slate-300 transition-colors"
+                  className="absolute inset-e-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 dark:text-slate-300 transition-colors"
                 >
                   <X size={12} />
                 </motion.button>

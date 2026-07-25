@@ -1111,7 +1111,7 @@ export default function Register() {
                     )}
                   </div>
 
-                  <div className="text-center pt-5 border-t border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                  <div className="text-center pt-5 border-t border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-slate-500 dark:text-slate-400">
                     <p className="tracking-widest">{t('register.thankYou')}</p>
                   </div>
 

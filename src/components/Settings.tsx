@@ -24,7 +24,7 @@ import {
   Mail,
   ChefHat,
   Receipt,
-  Plus
+  Plus,
 } from 'lucide-react';
 import {
   StoreSettings,
@@ -46,11 +46,7 @@ import {
   DetectedPrinter,
 } from '../lib/printerDiscovery';
 import { useTranslation } from 'react-i18next';
-import {
-  useSettingsStore,
-  DEFAULT_EMAIL_TEMPLATE,
-  DEFAULT_SCANNER,
-} from '../stores/settingsStore';
+import { useSettingsStore, DEFAULT_EMAIL_TEMPLATE, DEFAULT_SCANNER } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
@@ -65,7 +61,7 @@ import {
   deleteUsersCloudIfEnabled,
 } from '../lib/sync';
 
-type SettingsTab = 'profile' | 'printer' | 'scanner' | 'supabase' | 'users' | 'danger';
+type SettingsTab = 'profile' | 'printer' | 'kitchen_printer' | 'scanner' | 'supabase' | 'users' | 'danger';
 
 const DEFAULT_PRINTER: PrinterConfig = {
   type: 'system',
@@ -111,7 +107,7 @@ export default function Settings() {
   const { users, setUsers, currentUser, handleAddUser, handleUpdateUser, handleDeleteUser } =
     useAuthStore();
   const { t } = useTranslation();
-  
+
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
 
   // --- Staff account management state ---
@@ -196,10 +192,20 @@ export default function Settings() {
       ...prev,
       { id: `station-${crypto.randomUUID?.() ?? Date.now()}`, name: '', categoryIds: [] },
     ]);
+  const addStationFromPrinter = (pName: string, ipAddress?: string) => {
+    setStationForm((prev) => [
+      ...prev,
+      {
+        id: `station-${crypto.randomUUID?.() ?? Date.now()}`,
+        name: pName,
+        ipAddress: ipAddress || '',
+        categoryIds: [],
+      },
+    ]);
+  };
   const updateStation = (id: string, patch: Partial<KitchenStation>) =>
     setStationForm((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-  const removeStation = (id: string) =>
-    setStationForm((prev) => prev.filter((s) => s.id !== id));
+  const removeStation = (id: string) => setStationForm((prev) => prev.filter((s) => s.id !== id));
   const toggleStationCategory = (id: string, categoryId: string) =>
     setStationForm((prev) =>
       prev.map((s) =>
@@ -413,14 +419,28 @@ export default function Settings() {
   };
 
   const handleDeleteAllTransactions = () => {
-    if (confirm(t('settings.confirmDeleteAllTransactions', 'Are you sure you want to permanently delete ALL transactions? This cannot be undone.'))) {
-      deleteTransactions(transactions.map(t => t.id));
+    if (
+      confirm(
+        t(
+          'settings.confirmDeleteAllTransactions',
+          'Are you sure you want to permanently delete ALL transactions? This cannot be undone.',
+        ),
+      )
+    ) {
+      deleteTransactions(transactions.map((t) => t.id));
       alert(t('settings.transactionsDeleted', 'All transactions deleted.'));
     }
   };
 
   const handleResetDefaults = () => {
-    if (confirm(t('settings.confirmResetDefaults', 'Reset all settings to default values? This will not delete your transactions or users.'))) {
+    if (
+      confirm(
+        t(
+          'settings.confirmResetDefaults',
+          'Reset all settings to default values? This will not delete your transactions or users.',
+        ),
+      )
+    ) {
       setSettings(INITIAL_SETTINGS);
       setPrinterConfig(DEFAULT_PRINTER);
       setPrinterForm(DEFAULT_PRINTER);
@@ -447,11 +467,17 @@ export default function Settings() {
     danger?: boolean;
   }> = [
     { id: 'profile', label: t('settings.title', 'Store'), icon: SettingsIcon },
-    { id: 'printer', label: t('settings.printerTab', 'Printer'), icon: PrinterIcon },
+    { id: 'printer', label: t('settings.printerTab', 'Receipt Printer'), icon: PrinterIcon },
+    { id: 'kitchen_printer', label: t('settings.kitchenPrinterTab', 'Kitchen Printer'), icon: ChefHat },
     { id: 'scanner', label: t('settings.scannerTab', 'Scanner'), icon: ScanLine },
     { id: 'supabase', label: t('settings.supabaseSync', 'Supabase Sync'), icon: Cloud },
     { id: 'users', label: t('settings.usersTab', 'Users'), icon: Users },
-    { id: 'danger', label: t('settings.dangerZone', 'Danger Zone'), icon: AlertTriangle, danger: true },
+    {
+      id: 'danger',
+      label: t('settings.dangerZone', 'Danger Zone'),
+      icon: AlertTriangle,
+      danger: true,
+    },
   ];
 
   const roleLabel: Record<UserAccount['role'], string> = {
@@ -459,7 +485,7 @@ export default function Settings() {
     manager: t('settings.roleManager'),
     cashier: t('settings.roleCashier'),
   };
-  
+
   const roleStyle: Record<UserAccount['role'], string> = {
     admin: 'badge badge-emerald',
     manager: 'badge badge-amber',
@@ -483,9 +509,13 @@ export default function Settings() {
             {t('settings.systemControlCenter')}
           </h2>
         </div>
-        
+
         {/* Animated Tab Navigation */}
-        <nav role="tablist" aria-label={t('settings.systemControlCenter')} className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-px overflow-x-auto no-scrollbar">
+        <nav
+          role="tablist"
+          aria-label={t('settings.systemControlCenter')}
+          className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-px overflow-x-auto no-scrollbar"
+        >
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -497,7 +527,7 @@ export default function Settings() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
                   isActive
-                    ? tab.danger 
+                    ? tab.danger
                       ? 'text-rose-600 dark:text-rose-500'
                       : 'text-emerald-600 dark:text-emerald-500'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-700 dark:text-slate-200'
@@ -510,7 +540,7 @@ export default function Settings() {
                     layoutId="settingsTabIndicator"
                     className={`absolute bottom-0 left-0 right-0 h-0.5 ${tab.danger ? 'bg-rose-500' : 'bg-emerald-500'}`}
                     initial={false}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />
                 )}
               </button>
@@ -520,7 +550,7 @@ export default function Settings() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50 dark:bg-[#0f172a]/40">
-        <div className="max-w-4xl mx-auto">
+        <div className="w-full mx-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -534,7 +564,9 @@ export default function Settings() {
                 <div className="space-y-6">
                   {/* General Info Card */}
                   <div className="surface rounded-2xl p-6">
-                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">{t('settings.generalDetails')}</h3>
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">
+                      {t('settings.generalDetails')}
+                    </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
@@ -614,7 +646,10 @@ export default function Settings() {
                                 if (file) {
                                   const reader = new FileReader();
                                   reader.onload = (event) => {
-                                    handleUpdateSetting('storeLogo', event.target?.result as string);
+                                    handleUpdateSetting(
+                                      'storeLogo',
+                                      event.target?.result as string,
+                                    );
                                   };
                                   reader.readAsDataURL(file);
                                 }
@@ -638,7 +673,9 @@ export default function Settings() {
                   {/* Regional & Loyalty Settings */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="surface rounded-2xl p-6">
-                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">{t('settings.regional')}</h3>
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">
+                        {t('settings.regional')}
+                      </h3>
                       <div className="space-y-4">
                         <div>
                           <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
@@ -661,10 +698,14 @@ export default function Settings() {
                               min="0"
                               step="0.1"
                               value={settings.taxRate}
-                              onChange={(e) => handleUpdateSetting('taxRate', parseFloat(e.target.value) || 0)}
+                              onChange={(e) =>
+                                handleUpdateSetting('taxRate', parseFloat(e.target.value) || 0)
+                              }
                               className="glass-input w-full px-4 py-2.5 rounded-xl pr-8"
                             />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm">%</span>
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm">
+                              %
+                            </span>
                           </div>
                         </div>
                         <div>
@@ -684,7 +725,9 @@ export default function Settings() {
                     </div>
 
                     <div className="surface rounded-2xl p-6">
-                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">{t('settings.loyaltyProgram')}</h3>
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">
+                        {t('settings.loyaltyProgram')}
+                      </h3>
                       <div className="space-y-4">
                         <div>
                           <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
@@ -695,7 +738,12 @@ export default function Settings() {
                             min="0"
                             step="0.1"
                             value={settings.loyaltyPointsRate}
-                            onChange={(e) => handleUpdateSetting('loyaltyPointsRate', parseFloat(e.target.value) || 0)}
+                            onChange={(e) =>
+                              handleUpdateSetting(
+                                'loyaltyPointsRate',
+                                parseFloat(e.target.value) || 0,
+                              )
+                            }
                             className="glass-input w-full px-4 py-2.5 rounded-xl"
                             placeholder="e.g. 1 point per $1"
                           />
@@ -705,13 +753,20 @@ export default function Settings() {
                             {t('settings.loyaltyPointValue', 'Discount Value per Point')}
                           </label>
                           <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm">{settings.currency}</span>
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm">
+                              {settings.currency}
+                            </span>
                             <input
                               type="number"
                               min="0"
                               step="0.01"
                               value={settings.loyaltyPointValue}
-                              onChange={(e) => handleUpdateSetting('loyaltyPointValue', parseFloat(e.target.value) || 0)}
+                              onChange={(e) =>
+                                handleUpdateSetting(
+                                  'loyaltyPointValue',
+                                  parseFloat(e.target.value) || 0,
+                                )
+                              }
                               className="glass-input w-full px-4 py-2.5 rounded-xl pl-8"
                               placeholder="e.g. $0.05"
                             />
@@ -738,7 +793,9 @@ export default function Settings() {
                         <input
                           type="text"
                           value={emailTemplate.subject}
-                          onChange={(e) => setEmailTemplate({ ...emailTemplate, subject: e.target.value })}
+                          onChange={(e) =>
+                            setEmailTemplate({ ...emailTemplate, subject: e.target.value })
+                          }
                           className="glass-input w-full px-4 py-2.5 rounded-xl font-mono text-sm"
                         />
                       </div>
@@ -750,7 +807,9 @@ export default function Settings() {
                           <textarea
                             rows={4}
                             value={emailTemplate.header}
-                            onChange={(e) => setEmailTemplate({ ...emailTemplate, header: e.target.value })}
+                            onChange={(e) =>
+                              setEmailTemplate({ ...emailTemplate, header: e.target.value })
+                            }
                             className="glass-input w-full px-4 py-2.5 rounded-xl text-sm resize-y"
                           />
                         </div>
@@ -761,7 +820,9 @@ export default function Settings() {
                           <textarea
                             rows={4}
                             value={emailTemplate.footer}
-                            onChange={(e) => setEmailTemplate({ ...emailTemplate, footer: e.target.value })}
+                            onChange={(e) =>
+                              setEmailTemplate({ ...emailTemplate, footer: e.target.value })
+                            }
                             className="glass-input w-full px-4 py-2.5 rounded-xl text-sm resize-y"
                           />
                         </div>
@@ -781,7 +842,7 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* Printer Tab */}
+              {/* Receipt Printer Tab */}
               {activeTab === 'printer' && (
                 <div className="surface rounded-2xl p-6 max-w-3xl mx-auto space-y-8">
                   {/* Connected printers */}
@@ -809,7 +870,9 @@ export default function Settings() {
                             className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 rounded-xl flex items-center gap-2 transition-colors"
                           >
                             <Wifi size={14} className={scanningNetwork ? 'animate-pulse' : ''} />
-                            {scanningNetwork ? t('settings.scanningNetwork') : t('settings.scanNetwork')}
+                            {scanningNetwork
+                              ? t('settings.scanningNetwork')
+                              : t('settings.scanNetwork')}
                           </button>
                         )}
                         <button
@@ -849,13 +912,17 @@ export default function Settings() {
                                   {p.name}
                                 </span>
                                 {p.detail && (
-                                  <span className="text-[11px] text-slate-500 block truncate">{p.detail}</span>
+                                  <span className="text-[11px] text-slate-500 block truncate">
+                                    {p.detail}
+                                  </span>
                                 )}
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               {p.isDefault && (
-                                <span className="badge badge-emerald">{t('settings.printerDefault')}</span>
+                                <span className="badge badge-emerald">
+                                  {t('settings.printerDefault')}
+                                </span>
                               )}
                               {p.kind === 'network' && p.ipAddress && (
                                 <button
@@ -863,12 +930,16 @@ export default function Settings() {
                                   onClick={() => handleUseNetworkPrinter(p.ipAddress!)}
                                   className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
                                 >
-                                  {printerForm.type === 'network' && printerForm.ipAddress === p.ipAddress
+                                  {printerForm.type === 'network' &&
+                                  printerForm.ipAddress === p.ipAddress
                                     ? t('settings.printerInUse')
                                     : t('settings.useThisPrinter')}
                                 </button>
                               )}
-                              <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true" />
+                              <span
+                                className="w-2 h-2 rounded-full bg-emerald-500"
+                                aria-hidden="true"
+                              />
                             </div>
                           </li>
                         ))}
@@ -900,7 +971,12 @@ export default function Settings() {
                             key={pt.id}
                             type="button"
                             aria-pressed={isSelected}
-                            onClick={() => setPrinterForm({ ...printerForm, type: pt.id as PrinterConfig['type'] })}
+                            onClick={() =>
+                              setPrinterForm({
+                                ...printerForm,
+                                type: pt.id as PrinterConfig['type'],
+                              })
+                            }
                             className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${
                               isSelected
                                 ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
@@ -922,7 +998,12 @@ export default function Settings() {
                       </label>
                       <select
                         value={printerForm.paperSize}
-                        onChange={(e) => setPrinterForm({ ...printerForm, paperSize: e.target.value as PrinterConfig['paperSize'] })}
+                        onChange={(e) =>
+                          setPrinterForm({
+                            ...printerForm,
+                            paperSize: e.target.value as PrinterConfig['paperSize'],
+                          })
+                        }
                         className="glass-input w-full px-4 py-2.5 rounded-xl appearance-none"
                       >
                         <option value="58mm">58mm</option>
@@ -940,7 +1021,9 @@ export default function Settings() {
                           dir="ltr"
                           placeholder="192.168.1.50"
                           value={printerForm.ipAddress || ''}
-                          onChange={(e) => setPrinterForm({ ...printerForm, ipAddress: e.target.value })}
+                          onChange={(e) =>
+                            setPrinterForm({ ...printerForm, ipAddress: e.target.value })
+                          }
                           className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
                         />
                       </motion.div>
@@ -954,7 +1037,12 @@ export default function Settings() {
                           type="number"
                           placeholder="9600"
                           value={printerForm.baudRate ?? ''}
-                          onChange={(e) => setPrinterForm({ ...printerForm, baudRate: e.target.value ? parseInt(e.target.value) : undefined })}
+                          onChange={(e) =>
+                            setPrinterForm({
+                              ...printerForm,
+                              baudRate: e.target.value ? parseInt(e.target.value) : undefined,
+                            })
+                          }
                           className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
                         />
                       </motion.div>
@@ -969,7 +1057,9 @@ export default function Settings() {
                           list="os-printer-names"
                           placeholder={t('settings.printerNamePlaceholder')}
                           value={printerForm.printerName || ''}
-                          onChange={(e) => setPrinterForm({ ...printerForm, printerName: e.target.value })}
+                          onChange={(e) =>
+                            setPrinterForm({ ...printerForm, printerName: e.target.value })
+                          }
                           className="glass-input w-full px-4 py-2.5 rounded-xl"
                         />
                         <datalist id="os-printer-names">
@@ -996,7 +1086,9 @@ export default function Settings() {
                       <input
                         type="checkbox"
                         checked={printerForm.showBarcode}
-                        onChange={(e) => setPrinterForm({ ...printerForm, showBarcode: e.target.checked })}
+                        onChange={(e) =>
+                          setPrinterForm({ ...printerForm, showBarcode: e.target.checked })
+                        }
                         className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
                       />
                       <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
@@ -1008,7 +1100,9 @@ export default function Settings() {
                       <input
                         type="checkbox"
                         checked={printerForm.autoPrintOnCheckout}
-                        onChange={(e) => setPrinterForm({ ...printerForm, autoPrintOnCheckout: e.target.checked })}
+                        onChange={(e) =>
+                          setPrinterForm({ ...printerForm, autoPrintOnCheckout: e.target.checked })
+                        }
                         className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
                       />
                       <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
@@ -1020,7 +1114,12 @@ export default function Settings() {
                       <input
                         type="checkbox"
                         checked={!!printerForm.kitchenTicketOnCheckout}
-                        onChange={(e) => setPrinterForm({ ...printerForm, kitchenTicketOnCheckout: e.target.checked })}
+                        onChange={(e) =>
+                          setPrinterForm({
+                            ...printerForm,
+                            kitchenTicketOnCheckout: e.target.checked,
+                          })
+                        }
                         className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
                       />
                       <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
@@ -1039,7 +1138,7 @@ export default function Settings() {
                       {t('settings.savePrinter')}
                     </button>
                   </div>
-
+                  
                   {/* Customer receipt layout */}
                   <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
                     <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2 mb-1">
@@ -1049,7 +1148,104 @@ export default function Settings() {
                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
                       {t('receiptCfg.customerHint')}
                     </p>
-                    <ReceiptSettingsPanel kind="customer" layout={receiptLayout} onChange={setReceiptLayout} />
+                    <ReceiptSettingsPanel
+                      kind="customer"
+                      layout={receiptLayout}
+                      onChange={setReceiptLayout}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Kitchen Printer Tab */}
+              {activeTab === 'kitchen_printer' && (
+                <div className="surface rounded-2xl p-6 max-w-3xl mx-auto space-y-8">
+                  {/* Connected printers */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                        {t('settings.connectedPrinters')}
+                      </h3>
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        {serialSupported() && (
+                          <button
+                            type="button"
+                            onClick={handlePairSerial}
+                            className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center gap-2 transition-colors"
+                          >
+                            <Usb size={14} />
+                            {t('settings.pairSerial')}
+                          </button>
+                        )}
+                        {networkScanSupported() && (
+                          <button
+                            type="button"
+                            onClick={handleScanNetwork}
+                            disabled={scanningNetwork}
+                            className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 rounded-xl flex items-center gap-2 transition-colors"
+                          >
+                            <Wifi size={14} className={scanningNetwork ? 'animate-pulse' : ''} />
+                            {scanningNetwork
+                              ? t('settings.scanningNetwork')
+                              : t('settings.scanNetwork')}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={refreshPrinters}
+                          disabled={printersLoading}
+                          className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 rounded-xl flex items-center gap-2 transition-colors"
+                        >
+                          <RefreshCw size={14} className={printersLoading ? 'animate-spin' : ''} />
+                          {t('settings.refreshPrinters')}
+                        </button>
+                      </div>
+                    </div>
+                    {detectedPrinters.length === 0 ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl px-4 py-4 leading-relaxed">
+                        {printersLoading ? '…' : t('settings.noPrintersFound')}
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {detectedPrinters.map((p) => (
+                          <li
+                            key={p.id}
+                            className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                                {p.kind === 'system' ? (
+                                  <Monitor size={16} />
+                                ) : p.kind === 'network' ? (
+                                  <Wifi size={16} />
+                                ) : (
+                                  <Usb size={16} />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block truncate">
+                                  {p.name}
+                                </span>
+                                {p.detail && (
+                                  <span className="text-[11px] text-slate-500 block truncate">
+                                    {p.detail}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => addStationFromPrinter(p.name, p.ipAddress)}
+                                className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+                              >
+                                {t('settings.addStation')}
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
 
                   {/* Kitchen ticket layout */}
@@ -1061,7 +1257,11 @@ export default function Settings() {
                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
                       {t('receiptCfg.kitchenHint')}
                     </p>
-                    <ReceiptSettingsPanel kind="kitchen" layout={kitchenLayout} onChange={setKitchenLayout} />
+                    <ReceiptSettingsPanel
+                      kind="kitchen"
+                      layout={kitchenLayout}
+                      onChange={setKitchenLayout}
+                    />
                   </div>
 
                   {/* Kitchen station routing */}
@@ -1080,7 +1280,9 @@ export default function Settings() {
                             className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 rounded-xl flex items-center gap-2 transition-colors"
                           >
                             <Wifi size={14} className={scanningNetwork ? 'animate-pulse' : ''} />
-                            {scanningNetwork ? t('settings.scanningNetwork') : t('settings.scanNetwork')}
+                            {scanningNetwork
+                              ? t('settings.scanningNetwork')
+                              : t('settings.scanNetwork')}
                           </button>
                         )}
                         <button
@@ -1124,7 +1326,9 @@ export default function Settings() {
                               <input
                                 type="text"
                                 value={station.name}
-                                onChange={(e) => updateStation(station.id, { name: e.target.value })}
+                                onChange={(e) =>
+                                  updateStation(station.id, { name: e.target.value })
+                                }
                                 placeholder={t('settings.stationNamePlaceholder')}
                                 aria-label={t('settings.stationName')}
                                 className="glass-input flex-1 px-4 py-2.5 rounded-xl font-bold"
@@ -1134,7 +1338,9 @@ export default function Settings() {
                                 dir="ltr"
                                 list="station-printer-ips"
                                 value={station.ipAddress || ''}
-                                onChange={(e) => updateStation(station.id, { ipAddress: e.target.value })}
+                                onChange={(e) =>
+                                  updateStation(station.id, { ipAddress: e.target.value })
+                                }
                                 placeholder={t('settings.stationPrinterIp')}
                                 aria-label={t('settings.stationPrinterIp')}
                                 className="glass-input w-40 px-4 py-2.5 rounded-xl font-mono text-sm"
@@ -1209,7 +1415,9 @@ export default function Settings() {
                     <input
                       type="checkbox"
                       checked={scannerForm.enabled}
-                      onChange={(e) => setScannerForm({ ...scannerForm, enabled: e.target.checked })}
+                      onChange={(e) =>
+                        setScannerForm({ ...scannerForm, enabled: e.target.checked })
+                      }
                       className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
                     />
                     <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
@@ -1227,11 +1435,16 @@ export default function Settings() {
                         min="1"
                         value={scannerForm.minLength}
                         onChange={(e) =>
-                          setScannerForm({ ...scannerForm, minLength: parseInt(e.target.value) || 0 })
+                          setScannerForm({
+                            ...scannerForm,
+                            minLength: parseInt(e.target.value) || 0,
+                          })
                         }
                         className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
                       />
-                      <p className="text-xs text-slate-500 mt-2">{t('settings.scannerMinLengthHint')}</p>
+                      <p className="text-xs text-slate-500 mt-2">
+                        {t('settings.scannerMinLengthHint')}
+                      </p>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
@@ -1243,11 +1456,16 @@ export default function Settings() {
                         step="5"
                         value={scannerForm.maxInterKeyMs}
                         onChange={(e) =>
-                          setScannerForm({ ...scannerForm, maxInterKeyMs: parseInt(e.target.value) || 0 })
+                          setScannerForm({
+                            ...scannerForm,
+                            maxInterKeyMs: parseInt(e.target.value) || 0,
+                          })
                         }
                         className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
                       />
-                      <p className="text-xs text-slate-500 mt-2">{t('settings.scannerSpeedHint')}</p>
+                      <p className="text-xs text-slate-500 mt-2">
+                        {t('settings.scannerSpeedHint')}
+                      </p>
                     </div>
                   </div>
 
@@ -1267,12 +1485,12 @@ export default function Settings() {
                       {lastTestScan ? (
                         <span className="text-emerald-600 dark:text-emerald-400">
                           {t('settings.scannerLastScan')}: <strong>{lastTestScan.code}</strong>
-                          <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 ms-2 text-xs">
+                          <span className="text-slate-500 dark:text-slate-400 ms-2 text-xs">
                             {lastTestScan.at}
                           </span>
                         </span>
                       ) : (
-                        <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                        <span className="text-slate-500 dark:text-slate-400">
                           {t('settings.scannerNoScan')}
                         </span>
                       )}
@@ -1301,10 +1519,27 @@ export default function Settings() {
                       {t('settings.supabaseConfig')}
                     </h3>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-slate-500 uppercase">{t('settings.status')}</span>
-                      {supabaseConfig.status === 'connected' && <span className="badge badge-emerald flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>{t('settings.statusConnected')}</span>}
-                      {supabaseConfig.status === 'disconnected' && <span className="badge badge-slate flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-400"></span>{t('settings.statusDisconnected')}</span>}
-                      {supabaseConfig.status === 'error' && <span className="badge badge-rose flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500"></span>{t('settings.statusError')}</span>}
+                      <span className="text-xs font-semibold text-slate-500 uppercase">
+                        {t('settings.status')}
+                      </span>
+                      {supabaseConfig.status === 'connected' && (
+                        <span className="badge badge-emerald flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                          {t('settings.statusConnected')}
+                        </span>
+                      )}
+                      {supabaseConfig.status === 'disconnected' && (
+                        <span className="badge badge-slate flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                          {t('settings.statusDisconnected')}
+                        </span>
+                      )}
+                      {supabaseConfig.status === 'error' && (
+                        <span className="badge badge-rose flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                          {t('settings.statusError')}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1480,13 +1715,13 @@ export default function Settings() {
                               )}
                             </div>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className={roleStyle[u.role]}>
-                                {roleLabel[u.role]}
-                              </span>
+                              <span className={roleStyle[u.role]}>{roleLabel[u.role]}</span>
                               <span
                                 className={`text-[10px] font-mono font-bold uppercase ${u.active ? 'text-emerald-500' : 'text-slate-500 dark:text-slate-400'}`}
                               >
-                                {u.active ? t('settings.statusActive') : t('settings.statusInactive')}
+                                {u.active
+                                  ? t('settings.statusActive')
+                                  : t('settings.statusInactive')}
                               </span>
                             </div>
                           </div>
@@ -1528,7 +1763,10 @@ export default function Settings() {
                           {t('settings.dangerZone', 'Danger Zone')}
                         </h3>
                         <p className="text-sm text-rose-600/80 dark:text-rose-400/80 font-medium">
-                          {t('settings.dangerWarning', 'Be careful! These actions cannot be undone.')}
+                          {t(
+                            'settings.dangerWarning',
+                            'Be careful! These actions cannot be undone.',
+                          )}
                         </p>
                       </div>
 
@@ -1597,14 +1835,17 @@ export default function Settings() {
               className="modal-card w-full max-w-sm"
             >
               <div className="px-6 py-4 border-b border-slate-200/10 flex items-center justify-between">
-                <h3 id="user-modal-title" className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <h3
+                  id="user-modal-title"
+                  className="font-bold text-slate-800 dark:text-white flex items-center gap-2"
+                >
                   <UserPlus size={18} className="text-emerald-500" />
                   {editingUser ? t('settings.editUser') : t('settings.newUser')}
                 </h3>
                 <button
                   onClick={() => setUserModalOpen(false)}
                   aria-label={t('settings.cancel')}
-                  className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                  className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
                 >
                   <X size={16} />
                 </button>
