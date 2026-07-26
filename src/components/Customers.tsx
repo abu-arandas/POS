@@ -440,7 +440,7 @@ export default function Customers() {
                             {new Date(tx.date).toLocaleDateString()}
                           </span>
                         </div>
-                        <div className="text-right">
+                        <div className="text-end">
                           <span className="font-mono font-bold text-sm text-slate-900 dark:text-white block">
                             {settings.currency}{tx.total.toFixed(2)}
                           </span>

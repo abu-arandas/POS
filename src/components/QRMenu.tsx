@@ -108,8 +108,8 @@ export default function QRMenu() {
 
           <div className="flex flex-col items-center gap-4 w-full relative z-10">
             {/* Pill Badge for URL */}
-            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-full pl-5 pr-2 py-1.5 shadow-inner w-full max-w-sm">
-              <span className="flex-1 font-mono text-sm text-slate-700 dark:text-slate-300 truncate text-left">
+            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-full ps-5 pe-2 py-1.5 shadow-inner w-full max-w-sm">
+              <span className="flex-1 font-mono text-sm text-slate-700 dark:text-slate-300 truncate text-start">
                 {menuUrl}
               </span>
               <button

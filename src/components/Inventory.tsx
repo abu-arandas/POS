@@ -619,7 +619,7 @@ export default function Inventory() {
               className="flex-1 surface rounded-2xl shadow-lg overflow-hidden flex flex-col"
             >
               <div className="flex-1 overflow-y-auto">
-                <table id="inventory-table" className="w-full text-left border-collapse table-fixed">
+                <table id="inventory-table" className="w-full text-start border-collapse table-fixed">
                   <thead>
                     <tr className="bg-white/90 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 sticky top-0 z-10 backdrop-blur-md">
                       <th className="py-4 px-6 w-1/4">{t('inventory.productDetails')}</th>
@@ -636,7 +636,7 @@ export default function Inventory() {
                       </th>
                       <th className="py-4 px-4 w-1/6">{t('inventory.category').replace(':', '')}</th>
                       <th
-                        className="py-4 px-4 w-1/8 text-right"
+                        className="py-4 px-4 w-1/8 text-end"
                         aria-sort={sortBy === 'price' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
                       >
                         <button
@@ -646,8 +646,8 @@ export default function Inventory() {
                           {t('inventory.price')} <ArrowUpDown size={12} />
                         </button>
                       </th>
-                      <th className="py-4 px-4 w-1/8 text-right">{t('inventory.cost')}</th>
-                      <th className="py-4 px-4 w-1/8 text-right">{t('inventory.margin')}</th>
+                      <th className="py-4 px-4 w-1/8 text-end">{t('inventory.cost')}</th>
+                      <th className="py-4 px-4 w-1/8 text-end">{t('inventory.margin')}</th>
                       <th
                         className="py-4 px-6 w-1/6 text-center"
                         aria-sort={sortBy === 'stock' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
@@ -714,13 +714,13 @@ export default function Inventory() {
                                 {getProductCategoryName(prod.category)}
                               </span>
                             </td>
-                            <td className="py-4 px-4 font-mono font-bold text-slate-900 dark:text-white text-right">
+                            <td className="py-4 px-4 font-mono font-bold text-slate-900 dark:text-white text-end">
                               {settings.currency}{prod.price.toFixed(2)}
                             </td>
-                            <td className="py-4 px-4 font-mono text-slate-500 dark:text-slate-400 text-right">
+                            <td className="py-4 px-4 font-mono text-slate-500 dark:text-slate-400 text-end">
                               {settings.currency}{prod.cost.toFixed(2)}
                             </td>
-                            <td className="py-4 px-4 text-right font-mono font-medium">
+                            <td className="py-4 px-4 text-end font-mono font-medium">
                               <span className={margin >= 50 ? 'text-emerald-400' : 'text-slate-500 dark:text-slate-400'}>
                                 {margin.toFixed(0)}%
                               </span>
@@ -769,18 +769,18 @@ export default function Inventory() {
               {/* Table Footer Stats */}
               <div className="px-6 py-4 border-t border-slate-200 dark:border-white/5 bg-white/80 dark:bg-slate-900/50 text-xs text-slate-500 dark:text-slate-400 font-mono flex justify-between items-center">
                 <span>
-                  {t('inventory.activeSkus')}: <strong className="text-slate-900 dark:text-white ml-1">{products.length}</strong>
+                  {t('inventory.activeSkus')}: <strong className="text-slate-900 dark:text-white ms-1">{products.length}</strong>
                 </span>
                 <span className="flex items-center gap-6">
                   <span className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-amber-500"></span>
                     {t('inventory.lowStock')}:{' '}
-                    <strong className="text-amber-400 ml-1">{products.filter((p) => p.stock <= p.minStock && p.stock > 0).length}</strong>
+                    <strong className="text-amber-400 ms-1">{products.filter((p) => p.stock <= p.minStock && p.stock > 0).length}</strong>
                   </span>
                   <span className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-rose-500"></span>
                     {t('inventory.outOfStock')}:{' '}
-                    <strong className="text-rose-400 ml-1">{products.filter((p) => p.stock === 0).length}</strong>
+                    <strong className="text-rose-400 ms-1">{products.filter((p) => p.stock === 0).length}</strong>
                   </span>
                 </span>
               </div>
@@ -852,14 +852,14 @@ export default function Inventory() {
             className="flex-1 overflow-hidden flex flex-col surface rounded-2xl"
           >
             <div className="flex-1 overflow-y-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-start border-collapse">
                 <thead>
                   <tr className="bg-white/90 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 sticky top-0 z-10 backdrop-blur-md">
                     <th className="py-4 px-6">{t('inventory.supplierName')}</th>
                     <th className="py-4 px-4">{t('inventory.supplierContact')}</th>
                     <th className="py-4 px-4">{t('inventory.phoneNumber')}</th>
                     <th className="py-4 px-4">{t('inventory.emailAddress')}</th>
-                    <th className="py-4 px-6 text-right">{t('inventory.actions')}</th>
+                    <th className="py-4 px-6 text-end">{t('inventory.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-sm text-slate-700 dark:text-slate-200">
@@ -901,7 +901,7 @@ export default function Inventory() {
                             {sup.email || '—'}
                           </div>
                         </td>
-                        <td className="py-4 px-6 text-right">
+                        <td className="py-4 px-6 text-end">
                           <button
                             onClick={() => removeSupplier(sup.id)}
                             aria-label={t('inventory.deleteSupplier')}
@@ -925,15 +925,15 @@ export default function Inventory() {
             className="flex-1 overflow-hidden flex flex-col surface rounded-2xl"
           >
             <div className="flex-1 overflow-y-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-start border-collapse">
                 <thead>
                   <tr className="bg-white/90 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 sticky top-0 z-10 backdrop-blur-md">
                     <th className="py-4 px-6">{t('inventory.poOrder')}</th>
                     <th className="py-4 px-4">{t('inventory.poSupplier')}</th>
                     <th className="py-4 px-4">{t('inventory.poItems')}</th>
-                    <th className="py-4 px-4 text-right">{t('inventory.poTotalCost')}</th>
+                    <th className="py-4 px-4 text-end">{t('inventory.poTotalCost')}</th>
                     <th className="py-4 px-4 text-center">{t('inventory.poStatus')}</th>
-                    <th className="py-4 px-6 text-right">{t('inventory.actions')}</th>
+                    <th className="py-4 px-6 text-end">{t('inventory.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-sm text-slate-700 dark:text-slate-200">
@@ -973,7 +973,7 @@ export default function Inventory() {
                             units: poUnitCount(po),
                           })}
                         </td>
-                        <td className="py-4 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
+                        <td className="py-4 px-4 text-end font-mono font-bold text-slate-900 dark:text-white">
                           {settings.currency}{poTotal(po).toFixed(2)}
                         </td>
                         <td className="py-4 px-4 text-center">
@@ -1052,14 +1052,14 @@ export default function Inventory() {
             className="flex-1 surface rounded-2xl shadow-lg overflow-hidden flex flex-col"
           >
             <div className="flex-1 overflow-y-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-start border-collapse">
                 <thead>
                   <tr className="bg-white/90 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 sticky top-0 z-10 backdrop-blur-md">
                     <th className="py-4 px-6">{t('inventory.logWhen')}</th>
                     <th className="py-4 px-4">{t('inventory.productDetails')}</th>
                     <th className="py-4 px-4 text-center">{t('inventory.logReason')}</th>
-                    <th className="py-4 px-4 text-right">{t('inventory.logChange')}</th>
-                    <th className="py-4 px-4 text-right">{t('inventory.stock')}</th>
+                    <th className="py-4 px-4 text-end">{t('inventory.logChange')}</th>
+                    <th className="py-4 px-4 text-end">{t('inventory.stock')}</th>
                     <th className="py-4 px-6">{t('inventory.logBy')}</th>
                   </tr>
                 </thead>
@@ -1099,10 +1099,10 @@ export default function Inventory() {
                             {t(`inventory.reason_${a.reason}`, a.reason)}
                           </span>
                         </td>
-                        <td className={`py-4 px-4 text-right font-mono font-bold text-lg ${a.delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        <td className={`py-4 px-4 text-end font-mono font-bold text-lg ${a.delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {a.delta >= 0 ? '+' : ''}{a.delta}
                         </td>
-                        <td className="py-4 px-4 text-right font-mono font-bold text-slate-600 dark:text-slate-300">
+                        <td className="py-4 px-4 text-end font-mono font-bold text-slate-600 dark:text-slate-300">
                           {a.newStock}
                         </td>
                         <td className="py-4 px-6 text-slate-500 dark:text-slate-400">

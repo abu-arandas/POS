@@ -159,7 +159,7 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
                     </div>
                   </div>
                   <div className="flex items-center gap-6 shrink-0">
-                    <div className="text-right hidden sm:block">
+                    <div className="text-end hidden sm:block">
                       <span className="font-mono font-bold text-slate-900 dark:text-white text-sm block">
                         {cur}{s.revenue.toFixed(2)}
                       </span>

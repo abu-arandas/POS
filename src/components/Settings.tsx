@@ -701,7 +701,7 @@ export default function Settings() {
                               onChange={(e) =>
                                 handleUpdateSetting('taxRate', parseFloat(e.target.value) || 0)
                               }
-                              className="glass-input w-full px-4 py-2.5 rounded-xl pr-8"
+                              className="glass-input w-full px-4 py-2.5 rounded-xl pe-8"
                             />
                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm">
                               %
@@ -767,7 +767,7 @@ export default function Settings() {
                                   parseFloat(e.target.value) || 0,
                                 )
                               }
-                              className="glass-input w-full px-4 py-2.5 rounded-xl pl-8"
+                              className="glass-input w-full px-4 py-2.5 rounded-xl ps-8"
                               placeholder="e.g. $0.05"
                             />
                           </div>

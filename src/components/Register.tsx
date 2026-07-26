@@ -1021,8 +1021,8 @@ export default function Register() {
                     {activeReceipt.items.map((item, idx) => (
                       <div key={idx}>
                         <div className="flex justify-between items-start gap-4">
-                          <span className="flex-1 pr-2">
-                            <span className="opacity-70 mr-1">{item.quantity}x</span>
+                          <span className="flex-1 pe-2">
+                            <span className="opacity-70 me-1">{item.quantity}x</span>
                             {item.productName}
                           </span>
                           <span className="shrink-0 font-bold">

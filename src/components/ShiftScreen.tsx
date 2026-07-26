@@ -146,7 +146,7 @@ export default function ShiftScreen() {
                 </h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-8">{t('shift.openHint')}</p>
                 
-                <div className="text-left bg-[#0f172a]/50 p-6 rounded-2xl border border-slate-200 dark:border-white/5 shadow-inner">
+                <div className="text-start bg-[#0f172a]/50 p-6 rounded-2xl border border-slate-200 dark:border-white/5 shadow-inner">
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
                     {t('shift.openingFloat')}
                   </label>
@@ -352,15 +352,15 @@ export default function ShiftScreen() {
             </h3>
             
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-start text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 font-medium">
                     <th className="pb-3 px-4">{t('shift.operator') || 'Opened By'}</th>
                     <th className="pb-3 px-4">{t('shift.closedBy') || 'Closed By'}</th>
                     <th className="pb-3 px-4">{t('shift.openedAt') || 'Opened'}</th>
                     <th className="pb-3 px-4">{t('shift.closedAt') || 'Closed'}</th>
-                    <th className="pb-3 px-4 text-right">{t('shift.gross') || 'Gross'}</th>
-                    <th className="pb-3 px-4 text-right">{t('shift.variance') || 'Variance'}</th>
+                    <th className="pb-3 px-4 text-end">{t('shift.gross') || 'Gross'}</th>
+                    <th className="pb-3 px-4 text-end">{t('shift.variance') || 'Variance'}</th>
                     <th className="pb-3 px-4 text-center"></th>
                   </tr>
                 </thead>
@@ -397,10 +397,10 @@ export default function ShiftScreen() {
                         <td className="py-4 px-4 font-mono text-slate-500 dark:text-slate-400 text-xs">
                           {shift.closedAt ? new Date(shift.closedAt).toLocaleString() : '—'}
                         </td>
-                        <td className="py-4 px-4 text-right font-mono font-medium text-slate-900 dark:text-white">
+                        <td className="py-4 px-4 text-end font-mono font-medium text-slate-900 dark:text-white">
                           {cur}{s.grossSales.toFixed(2)}
                         </td>
-                        <td className="py-4 px-4 text-right">
+                        <td className="py-4 px-4 text-end">
                           <span className={`badge ${Math.abs(v) < 0.005 ? 'badge-emerald' : 'badge-rose'} font-mono text-xs`}>
                             {v >= 0 ? '+' : ''}{cur}{v.toFixed(2)}
                           </span>

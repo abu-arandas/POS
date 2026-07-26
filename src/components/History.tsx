@@ -452,7 +452,7 @@ export default function History() {
 
         <div id="history-table-container" className="flex-1 surface rounded-4xl shadow-2xl overflow-hidden flex flex-col">
           <div className="flex-1 overflow-y-auto scrollbar-none relative">
-            <table id="history-table" className="w-full text-left border-collapse table-fixed">
+            <table id="history-table" className="w-full text-start border-collapse table-fixed">
               <thead className="sticky top-0 z-20">
                 <tr className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 shadow-sm">
                   <th className="py-4 px-4 w-12.5 text-center">
@@ -467,7 +467,7 @@ export default function History() {
                   <th className="py-4 px-2 w-35">{t('history.receiptId')}</th>
                   <th className="py-4 px-4 w-1/4">{t('history.customer')}</th>
                   <th className="py-4 px-3 w-1/8 text-center">{t('history.items')}</th>
-                  <th className="py-4 px-4 w-1/8 text-right">{t('history.total')}</th>
+                  <th className="py-4 px-4 w-1/8 text-end">{t('history.total')}</th>
                   <th className="py-4 px-4 w-1/8 text-center">{t('history.payment')}</th>
                   <th className="py-4 px-4 w-30 text-center">{t('history.status')}</th>
                 </tr>
@@ -543,7 +543,7 @@ export default function History() {
                                 {tx.items.reduce((sum, item) => sum + item.quantity, 0)}
                               </span>
                             </td>
-                            <td className="py-4 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
+                            <td className="py-4 px-4 text-end font-mono font-bold text-slate-900 dark:text-white">
                               {settings.currency}{tx.total.toFixed(2)}
                             </td>
                             <td className="py-4 px-4">
@@ -659,13 +659,13 @@ export default function History() {
                   <div className="grid grid-cols-12 text-slate-500 dark:text-slate-400 font-bold mb-1">
                     <span className="col-span-8">ITEM</span>
                     <span className="col-span-2 text-center">QTY</span>
-                    <span className="col-span-2 text-right">TOT</span>
+                    <span className="col-span-2 text-end">TOT</span>
                   </div>
                   {activeTransaction.items.map((item, idx) => (
                     <div key={idx} className="grid grid-cols-12">
                       <span className="col-span-8 truncate pe-2">{item.productName}</span>
                       <span className="col-span-2 text-center">{item.quantity}</span>
-                      <span className="col-span-2 text-right">{settings.currency}{item.total.toFixed(2)}</span>
+                      <span className="col-span-2 text-end">{settings.currency}{item.total.toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -750,7 +750,7 @@ export default function History() {
               <button
                 onClick={() => setSelectedTxIds([])}
                 aria-label={t('history.clearSelection')}
-                className="bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-2.5 rounded-xl transition-colors ml-2"
+                className="bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-2.5 rounded-xl transition-colors ms-2"
               >
                 <X size={16} />
               </button>
@@ -832,7 +832,7 @@ export default function History() {
                       const current = refundSelection[item.productId] || 0;
                       return (
                         <div key={idx} className="flex items-center justify-between bg-slate-100 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200 dark:border-white/5">
-                          <div className="flex-1 min-w-0 pr-4">
+                          <div className="flex-1 min-w-0 pe-4">
                             <h4 className="text-slate-900 dark:text-white font-bold truncate">{item.productName}</h4>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{settings.currency}{(item.total / item.quantity).toFixed(2)} {t('history.each')}</p>
                           </div>
