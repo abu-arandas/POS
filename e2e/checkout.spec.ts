@@ -11,14 +11,24 @@ async function login(page: Page, name: string, pin: string) {
   await expect(page.locator('#register-root')).toBeVisible();
 }
 
-// Adds a product to the cart. The card's inner text is pointer-events-none
-// (the card itself handles the click), so target the card container by name.
+// Adds a product to the cart. Targets the card container by matching its text.
 async function addProduct(page: Page, name: string) {
-  await page.locator('#products-grid > div').filter({ hasText: name }).first().click();
+  const productsGrid = page.locator('#products-grid');
+  // Wait for the grid to be visible so the product cards have rendered.
+  await expect(productsGrid).toBeVisible({ timeout: 10_000 });
+
+  // Use Playwright's :has-text() pseudo-class to find a card that contains the product name.
+  const productCard = productsGrid.locator(`> div:has-text("${name}")`).first();
+
+  // Ensure the product card is visible before clicking, and use a longer action timeout.
+  await expect(productCard).toBeVisible({ timeout: 10_000 });
+  await productCard.click({ timeout: 10_000 });
 }
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
+  // Ensure the register/catalog has finished rendering before each test.
+  await expect(page.locator('#products-grid')).toBeVisible({ timeout: 15_000 });
 });
 
 test('admin logs in and the register loads with the seeded catalog', async ({ page }) => {
