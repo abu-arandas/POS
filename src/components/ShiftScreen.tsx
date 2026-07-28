@@ -147,7 +147,7 @@ export default function ShiftScreen() {
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-8">{t('shift.openHint')}</p>
                 
                 <div className="text-start bg-[#0f172a]/50 p-6 rounded-2xl border border-slate-200 dark:border-white/5 shadow-inner">
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+                  <label htmlFor="opening-float-input" className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 cursor-pointer">
                     {t('shift.openingFloat')}
                   </label>
                   <div className="flex items-center rounded-xl bg-white dark:bg-[#020617] px-4 py-2 border border-slate-200 dark:border-slate-700/50 focus-within:border-emerald-500/50 transition-colors">
@@ -279,7 +279,7 @@ export default function ShiftScreen() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                    <label htmlFor="counted-cash-input" className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 cursor-pointer">
                       {t('shift.countedCash')}
                     </label>
                     <div className="flex items-center rounded-xl bg-white dark:bg-[#020617] px-3 border border-slate-200 dark:border-slate-700/50 focus-within:border-blue-500/50 transition-colors">
@@ -318,9 +318,11 @@ export default function ShiftScreen() {
                   )}
 
                   <input
+                    id="close-note-input"
                     type="text"
                     value={closeNote}
                     onChange={(e) => setCloseNote(e.target.value)}
+                    aria-label={t('shift.notePlaceholder')}
                     placeholder={t('shift.notePlaceholder')}
                     className="w-full bg-white dark:bg-[#020617] border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500/50 transition-colors"
                   />
