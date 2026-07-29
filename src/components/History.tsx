@@ -687,7 +687,7 @@ export default function History() {
             exit={{ opacity: 0, x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             id="receipt-view-section"
-            className="absolute top-6 right-6 bottom-6 w-96 glass dark:glass-dark border border-slate-200 dark:border-white/10 rounded-4xl shadow-2xl flex flex-col overflow-hidden z-30"
+            className="absolute top-6 inset-e-6 bottom-6 w-96 glass dark:glass-dark border border-slate-200 dark:border-white/10 rounded-4xl shadow-2xl flex flex-col overflow-hidden z-30"
           >
             <div
               className={`p-5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 ${

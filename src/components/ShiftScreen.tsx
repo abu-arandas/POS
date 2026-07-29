@@ -59,7 +59,7 @@ export default function ShiftScreen() {
   const handleClose = () => {
     if (!currentShift) return;
     const counted = parseFloat(countedCash) || 0;
-    if (!window.confirm(t('shift.confirmClose') || 'Close shift?')) return;
+    if (!window.confirm(t('shift.confirmClose', 'Close shift?'))) return;
     closeShift(currentShift.id, counted, closeNote, currentUser?.name ?? 'Unknown');
     setCountedCash('');
     setCloseNote('');
@@ -407,12 +407,12 @@ export default function ShiftScreen() {
               <table className="w-full text-start text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 font-medium">
-                    <th className="pb-3 px-4">{t('shift.operator') || 'Opened By'}</th>
-                    <th className="pb-3 px-4">{t('shift.closedBy') || 'Closed By'}</th>
-                    <th className="pb-3 px-4">{t('shift.openedAt') || 'Opened'}</th>
-                    <th className="pb-3 px-4">{t('shift.closedAt') || 'Closed'}</th>
-                    <th className="pb-3 px-4 text-end">{t('shift.gross') || 'Gross'}</th>
-                    <th className="pb-3 px-4 text-end">{t('shift.variance') || 'Variance'}</th>
+                    <th className="pb-3 px-4">{t('shift.operator', 'Opened By')}</th>
+                    <th className="pb-3 px-4">{t('shift.closedBy', 'Closed By')}</th>
+                    <th className="pb-3 px-4">{t('shift.openedAt', 'Opened')}</th>
+                    <th className="pb-3 px-4">{t('shift.closedAt', 'Closed')}</th>
+                    <th className="pb-3 px-4 text-end">{t('shift.gross', 'Gross')}</th>
+                    <th className="pb-3 px-4 text-end">{t('shift.variance', 'Variance')}</th>
                     <th className="pb-3 px-4 text-center"></th>
                   </tr>
                 </thead>

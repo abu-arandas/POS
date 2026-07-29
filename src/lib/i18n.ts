@@ -158,6 +158,11 @@ const en = {
       tg_loyalty: 'Loyalty points',
       tg_barcode: 'Barcode',
     },
+    errorBoundary: {
+      title: 'Something went wrong',
+      body: 'An unexpected error occurred in the application view.',
+      reload: 'Reload Application',
+    },
     shift: {
       title: 'Shift & Cash Drawer',
       subtitle: 'Open and close register shifts, count the drawer, and print Z-reports.',
@@ -181,6 +186,10 @@ const en = {
       confirmClose: 'Close this shift? This finalizes the drawer count.',
       pastShifts: 'Past Shifts',
       printReport: 'Print Z-report',
+      operator: 'Opened By',
+      closedBy: 'Closed By',
+      openedAt: 'Opened',
+      closedAt: 'Closed',
     },
     print: {
       unsupported: 'Printing to a {{type}} printer is not available in this environment.',
@@ -188,6 +197,20 @@ const en = {
       error: 'Printing failed. Check the printer connection and try again.',
     },
     settings: {
+      confirmDeleteAllTransactions:
+        'Are you sure you want to permanently delete ALL transactions? This cannot be undone.',
+      transactionsDeleted: 'All transactions deleted.',
+      confirmResetDefaults:
+        'Reset all settings to default values? This will not delete your transactions or users.',
+      defaultsReset: 'Settings reset to defaults.',
+      kitchenPrinterTab: 'Kitchen Printer',
+      dangerZone: 'Danger Zone',
+      loyaltyPointsRate: 'Points Earned per Currency Unit',
+      loyaltyPointValue: 'Discount Value per Point',
+      dangerWarning: 'Be careful! These actions cannot be undone.',
+      deleteAllTransactions: 'Delete All Transactions',
+      deleteNow: 'Delete',
+      resetToDefaults: 'Reset to Defaults',
       title: 'Settings',
       subtitle: 'Manage your POS configuration',
       language: 'Language',
@@ -339,9 +362,9 @@ const en = {
       cancel: 'Cancel',
     },
     lockscreen: {
-      secureTerminal: 'SECURE TERMINAL LOCK',
-      selectProfile: 'Select Staff Profile',
-      chooseAccount: 'Choose your account to login to terminal',
+      subtitle: 'SECURE TERMINAL LOCK',
+      selectUser: 'Select Staff Profile',
+      selectUserSub: 'Choose your account to login to terminal',
       role: 'Role',
       pinRequired: 'PIN Required',
       back: 'Back',
@@ -511,7 +534,11 @@ const en = {
       removeDiscount: 'Remove discount',
       cancelDiscount: 'Cancel discount',
     },
+    common: {
+      refresh: 'Refresh',
+    },
     inventory: {
+      duplicateSku: 'This SKU is already used by another product.',
       catalogInventory: 'Catalog & Inventory',
       manageStoreItems: 'Manage store items, stock alarms, pricing margins, and categories.',
       products: 'Products',
@@ -935,6 +962,11 @@ const ar = {
       tg_loyalty: 'نقاط الولاء',
       tg_barcode: 'الباركود',
     },
+    errorBoundary: {
+      title: 'حدث خطأ ما',
+      body: 'حدث خطأ غير متوقع في واجهة التطبيق.',
+      reload: 'إعادة تشغيل التطبيق',
+    },
     shift: {
       title: 'الوردية ودرج النقد',
       subtitle: 'افتح وأغلق ورديات الصندوق، وعُدّ الدرج، واطبع تقارير Z.',
@@ -958,6 +990,10 @@ const ar = {
       confirmClose: 'إغلاق هذه الوردية؟ سيتم إنهاء عدّ الدرج.',
       pastShifts: 'الورديات السابقة',
       printReport: 'طباعة تقرير Z',
+      operator: 'فتحها',
+      closedBy: 'أغلقها',
+      openedAt: 'وقت الفتح',
+      closedAt: 'وقت الإغلاق',
     },
     print: {
       unsupported: 'الطباعة إلى طابعة {{type}} غير متاحة في هذه البيئة.',
@@ -965,6 +1001,20 @@ const ar = {
       error: 'فشلت الطباعة. تحقق من اتصال الطابعة وحاول مرة أخرى.',
     },
     settings: {
+      confirmDeleteAllTransactions:
+        'هل تريد بالتأكيد حذف جميع المعاملات نهائياً؟ لا يمكن التراجع عن هذا الإجراء.',
+      transactionsDeleted: 'تم حذف جميع المعاملات.',
+      confirmResetDefaults:
+        'إعادة تعيين جميع الإعدادات إلى القيم الافتراضية؟ لن يؤدي هذا إلى حذف معاملاتك أو مستخدميك.',
+      defaultsReset: 'تمت إعادة تعيين الإعدادات إلى الوضع الافتراضي.',
+      kitchenPrinterTab: 'طابعة المطبخ',
+      dangerZone: 'منطقة الخطر',
+      loyaltyPointsRate: 'النقاط المكتسبة لكل وحدة عملة',
+      loyaltyPointValue: 'قيمة الخصم لكل نقطة',
+      dangerWarning: 'انتبه! لا يمكن التراجع عن هذه الإجراءات.',
+      deleteAllTransactions: 'حذف جميع المعاملات',
+      deleteNow: 'حذف',
+      resetToDefaults: 'إعادة التعيين إلى الافتراضي',
       title: 'الإعدادات',
       subtitle: 'إدارة إعدادات نقطة البيع الخاصة بك',
       language: 'اللغة',
@@ -1115,9 +1165,9 @@ const ar = {
       cancel: 'إلغاء',
     },
     lockscreen: {
-      secureTerminal: 'قفل النظام الآمن',
-      selectProfile: 'اختر ملف الموظف',
-      chooseAccount: 'اختر حسابك لتسجيل الدخول إلى النظام',
+      subtitle: 'قفل النظام الآمن',
+      selectUser: 'اختر ملف الموظف',
+      selectUserSub: 'اختر حسابك لتسجيل الدخول إلى النظام',
       role: 'الدور',
       pinRequired: 'الرمز السري مطلوب',
       back: 'رجوع',
@@ -1292,7 +1342,11 @@ const ar = {
       removeDiscount: 'إزالة الخصم',
       cancelDiscount: 'إلغاء الخصم',
     },
+    common: {
+      refresh: 'تحديث',
+    },
     inventory: {
+      duplicateSku: 'رمز SKU هذا مستخدم بالفعل لمنتج آخر.',
       catalogInventory: 'الكتالوج والمخزون',
       manageStoreItems: 'إدارة عناصر المتجر، إنذارات المخزون، هوامش التسعير، والفئات.',
       products: 'المنتجات',

@@ -1,0 +1,87 @@
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { execSync } from 'child_process';
+import i18n from '../../src/lib/i18n';
+
+// A key referenced in code but absent from the catalogue does not fail loudly —
+// i18next renders the key itself, so the UI silently shows "lockscreen.selectUser"
+// where a sentence belongs. That is exactly how three raw keys ended up on the
+// lockscreen, the first screen an operator ever sees.
+//
+// Two rules are enforced here:
+//   1. every t('a.b') in src/ resolves in English, and
+//   2. every English key has an Arabic counterpart,
+// so neither a missing string nor an untranslated one can reach a till unnoticed.
+
+type Tree = { [k: string]: string | Tree };
+
+const flatten = (o: Tree, prefix = ''): string[] =>
+  Object.entries(o).flatMap(([k, v]) => {
+    const path = prefix ? `${prefix}.${k}` : k;
+    return typeof v === 'object' && v !== null ? flatten(v as Tree, path) : [path];
+  });
+
+const resources = (
+  i18n as unknown as { options: { resources: Record<string, { translation: Tree }> } }
+).options.resources;
+
+const en = new Set(flatten(resources.en.translation));
+const ar = new Set(flatten(resources.ar.translation));
+
+// i18next appends _one/_other to plural keys; either form counts as declared.
+const declared = (set: Set<string>, key: string) =>
+  set.has(key) || set.has(`${key}_one`) || set.has(`${key}_other`);
+
+/** Every t('a.b') / t('a.b', 'default') referenced in application source. */
+function referencedKeys(): Map<string, Set<string>> {
+  const files = execSync("git ls-files 'src/**/*.ts' 'src/**/*.tsx'")
+    .toString()
+    .trim()
+    .split('\n')
+    .filter((f) => !f.endsWith('src/lib/i18n.ts'));
+
+  const out = new Map<string, Set<string>>();
+  for (const file of files) {
+    const source = readFileSync(file, 'utf8');
+    for (const m of source.matchAll(/\bt\(\s*'([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+)'/g)) {
+      if (!out.has(m[1])) out.set(m[1], new Set());
+      out.get(m[1])!.add(file);
+    }
+  }
+  return out;
+}
+
+describe('i18n catalogue', () => {
+  it('declares every key the app asks for', () => {
+    const used = referencedKeys();
+    const missing = [...used.keys()]
+      .filter((k) => !declared(en, k))
+      .map((k) => `${k}  (used in ${[...used.get(k)!].join(', ')})`);
+    expect(missing).toEqual([]);
+  });
+
+  it('translates every English key into Arabic', () => {
+    const missing = [...en].filter(
+      (k) => !k.endsWith('_one') && !k.endsWith('_other') && !declared(ar, k),
+    );
+    expect(missing).toEqual([]);
+  });
+
+  it('has a non-empty string for every key in both locales', () => {
+    const blank: string[] = [];
+    for (const [lang, tree] of [
+      ['en', resources.en.translation],
+      ['ar', resources.ar.translation],
+    ] as const) {
+      const walk = (o: Tree, prefix = '') => {
+        for (const [k, v] of Object.entries(o)) {
+          const path = prefix ? `${prefix}.${k}` : k;
+          if (typeof v === 'object' && v !== null) walk(v as Tree, path);
+          else if (!String(v).trim()) blank.push(`${lang}:${path}`);
+        }
+      };
+      walk(tree);
+    }
+    expect(blank).toEqual([]);
+  });
+});

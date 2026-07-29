@@ -390,7 +390,7 @@ export default function Inventory() {
           ? true
           : stockFilter === 'low'
             ? prod.stock <= prod.minStock && prod.stock > 0
-            : prod.stock === 0;
+            : prod.stock <= 0;
 
       return matchesSearch && matchesCategory && matchesStock;
     });
@@ -732,7 +732,7 @@ export default function Inventory() {
                     ) : (
                       sortedAndFilteredProducts.map((prod) => {
                         const isLow = prod.stock <= prod.minStock && prod.stock > 0;
-                        const isOut = prod.stock === 0;
+                        const isOut = prod.stock <= 0;
                         const margin =
                           prod.price > 0 ? ((prod.price - prod.cost) / prod.price) * 100 : 0;
 
@@ -854,7 +854,7 @@ export default function Inventory() {
                     <span className="w-2 h-2 rounded-full bg-rose-500"></span>
                     {t('inventory.outOfStock')}:{' '}
                     <strong className="text-rose-400 ms-1">
-                      {products.filter((p) => p.stock === 0).length}
+                      {products.filter((p) => p.stock <= 0).length}
                     </strong>
                   </span>
                 </span>

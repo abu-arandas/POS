@@ -62,7 +62,7 @@ const SortableProductCard = memo(function SortableProductCard({
   };
 
   const isLowStock = prod.stock <= prod.minStock && prod.stock > 0;
-  const isOutOfStock = prod.stock === 0;
+  const isOutOfStock = prod.stock <= 0;
   // Every unit is already in the cart, so addToCart would no-op. Treat it like
   // out-of-stock for interaction purposes (no dead taps, correct a11y state)
   // while keeping the out-of-stock badge/greyscale styling to itself.
