@@ -948,7 +948,7 @@ export default function Register() {
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-[10px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wider">
+                          <label htmlFor="cash-tendered-input" className="text-[10px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wider">
                             {t('register.cashTendered')}
                           </label>
                           <div
@@ -962,6 +962,7 @@ export default function Register() {
                               {settings.currency}
                             </span>
                             <input
+                              id="cash-tendered-input"
                               type="number"
                               step="0.01"
                               min={totalAmount}
@@ -1089,10 +1090,11 @@ export default function Register() {
                 {addCustomerFieldsArray.map(
                   ({ label, type, value, onChange, placeholder, required }) => (
                     <div key={label}>
-                      <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+                      <label htmlFor={`customer-field-${label}`} className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
                         {label}
                       </label>
                       <input
+                        id={`customer-field-${label}`}
                         type={type}
                         required={required}
                         placeholder={placeholder}
