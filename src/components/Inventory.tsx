@@ -1760,10 +1760,11 @@ export default function Inventory() {
               </div>
               <form onSubmit={handleAddSupplier} className="p-8 space-y-5">
                 <div>
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                  <label htmlFor="supplier-name" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
                     Company / Name *
                   </label>
                   <input
+                    id="supplier-name"
                     type="text"
                     required
                     value={supName}
@@ -1773,10 +1774,11 @@ export default function Inventory() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                  <label htmlFor="supplier-contact" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
                     Contact Person
                   </label>
                   <input
+                    id="supplier-contact"
                     type="text"
                     value={supContact}
                     onChange={(e) => setSupContact(e.target.value)}
@@ -1786,10 +1788,11 @@ export default function Inventory() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                    <label htmlFor="supplier-phone" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
                       Phone
                     </label>
                     <input
+                      id="supplier-phone"
                       type="tel"
                       value={supPhone}
                       onChange={(e) => setSupPhone(e.target.value)}
@@ -1798,10 +1801,11 @@ export default function Inventory() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                    <label htmlFor="supplier-email" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
                       Email
                     </label>
                     <input
+                      id="supplier-email"
                       type="email"
                       value={supEmail}
                       onChange={(e) => setSupEmail(e.target.value)}
