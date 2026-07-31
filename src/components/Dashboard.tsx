@@ -231,11 +231,12 @@ export default function Dashboard() {
 
   const categoryShareData = useMemo(() => {
     const catSalesMap = new Map<string, number>();
+    const productCategoryMap = new Map<string, string>();
+    products.forEach((p) => productCategoryMap.set(p.id, p.category));
 
     rangeTxns.forEach((tx) => {
       tx.items.forEach((item) => {
-        const prod = products.find((p) => p.id === item.productId);
-        const catId = prod?.category || 'general';
+        const catId = productCategoryMap.get(item.productId) || 'general';
         const current = catSalesMap.get(catId) || 0;
         catSalesMap.set(catId, current + item.total);
       });

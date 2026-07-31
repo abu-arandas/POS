@@ -1,0 +1,3 @@
+## 2024-03-01 - O(N^2) Bottleneck in Analytics Dashboard
+**Learning:** Found a severe performance bottleneck in `Dashboard.tsx` where an O(N) lookup (`products.find()`) was used inside a nested O(T * I) loop (`rangeTxns.forEach` -> `tx.items.forEach`). This O(T * I * P) operation blocks the main thread during render, particularly problematic for a POS app that can have thousands of transactions.
+**Action:** When calculating analytics over historical transactions, always create a Hash Map (O(1) lookup) of reference data (products, categories, users) before iterating through the transaction array, reducing time complexity to O(P + T * I).
