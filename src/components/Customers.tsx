@@ -592,7 +592,7 @@ export default function Customers() {
 
                   {editingCustomer && (
                     <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-white/5">
-                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                      <label htmlFor="form-cust-points" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                         {t('customers.adjustLoyaltyPoints')}
                       </label>
                       <input
