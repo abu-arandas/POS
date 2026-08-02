@@ -44,6 +44,7 @@
         "nsis"
       ],
       "requestedExecutionLevel": "requireAdministrator",
+      "publisherName": ["abu-arandas"],
       "verifyUpdateCodeSignature": true,
       "icon": "buildResources/icon.ico"
     },
