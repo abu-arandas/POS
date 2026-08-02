@@ -232,9 +232,13 @@ export default function Dashboard() {
   const categoryShareData = useMemo(() => {
     const catSalesMap = new Map<string, number>();
 
+    // Performance optimization: Pre-compute Hash Maps for O(1) lookups
+    const productMap = new Map(products.map(p => [p.id, p]));
+    const categoryMap = new Map(categories.map(c => [c.id, c]));
+
     rangeTxns.forEach((tx) => {
       tx.items.forEach((item) => {
-        const prod = products.find((p) => p.id === item.productId);
+        const prod = productMap.get(item.productId);
         const catId = prod?.category || 'general';
         const current = catSalesMap.get(catId) || 0;
         catSalesMap.set(catId, current + item.total);
@@ -245,7 +249,7 @@ export default function Dashboard() {
 
     return Array.from(catSalesMap.entries())
       .map(([catId, revenue], idx) => {
-        const catObj = categories.find((c) => c.id === catId);
+        const catObj = categoryMap.get(catId);
         const catName = catObj
           ? t(`categories.${catObj.name.toLowerCase()}`, { defaultValue: catObj.name })
           : 'General';
