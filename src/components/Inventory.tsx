@@ -1524,7 +1524,10 @@ export default function Inventory() {
 
               <form onSubmit={handleSubmitCategory} className="space-y-6">
                 <div>
-                  <label htmlFor="new-cat-name-input" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                  <label
+                    htmlFor="new-cat-name-input"
+                    className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+                  >
                     {t('inventory.categoryName')} *
                   </label>
                   <input
@@ -1617,7 +1620,10 @@ export default function Inventory() {
               </div>
               <div className="p-8 space-y-6">
                 <div>
-                  <label htmlFor="receive-product-select" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                  <label
+                    htmlFor="receive-product-select"
+                    className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+                  >
                     {t('inventory.products')}
                   </label>
                   <select
@@ -1662,7 +1668,10 @@ export default function Inventory() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="recv-qty-input" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                    <label
+                      htmlFor="recv-qty-input"
+                      className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+                    >
                       Δ Quantity
                     </label>
                     <input
@@ -1676,7 +1685,10 @@ export default function Inventory() {
                     />
                   </div>
                   <div>
-                    <label htmlFor="recv-supplier-select" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                    <label
+                      htmlFor="recv-supplier-select"
+                      className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+                    >
                       {t('inventory.suppliers')}
                     </label>
                     <select
@@ -1697,7 +1709,10 @@ export default function Inventory() {
                   </div>
                 </div>
                 <div>
-                  <label htmlFor="recv-note-input" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                  <label
+                    htmlFor="recv-note-input"
+                    className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+                  >
                     Notes
                   </label>
                   <input
