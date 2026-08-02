@@ -3,12 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Eye } from 'lucide-react';
 import { ReceiptLayout, ReceiptToggles, SaleTransaction } from '../types';
 import { useSettingsStore } from '../stores/settingsStore';
-import {
-  DATE_FORMATS,
-  TIME_FORMATS,
-  RECEIPT_FONTS,
-  formatDateTime,
-} from '../lib/receiptFormat';
+import { DATE_FORMATS, TIME_FORMATS, RECEIPT_FONTS, formatDateTime } from '../lib/receiptFormat';
 import { receiptPreviewDoc } from '../lib/receiptPrinter';
 
 interface ReceiptSettingsPanelProps {
@@ -68,7 +63,11 @@ const TOGGLE_KEYS: Record<'customer' | 'kitchen', (keyof ReceiptToggles)[]> = {
   kitchen: ['storeName', 'receiptNumber', 'date', 'time', 'operator', 'customer'],
 };
 
-export default function ReceiptSettingsPanel({ kind, layout, onChange }: ReceiptSettingsPanelProps) {
+export default function ReceiptSettingsPanel({
+  kind,
+  layout,
+  onChange,
+}: ReceiptSettingsPanelProps) {
   const { t } = useTranslation();
   const settings = useSettingsStore((s) => s.settings);
   const printerConfig = useSettingsStore((s) => s.printerConfig);
@@ -131,11 +130,15 @@ export default function ReceiptSettingsPanel({ kind, layout, onChange }: Receipt
               min={8}
               max={40}
               value={layout.fontSizePx}
-              onChange={(e) => setField('fontSizePx', Math.max(8, Math.min(40, Number(e.target.value) || 12)))}
+              onChange={(e) =>
+                setField('fontSizePx', Math.max(8, Math.min(40, Number(e.target.value) || 12)))
+              }
               className={INPUT}
             />
           </Labeled>
-          <Labeled label={`${t('receiptCfg.dateFormat')} · ${formatDateTime(now, layout.dateFormat)}`}>
+          <Labeled
+            label={`${t('receiptCfg.dateFormat')} · ${formatDateTime(now, layout.dateFormat)}`}
+          >
             <select
               value={layout.dateFormat}
               onChange={(e) => setField('dateFormat', e.target.value)}
@@ -148,7 +151,9 @@ export default function ReceiptSettingsPanel({ kind, layout, onChange }: Receipt
               ))}
             </select>
           </Labeled>
-          <Labeled label={`${t('receiptCfg.timeFormat')} · ${formatDateTime(now, layout.timeFormat)}`}>
+          <Labeled
+            label={`${t('receiptCfg.timeFormat')} · ${formatDateTime(now, layout.timeFormat)}`}
+          >
             <select
               value={layout.timeFormat}
               onChange={(e) => setField('timeFormat', e.target.value)}
@@ -177,7 +182,9 @@ export default function ReceiptSettingsPanel({ kind, layout, onChange }: Receipt
                   onChange={(e) => setToggle(key, e.target.checked)}
                   className="accent-emerald-500 w-4 h-4 shrink-0"
                 />
-                <span className="text-xs text-slate-600 dark:text-slate-300 truncate">{t(`receiptCfg.tg_${key}`)}</span>
+                <span className="text-xs text-slate-600 dark:text-slate-300 truncate">
+                  {t(`receiptCfg.tg_${key}`)}
+                </span>
               </label>
             ))}
           </div>
@@ -209,7 +216,9 @@ const INPUT =
 function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        {label}
+      </span>
       <div className="mt-1">{children}</div>
     </label>
   );

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './lib/i18n';
 import App from './App.tsx';
 import './index.css';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Dark-first by default so the semantic tokens resolve to their dark values on
 // the very first paint (no flash of a light theme before the persisted store
@@ -12,6 +13,8 @@ document.documentElement.classList.add('dark');
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

@@ -50,9 +50,7 @@ export function buildSaleTransaction(req: CheckoutRequest): CheckoutOutcome {
     }
     // Only cash can overpay (for change). Non-cash tenders exceeding the
     // total would record phantom money with no way to return it.
-    const nonCashTotal = clean
-      .filter((p) => p.method !== 'cash')
-      .reduce((s, p) => s + p.amount, 0);
+    const nonCashTotal = clean.filter((p) => p.method !== 'cash').reduce((s, p) => s + p.amount, 0);
     if (nonCashTotal > req.totalAmount + 0.005) {
       return { success: false, error: 'split-non-cash-overpay' };
     }

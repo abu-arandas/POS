@@ -102,7 +102,12 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     const norm = normalizeStoreForm(draft);
-    const id = draft.id ?? slugifyStoreId(norm.name, stores.map((s) => s.id));
+    const id =
+      draft.id ??
+      slugifyStoreId(
+        norm.name,
+        stores.map((s) => s.id),
+      );
     const existing = stores.find((s) => s.id === id);
     const record: Store = {
       id,
@@ -168,7 +173,9 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
           <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-lg sm:text-xl flex items-center gap-2">
             <Building2 className="text-emerald-500" size={22} /> {t('storeAdmin.title')}
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{t('storeAdmin.subtitle')}</p>
+          <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+            {t('storeAdmin.subtitle')}
+          </p>
         </motion.div>
         <div className="flex items-center gap-2">
           <button
@@ -199,7 +206,10 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
               {draft.id ? t('storeAdmin.editStore') : t('storeAdmin.newStore')}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label={t('storeAdmin.name')} error={errors.name && t(`storeAdmin.err_${errors.name}`)}>
+              <Field
+                label={t('storeAdmin.name')}
+                error={errors.name && t(`storeAdmin.err_${errors.name}`)}
+              >
                 <input
                   value={draft.name}
                   onChange={(e) => setDraft({ ...draft, name: e.target.value })}
@@ -214,7 +224,10 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                   className={FLD}
                 />
               </Field>
-              <Field label={t('storeAdmin.timezone')} error={errors.timezone && t(`storeAdmin.err_${errors.timezone}`)}>
+              <Field
+                label={t('storeAdmin.timezone')}
+                error={errors.timezone && t(`storeAdmin.err_${errors.timezone}`)}
+              >
                 <input
                   value={draft.timezone}
                   onChange={(e) => setDraft({ ...draft, timezone: e.target.value })}
@@ -222,7 +235,10 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                   placeholder="America/Los_Angeles"
                 />
               </Field>
-              <Field label={t('storeAdmin.currency')} error={errors.currency && t(`storeAdmin.err_${errors.currency}`)}>
+              <Field
+                label={t('storeAdmin.currency')}
+                error={errors.currency && t(`storeAdmin.err_${errors.currency}`)}
+              >
                 <input
                   value={draft.currency}
                   onChange={(e) => setDraft({ ...draft, currency: e.target.value })}
@@ -267,8 +283,14 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                 <div className="px-6 py-4 flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-900 dark:text-white truncate">{s.name}</span>
-                      <span className={s.status === 'active' ? 'badge badge-emerald' : 'badge badge-slate'}>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                        {s.name}
+                      </span>
+                      <span
+                        className={
+                          s.status === 'active' ? 'badge badge-emerald' : 'badge badge-slate'
+                        }
+                      >
                         {t(`storeAdmin.status_${s.status}`)}
                       </span>
                     </div>
@@ -299,7 +321,9 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                       <Pencil size={15} />
                     </IconBtn>
                     <IconBtn
-                      title={s.status === 'active' ? t('storeAdmin.suspend') : t('storeAdmin.activate')}
+                      title={
+                        s.status === 'active' ? t('storeAdmin.suspend') : t('storeAdmin.activate')
+                      }
                       onClick={() => toggleStatus(s)}
                       danger={s.status === 'active'}
                     >
@@ -312,16 +336,22 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                 {expanded && (
                   <div className="border-t border-slate-200 dark:border-white/5 px-6 py-4 bg-slate-900/30">
                     {roster.length === 0 ? (
-                      <p className="text-[11px] font-mono text-slate-500 mb-3">{t('storeAdmin.noMembers')}</p>
+                      <p className="text-[11px] font-mono text-slate-500 mb-3">
+                        {t('storeAdmin.noMembers')}
+                      </p>
                     ) : (
                       <ul className="space-y-2 mb-4">
                         {roster.map((m) => (
                           <li key={m.userId} className="flex items-center justify-between gap-3">
-                            <span className="text-[11px] font-mono text-slate-600 dark:text-slate-300 truncate" title={m.userId}>
+                            <span
+                              className="text-[11px] font-mono text-slate-600 dark:text-slate-300 truncate"
+                              title={m.userId}
+                            >
                               {m.userId.slice(0, 12)}…
                             </span>
                             <div className="flex items-center gap-2 shrink-0">
                               <select
+                                aria-label={`${t('storeAdmin.roleLabel')} — ${m.userId}`}
                                 value={m.role}
                                 onChange={(e) => changeRole(m, e.target.value as Role)}
                                 disabled={busy}
@@ -333,7 +363,11 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                                   </option>
                                 ))}
                               </select>
-                              <IconBtn title={t('storeAdmin.removeMember')} onClick={() => dropMember(m)} danger>
+                              <IconBtn
+                                title={t('storeAdmin.removeMember')}
+                                onClick={() => dropMember(m)}
+                                danger
+                              >
                                 <Trash2 size={14} />
                               </IconBtn>
                             </div>
@@ -346,10 +380,12 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                       <input
                         value={memberUserId}
                         onChange={(e) => setMemberUserId(e.target.value)}
+                        aria-label={t('storeAdmin.userIdPlaceholder')}
                         placeholder={t('storeAdmin.userIdPlaceholder')}
                         className={`${FLD} flex-1 min-w-45 font-mono text-[11px]`}
                       />
                       <select
+                        aria-label={t('storeAdmin.roleLabel')}
                         value={memberRole}
                         onChange={(e) => setMemberRole(e.target.value as Role)}
                         className="bg-[#0f172a] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-[11px] font-semibold px-2 py-2 rounded-lg focus:outline-none focus:border-emerald-500/40"
@@ -385,7 +421,10 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
             <ShieldCheck size={14} /> {t('storeAdmin.rlsTitle')}
           </h3>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-            {t('storeAdmin.rlsBody')} <code className="font-mono text-slate-600 dark:text-slate-300">scripts/multi-store-rls-enforce.sql</code>
+            {t('storeAdmin.rlsBody')}{' '}
+            <code className="font-mono text-slate-600 dark:text-slate-300">
+              scripts/multi-store-rls-enforce.sql
+            </code>
           </p>
         </div>
       </div>
@@ -404,7 +443,9 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        {label}
+      </span>
       <div className="mt-1">{children}</div>
       {error && <span className="text-[10px] font-mono text-rose-400 mt-1 block">{error}</span>}
     </label>

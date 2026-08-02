@@ -43,8 +43,7 @@ export function useModalA11y<T extends HTMLElement = HTMLDivElement>(
         (el) => el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement,
       );
 
-    const initial =
-      card.querySelector<HTMLElement>('[data-autofocus]') ?? focusables()[0] ?? card;
+    const initial = card.querySelector<HTMLElement>('[data-autofocus]') ?? focusables()[0] ?? card;
     initial.focus({ preventScroll: true });
 
     const handleKeyDown = (e: KeyboardEvent) => {

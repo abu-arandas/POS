@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'release', 'electron'] },
+  { ignores: ['dist', 'release', 'portable'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
@@ -25,6 +25,19 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
+    },
+  },
+  {
+    // The Electron main/preload process was excluded from linting entirely,
+    // which left the most privileged code in the project — IPC handlers, the
+    // PowerShell spawn, the navigation lockdown, the auto-updater — checked by
+    // nothing but `node --check`, a syntax-only pass. It runs elevated and has
+    // full Node access, so it is the last place that should go unlinted.
+    files: ['electron/**/*.cjs'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'commonjs',
+      globals: globals.node,
     },
   },
   {

@@ -94,10 +94,16 @@ export default function Lockscreen() {
         // screen sits open on it. (The cloud path is already covered — the
         // verify_login RPC filters on active.)
         const live = users.find((u) => u.id === selectedUser.id);
-        if (!live?.active) { failPin(selectedUser.id); return; }
+        if (!live?.active) {
+          failPin(selectedUser.id);
+          return;
+        }
 
         const saltedHash = await hashPinSalted(selectedUser.id, nextPin);
-        if (selectedUser.pin === saltedHash) { acceptPin(selectedUser); return; }
+        if (selectedUser.pin === saltedHash) {
+          acceptPin(selectedUser);
+          return;
+        }
         const legacyHash = await hashPin(nextPin);
         if (selectedUser.pin === legacyHash) {
           handleUpdateUser({ ...selectedUser, pin: saltedHash });
@@ -109,7 +115,14 @@ export default function Lockscreen() {
         const cloudUser2 = cloudUser ?? (await cloudLogin(selectedUser.name, legacyHash));
         setChecking(false);
         if (cloudUser2) {
-          const upgraded = { ...selectedUser, ...cloudUser2, pin: saltedHash };
+          // Keep the LOCAL id. The cloud row may carry a different one (the same
+          // person created on another terminal), and taking it silently broke
+          // two things: users.map matched nothing so the PIN upgrade was never
+          // persisted, and the salted hash we just computed is salted with the
+          // local id — storing it against a different id would make it
+          // unverifiable next login. The throttle is keyed to the local id too,
+          // so clearing the streak has to use the same one.
+          const upgraded = { ...selectedUser, ...cloudUser2, id: selectedUser.id, pin: saltedHash };
           setUsers(users.map((u) => (u.id === upgraded.id ? upgraded : u)));
           acceptPin(upgraded);
         } else {
@@ -119,9 +132,15 @@ export default function Lockscreen() {
     }
   };
 
-  const handleBackspace = () => { if (pin.length > 0) setPin(pin.slice(0, -1)); };
+  const handleBackspace = () => {
+    if (pin.length > 0) setPin(pin.slice(0, -1));
+  };
   const handleClear = () => setPin('');
-  const handleBackToUsers = () => { setSelectedUser(null); setPin(''); setError(false); };
+  const handleBackToUsers = () => {
+    setSelectedUser(null);
+    setPin('');
+    setError(false);
+  };
 
   // Hardware keyboard PIN entry: digits type, Backspace deletes, Escape goes
   // back to staff selection. Registered without deps so handlers stay fresh.
@@ -168,9 +187,7 @@ export default function Lockscreen() {
             EA POS
           </span>
         </div>
-        <p className="text-xs text-slate-500 font-medium">
-          {t('lockscreen.subtitle')}
-        </p>
+        <p className="text-xs text-slate-500 font-medium">{t('lockscreen.subtitle')}</p>
       </motion.div>
 
       {/* Main card */}
@@ -212,17 +229,26 @@ export default function Lockscreen() {
                     >
                       <div className="flex items-center gap-3.5">
                         {/* Avatar */}
-                        <div className={`w-10 h-10 rounded-xl bg-linear-to-br ${cfg.gradient} flex items-center justify-center text-slate-900 dark:text-white font-bold text-sm shrink-0 shadow-md shadow-emerald-500/20`}>
+                        <div
+                          className={`w-10 h-10 rounded-xl bg-linear-to-br ${cfg.gradient} flex items-center justify-center text-slate-900 dark:text-white font-bold text-sm shrink-0 shadow-md shadow-emerald-500/20`}
+                        >
                           {getInitials(user.name)}
                         </div>
                         <div>
-                          <p className="text-slate-900 dark:text-white text-sm font-semibold leading-tight">{user.name}</p>
-                          <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${cfg.badge} mt-1 inline-block`}>
+                          <p className="text-slate-900 dark:text-white text-sm font-semibold leading-tight">
+                            {user.name}
+                          </p>
+                          <span
+                            className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${cfg.badge} mt-1 inline-block`}
+                          >
                             {user.role}
                           </span>
                         </div>
                       </div>
-                      <ChevronRight size={16} className="text-slate-600 group-hover:text-slate-500 dark:text-slate-400 transition-colors rtl:rotate-180" />
+                      <ChevronRight
+                        size={16}
+                        className="text-slate-600 group-hover:text-slate-500 dark:text-slate-400 transition-colors rtl:rotate-180"
+                      />
                     </motion.button>
                   );
                 })}
@@ -250,12 +276,18 @@ export default function Lockscreen() {
                 </button>
                 <div className="flex items-center gap-2.5">
                   <div className="text-end">
-                    <p className="text-slate-900 dark:text-white text-xs font-bold">{selectedUser.name}</p>
-                    <span className={`text-[9px] font-mono uppercase tracking-wider ${roleCfg.badge} px-1.5 py-0.5 rounded-full border inline-block mt-0.5`}>
+                    <p className="text-slate-900 dark:text-white text-xs font-bold">
+                      {selectedUser.name}
+                    </p>
+                    <span
+                      className={`text-[9px] font-mono uppercase tracking-wider ${roleCfg.badge} px-1.5 py-0.5 rounded-full border inline-block mt-0.5`}
+                    >
                       {selectedUser.role}
                     </span>
                   </div>
-                  <div className={`w-8 h-8 rounded-xl bg-linear-to-br ${roleCfg.gradient} flex items-center justify-center text-slate-900 dark:text-white font-bold text-xs shrink-0 shadow-md shadow-emerald-500/20`}>
+                  <div
+                    className={`w-8 h-8 rounded-xl bg-linear-to-br ${roleCfg.gradient} flex items-center justify-center text-slate-900 dark:text-white font-bold text-xs shrink-0 shadow-md shadow-emerald-500/20`}
+                  >
                     {getInitials(selectedUser.name)}
                   </div>
                 </div>
@@ -283,8 +315,8 @@ export default function Lockscreen() {
                         error
                           ? 'bg-rose-500 border-rose-500 shadow-lg shadow-rose-500/50'
                           : pin.length > idx
-                          ? 'bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/50'
-                          : 'border-slate-700'
+                            ? 'bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/50'
+                            : 'border-slate-700'
                       }`}
                     />
                   ))}
@@ -383,7 +415,11 @@ export default function Lockscreen() {
         >
           <p className="text-slate-500 font-mono text-[10px]">{t('lockscreen.defaultPins')}</p>
           <div className="flex gap-4 justify-center mt-1">
-            {[['Admin', '1234', 'text-indigo-400'], ['Manager', '5555', 'text-amber-400'], ['Cashier', '0000', 'text-emerald-400']].map(([role, pin, color]) => (
+            {[
+              ['Admin', '1234', 'text-indigo-400'],
+              ['Manager', '5555', 'text-amber-400'],
+              ['Cashier', '0000', 'text-emerald-400'],
+            ].map(([role, pin, color]) => (
               <span key={role} className={`font-mono text-[10px] ${color}`}>
                 {role}: <strong>{pin}</strong>
               </span>

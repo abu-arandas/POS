@@ -1,0 +1,59 @@
+<!doctype html>
+<!-- Dev harness: renders a sample receipt through the real canvas renderer and
+     hands back the ESC/POS bytes, so the thermal output can be inspected
+     without a printer. Not part of the app bundle. -->
+<meta charset="utf-8" />
+<body style="margin:0;background:#888">
+<script type="module">
+import { buildReceiptDoc } from '/src/lib/receiptDoc.ts';
+import { renderReceiptRaster, ensureReceiptFont } from '/src/lib/receiptCanvas.ts';
+import { defaultReceiptLayout, allTogglesOn } from '/src/lib/receiptFormat.ts';
+import i18n from '/src/lib/i18n.ts';
+
+const AR = {
+  tx: { id:'TX-4F2A9C', date:new Date('2026-07-25T20:15:00').toISOString(),
+    items:[
+      {productId:'p1',productName:'قهوة عربية سادة',price:2.5,cost:.6,quantity:2,total:5},
+      {productId:'p2',productName:'كنافة نابلسية',price:4.75,cost:1.5,quantity:1,total:4.75},
+      {productId:'p3',productName:'عصير ليمون بالنعناع',price:3,cost:.9,quantity:3,total:9}],
+    subtotal:18.75,discount:1.88,discountType:'percentage',discountValue:10,tax:2.7,total:19.57,
+    paymentMethod:'cash',cashPaid:25,cashChange:5.43,customerId:'c1',customerName:'سارة أحمد',
+    operatorName:'محمد الخطيب',pointsEarned:19,status:'completed' },
+  settings: { storeName:'مقهى الأصالة',branchName:'فرع الشميساني',
+    storeAddress:'شارع الملك حسين، عمّان',storePhone:'0790000000',taxNumber:'12345678',
+    taxRate:16,currency:'د.أ',loyaltyPointsRate:1,loyaltyPointValue:.05 },
+};
+const cfg = { type:'windows', paperSize:'80mm', showBarcode:true, footerMessage:'', autoPrintOnCheckout:true };
+
+// Edge cases worth looking at: a very long product name (does it squish or
+// clip?), a refunded sale (are the audit lines there?), and a logo toggle.
+const EDGE = {
+  ...AR,
+  tx: { ...AR.tx,
+    items: [
+      {productId:'p1',productName:'قهوة عربية سادة مع الهيل والزعفران حجم كبير',price:2.5,cost:.6,quantity:2,total:5},
+      {productId:'p2',productName:'Extra Large Triple Shot Caramel Macchiato With Oat Milk',price:4.75,cost:1.5,quantity:1,total:4.75}],
+    status:'refunded', refundDate:new Date('2026-07-26T09:00:00').toISOString(),
+    refundAuthorizedBy:'سارة المدير (manager)' },
+};
+window.__renderEdge = async (lang) => {
+  await i18n.changeLanguage(lang);
+  await ensureReceiptFont();
+  const layout = { ...defaultReceiptLayout(), show: allTogglesOn(), footer:'' };
+  const rows = buildReceiptDoc(EDGE.tx, EDGE.settings, cfg, layout);
+  const r = renderReceiptRaster(rows, '80mm', { rtl: lang === 'ar' });
+  return { data: r.data, width: r.width, height: r.height };
+};
+
+window.__render = async (lang) => {
+  await i18n.changeLanguage(lang);
+  await ensureReceiptFont();
+  const layout = { ...defaultReceiptLayout(), show: allTogglesOn(),
+    footer: lang === 'ar' ? 'شكراً لزيارتكم — نتشرف بخدمتكم دائماً' : 'Thank you for visiting!' };
+  const rows = buildReceiptDoc(AR.tx, AR.settings, cfg, layout);
+  const r = renderReceiptRaster(rows, '80mm', { rtl: lang === 'ar' });
+  return { data: r.data, width: r.width, height: r.height };
+};
+window.__ready = true;
+</script>
+</body>

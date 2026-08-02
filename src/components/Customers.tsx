@@ -10,7 +10,7 @@ import {
   X,
   Check,
   ShoppingBag,
-  AlertTriangle
+  AlertTriangle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Customer } from '../types';
@@ -24,7 +24,8 @@ import { useTranslation } from 'react-i18next';
 
 export default function Customers() {
   const { t } = useTranslation();
-  const { customers, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer } = useCustomerStore();
+  const { customers, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer } =
+    useCustomerStore();
   const { transactions } = useTransactionStore();
   const { settings } = useSettingsStore();
 
@@ -34,7 +35,7 @@ export default function Customers() {
 
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  
+
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
   const [custEmail, setCustEmail] = useState('');
@@ -65,9 +66,7 @@ export default function Customers() {
     const validTx = activeCustomerTransactions.filter(
       (t) => t.status === 'completed' || t.status === 'partial',
     );
-    const totalSpent = validTx.reduce(
-      (sum, tx) => sum + tx.total - (tx.refundedAmount ?? 0), 0,
-    );
+    const totalSpent = validTx.reduce((sum, tx) => sum + tx.total - (tx.refundedAmount ?? 0), 0);
     const totalVisits = validTx.length;
     const averageSpent = totalVisits > 0 ? totalSpent / totalVisits : 0;
 
@@ -89,7 +88,8 @@ export default function Customers() {
 
     list.sort((a, b) => {
       if (sortBy === 'points') return b.points - a.points;
-      if (sortBy === 'date') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (sortBy === 'date')
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       return a.name.localeCompare(b.name);
     });
 
@@ -177,8 +177,14 @@ export default function Customers() {
   };
 
   return (
-    <div id="customers-root" className="flex-1 flex h-screen overflow-hidden bg-transparent p-6 text-slate-800 dark:text-slate-100">
-      <div id="customer-directory-section" className="flex-1 flex flex-col min-w-0 pe-6 overflow-hidden">
+    <div
+      id="customers-root"
+      className="flex-1 flex h-screen overflow-hidden bg-transparent p-6 text-slate-800 dark:text-slate-100"
+    >
+      <div
+        id="customer-directory-section"
+        className="flex-1 flex flex-col min-w-0 pe-6 overflow-hidden"
+      >
         <div id="customers-header" className="mb-6 shrink-0 flex items-center justify-between">
           <div>
             <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
@@ -198,13 +204,17 @@ export default function Customers() {
           </button>
         </div>
 
-        <div id="customers-filters" className="glass dark:glass-dark p-4 rounded-3xl border border-slate-200 dark:border-white/10 shadow-lg space-y-4 mb-6 shrink-0">
+        <div
+          id="customers-filters"
+          className="glass dark:glass-dark p-4 rounded-3xl border border-slate-200 dark:border-white/10 shadow-lg space-y-4 mb-6 shrink-0"
+        >
           <div className="flex flex-col md:flex-row gap-3">
             <div className="flex-1 flex items-center space-x-2 glass-input px-4 py-2.5 rounded-2xl">
               <Search size={16} className="text-slate-500 dark:text-slate-400" />
               <input
                 id="customer-search-input"
                 type="text"
+                aria-label={t('customers.searchCrm')}
                 placeholder={t('customers.searchCrm')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -239,7 +249,9 @@ export default function Customers() {
           {sortedAndFilteredCustomers.length === 0 ? (
             <div className="glass dark:glass-dark rounded-3xl p-16 flex flex-col items-center justify-center text-center animate-fade-up">
               <div className="text-6xl mb-4 animate-bounce-in">🕵️‍♂️</div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('customers.noCustomersMatching')}</h3>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                {t('customers.noCustomersMatching')}
+              </h3>
               <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 max-w-sm">
                 Try adjusting your search filters or add a new customer to the database.
               </p>
@@ -251,7 +263,10 @@ export default function Customers() {
               </button>
             </div>
           ) : (
-             <div id="crm-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-4">
+            <div
+              id="crm-grid"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-4"
+            >
               {sortedAndFilteredCustomers.map((cust, idx) => {
                 const tier = getCustomerTier(cust.points);
                 const isSelected = cust.id === selectedCustomerId;
@@ -286,7 +301,9 @@ export default function Customers() {
                     }`}
                   >
                     <div className="flex items-center gap-4 mb-4">
-                      <div className={`w-12 h-12 rounded-full border flex items-center justify-center font-bold text-lg shrink-0 ${avatarColor}`}>
+                      <div
+                        className={`w-12 h-12 rounded-full border flex items-center justify-center font-bold text-lg shrink-0 ${avatarColor}`}
+                      >
                         {initials}
                       </div>
                       <div className="space-y-1 min-w-0 flex-1">
@@ -296,7 +313,8 @@ export default function Customers() {
                         <div className="flex flex-col space-y-1 text-xs text-slate-500 dark:text-slate-400">
                           {cust.email && (
                             <span className="flex items-center gap-1.5 truncate">
-                              <Mail size={12} className="text-slate-500 shrink-0" /> <span className="truncate">{cust.email}</span>
+                              <Mail size={12} className="text-slate-500 shrink-0" />{' '}
+                              <span className="truncate">{cust.email}</span>
                             </span>
                           )}
                           {cust.phone && (
@@ -310,9 +328,7 @@ export default function Customers() {
 
                     <div className="flex items-center justify-between mt-auto">
                       <div className="flex items-center gap-2">
-                        <span className={`badge ${tier.badge}`}>
-                          {tier.name}
-                        </span>
+                        <span className={`badge ${tier.badge}`}>{tier.name}</span>
                         <div className="flex items-center gap-1 bg-slate-200 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl px-2 py-1 shadow-inner">
                           <span className="font-mono font-bold text-xs text-emerald-400">
                             {cust.points}
@@ -359,7 +375,7 @@ export default function Customers() {
         className="w-80 glass dark:glass-dark border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-2xl flex flex-col overflow-hidden shrink-0"
       >
         {activeCustomer ? (
-          <motion.div 
+          <motion.div
             key={activeCustomer.id}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -369,7 +385,9 @@ export default function Customers() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl" />
               <div className="flex items-start justify-between relative z-10">
                 <div className="flex items-center gap-4">
-                  <div className={`w-14 h-14 rounded-full border flex items-center justify-center font-bold text-xl ${getColorByLetter(getInitials(activeCustomer.name)[0])}`}>
+                  <div
+                    className={`w-14 h-14 rounded-full border flex items-center justify-center font-bold text-xl ${getColorByLetter(getInitials(activeCustomer.name)[0])}`}
+                  >
                     {getInitials(activeCustomer.name)}
                   </div>
                   <div>
@@ -398,7 +416,8 @@ export default function Customers() {
                     {t('customers.totalSpent')}
                   </span>
                   <p className="font-mono font-extrabold text-lg text-slate-900 dark:text-white">
-                    {settings.currency}{activeCustomerStats.totalSpent.toFixed(2)}
+                    {settings.currency}
+                    {activeCustomerStats.totalSpent.toFixed(2)}
                   </p>
                 </div>
                 <div className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 text-center">
@@ -414,7 +433,8 @@ export default function Customers() {
                     {t('customers.averageTicketValue')}
                   </span>
                   <p className="font-mono font-extrabold text-xl text-emerald-400">
-                    {settings.currency}{activeCustomerStats.averageSpent.toFixed(2)}
+                    {settings.currency}
+                    {activeCustomerStats.averageSpent.toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -429,27 +449,37 @@ export default function Customers() {
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {activeCustomerTransactions.slice().reverse().map((tx) => (
-                      <div
-                        key={tx.id}
-                        className="bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 rounded-2xl p-3 flex items-center justify-between transition-colors cursor-default"
-                      >
-                        <div>
-                          <span className="font-mono font-bold text-slate-700 dark:text-slate-200 text-xs block">{tx.id.substring(0,8)}</span>
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
-                            {new Date(tx.date).toLocaleDateString()}
-                          </span>
+                    {activeCustomerTransactions
+                      .slice()
+                      .reverse()
+                      .map((tx) => (
+                        <div
+                          key={tx.id}
+                          className="bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 rounded-2xl p-3 flex items-center justify-between transition-colors cursor-default"
+                        >
+                          <div>
+                            <span className="font-mono font-bold text-slate-700 dark:text-slate-200 text-xs block">
+                              {tx.id.substring(0, 8)}
+                            </span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
+                              {new Date(tx.date).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="text-end">
+                            <span className="font-mono font-bold text-sm text-slate-900 dark:text-white block">
+                              {settings.currency}
+                              {tx.total.toFixed(2)}
+                            </span>
+                            <span
+                              className={`badge mt-1 ${tx.status === 'refunded' ? 'badge-rose' : 'badge-emerald'}`}
+                            >
+                              {tx.status === 'refunded'
+                                ? t('customers.refunded')
+                                : t('customers.completed')}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-end">
-                          <span className="font-mono font-bold text-sm text-slate-900 dark:text-white block">
-                            {settings.currency}{tx.total.toFixed(2)}
-                          </span>
-                          <span className={`badge mt-1 ${tx.status === 'refunded' ? 'badge-rose' : 'badge-emerald'}`}>
-                            {tx.status === 'refunded' ? t('customers.refunded') : t('customers.completed')}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 )}
               </div>
@@ -472,7 +502,10 @@ export default function Customers() {
 
       <AnimatePresence>
         {customerModalOpen && (
-          <div id="crm-form-modal" className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
+          <div
+            id="crm-form-modal"
+            className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4"
+          >
             <motion.div
               ref={customerModalRef}
               role="dialog"
@@ -485,8 +518,13 @@ export default function Customers() {
               className="modal-card max-w-sm w-full overflow-hidden"
             >
               <div className="p-6 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-slate-100 dark:bg-slate-800/30">
-                <h3 id="crm-form-title" className="font-sans font-bold text-slate-900 dark:text-white text-lg">
-                  {editingCustomer ? t('customers.editCustomerRecord') : t('customers.registerNewCustomer')}
+                <h3
+                  id="crm-form-title"
+                  className="font-sans font-bold text-slate-900 dark:text-white text-lg"
+                >
+                  {editingCustomer
+                    ? t('customers.editCustomerRecord')
+                    : t('customers.registerNewCustomer')}
                 </h3>
                 <button
                   type="button"
@@ -501,7 +539,10 @@ export default function Customers() {
               <form onSubmit={handleSubmitCustomer}>
                 <div className="p-6 space-y-5">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                    <label
+                      htmlFor="form-cust-name"
+                      className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block"
+                    >
                       {t('customers.customerFullName')}
                     </label>
                     <input
@@ -516,7 +557,10 @@ export default function Customers() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                    <label
+                      htmlFor="form-cust-phone"
+                      className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block"
+                    >
                       {t('customers.phoneNumber')}
                     </label>
                     <input
@@ -530,7 +574,10 @@ export default function Customers() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                    <label
+                      htmlFor="form-cust-email"
+                      className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block"
+                    >
                       {t('customers.emailAddress')}
                     </label>
                     <input
@@ -601,14 +648,23 @@ export default function Customers() {
                 <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mb-4">
                   <AlertTriangle size={32} />
                 </div>
-                <h3 id="crm-delete-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('customers.deleteConfirm', { name: customerToDelete.name })}</h3>
+                <h3
+                  id="crm-delete-title"
+                  className="text-xl font-bold text-slate-900 dark:text-white mb-2"
+                >
+                  {t('customers.deleteConfirm', { name: customerToDelete.name })}
+                </h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-                  This action cannot be undone. All related customer data will be permanently removed.
+                  This action cannot be undone. All related customer data will be permanently
+                  removed.
                 </p>
                 <div className="flex w-full gap-3">
                   <button
                     type="button"
-                    onClick={() => { setDeleteModalOpen(false); setCustomerToDelete(null); }}
+                    onClick={() => {
+                      setDeleteModalOpen(false);
+                      setCustomerToDelete(null);
+                    }}
                     className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
                   >
                     Cancel

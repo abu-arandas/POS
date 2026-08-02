@@ -283,32 +283,35 @@ export async function pushTransactions(
 ): Promise<boolean> {
   if (transactions.length === 0) return true;
   try {
-    const records = stampStoreId(transactions.map((t) => ({
-      id: t.id,
-      date: t.date,
-      items: t.items, // JSONB structure
-      subtotal: t.subtotal,
-      discount: t.discount,
-      discount_type: t.discountType,
-      discount_value: t.discountValue,
-      tax: t.tax,
-      total: t.total,
-      payment_method: t.paymentMethod,
-      payments: t.payments ?? null,
-      cash_paid: t.cashPaid ?? null,
-      cash_change: t.cashChange ?? null,
-      customer_id: t.customerId || null,
-      customer_name: t.customerName || null,
-      operator_id: t.operatorId || null,
-      operator_name: t.operatorName || null,
-      points_earned: t.pointsEarned ?? null,
-      status: t.status,
-      refunded_items: t.refundedItems ?? null,
-      refunded_amount: t.refundedAmount ?? null,
-      refund_date: t.refundDate || null,
-      refund_authorized_by: t.refundAuthorizedBy || null,
-      shift_id: t.shiftId || null,
-    })), storeId);
+    const records = stampStoreId(
+      transactions.map((t) => ({
+        id: t.id,
+        date: t.date,
+        items: t.items, // JSONB structure
+        subtotal: t.subtotal,
+        discount: t.discount,
+        discount_type: t.discountType,
+        discount_value: t.discountValue,
+        tax: t.tax,
+        total: t.total,
+        payment_method: t.paymentMethod,
+        payments: t.payments ?? null,
+        cash_paid: t.cashPaid ?? null,
+        cash_change: t.cashChange ?? null,
+        customer_id: t.customerId || null,
+        customer_name: t.customerName || null,
+        operator_id: t.operatorId || null,
+        operator_name: t.operatorName || null,
+        points_earned: t.pointsEarned ?? null,
+        status: t.status,
+        refunded_items: t.refundedItems ?? null,
+        refunded_amount: t.refundedAmount ?? null,
+        refund_date: t.refundDate || null,
+        refund_authorized_by: t.refundAuthorizedBy || null,
+        shift_id: t.shiftId || null,
+      })),
+      storeId,
+    );
     const { error } = await client.from('transactions').upsert(records);
     if (error) throw error;
     return true;

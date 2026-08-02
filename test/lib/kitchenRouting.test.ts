@@ -72,4 +72,43 @@ describe('routeKitchenTickets', () => {
     expect(tickets[0].station.id).toBe('unrouted');
     expect(tickets[0].items).toHaveLength(3);
   });
+
+  // A station added from a detected printer starts with categoryIds: [], which
+  // used to match nothing — so every item fell into the unrouted ticket, which
+  // has no ipAddress and therefore printed on the terminal's default transport
+  // instead of the station's own printer. Empty now means catch-all.
+  describe('a station with no categories', () => {
+    const lanPrinter: KitchenStation = {
+      id: 'station-1',
+      name: 'Network printer 192.168.1.100',
+      ipAddress: '192.168.1.100',
+      categoryIds: [],
+    };
+
+    it('receives every item and keeps its own printer address', () => {
+      const tickets = routeKitchenTickets(tx, [lanPrinter], categoryOf);
+      expect(tickets).toHaveLength(1);
+      expect(tickets[0].station.ipAddress).toBe('192.168.1.100');
+      expect(tickets[0].items).toHaveLength(3);
+    });
+
+    it('leaves nothing to fall back to the default transport', () => {
+      const tickets = routeKitchenTickets(tx, [lanPrinter], categoryOf);
+      expect(tickets.some((t) => t.station.id === 'unrouted')).toBe(false);
+    });
+
+    it('takes items whose category resolves to nothing at all', () => {
+      const orphan: Pick<SaleTransaction, 'items'> = { items: [item('p9', 'Mystery')] };
+      const tickets = routeKitchenTickets(orphan, [lanPrinter], () => undefined);
+      expect(tickets).toHaveLength(1);
+      expect(tickets[0].station.ipAddress).toBe('192.168.1.100');
+    });
+
+    it('does not disturb stations that do filter by category', () => {
+      const tickets = routeKitchenTickets(tx, [bar, lanPrinter], categoryOf);
+      expect(tickets.find((t) => t.station.id === 's-bar')!.items).toHaveLength(1);
+      expect(tickets.find((t) => t.station.id === 'station-1')!.items).toHaveLength(3);
+      expect(tickets.some((t) => t.station.id === 'unrouted')).toBe(false);
+    });
+  });
 });

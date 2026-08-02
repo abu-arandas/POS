@@ -56,6 +56,12 @@ ALTER TABLE user_accounts ALTER COLUMN store_id SET NOT NULL;
 --    policies with OR, so leaving a `USING (TRUE)` policy in place means every
 --    authenticated terminal keeps full cross-store read/write and the
 --    store-scoped policies below have no effect whatsoever.
+--
+--    Each policy is scoped `TO authenticated`, like the blanket ones it
+--    replaces. Omitting the clause would default to TO PUBLIC — which includes
+--    the `anon` role whose key ships in the client bundle. has_store_access
+--    resolves auth.uid() (NULL for anon) so anon would still be refused, but the
+--    role clause is the outer guard and it costs nothing to keep.
 DO $$
 DECLARE
   tbl text;
@@ -69,22 +75,22 @@ BEGIN
 
     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', tbl || '_read', tbl);
     EXECUTE format(
-      'CREATE POLICY %I ON %I FOR SELECT USING (has_store_access(store_id))',
+      'CREATE POLICY %I ON %I FOR SELECT TO authenticated USING (has_store_access(store_id))',
       tbl || '_read', tbl);
 
     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', tbl || '_insert', tbl);
     EXECUTE format(
-      'CREATE POLICY %I ON %I FOR INSERT WITH CHECK (has_store_access(store_id))',
+      'CREATE POLICY %I ON %I FOR INSERT TO authenticated WITH CHECK (has_store_access(store_id))',
       tbl || '_insert', tbl);
 
     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', tbl || '_update', tbl);
     EXECUTE format(
-      'CREATE POLICY %I ON %I FOR UPDATE USING (has_store_access(store_id)) WITH CHECK (has_store_access(store_id))',
+      'CREATE POLICY %I ON %I FOR UPDATE TO authenticated USING (has_store_access(store_id)) WITH CHECK (has_store_access(store_id))',
       tbl || '_update', tbl);
 
     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', tbl || '_delete', tbl);
     EXECUTE format(
-      'CREATE POLICY %I ON %I FOR DELETE USING (has_store_access(store_id))',
+      'CREATE POLICY %I ON %I FOR DELETE TO authenticated USING (has_store_access(store_id))',
       tbl || '_delete', tbl);
   END LOOP;
 END $$;

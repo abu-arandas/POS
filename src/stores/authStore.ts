@@ -9,7 +9,12 @@ interface AuthState {
   currentUser: UserAccount | null;
   setUsers: (users: UserAccount[]) => void;
   setCurrentUser: (user: UserAccount | null) => void;
-  handleAddUser: (name: string, role: UserAccount['role'], pinHash: string, id?: string) => UserAccount;
+  handleAddUser: (
+    name: string,
+    role: UserAccount['role'],
+    pinHash: string,
+    id?: string,
+  ) => UserAccount;
   handleUpdateUser: (updatedUser: UserAccount) => void;
   handleDeleteUser: (id: string) => void;
 }

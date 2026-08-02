@@ -60,10 +60,7 @@ declare global {
         }>
       >;
       // Scans the local /24 subnet for open TCP 9100 hosts; resolves responding IPs.
-      scanNetworkPrinters?: (opts?: {
-        port?: number;
-        timeoutMs?: number;
-      }) => Promise<string[]>;
+      scanNetworkPrinters?: (opts?: { port?: number; timeoutMs?: number }) => Promise<string[]>;
       // The first argument is Electron's IpcRendererEvent. Typing it as unknown
       // keeps the renderer free of an electron import; callers ignore it.
       onMenuServerError?: (callback: (event: unknown, message: string) => void) => void;

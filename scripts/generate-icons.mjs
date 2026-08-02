@@ -31,8 +31,7 @@ try {
   ({ default: pngToIco } = await import('png-to-ico'));
 } catch {
   console.error(
-    'Missing image tooling. Install the one-off dev deps first:\n' +
-      '  npm i -D sharp png-to-ico',
+    'Missing image tooling. Install the one-off dev deps first:\n' + '  npm i -D sharp png-to-ico',
   );
   process.exit(1);
 }

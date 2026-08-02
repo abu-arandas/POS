@@ -27,7 +27,9 @@ A modern, high-performance, cross-platform Point of Sale (POS) system built with
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18+ recommended)
+- [Node.js](https://nodejs.org/) **v22.12 or newer** (Electron 43 requires
+  `>= 22.12.0` and ESLint 10 requires `^20.19 || ^22.13 || >= 24`; CI builds on
+  Node 22)
 - `npm`
 
 ### Installation
@@ -37,7 +39,7 @@ A modern, high-performance, cross-platform Point of Sale (POS) system built with
    ```bash
    npm install
    ```
-   *Note for Windows users:* If `npm install` fails due to local system security restrictions, run:
+   _Note for Windows users:_ If `npm install` fails due to local system security restrictions, run:
    ```powershell
    powershell -ExecutionPolicy Bypass -Command "npm install"
    ```
@@ -75,10 +77,15 @@ npm run electron:build
 **Output Locations:**
 Once completed successfully, your executables will be located in the `release/` folder inside the workspace:
 
-- **Installer:** `release/EA POS Setup 1.0.0.exe` (Distribute this to install on Windows machines)
+- **Installer:** `release/EA-POS-Setup-1.0.0.exe` (Distribute this to install on Windows machines)
 - **Standalone App:** `release/win-unpacked/EA POS.exe` (Portable version, run directly without installing)
 
 _Troubleshooting: If you get an `EPERM` error during the build, ensure you do not have any File Explorer windows or terminals open inside the `release` folder, as Windows locks files while being viewed._
+
+> **Code signing.** Without a certificate the installer is unsigned, so Windows
+> SmartScreen warns on first run **and** the auto-updater refuses to install
+> updates unattended (it stages them for an operator instead). See
+> [docs/windows-install.md](docs/windows-install.md) for both.
 
 ### Build for Web
 
@@ -110,6 +117,15 @@ in this repository:
 PINs are stored as `SHA-256("<accountId>:<pin>")` — salted with the account id,
 so two accounts sharing a PIN don't share a digest and the well-known hashes for
 `1234`/`0000` never appear in the database.
+
+> **What that salt does and doesn't buy you.** The account id is public and
+> predictable, so the salt defeats rainbow tables across accounts — nothing more.
+> SHA-256 is deliberately fast and a 4-digit PIN is only 10,000 candidates, so
+> anyone who obtains the `user_accounts` table can recover every PIN essentially
+> instantly. The throttles below, not the hash, are what make guessing expensive.
+> Treat the PIN as a _shift-change convenience for a physically controlled
+> terminal_, keep RLS on so the table is never client-readable, and don't reuse a
+> PIN as a password anywhere else.
 
 ### Brute-force protection
 
@@ -148,6 +164,8 @@ transaction columns (operator, points earned, refund authorizer, split payments,
 partial refunds, shift id) and enables live sync, without touching existing data.
 
 ### Multi-store / super-admin (optional)
+
+See [docs/super-admin-plan.md](docs/super-admin-plan.md) for the full design.
 
 For a fleet of locations, run `scripts/multi-store-schema.sql` after
 `scripts/schema.sql`. It adds the `stores` and `memberships` tables, stamps a

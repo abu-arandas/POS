@@ -70,9 +70,7 @@ describe('Lockscreen staff selection', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: /Active Alice/ }));
     await typePin('9999');
 
-    await waitFor(() =>
-      expect(usePinAttemptStore.getState().attempts['u-1']?.failures).toBe(1),
-    );
+    await waitFor(() => expect(usePinAttemptStore.getState().attempts['u-1']?.failures).toBe(1));
     expect(useAuthStore.getState().currentUser).toBeNull();
   });
 

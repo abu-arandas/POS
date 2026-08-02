@@ -88,7 +88,14 @@ const CartPanel = ({
     setDiscountType('loyalty');
     setLoyaltyPointsToUse(maxPointsUse);
     setShowPromoInput(false);
-  }, [activeCustomer, subtotal, settings.loyaltyPointValue, setDiscountType, setLoyaltyPointsToUse, setShowPromoInput]);
+  }, [
+    activeCustomer,
+    subtotal,
+    settings.loyaltyPointValue,
+    setDiscountType,
+    setLoyaltyPointsToUse,
+    setShowPromoInput,
+  ]);
 
   const handleApplyPromoCode = useCallback(() => {
     const val = parseFloat(discountInput);
@@ -100,8 +107,9 @@ const CartPanel = ({
   const loyaltySavings = useMemo(() => {
     if (!activeCustomer) return 0;
     return Math.min(
-      Math.min(activeCustomer.points, Math.ceil(subtotal / settings.loyaltyPointValue)) * settings.loyaltyPointValue,
-      subtotal
+      Math.min(activeCustomer.points, Math.ceil(subtotal / settings.loyaltyPointValue)) *
+        settings.loyaltyPointValue,
+      subtotal,
     );
   }, [activeCustomer, subtotal, settings.loyaltyPointValue]);
 
@@ -128,7 +136,9 @@ const CartPanel = ({
                 <User size={14} className="text-emerald-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-slate-900 dark:text-white text-xs font-bold truncate leading-tight">{activeCustomer.name}</p>
+                <p className="text-slate-900 dark:text-white text-xs font-bold truncate leading-tight">
+                  {activeCustomer.name}
+                </p>
                 <div className="flex items-center gap-1 mt-0.5">
                   <Star size={9} className="text-emerald-400 fill-emerald-400" />
                   <span className="text-[10px] font-mono text-emerald-400 font-bold">
@@ -138,7 +148,10 @@ const CartPanel = ({
               </div>
             </div>
             <button
-              onClick={() => { setSelectedCustomerId(null); setDiscountType('none'); }}
+              onClick={() => {
+                setSelectedCustomerId(null);
+                setDiscountType('none');
+              }}
               aria-label={t('register.removeCustomer')}
               className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0"
             >
@@ -156,10 +169,15 @@ const CartPanel = ({
               >
                 <option value="">{t('register.link')}</option>
                 {customers.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
                 ))}
               </select>
-              <ChevronDown size={12} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              <ChevronDown
+                size={12}
+                className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+              />
             </div>
             <button
               onClick={() => setAddCustomerOpen(true)}
@@ -217,11 +235,13 @@ const CartPanel = ({
                   </p>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="font-mono text-[10px] text-emerald-400 font-medium">
-                      {settings.currency}{item.product.price.toFixed(2)}
+                      {settings.currency}
+                      {item.product.price.toFixed(2)}
                     </span>
                     <span className="text-slate-700 text-[10px]">×</span>
                     <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                      = {settings.currency}{(item.product.price * item.quantity).toFixed(2)}
+                      = {settings.currency}
+                      {(item.product.price * item.quantity).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -309,12 +329,16 @@ const CartPanel = ({
                 {discountType === 'percentage'
                   ? `${discountInput}%`
                   : discountType === 'fixed'
-                  ? `${settings.currency}${discountInput}`
-                  : `${loyaltyPointsToUse} pts`}
+                    ? `${settings.currency}${discountInput}`
+                    : `${loyaltyPointsToUse} pts`}
               </strong>
             </span>
             <button
-              onClick={() => { setDiscountType('none'); setDiscountInput(''); setLoyaltyPointsToUse(0); }}
+              onClick={() => {
+                setDiscountType('none');
+                setDiscountInput('');
+                setLoyaltyPointsToUse(0);
+              }}
               aria-label={t('register.removeDiscount')}
               className="text-amber-500 hover:text-amber-300 transition-colors"
             >
@@ -329,14 +353,20 @@ const CartPanel = ({
             {!showPromoInput ? (
               <>
                 <button
-                  onClick={() => { setDiscountType('percentage'); setShowPromoInput(true); }}
+                  onClick={() => {
+                    setDiscountType('percentage');
+                    setShowPromoInput(true);
+                  }}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-white"
                 >
                   <Percent size={12} />
                   <span dir="ltr">{t('register.addPercent')}</span>
                 </button>
                 <button
-                  onClick={() => { setDiscountType('fixed'); setShowPromoInput(true); }}
+                  onClick={() => {
+                    setDiscountType('fixed');
+                    setShowPromoInput(true);
+                  }}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-white"
                 >
                   <DollarSign size={12} />
@@ -366,7 +396,10 @@ const CartPanel = ({
                   {t('register.apply')}
                 </button>
                 <button
-                  onClick={() => { setDiscountType('none'); setShowPromoInput(false); }}
+                  onClick={() => {
+                    setDiscountType('none');
+                    setShowPromoInput(false);
+                  }}
                   aria-label={t('register.cancelDiscount')}
                   className="p-1.5 text-slate-500 hover:text-slate-600 dark:text-slate-300 transition-colors shrink-0"
                 >
@@ -386,7 +419,10 @@ const CartPanel = ({
         <div className="space-y-1.5">
           <div className="flex justify-between text-slate-500 text-[11px]">
             <span>{t('register.subtotal')}</span>
-            <span className="font-mono">{settings.currency}{subtotal.toFixed(2)}</span>
+            <span className="font-mono">
+              {settings.currency}
+              {subtotal.toFixed(2)}
+            </span>
           </div>
           {discountAmount > 0 && (
             <motion.div
@@ -395,13 +431,21 @@ const CartPanel = ({
               className="flex justify-between text-amber-400 text-[11px] font-medium"
             >
               <span>{t('register.discount').replace(':', '')}</span>
-              <span className="font-mono">−{settings.currency}{discountAmount.toFixed(2)}</span>
+              <span className="font-mono">
+                −{settings.currency}
+                {discountAmount.toFixed(2)}
+              </span>
             </motion.div>
           )}
           {taxAmount > 0 && (
             <div className="flex justify-between text-slate-500 text-[11px]">
-              <span>{t('register.tax')} ({settings.taxRate}%)</span>
-              <span className="font-mono">{settings.currency}{taxAmount.toFixed(2)}</span>
+              <span>
+                {t('register.tax')} ({settings.taxRate}%)
+              </span>
+              <span className="font-mono">
+                {settings.currency}
+                {taxAmount.toFixed(2)}
+              </span>
             </div>
           )}
 
@@ -410,14 +454,17 @@ const CartPanel = ({
             aria-live="polite"
             aria-atomic="true"
           >
-            <span className="text-slate-600 dark:text-slate-300 font-bold text-sm">{t('register.total')}</span>
+            <span className="text-slate-600 dark:text-slate-300 font-bold text-sm">
+              {t('register.total')}
+            </span>
             <motion.span
               key={totalAmount}
               initial={{ scale: 1.08, color: '#34d399' }}
               animate={{ scale: 1, color: '#34d399' }}
               className="font-mono font-bold text-2xl tracking-tight text-emerald-400"
             >
-              {settings.currency}{totalAmount.toFixed(2)}
+              {settings.currency}
+              {totalAmount.toFixed(2)}
             </motion.span>
           </div>
         </div>

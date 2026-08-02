@@ -228,120 +228,124 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion="user">
-    <div
-      id="application-container"
-      className={`flex min-h-screen overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300 ${darkMode ? 'mesh-bg-dark' : 'mesh-bg'}`}
-    >
-      <div id="desktop-sidebar-rail" className="hidden lg:block shrink-0">
-        <Sidebar currentScreen={activeScreen} setScreen={setScreen} isSuperadmin={isSuperadmin} />
-      </div>
+      <div
+        id="application-container"
+        className={`flex min-h-screen overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300 ${darkMode ? 'mesh-bg-dark' : 'mesh-bg'}`}
+      >
+        <div id="desktop-sidebar-rail" className="hidden lg:block shrink-0">
+          <Sidebar currentScreen={activeScreen} setScreen={setScreen} isSuperadmin={isSuperadmin} />
+        </div>
 
-      {/* Main column: mobile top bar (small screens only) plus the active screen.
+        {/* Main column: mobile top bar (small screens only) plus the active screen.
           The screen is mounted exactly once here so there is a single cart and no
           duplicate element IDs across the mobile/desktop layouts. */}
-      <div
-        id="app-shell"
-        className="relative flex flex-col flex-1 min-w-0 h-screen overflow-hidden"
-      >
-        <header
-          className="lg:hidden text-slate-800 dark:text-slate-100 px-4 py-3 flex items-center justify-between shadow-md shrink-0 border-b"
-          style={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}
+        <div
+          id="app-shell"
+          className="relative flex flex-col flex-1 min-w-0 h-screen overflow-hidden"
         >
-          <div className="flex items-center space-x-2">
-            <div className="bg-emerald-500 text-slate-950 p-1.5 rounded-lg">
-              <ShoppingBag size={16} className="stroke-[2.5]" />
+          <header
+            className="lg:hidden text-slate-800 dark:text-slate-100 px-4 py-3 flex items-center justify-between shadow-md shrink-0 border-b"
+            style={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}
+          >
+            <div className="flex items-center space-x-2">
+              <div className="bg-emerald-500 text-slate-950 p-1.5 rounded-lg">
+                <ShoppingBag size={16} className="stroke-[2.5]" />
+              </div>
+              <h1
+                className="font-sans font-bold tracking-tight text-slate-900 dark:text-white text-sm truncate max-w-[120px]"
+                title={settings.storeName}
+              >
+                {settings.storeName}
+              </h1>
+              <span className="text-[9px] uppercase font-mono font-bold bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400">
+                {currentUser.role}
+              </span>
             </div>
-            <h1
-              className="font-sans font-bold tracking-tight text-slate-900 dark:text-white text-sm truncate max-w-[120px]"
-              title={settings.storeName}
-            >
-              {settings.storeName}
-            </h1>
-            <span className="text-[9px] uppercase font-mono font-bold bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400">
-              {currentUser.role}
-            </span>
-          </div>
 
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              aria-label={darkMode ? t('sidebar.lightMode') : t('sidebar.darkMode')}
-              className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg"
-            >
-              {darkMode ? (
-                <div className="text-amber-400" aria-hidden="true">☀️</div>
-              ) : (
-                <div className="text-indigo-400" aria-hidden="true">🌙</div>
-              )}
-            </button>
-            <button
-              onClick={() => setCurrentUser(null)}
-              title={t('sidebar.lockTerminal')}
-              aria-label={t('sidebar.lockTerminal')}
-              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg"
-            >
-              <XIcon size={16} />
-            </button>
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label={t('sidebar.menu')}
-              aria-expanded={mobileMenuOpen}
-              className="p-1.5 text-slate-300 hover:text-white rounded-lg"
-            >
-              <Menu size={20} />
-            </button>
-          </div>
-        </header>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                aria-label={darkMode ? t('sidebar.lightMode') : t('sidebar.darkMode')}
+                className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg"
+              >
+                {darkMode ? (
+                  <div className="text-amber-400" aria-hidden="true">
+                    ☀️
+                  </div>
+                ) : (
+                  <div className="text-indigo-400" aria-hidden="true">
+                    🌙
+                  </div>
+                )}
+              </button>
+              <button
+                onClick={() => setCurrentUser(null)}
+                title={t('sidebar.lockTerminal')}
+                aria-label={t('sidebar.lockTerminal')}
+                className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg"
+              >
+                <XIcon size={16} />
+              </button>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label={t('sidebar.menu')}
+                aria-expanded={mobileMenuOpen}
+                className="p-1.5 text-slate-300 hover:text-white rounded-lg"
+              >
+                <Menu size={20} />
+              </button>
+            </div>
+          </header>
 
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="lg:hidden absolute top-[48px] inset-x-0 border-b shadow-2xl z-40 p-4 space-y-2 flex flex-col"
-              style={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}
-            >
-              {allowedMobileItems.map((item) => {
-                const Icon = item.icon;
-                const isSel = activeScreen === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setScreen(item.id);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`flex items-center justify-between w-full p-3 rounded-xl text-xs font-semibold ${
-                      isSel
-                        ? 'bg-slate-800 text-white border-s-4 border-emerald-500 ps-2'
-                        : 'text-slate-500 dark:text-slate-400 bg-slate-100/60 dark:bg-slate-950/20'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2.5">
-                      <Icon size={16} className={isSel ? 'text-emerald-400' : 'text-slate-500'} />
-                      <span>{item.label}</span>
-                    </div>
-                    {item.badge !== undefined && (
-                      <span className="bg-amber-500 text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full">
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </motion.div>
-          )}
-        </AnimatePresence>
+          <AnimatePresence>
+            {mobileMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="lg:hidden absolute top-[48px] inset-x-0 border-b shadow-2xl z-40 p-4 space-y-2 flex flex-col"
+                style={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}
+              >
+                {allowedMobileItems.map((item) => {
+                  const Icon = item.icon;
+                  const isSel = activeScreen === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setScreen(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`flex items-center justify-between w-full p-3 rounded-xl text-xs font-semibold ${
+                        isSel
+                          ? 'bg-slate-800 text-white border-s-4 border-emerald-500 ps-2'
+                          : 'text-slate-500 dark:text-slate-400 bg-slate-100/60 dark:bg-slate-950/20'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2.5">
+                        <Icon size={16} className={isSel ? 'text-emerald-400' : 'text-slate-500'} />
+                        <span>{item.label}</span>
+                      </div>
+                      {item.badge !== undefined && (
+                        <span className="bg-amber-500 text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full">
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        <main
-          id="desktop-view-container"
-          className="flex flex-1 min-w-0 min-h-0 bg-transparent relative overflow-hidden"
-        >
-          <Suspense fallback={<ScreenLoader />}>{renderActiveScreen()}</Suspense>
-        </main>
+          <main
+            id="desktop-view-container"
+            className="flex flex-1 min-w-0 min-h-0 bg-transparent relative overflow-hidden"
+          >
+            <Suspense fallback={<ScreenLoader />}>{renderActiveScreen()}</Suspense>
+          </main>
+        </div>
       </div>
-    </div>
     </MotionConfig>
   );
 }

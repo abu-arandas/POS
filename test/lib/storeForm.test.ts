@@ -47,7 +47,9 @@ describe('slugifyStoreId', () => {
 
 describe('normalizeStoreForm', () => {
   it('trims fields and drops an empty address', () => {
-    expect(normalizeStoreForm({ name: ' A ', timezone: ' UTC ', currency: ' $ ', address: '   ' })).toEqual({
+    expect(
+      normalizeStoreForm({ name: ' A ', timezone: ' UTC ', currency: ' $ ', address: '   ' }),
+    ).toEqual({
       name: 'A',
       timezone: 'UTC',
       currency: '$',

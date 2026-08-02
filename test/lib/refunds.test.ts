@@ -144,4 +144,43 @@ describe('computeRefund', () => {
     };
     expect(computeRefund(tx, { latte: 2, muffin: 1 }, 1)!.pointsReversal).toBe(-8 + 100);
   });
+
+  // A walk-in sale has no customer, so buildSaleTransaction leaves pointsEarned
+  // undefined. The `?? Math.floor(total * rate)` fallback used to invent an
+  // award nobody received, and the refund screen offered to reverse it.
+  describe('a sale with no customer', () => {
+    const walkIn: SaleTransaction = {
+      ...baseTx,
+      customerId: null,
+      customerName: null,
+      pointsEarned: undefined,
+    };
+
+    it('reverses no points on a full refund', () => {
+      const r = computeRefund(walkIn, { latte: 2, muffin: 1 }, 1, 0.05)!;
+      expect(r.pointsReversal).toBe(0);
+      expect(r.refundAmount).toBe(13.75); // money is unaffected
+    });
+
+    it('reverses no points on a partial refund', () => {
+      expect(computeRefund(walkIn, { latte: 1 }, 1, 0.05)!.pointsReversal).toBe(0);
+    });
+
+    it('reverses nothing even if the row somehow carries a loyalty discount', () => {
+      const odd: SaleTransaction = {
+        ...walkIn,
+        discountType: 'loyalty',
+        discountValue: 100,
+        discount: 5,
+      };
+      expect(computeRefund(odd, { latte: 2, muffin: 1 }, 1, 0.05)!.pointsReversal).toBe(0);
+    });
+
+    it('still reverses points once a customer is attached', () => {
+      const withCustomer = { ...walkIn, customerId: 'c1' };
+      expect(computeRefund(withCustomer, { latte: 2, muffin: 1 }, 1, 0.05)!.pointsReversal).toBe(
+        -13,
+      );
+    });
+  });
 });

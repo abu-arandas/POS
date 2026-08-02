@@ -96,4 +96,3 @@ export async function hashPinSalted(userId: string, pin: string): Promise<string
 export function hashPinSaltedSync(userId: string, pin: string): string {
   return sha256HexSync(`${userId}:${pin}`);
 }
-

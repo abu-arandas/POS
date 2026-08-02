@@ -73,7 +73,7 @@ describe('buildSaleTransaction', () => {
     });
     expect(res.success).toBe(true);
     if (!res.success) return;
-    
+
     // Earned: 11 * 1 = 11 pts.
     // Redeemed: $10 / $0.05 = 200 pts.
     // Net: 11 - 200 = -189

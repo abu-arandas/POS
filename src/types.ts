@@ -292,6 +292,12 @@ export interface KitchenStation {
   name: string;
   categoryIds: string[]; // product categories routed to this station
   ipAddress?: string; // optional dedicated network printer (TCP 9100)
+  // Optional named OS/USB printer for this station, driven through the Windows
+  // RAW spooler. Lets a station target a local printer rather than a network
+  // one — e.g. receipts on the LAN printer and kitchen tickets on the USB one,
+  // which was previously impossible because a station could only carry an IP.
+  // ipAddress wins when both are set.
+  printerName?: string;
 }
 
 // Placeholder-based template for the pre-filled receipt email. Supported

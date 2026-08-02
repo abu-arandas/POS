@@ -19,8 +19,9 @@
     "test:e2e": "playwright test",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:build": "npm run build && electron-builder",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
-    "portable": "vite build --config vite.portable.config.ts"
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"test/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"scripts/*.mjs\" \"electron/*.cjs\" \"*.{json,md}\" \"docs/*.md\"",
+    "portable": "vite build --config vite.portable.config.ts",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"test/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"scripts/*.mjs\" \"electron/*.cjs\" \"*.{json,md}\" \"docs/*.md\""
   },
   "build": {
     "appId": "com.eapos.app",
@@ -84,6 +85,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "concurrently": "^10.0.3",
     "cross-env": "^10.1.0",
+    "dom-accessibility-api": "^0.5.16",
     "dotenv": "^17.2.3",
     "electron": "^43.1.0",
     "electron-builder": "^26.15.3",

@@ -61,8 +61,17 @@ CREATE INDEX IF NOT EXISTS idx_products_store           ON products (store_id);
 CREATE INDEX IF NOT EXISTS idx_memberships_user         ON memberships (user_id);
 
 -- 5. Access predicates (SECURITY DEFINER so policies can call them) --------
+--
+-- Every SECURITY DEFINER function here pins `SET search_path` (matching
+-- verify_login in schema.sql). A definer function that inherits the caller's
+-- search_path is the classic Postgres privilege-escalation vector: anyone able
+-- to create objects in a schema that sorts earlier can shadow `memberships` or
+-- `stores` and make the predicate return TRUE. These two functions ARE the
+-- multi-store authorization boundary, so they are the last place to leave it
+-- mutable. (Supabase's linter flags this as `function_search_path_mutable`.)
 CREATE OR REPLACE FUNCTION is_superadmin(p_org TEXT)
-RETURNS BOOLEAN LANGUAGE SQL STABLE SECURITY DEFINER AS $$
+RETURNS BOOLEAN LANGUAGE SQL STABLE SECURITY DEFINER
+SET search_path = public AS $$
   SELECT EXISTS (
     SELECT 1 FROM memberships m
     WHERE m.user_id = auth.uid() AND m.org_id = p_org
@@ -71,7 +80,8 @@ RETURNS BOOLEAN LANGUAGE SQL STABLE SECURITY DEFINER AS $$
 $$;
 
 CREATE OR REPLACE FUNCTION has_store_access(p_store TEXT)
-RETURNS BOOLEAN LANGUAGE SQL STABLE SECURITY DEFINER AS $$
+RETURNS BOOLEAN LANGUAGE SQL STABLE SECURITY DEFINER
+SET search_path = public AS $$
   SELECT EXISTS (
     SELECT 1 FROM memberships m
     WHERE m.user_id = auth.uid()
@@ -87,28 +97,35 @@ $$;
 ALTER TABLE stores      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
 
+-- Every policy names `TO authenticated`, matching the blanket policies in
+-- schema.sql. A policy with no TO clause defaults to TO PUBLIC, which includes
+-- the `anon` role that ships in the client bundle. The predicates below all
+-- resolve auth.uid() (NULL for anon), so anon is already refused on the merits —
+-- but the role clause is the cheap outer guard, and dropping it means a future
+-- predicate change is one edit away from exposing rows to the public key.
 DROP POLICY IF EXISTS stores_read ON stores;
-CREATE POLICY stores_read ON stores FOR SELECT
+CREATE POLICY stores_read ON stores FOR SELECT TO authenticated
   USING (has_store_access(id));
 
 DROP POLICY IF EXISTS stores_write ON stores;
-CREATE POLICY stores_write ON stores FOR ALL
+CREATE POLICY stores_write ON stores FOR ALL TO authenticated
   USING (is_superadmin(org_id))
   WITH CHECK (is_superadmin(org_id));
 
 DROP POLICY IF EXISTS memberships_self_read ON memberships;
-CREATE POLICY memberships_self_read ON memberships FOR SELECT
+CREATE POLICY memberships_self_read ON memberships FOR SELECT TO authenticated
   USING (user_id = auth.uid() OR is_superadmin(org_id));
 
 DROP POLICY IF EXISTS memberships_admin_write ON memberships;
-CREATE POLICY memberships_admin_write ON memberships FOR ALL
+CREATE POLICY memberships_admin_write ON memberships FOR ALL TO authenticated
   USING (is_superadmin(org_id))
   WITH CHECK (is_superadmin(org_id));
 
 -- 7. Heartbeat: a terminal marks its store "seen". Only its own store, and
 --    only if it has access to it (RLS-checked inside the function body).
 CREATE OR REPLACE FUNCTION store_heartbeat(p_store TEXT)
-RETURNS VOID LANGUAGE PLPGSQL SECURITY DEFINER AS $$
+RETURNS VOID LANGUAGE PLPGSQL SECURITY DEFINER
+SET search_path = public AS $$
 BEGIN
   IF NOT has_store_access(p_store) THEN
     RAISE EXCEPTION 'no access to store %', p_store;

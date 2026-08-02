@@ -143,13 +143,15 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
           <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-lg sm:text-xl flex items-center gap-2">
             <PackageOpen className="text-emerald-500" size={22} /> {t('catalogPush.title')}
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{t('catalogPush.subtitle')}</p>
+          <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+            {t('catalogPush.subtitle')}
+          </p>
         </motion.div>
         <button
           onClick={load}
           disabled={loading || working}
           aria-label={t('fleet.refresh')}
-          className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+          className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
@@ -159,7 +161,9 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
         {stores.length < 2 ? (
           <div className="surface rounded-3xl py-20 flex flex-col items-center justify-center text-slate-500 gap-3">
             <PackageOpen size={40} className="opacity-20" />
-            <p className="font-mono text-xs max-w-xs text-center">{t('catalogPush.needTwoStores')}</p>
+            <p className="font-mono text-xs max-w-xs text-center">
+              {t('catalogPush.needTwoStores')}
+            </p>
           </div>
         ) : (
           <>
@@ -168,10 +172,14 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1.5fr] gap-6 items-start">
                 {/* Source */}
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <label
+                    htmlFor="catalog-push-source"
+                    className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400"
+                  >
                     {t('catalogPush.source')}
-                  </span>
+                  </label>
                   <select
+                    id="catalog-push-source"
                     value={sourceId}
                     onChange={(e) => {
                       setSourceId(e.target.value);
@@ -201,7 +209,9 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                   </span>
                   <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {targets.length === 0 ? (
-                      <p className="text-[11px] font-mono text-slate-500">{t('catalogPush.pickSourceFirst')}</p>
+                      <p className="text-[11px] font-mono text-slate-500">
+                        {t('catalogPush.pickSourceFirst')}
+                      </p>
                     ) : (
                       targets.map((s) => {
                         const on = targetIds.includes(s.id);
@@ -248,7 +258,9 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                       }}
                       className="accent-emerald-500 w-4 h-4"
                     />
-                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{t(`catalogPush.${label}`)}</span>
+                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      {t(`catalogPush.${label}`)}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -279,27 +291,52 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
               <div className="surface rounded-3xl shadow-xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5 flex items-center gap-2">
                   <Eye size={16} className="text-emerald-500" />
-                  <h3 className="font-sans font-bold text-slate-900 dark:text-white text-sm">{t('catalogPush.previewTitle')}</h3>
+                  <h3 className="font-sans font-bold text-slate-900 dark:text-white text-sm">
+                    {t('catalogPush.previewTitle')}
+                  </h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="text-[10px] font-mono uppercase text-slate-500 border-b border-slate-200 dark:border-white/5">
-                        <th className="text-start px-6 py-2 font-semibold">{t('catalogPush.store')}</th>
-                        <th className="text-end px-4 py-2 font-semibold">{t('catalogPush.colProducts')}</th>
-                        <th className="text-end px-4 py-2 font-semibold">{t('catalogPush.colPrices')}</th>
-                        <th className="text-end px-4 py-2 font-semibold">{t('catalogPush.colCategories')}</th>
-                        <th className="text-end px-6 py-2 font-semibold">{t('catalogPush.colUnchanged')}</th>
+                        <th className="text-start px-6 py-2 font-semibold">
+                          {t('catalogPush.store')}
+                        </th>
+                        <th className="text-end px-4 py-2 font-semibold">
+                          {t('catalogPush.colProducts')}
+                        </th>
+                        <th className="text-end px-4 py-2 font-semibold">
+                          {t('catalogPush.colPrices')}
+                        </th>
+                        <th className="text-end px-4 py-2 font-semibold">
+                          {t('catalogPush.colCategories')}
+                        </th>
+                        <th className="text-end px-6 py-2 font-semibold">
+                          {t('catalogPush.colUnchanged')}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {preview.map((r) => (
-                        <tr key={r.storeId} className="border-b border-slate-200 dark:border-white/5 last:border-0">
-                          <td className="px-6 py-3 font-bold text-slate-900 dark:text-white">{r.storeName}</td>
-                          <td className="px-4 py-3 text-end font-mono text-emerald-400">+{r.summary.productsAdded}</td>
-                          <td className="px-4 py-3 text-end font-mono text-blue-400">{r.summary.pricesUpdated}</td>
-                          <td className="px-4 py-3 text-end font-mono text-violet-400">+{r.summary.categoriesAdded}</td>
-                          <td className="px-6 py-3 text-end font-mono text-slate-500">{r.summary.unchanged}</td>
+                        <tr
+                          key={r.storeId}
+                          className="border-b border-slate-200 dark:border-white/5 last:border-0"
+                        >
+                          <td className="px-6 py-3 font-bold text-slate-900 dark:text-white">
+                            {r.storeName}
+                          </td>
+                          <td className="px-4 py-3 text-end font-mono text-emerald-400">
+                            +{r.summary.productsAdded}
+                          </td>
+                          <td className="px-4 py-3 text-end font-mono text-blue-400">
+                            {r.summary.pricesUpdated}
+                          </td>
+                          <td className="px-4 py-3 text-end font-mono text-violet-400">
+                            +{r.summary.categoriesAdded}
+                          </td>
+                          <td className="px-6 py-3 text-end font-mono text-slate-500">
+                            {r.summary.unchanged}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -315,12 +352,16 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
             {results && (
               <div className="surface rounded-3xl shadow-xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5">
-                  <h3 className="font-sans font-bold text-slate-900 dark:text-white text-sm">{t('catalogPush.resultsTitle')}</h3>
+                  <h3 className="font-sans font-bold text-slate-900 dark:text-white text-sm">
+                    {t('catalogPush.resultsTitle')}
+                  </h3>
                 </div>
                 <ul className="divide-y divide-white/5">
                   {results.map((r) => (
                     <li key={r.storeId} className="px-6 py-3 flex items-center justify-between">
-                      <span className="text-sm font-bold text-slate-900 dark:text-white">{r.storeName}</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">
+                        {r.storeName}
+                      </span>
                       {r.ok ? (
                         <span className="badge badge-emerald flex items-center gap-1">
                           <Check size={11} /> {t('catalogPush.pushed')}

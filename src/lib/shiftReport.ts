@@ -17,7 +17,6 @@ export function cashKept(tx: SaleTransaction): number {
   return 0;
 }
 
-
 export interface ShiftSummary {
   saleCount: number;
   grossSales: number; // sum of sale totals (net of refunds)
@@ -44,7 +43,7 @@ export function summarizeShift(transactions: SaleTransaction[]): ShiftSummary {
     const net = tx.status === 'refunded' ? 0 : tx.total - (tx.refundedAmount ?? 0);
     grossSales += net;
     cashSales += cashKept(tx);
-    
+
     const refundAmt = tx.refundedAmount ?? 0;
     if (refundAmt > 0 && tx.total > 0) {
       const cashShare = cashKept(tx) / tx.total;

@@ -6,7 +6,18 @@ const express = require('express');
 const cors = require('cors');
 const os = require('os');
 const net = require('net');
+const { fileURLToPath } = require('url');
 const { hasPublisherName, resolveUpdatePolicy } = require('./updatePolicy.cjs');
+
+// Exactly one terminal process per machine. Two instances would fight over the
+// menu server's port, and cleanupTempFiles() below deletes every eapos-*.bin at
+// startup — including a sibling instance's in-flight print job. A CommonJS
+// module body is function-wrapped, so this top-level return is legal and stops
+// the second instance before it starts a server or touches the temp directory.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+  return;
+}
 
 let menuData = { products: [], categories: [], settings: {} };
 
@@ -41,7 +52,10 @@ function startMenuServer(port, attemptsLeft) {
     } else {
       console.error('Menu server failed to start:', err.message);
       if (mainWindow) {
-        mainWindow.webContents.send('menu-server-error', 'Menu server failed to start: ' + err.message);
+        mainWindow.webContents.send(
+          'menu-server-error',
+          'Menu server failed to start: ' + err.message,
+        );
       }
     }
   });
@@ -51,14 +65,26 @@ startMenuServer(3001, 10);
 
 function getLocalIp() {
   const interfaces = os.networkInterfaces();
-  
+
   // 1. Prioritize typical physical adapter names (ignore virtual ones)
   for (const name of Object.keys(interfaces)) {
     const lowerName = name.toLowerCase();
-    if (lowerName.includes('veth') || lowerName.includes('virtual') || lowerName.includes('tailscale') || lowerName.includes('wg') || lowerName.includes('vmware')) {
+    if (
+      lowerName.includes('veth') ||
+      lowerName.includes('virtual') ||
+      lowerName.includes('tailscale') ||
+      lowerName.includes('wg') ||
+      lowerName.includes('vmware')
+    ) {
       continue;
     }
-    if (lowerName.includes('eth') || lowerName.includes('en') || lowerName.includes('wlan') || lowerName.includes('wi-fi') || lowerName.includes('ethernet')) {
+    if (
+      lowerName.includes('eth') ||
+      lowerName.includes('en') ||
+      lowerName.includes('wlan') ||
+      lowerName.includes('wi-fi') ||
+      lowerName.includes('ethernet')
+    ) {
       for (const iface of interfaces[name]) {
         if (iface.family === 'IPv4' && !iface.internal) {
           return iface.address;
@@ -236,8 +262,11 @@ ipcMain.handle('print-html', async (event, payload) => {
 // the winspool spooler (RAW datatype) — bypassing the driver so ESC/POS
 // (receipt text, barcode, and the cash-drawer pulse) reaches a USB thermal
 // printer unmodified, silently, with no dialog. Windows-only.
-const RAW_PRINT_PS1 = `param([Parameter(Mandatory=$true)][string]$PrinterName,[Parameter(Mandatory=$true)][string]$DataPath)
-$ErrorActionPreference = 'Stop'
+//
+// This is the preamble only; print-raw appends the two call lines and hands the
+// whole thing to PowerShell via -EncodedCommand (see there for why it is not
+// written to disk).
+const RAW_PRINT_PS1 = `$ErrorActionPreference = 'Stop'
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -265,25 +294,40 @@ public class EAPosRaw {
     return ok;
   }
 }
-"@
-$bytes = [System.IO.File]::ReadAllBytes($DataPath)
-if([EAPosRaw]::Send($PrinterName, $bytes)) { exit 0 } else { exit 1 }`;
+"@`;
 
 ipcMain.handle('print-raw', async (event, payload) => {
   const { printerName, data } = payload || {};
   if (process.platform !== 'win32') return false; // spooler RAW path is Windows-only
   if (!printerName || !Array.isArray(data) || data.length === 0) return false;
+
+  // The script is handed to PowerShell as -EncodedCommand rather than written to
+  // a .ps1 in the temp directory and executed by path. This app ships with
+  // requestedExecutionLevel "requireAdministrator", so anything that could win
+  // the race between writing that file and spawning it would have got elevated
+  // code execution. There is no longer a script file to swap. The printer name
+  // and the byte payload are embedded as PowerShell literals below, so nothing
+  // reaches a command line where argument parsing could reinterpret it.
+  //
+  // The receipt bytes still need a file (WritePrinter takes a byte[] and a
+  // multi-kilobyte base64 literal in a command line is fragile), but that file
+  // is only ever *read* — swapping it changes what gets printed, not what runs.
   const stamp = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const dataPath = path.join(os.tmpdir(), `eapos-${stamp}.bin`);
-  const psPath = path.join(os.tmpdir(), `eapos-${stamp}.ps1`);
   try {
     fs.writeFileSync(dataPath, Buffer.from(data));
-    fs.writeFileSync(psPath, RAW_PRINT_PS1, 'utf8');
+    // Single-quoted PowerShell literals: the only escape needed is '' for '.
+    const psLiteral = (s) => `'${String(s).replace(/'/g, "''")}'`;
+    const script =
+      `${RAW_PRINT_PS1}\n` +
+      `$bytes = [System.IO.File]::ReadAllBytes(${psLiteral(dataPath)})\n` +
+      `if([EAPosRaw]::Send(${psLiteral(printerName)}, $bytes)) { exit 0 } else { exit 1 }`;
+    // -EncodedCommand takes UTF-16LE base64.
+    const encoded = Buffer.from(script, 'utf16le').toString('base64');
     return await new Promise((resolve) => {
       const ps = spawn(
         'powershell.exe',
-        ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', psPath,
-          '-PrinterName', printerName, '-DataPath', dataPath],
+        ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
         { windowsHide: true },
       );
       ps.on('error', () => resolve(false));
@@ -293,8 +337,11 @@ ipcMain.handle('print-raw', async (event, payload) => {
     console.error('print-raw failed:', err.message);
     return false;
   } finally {
-    try { fs.unlinkSync(dataPath); } catch { /* ignore */ }
-    try { fs.unlinkSync(psPath); } catch { /* ignore */ }
+    try {
+      fs.unlinkSync(dataPath);
+    } catch {
+      /* ignore */
+    }
   }
 });
 
@@ -350,7 +397,9 @@ function cleanupTempFiles() {
       if (/^eapos-.*\.(bin|ps1)$/.test(file)) {
         try {
           fs.unlinkSync(path.join(tmpdir, file));
-        } catch (e) { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     }
   } catch (err) {
@@ -361,7 +410,7 @@ function cleanupTempFiles() {
 let autoUpdater = null;
 try {
   autoUpdater = require('electron-updater').autoUpdater;
-} catch (e) {
+} catch {
   console.log('electron-updater not available in dev mode');
 }
 
@@ -392,7 +441,7 @@ function setupAutoUpdater() {
     console.warn(
       'AutoUpdater: no publisherName in app-update.yml, so downloaded updates ' +
         'are NOT signature-verified. Automatic installation is disabled — see ' +
-        'BUILD-WINDOWS.md. Sign the build to restore unattended updates.',
+        'docs/windows-install.md. Sign the build to restore unattended updates.',
     );
   }
 
@@ -485,10 +534,27 @@ ipcMain.handle('install-update', () => {
 // else is handed to the real browser, outside Electron.
 const ALLOWED_ORIGINS = new Set(['http://localhost:3000', 'http://127.0.0.1:3000']);
 
+// The app's own directory — in a packaged build this is inside app.asar, which
+// holds dist/ and electron/. Anything outside it is not our renderer.
+const APP_ROOT = path.resolve(__dirname, '..');
+
 function isInternal(rawUrl) {
   try {
     const url = new URL(rawUrl);
-    if (url.protocol === 'file:') return true; // the packaged dist/index.html
+    if (url.protocol === 'file:') {
+      // Only the packaged renderer under APP_ROOT — not "any file: URL". The
+      // blanket allow meant a navigation to file:///etc/passwd (or a UNC path
+      // on Windows, which would also hit the network) was treated as in-app.
+      // path.relative escaping upward means it is somewhere else on disk.
+      let filePath;
+      try {
+        filePath = fileURLToPath(url);
+      } catch {
+        return false; // not a well-formed local file URL (e.g. a UNC host)
+      }
+      const rel = path.relative(APP_ROOT, filePath);
+      return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+    }
     return ALLOWED_ORIGINS.has(url.origin); // the Vite dev server
   } catch {
     return false;
@@ -540,6 +606,15 @@ app.on('web-contents-created', (_event, contents) => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
+// Someone launched the app again (desktop shortcut, another double-click).
+// Surface the window we already have instead of starting a second terminal.
+app.on('second-instance', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
+
 app.on('ready', () => {
   cleanupTempFiles();
   createWindow();

@@ -166,12 +166,13 @@ export default function Register() {
   const addToCart = useCallback((product: Product) => {
     if (product.stock <= 0) return;
     setCart((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
-      if (existing) {
+      const existingIndex = prev.findIndex((item) => item.product.id === product.id);
+      if (existingIndex >= 0) {
+        const existing = prev[existingIndex];
         if (existing.quantity >= product.stock) return prev;
-        return prev.map((item) =>
-          item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item,
-        );
+        const newCart = [...prev];
+        newCart[existingIndex] = { ...existing, quantity: existing.quantity + 1 };
+        return newCart;
       }
       return [...prev, { product, quantity: 1 }];
     });
@@ -194,8 +195,10 @@ export default function Register() {
     );
   }, []);
 
-  const removeFromCart = useCallback((productId: string) =>
-    setCart((prev) => prev.filter((item) => item.product.id !== productId)), []);
+  const removeFromCart = useCallback(
+    (productId: string) => setCart((prev) => prev.filter((item) => item.product.id !== productId)),
+    [],
+  );
 
   const clearCart = useCallback(() => {
     setCart([]);
@@ -263,39 +266,56 @@ export default function Register() {
       operatorName: currentUser?.name ?? null,
     });
     clearCart();
-  }, [cart, selectedCustomerId, discountType, discountInput, loyaltyPointsToUse, currentUser, holdOrder, clearCart, t]);
+  }, [
+    cart,
+    selectedCustomerId,
+    discountType,
+    discountInput,
+    loyaltyPointsToUse,
+    currentUser,
+    holdOrder,
+    clearCart,
+    t,
+  ]);
 
-  const resumeHeldOrder = useCallback((order: HeldOrder) => {
-    if (cart.length > 0 && !window.confirm(t('register.resumeReplaceWarning'))) return;
-    // Rebuild the cart from the current catalog so prices/stock are live; drop
-    // any line whose product no longer exists.
-    const liveProducts = useProductStore.getState().products;
-    const rebuilt = order.items
-      .map((i) => {
-        const product = liveProducts.find((p) => p.id === i.productId);
-        return product ? { product, quantity: Math.min(i.quantity, product.stock) } : null;
-      })
-      .filter((x): x is { product: Product; quantity: number } => x !== null && x.quantity > 0);
-    setCart(rebuilt);
-    setSelectedCustomerId(order.customerId);
-    setDiscountType(order.discountType);
-    setDiscountInput(order.discountInput);
-    setLoyaltyPointsToUse(order.loyaltyPointsToUse);
-    setShowPromoInput(false);
-    removeHeldOrder(order.id);
-    setHeldModalOpen(false);
-  }, [cart, removeHeldOrder, t]);
+  const resumeHeldOrder = useCallback(
+    (order: HeldOrder) => {
+      if (cart.length > 0 && !window.confirm(t('register.resumeReplaceWarning'))) return;
+      // Rebuild the cart from the current catalog so prices/stock are live; drop
+      // any line whose product no longer exists.
+      const liveProducts = useProductStore.getState().products;
+      const liveMap = new Map(liveProducts.map((p) => [p.id, p]));
+      const rebuilt = order.items
+        .map((i) => {
+          const product = liveMap.get(i.productId);
+          return product ? { product, quantity: Math.min(i.quantity, product.stock) } : null;
+        })
+        .filter((x): x is { product: Product; quantity: number } => x !== null && x.quantity > 0);
+      setCart(rebuilt);
+      setSelectedCustomerId(order.customerId);
+      setDiscountType(order.discountType);
+      setDiscountInput(order.discountInput);
+      setLoyaltyPointsToUse(order.loyaltyPointsToUse);
+      setShowPromoInput(false);
+      removeHeldOrder(order.id);
+      setHeldModalOpen(false);
+    },
+    [cart, removeHeldOrder, t],
+  );
 
-  const handleAddNewCustomer = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    if (!custName.trim()) return;
-    const newCust = handleAddCustomer(custName, custPhone, custEmail);
-    setSelectedCustomerId(newCust.id);
-    setCustName('');
-    setCustPhone('');
-    setCustEmail('');
-    setAddCustomerOpen(false);
-  }, [custName, custPhone, custEmail, handleAddCustomer]);
+  const handleAddNewCustomer = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!custName.trim()) return;
+      const newCust = handleAddCustomer(custName, custPhone, custEmail);
+      setSelectedCustomerId(newCust.id);
+      setCustName('');
+      setCustPhone('');
+      setCustEmail('');
+      setAddCustomerOpen(false);
+    },
+    [custName, custPhone, custEmail, handleAddCustomer],
+  );
 
   const handleCheckoutClick = useCallback(() => {
     if (cart.length === 0) return;
@@ -316,18 +336,26 @@ export default function Register() {
     const remaining = Math.max(0, splitRemaining);
     setSplitPayments((prev) => [...prev, { method: 'cash', amount: Number(remaining.toFixed(2)) }]);
   }, [splitRemaining]);
-  const updateSplitPayment = useCallback((idx: number, patch: Partial<Payment>) =>
-    setSplitPayments((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p))), []);
-  const removeSplitPayment = useCallback((idx: number) =>
-    setSplitPayments((prev) => prev.filter((_, i) => i !== idx)), []);
+  const updateSplitPayment = useCallback(
+    (idx: number, patch: Partial<Payment>) =>
+      setSplitPayments((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p))),
+    [],
+  );
+  const removeSplitPayment = useCallback(
+    (idx: number) => setSplitPayments((prev) => prev.filter((_, i) => i !== idx)),
+    [],
+  );
 
-  const notifyPrint = useCallback((outcome: HardwarePrintOutcome) => {
-    if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
-    else if (outcome === 'unsupported')
-      alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
-    else if (outcome === 'no-device') alert(t('print.noDevice'));
-    else if (outcome === 'error') alert(t('print.error'));
-  }, [t, printerConfig]);
+  const notifyPrint = useCallback(
+    (outcome: HardwarePrintOutcome) => {
+      if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+      else if (outcome === 'unsupported')
+        alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
+      else if (outcome === 'no-device') alert(t('print.noDevice'));
+      else if (outcome === 'error') alert(t('print.error'));
+    },
+    [t, printerConfig],
+  );
 
   const handleCompletePayment = useCallback(() => {
     const req: CheckoutRequest = {
@@ -366,9 +394,10 @@ export default function Register() {
     // from add-to-cart time; writing those back would silently revert any
     // price/name/stock edit made while the sale was open.
     const liveProducts = useProductStore.getState().products;
+    const liveMap = new Map(liveProducts.map((p) => [p.id, p]));
     const updatedProducts: Product[] = [];
     cart.forEach((item) => {
-      const live = liveProducts.find((p) => p.id === item.product.id);
+      const live = liveMap.get(item.product.id);
       if (!live) return; // product deleted mid-sale; nothing to decrement
       const updated = { ...live, stock: Math.max(0, live.stock - item.quantity) };
       handleUpdateProduct(updated);
@@ -379,9 +408,9 @@ export default function Register() {
     let updatedCustomer = null;
     if (selectedCustomerId) {
       updateCustomerPoints(selectedCustomerId, pointsDelta);
-      updatedCustomer = useCustomerStore
-        .getState()
-        .customers.find((c) => c.id === selectedCustomerId);
+      const customerState = useCustomerStore.getState().customers;
+      const custMap = new Map(customerState.map((c) => [c.id, c]));
+      updatedCustomer = custMap.get(selectedCustomerId) || null;
     }
 
     addTransaction(transaction);
@@ -401,18 +430,54 @@ export default function Register() {
       saleMethod === 'cash' || (payments?.some((p) => p.method === 'cash') ?? false);
 
     if (printerConfig.autoPrintOnCheckout) {
-      printReceipt(transaction, settings, printerConfig, isCashSale, receiptLayout).then(notifyPrint);
+      printReceipt(transaction, settings, printerConfig, isCashSale, receiptLayout).then(
+        notifyPrint,
+      );
     } else if (isCashSale) {
       openCashDrawer(printerConfig);
     }
     if (printerConfig.kitchenTicketOnCheckout) {
       const catOf = (productId: string) =>
         useProductStore.getState().products.find((p) => p.id === productId)?.category;
-      printKitchenTickets(transaction, settings, printerConfig, kitchenStations, catOf, kitchenLayout).then(
-        notifyPrint,
-      );
+      printKitchenTickets(
+        transaction,
+        settings,
+        printerConfig,
+        kitchenStations,
+        catOf,
+        kitchenLayout,
+      ).then(notifyPrint);
     }
-  }, [cartItems, subtotal, discountType, discountValue, discountAmount, taxAmount, totalAmount, paymentMethod, splitMode, splitPayments, cashPaidText, cashChangeDue, selectedCustomerId, activeCustomer, currentUser, currentShiftId, settings, cart, handleUpdateProduct, updateCustomerPoints, addTransaction, printerConfig, kitchenStations, receiptLayout, kitchenLayout, clearCart, t, notifyPrint]);
+  }, [
+    cartItems,
+    subtotal,
+    discountType,
+    discountValue,
+    discountAmount,
+    taxAmount,
+    totalAmount,
+    paymentMethod,
+    splitMode,
+    splitPayments,
+    cashPaidText,
+    cashChangeDue,
+    selectedCustomerId,
+    activeCustomer,
+    currentUser,
+    currentShiftId,
+    settings,
+    cart,
+    handleUpdateProduct,
+    updateCustomerPoints,
+    addTransaction,
+    printerConfig,
+    kitchenStations,
+    receiptLayout,
+    kitchenLayout,
+    clearCart,
+    t,
+    notifyPrint,
+  ]);
 
   const handlePrintActiveReceipt = useCallback(async () => {
     if (!activeReceipt) return;
@@ -424,43 +489,98 @@ export default function Register() {
     const catOf = (productId: string) =>
       useProductStore.getState().products.find((p) => p.id === productId)?.category;
     notifyPrint(
-      await printKitchenTickets(activeReceipt, settings, printerConfig, kitchenStations, catOf, kitchenLayout),
+      await printKitchenTickets(
+        activeReceipt,
+        settings,
+        printerConfig,
+        kitchenStations,
+        catOf,
+        kitchenLayout,
+      ),
     );
   }, [activeReceipt, settings, printerConfig, kitchenStations, kitchenLayout, notifyPrint]);
 
-  const paymentMethodsArray = useMemo(() => [
-    { id: 'card', label: t('register.payCard'), icon: CreditCard, activeClass: 'active-card' },
-    { id: 'cash', label: t('register.payCash'), icon: DollarSign, activeClass: 'active-cash' },
-    { id: 'mobile', label: t('register.payMobile'), icon: Smartphone, activeClass: 'active-mobile' },
-    { id: 'gift', label: t('register.payGift'), icon: Gift, activeClass: 'active-gift' },
-  ] as const, [t]);
+  const paymentMethodsArray = useMemo(
+    () =>
+      [
+        { id: 'card', label: t('register.payCard'), icon: CreditCard, activeClass: 'active-card' },
+        { id: 'cash', label: t('register.payCash'), icon: DollarSign, activeClass: 'active-cash' },
+        {
+          id: 'mobile',
+          label: t('register.payMobile'),
+          icon: Smartphone,
+          activeClass: 'active-mobile',
+        },
+        { id: 'gift', label: t('register.payGift'), icon: Gift, activeClass: 'active-gift' },
+      ] as const,
+    [t],
+  );
 
-  const addCustomerFieldsArray = useMemo(() => [
-    { label: t('register.fullName'), type: 'text', value: custName, onChange: setCustName, placeholder: 'e.g. John Doe', required: true },
-    { label: t('register.phoneNumber'), type: 'tel', value: custPhone, onChange: setCustPhone, placeholder: 'e.g. 555-0100', required: false },
-    { label: t('register.emailAddress'), type: 'email', value: custEmail, onChange: setCustEmail, placeholder: 'e.g. john@example.com', required: false }
-  ], [t, custName, custPhone, custEmail]);
+  const addCustomerFieldsArray = useMemo(
+    () => [
+      {
+        label: t('register.fullName'),
+        type: 'text',
+        value: custName,
+        onChange: setCustName,
+        placeholder: 'e.g. John Doe',
+        required: true,
+      },
+      {
+        label: t('register.phoneNumber'),
+        type: 'tel',
+        value: custPhone,
+        onChange: setCustPhone,
+        placeholder: 'e.g. 555-0100',
+        required: false,
+      },
+      {
+        label: t('register.emailAddress'),
+        type: 'email',
+        value: custEmail,
+        onChange: setCustEmail,
+        placeholder: 'e.g. john@example.com',
+        required: false,
+      },
+    ],
+    [t, custName, custPhone, custEmail],
+  );
 
-  const receiptActionsArray = useMemo(() => [
-    { icon: Printer, label: t('register.print'), onClick: handlePrintActiveReceipt },
-    { icon: ChefHat, label: t('register.kitchen'), onClick: handlePrintKitchenTicket },
-    {
-      icon: Share2, label: t('register.share'),
-      onClick: async () => {
-        if (!activeReceipt) return;
-        const r = await shareReceipt(activeReceipt, settings);
-        if (r === 'copied') setScanFeedback({ ok: true, text: t('register.copied') });
+  const receiptActionsArray = useMemo(
+    () => [
+      { icon: Printer, label: t('register.print'), onClick: handlePrintActiveReceipt },
+      { icon: ChefHat, label: t('register.kitchen'), onClick: handlePrintKitchenTicket },
+      {
+        icon: Share2,
+        label: t('register.share'),
+        onClick: async () => {
+          if (!activeReceipt) return;
+          const r = await shareReceipt(activeReceipt, settings);
+          if (r === 'copied') setScanFeedback({ ok: true, text: t('register.copied') });
+        },
       },
-    },
-    {
-      icon: Mail, label: t('register.email'),
-      onClick: () => {
-        if (!activeReceipt) return;
-        const email = activeReceipt.customerId ? customers.find((c) => c.id === activeReceipt.customerId)?.email : undefined;
-        emailReceipt(activeReceipt, settings, email || undefined, emailTemplate);
+      {
+        icon: Mail,
+        label: t('register.email'),
+        onClick: () => {
+          if (!activeReceipt) return;
+          const email = activeReceipt.customerId
+            ? customers.find((c) => c.id === activeReceipt.customerId)?.email
+            : undefined;
+          emailReceipt(activeReceipt, settings, email || undefined, emailTemplate);
+        },
       },
-    }
-  ], [t, handlePrintActiveReceipt, handlePrintKitchenTicket, activeReceipt, settings, customers, emailTemplate]);
+    ],
+    [
+      t,
+      handlePrintActiveReceipt,
+      handlePrintKitchenTicket,
+      activeReceipt,
+      settings,
+      customers,
+      emailTemplate,
+    ],
+  );
 
   return (
     <div
@@ -512,7 +632,9 @@ export default function Register() {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] ring-1 ring-black/5 text-sm font-semibold tracking-wide ${
-              scanFeedback.ok ? 'bg-emerald-600 text-slate-900 dark:text-white' : 'bg-rose-600 text-slate-900 dark:text-white'
+              scanFeedback.ok
+                ? 'bg-emerald-600 text-slate-900 dark:text-white'
+                : 'bg-rose-600 text-slate-900 dark:text-white'
             }`}
           >
             <ScanLine size={18} className="opacity-90" />
@@ -541,7 +663,10 @@ export default function Register() {
               className="modal-card max-w-md w-full overflow-hidden flex flex-col max-h-[80vh]"
             >
               <div className="p-5 flex justify-between items-center border-b border-slate-800/60">
-                <h3 id="held-orders-title" className="font-sans font-bold text-slate-900 dark:text-white text-base flex items-center gap-2.5">
+                <h3
+                  id="held-orders-title"
+                  className="font-sans font-bold text-slate-900 dark:text-white text-base flex items-center gap-2.5"
+                >
                   <div className="p-1.5 bg-amber-500/15 rounded-xl text-amber-400">
                     <Clock size={16} />
                   </div>
@@ -578,9 +703,13 @@ export default function Register() {
                           <p className="text-[10px] font-mono text-slate-500 mt-1">
                             {itemCount} {t('register.itemsLower')}{' '}
                             <span className="mx-1.5 opacity-40">•</span>
-                            {settings.currency}{orderTotal.toFixed(2)}
+                            {settings.currency}
+                            {orderTotal.toFixed(2)}
                             {order.operatorName && (
-                              <><span className="mx-1.5 opacity-40">•</span>{order.operatorName}</>
+                              <>
+                                <span className="mx-1.5 opacity-40">•</span>
+                                {order.operatorName}
+                              </>
                             )}
                           </p>
                         </div>
@@ -627,15 +756,22 @@ export default function Register() {
               transition={{ type: 'spring', stiffness: 280, damping: 22 }}
               className="modal-card max-w-lg w-full overflow-hidden flex flex-col"
             >
-              <div className="p-5 flex justify-between items-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <div
+                className="p-5 flex justify-between items-center"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+              >
                 <div>
-                  <h3 id="payment-modal-title" className="font-sans font-bold text-slate-900 dark:text-white text-lg">
+                  <h3
+                    id="payment-modal-title"
+                    className="font-sans font-bold text-slate-900 dark:text-white text-lg"
+                  >
                     {t('register.selectPaymentMethod')}
                   </h3>
                   <p className="text-xs text-slate-500 font-mono mt-1 flex items-center gap-2">
                     {t('register.amountToPay')}
                     <span className="font-bold text-xl text-emerald-400 tracking-tight font-mono">
-                      {settings.currency}{totalAmount.toFixed(2)}
+                      {settings.currency}
+                      {totalAmount.toFixed(2)}
                     </span>
                   </p>
                 </div>
@@ -662,7 +798,9 @@ export default function Register() {
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all"
                   style={{
                     background: splitMode ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.04)',
-                    border: splitMode ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(255,255,255,0.08)',
+                    border: splitMode
+                      ? '1px solid rgba(16,185,129,0.35)'
+                      : '1px solid rgba(255,255,255,0.08)',
                     color: splitMode ? '#34d399' : '#64748b',
                   }}
                 >
@@ -672,9 +810,7 @@ export default function Register() {
 
                 {!splitMode && (
                   <div className="grid grid-cols-4 gap-2.5">
-                    {(
-                      paymentMethodsArray
-                    ).map((m) => {
+                    {paymentMethodsArray.map((m) => {
                       const MIcon = m.icon;
                       const isSel = paymentMethod === m.id;
                       return (
@@ -698,11 +834,18 @@ export default function Register() {
                   <div className="space-y-2.5">
                     {splitPayments.map((p, idx) => (
                       <div key={idx} className="flex items-center gap-2">
-                        <div className="flex-1 flex items-center rounded-xl overflow-hidden transition-all"
-                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}>
+                        <div
+                          className="flex-1 flex items-center rounded-xl overflow-hidden transition-all"
+                          style={{
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid rgba(255,255,255,0.09)',
+                          }}
+                        >
                           <select
                             value={p.method}
-                            onChange={(e) => updateSplitPayment(idx, { method: e.target.value as PaymentMethod })}
+                            onChange={(e) =>
+                              updateSplitPayment(idx, { method: e.target.value as PaymentMethod })
+                            }
                             aria-label={t('register.method')}
                             className="bg-transparent text-xs font-semibold ps-3 pe-7 py-3 text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
                             style={{ borderRight: '1px solid rgba(255,255,255,0.08)' }}
@@ -713,11 +856,17 @@ export default function Register() {
                             <option value="gift">{t('register.payGift')}</option>
                           </select>
                           <div className="flex-1 flex items-center px-3">
-                            <span className="font-mono text-slate-500 font-bold text-sm">{settings.currency}</span>
+                            <span className="font-mono text-slate-500 font-bold text-sm">
+                              {settings.currency}
+                            </span>
                             <input
-                              type="number" step="0.01" min="0"
+                              type="number"
+                              step="0.01"
+                              min="0"
                               value={p.amount || ''}
-                              onChange={(e) => updateSplitPayment(idx, { amount: parseFloat(e.target.value) || 0 })}
+                              onChange={(e) =>
+                                updateSplitPayment(idx, { amount: parseFloat(e.target.value) || 0 })
+                              }
                               aria-label={t('register.amountToPay')}
                               className="flex-1 bg-transparent text-slate-900 dark:text-white text-base font-mono font-bold px-2 py-2.5 focus:outline-none w-full"
                               placeholder="0.00"
@@ -729,7 +878,10 @@ export default function Register() {
                           disabled={splitPayments.length <= 1}
                           aria-label={t('register.removePayment')}
                           className="p-2.5 text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl disabled:opacity-25 transition-colors"
-                          style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}
+                          style={{
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            background: 'rgba(255,255,255,0.04)',
+                          }}
                         >
                           <X size={14} />
                         </button>
@@ -779,12 +931,19 @@ export default function Register() {
                               onClick={() => setCashPaidText(val.toFixed(2))}
                               className="font-mono text-sm font-bold px-3.5 py-2 rounded-xl transition-all"
                               style={{
-                                background: cashPaidText === val.toFixed(2) ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)',
-                                border: cashPaidText === val.toFixed(2) ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(255,255,255,0.09)',
+                                background:
+                                  cashPaidText === val.toFixed(2)
+                                    ? 'rgba(16,185,129,0.2)'
+                                    : 'rgba(255,255,255,0.05)',
+                                border:
+                                  cashPaidText === val.toFixed(2)
+                                    ? '1px solid rgba(16,185,129,0.4)'
+                                    : '1px solid rgba(255,255,255,0.09)',
                                 color: cashPaidText === val.toFixed(2) ? '#34d399' : '#94a3b8',
                               }}
                             >
-                              {settings.currency}{val.toFixed(2)}
+                              {settings.currency}
+                              {val.toFixed(2)}
                             </motion.button>
                           ))}
                         </div>
@@ -792,14 +951,25 @@ export default function Register() {
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-[10px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wider">
+                          <label htmlFor="cash-tendered-input" className="text-[10px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wider">
                             {t('register.cashTendered')}
                           </label>
-                          <div className="flex items-center rounded-xl overflow-hidden transition-all"
-                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                            <span className="font-mono text-slate-500 ps-3 font-bold text-sm">{settings.currency}</span>
+                          <div
+                            className="flex items-center rounded-xl overflow-hidden transition-all"
+                            style={{
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                            }}
+                          >
+                            <span className="font-mono text-slate-500 ps-3 font-bold text-sm">
+                              {settings.currency}
+                            </span>
                             <input
-                              type="number" step="0.01" min={totalAmount} placeholder="0.00"
+                              id="cash-tendered-input"
+                              type="number"
+                              step="0.01"
+                              min={totalAmount}
+                              placeholder="0.00"
                               value={cashPaidText}
                               onChange={(e) => setCashPaidText(e.target.value)}
                               aria-label={t('register.cashTendered')}
@@ -812,10 +982,20 @@ export default function Register() {
                           <label className="text-[10px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wider">
                             {t('register.changeDue')}
                           </label>
-                          <div className="rounded-xl px-4 flex items-center justify-between" style={{ height: '48px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)' }}>
-                            <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">{t('register.returnAmount')}</span>
+                          <div
+                            className="rounded-xl px-4 flex items-center justify-between"
+                            style={{
+                              height: '48px',
+                              background: 'rgba(16,185,129,0.1)',
+                              border: '1px solid rgba(16,185,129,0.25)',
+                            }}
+                          >
+                            <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
+                              {t('register.returnAmount')}
+                            </span>
                             <span className="font-mono text-emerald-400 font-bold text-xl">
-                              {settings.currency}{cashChangeDue.toFixed(2)}
+                              {settings.currency}
+                              {cashChangeDue.toFixed(2)}
                             </span>
                           </div>
                         </div>
@@ -825,11 +1005,18 @@ export default function Register() {
                 </AnimatePresence>
               </div>
 
-              <div className="p-4 flex items-center gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+              <div
+                className="p-4 flex items-center gap-3"
+                style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
+              >
                 <button
                   onClick={() => setCheckoutModalOpen(false)}
                   className="px-5 py-3 rounded-xl text-sm font-bold transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', color: '#64748b' }}
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.09)',
+                    color: '#64748b',
+                  }}
                 >
                   {t('register.cancel')}
                 </button>
@@ -839,7 +1026,9 @@ export default function Register() {
                   disabled={
                     splitMode
                       ? splitPaidTotal < totalAmount - 0.005
-                      : paymentMethod === 'cash' && totalAmount > 0 && (parseFloat(cashPaidText) || 0) < totalAmount
+                      : paymentMethod === 'cash' &&
+                        totalAmount > 0 &&
+                        (parseFloat(cashPaidText) || 0) < totalAmount
                   }
                   className="flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-40"
                   style={{
@@ -875,9 +1064,18 @@ export default function Register() {
               transition={{ type: 'spring', stiffness: 280, damping: 22 }}
               className="modal-card max-w-sm w-full p-6 space-y-5"
             >
-              <div className="flex justify-between items-center pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                <h3 id="add-customer-title" className="font-sans font-bold text-slate-900 dark:text-white text-base flex items-center gap-2.5">
-                  <div className="p-1.5 rounded-xl" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>
+              <div
+                className="flex justify-between items-center pb-4"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+              >
+                <h3
+                  id="add-customer-title"
+                  className="font-sans font-bold text-slate-900 dark:text-white text-base flex items-center gap-2.5"
+                >
+                  <div
+                    className="p-1.5 rounded-xl"
+                    style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}
+                  >
                     <UserPlus size={16} />
                   </div>
                   {t('register.newCustomer')}
@@ -892,36 +1090,60 @@ export default function Register() {
               </div>
 
               <form onSubmit={handleAddNewCustomer} className="space-y-4">
-                {addCustomerFieldsArray.map(({ label, type, value, onChange, placeholder, required }) => (
-                  <div key={label}>
-                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">{label}</label>
-                    <input
-                      type={type}
-                      required={required}
-                      placeholder={placeholder}
-                      value={value}
-                      onChange={(e) => onChange(e.target.value)}
-                      className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:outline-none transition-all placeholder:text-slate-600"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}
-                      onFocus={(e) => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.12)'; }}
-                      onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.09)'; e.target.style.boxShadow = 'none'; }}
-                    />
-                  </div>
-                ))}
+                {addCustomerFieldsArray.map(
+                  ({ label, type, value, onChange, placeholder, required }) => (
+                    <div key={label}>
+                      <label htmlFor={`customer-field-${label}`} className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+                        {label}
+                      </label>
+                      <input
+                        id={`customer-field-${label}`}
+                        type={type}
+                        required={required}
+                        placeholder={placeholder}
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:outline-none transition-all placeholder:text-slate-600"
+                        style={{
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.09)',
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#10b981';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.12)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = 'rgba(255,255,255,0.09)';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                      />
+                    </div>
+                  ),
+                )}
 
-                <div className="flex justify-end gap-2.5 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                <div
+                  className="flex justify-end gap-2.5 pt-3"
+                  style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
+                >
                   <button
                     type="button"
                     onClick={() => setAddCustomerOpen(false)}
                     className="px-5 py-2.5 text-sm font-bold rounded-xl transition-colors"
-                    style={{ color: '#64748b', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    style={{
+                      color: '#64748b',
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
                   >
                     {t('register.cancel')}
                   </button>
                   <button
                     type="submit"
                     className="px-6 py-2.5 text-sm font-bold text-slate-900 dark:text-white rounded-xl transition-all active:scale-95"
-                    style={{ background: 'linear-gradient(135deg, #059669, #10b981)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}
+                    style={{
+                      background: 'linear-gradient(135deg, #059669, #10b981)',
+                      boxShadow: '0 4px 14px rgba(16,185,129,0.3)',
+                    }}
                   >
                     {t('register.saveLink')}
                   </button>
@@ -949,7 +1171,11 @@ export default function Register() {
               exit={{ scale: 0.88, opacity: 0, y: 32 }}
               transition={{ type: 'spring', stiffness: 260, damping: 20 }}
               className="max-w-sm w-full overflow-hidden flex flex-col rounded-3xl"
-              style={{ background: 'var(--receipt-bg)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-lg)' }}
+              style={{
+                background: 'var(--receipt-bg)',
+                border: '1px solid var(--border-subtle)',
+                boxShadow: 'var(--shadow-lg)',
+              }}
             >
               <div className="bg-linear-to-br from-emerald-500 to-emerald-600 text-slate-900 dark:text-white p-8 pb-10 text-center flex flex-col items-center relative overflow-hidden">
                 {/* Decorative background circle */}
@@ -964,7 +1190,10 @@ export default function Register() {
                 >
                   <Check size={36} strokeWidth={3} />
                 </motion.div>
-                <h3 id="receipt-modal-title" className="font-sans font-bold text-slate-900 dark:text-white text-2xl tracking-tight z-10 mb-1.5">
+                <h3
+                  id="receipt-modal-title"
+                  className="font-sans font-bold text-slate-900 dark:text-white text-2xl tracking-tight z-10 mb-1.5"
+                >
                   {t('register.paymentSuccessful')}
                 </h3>
                 <p className="text-emerald-100 text-[11px] uppercase tracking-wider font-bold bg-black/15 px-3.5 py-1 rounded-full z-10 shadow-sm border border-slate-200 dark:border-white/10">
@@ -1032,7 +1261,8 @@ export default function Register() {
                         </div>
                         {item.quantity > 1 && (
                           <div className="text-[10px] opacity-60 ps-4">
-                            @ {settings.currency}{item.price.toFixed(2)} {t('register.each', 'ea')}
+                            @ {settings.currency}
+                            {item.price.toFixed(2)} {t('register.each', 'ea')}
                           </div>
                         )}
                       </div>
@@ -1075,7 +1305,8 @@ export default function Register() {
                     </div>
                     {activeReceipt.discount > 0 && (
                       <div className="text-center font-bold text-amber-700 dark:text-amber-400 border border-dashed border-amber-400/50 rounded py-1 mt-2">
-                        {t('register.youSaved', 'YOU SAVED')} {settings.currency}{activeReceipt.discount.toFixed(2)}
+                        {t('register.youSaved', 'YOU SAVED')} {settings.currency}
+                        {activeReceipt.discount.toFixed(2)}
                       </div>
                     )}
                   </div>
@@ -1131,16 +1362,29 @@ export default function Register() {
                 </div>
               </div>
 
-              <div className="p-4 space-y-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+              <div
+                className="p-4 space-y-2.5"
+                style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
+              >
                 <div className="flex items-center gap-2">
                   {receiptActionsArray.map(({ icon: Icon, label, onClick }) => (
                     <button
                       key={label}
                       onClick={onClick}
                       className="flex-1 flex justify-center items-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all group"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#64748b' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = '#34d399'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        color: '#64748b',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = '#34d399';
+                        e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = '#64748b';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                      }}
                     >
                       <Icon size={14} />
                       <span>{label}</span>
@@ -1151,7 +1395,10 @@ export default function Register() {
                   whileTap={{ scale: 0.97 }}
                   onClick={() => setReceiptModalOpen(false)}
                   className="w-full py-3.5 rounded-xl text-sm font-bold text-slate-950 transition-all active:scale-[0.98]"
-                  style={{ background: 'linear-gradient(135deg, #10b981, #34d399)', boxShadow: '0 4px 16px rgba(16,185,129,0.3)' }}
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981, #34d399)',
+                    boxShadow: '0 4px 16px rgba(16,185,129,0.3)',
+                  }}
                 >
                   {t('register.newSale')}
                 </motion.button>

@@ -17,8 +17,7 @@ export const usePinAttemptStore = create<PinAttemptState>()(
   persist(
     (set, get) => ({
       attempts: {},
-      registerFailure: (key) =>
-        set({ attempts: recordFailure(get().attempts, key, Date.now()) }),
+      registerFailure: (key) => set({ attempts: recordFailure(get().attempts, key, Date.now()) }),
       registerSuccess: (key) => set({ attempts: clearFailures(get().attempts, key) }),
     }),
     {

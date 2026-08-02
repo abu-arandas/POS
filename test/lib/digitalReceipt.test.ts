@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { receiptPlainText, renderEmailTemplate, buildReceiptEmail } from '../../src/lib/digitalReceipt';
+import {
+  receiptPlainText,
+  renderEmailTemplate,
+  buildReceiptEmail,
+} from '../../src/lib/digitalReceipt';
 import { SaleTransaction, StoreSettings, ReceiptEmailTemplate } from '../../src/types';
 
 const settings: StoreSettings = {
@@ -66,7 +70,11 @@ describe('renderEmailTemplate', () => {
   });
 
   it('uses the customer name when the sale has one', () => {
-    const out = renderEmailTemplate('Hi {customerName}', { ...tx, customerName: 'Eleanor' }, settings);
+    const out = renderEmailTemplate(
+      'Hi {customerName}',
+      { ...tx, customerName: 'Eleanor' },
+      settings,
+    );
     expect(out).toBe('Hi Eleanor');
   });
 

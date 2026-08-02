@@ -4,21 +4,36 @@ import { test, expect, type Page } from '@playwright/test';
 // The PIN auto-submits once the fourth digit is entered.
 async function login(page: Page, name: string, pin: string) {
   await expect(page.locator('#lockscreen-root')).toBeVisible();
-  await page.getByRole('button', { name: new RegExp(name) }).first().click();
+  await page
+    .getByRole('button', { name: new RegExp(name) })
+    .first()
+    .click();
   for (const digit of pin.split('')) {
     await page.getByRole('button', { name: digit, exact: true }).click();
   }
   await expect(page.locator('#register-root')).toBeVisible();
 }
 
-// Adds a product to the cart. The card's inner text is pointer-events-none
-// (the card itself handles the click), so target the card container by name.
+// Adds a product to the cart. Targets the card container by matching its text.
 async function addProduct(page: Page, name: string) {
-  await page.locator('#products-grid > div').filter({ hasText: name }).first().click();
+  const productsGrid = page.locator('#products-grid');
+  // Wait for the grid to be visible so the product cards have rendered.
+  await expect(productsGrid).toBeVisible({ timeout: 10_000 });
+
+  // Use Playwright's :has-text() pseudo-class to find a card that contains the product name.
+  const productCard = productsGrid.locator(`> div:has-text("${name}")`).first();
+
+  // Ensure the product card is visible before clicking, and use a longer action timeout.
+  await expect(productCard).toBeVisible({ timeout: 10_000 });
+  await productCard.click({ timeout: 10_000 });
 }
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
+  // The app boots to the lockscreen, so the catalog cannot exist yet — waiting
+  // for it here would time out every test. login() waits for #register-root and
+  // addProduct() waits for #products-grid, which is where those waits belong.
+  await expect(page.locator('#lockscreen-root')).toBeVisible({ timeout: 15_000 });
 });
 
 test('admin logs in and the register loads with the seeded catalog', async ({ page }) => {

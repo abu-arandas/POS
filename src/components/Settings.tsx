@@ -61,7 +61,8 @@ import {
   deleteUsersCloudIfEnabled,
 } from '../lib/sync';
 
-type SettingsTab = 'profile' | 'printer' | 'kitchen_printer' | 'scanner' | 'supabase' | 'users' | 'danger';
+type SettingsTab =
+  'profile' | 'printer' | 'kitchen_printer' | 'scanner' | 'supabase' | 'users' | 'danger';
 
 const DEFAULT_PRINTER: PrinterConfig = {
   type: 'system',
@@ -185,6 +186,20 @@ export default function Settings() {
     setPrinterForm((f) => ({ ...f, type: 'network', ipAddress: ip }));
   };
 
+  // Applies a detected OS printer in one click. Without this the operator had
+  // to read the name off the list and retype it into the Printer field by
+  // hand, matching Windows' spelling exactly — the single most error-prone
+  // step in setting a USB printer up. 'windows' is the right default because
+  // it is the RAW spooler path: silent, and it carries the cash-drawer pulse
+  // that the 'system' path cannot send.
+  const handleUseSystemPrinter = (name: string) => {
+    setPrinterForm((f) => ({
+      ...f,
+      type: f.type === 'system' ? 'system' : 'windows',
+      printerName: name,
+    }));
+  };
+
   // --- Kitchen station routing form state ---
   const [stationForm, setStationForm] = useState<KitchenStation[]>(kitchenStations);
   const addStation = () =>
@@ -227,6 +242,7 @@ export default function Settings() {
         ...s,
         name: s.name.trim(),
         ipAddress: s.ipAddress?.trim() || undefined,
+        printerName: s.printerName?.trim() || undefined,
       }));
     setKitchenStations(cleaned);
     setStationForm(cleaned);
@@ -409,13 +425,40 @@ export default function Settings() {
       alert(t('settings.pullFailed'));
       return;
     }
-    if (data.categories?.length) setCategories(data.categories);
-    if (data.products?.length) setProducts(data.products);
-    if (data.customers?.length) setCustomers(data.customers);
+    // `null` means that table failed to load; an empty array means it loaded
+    // and the cloud genuinely has no rows. Applying only non-empty results
+    // conflated the two and then reported success either way, so a terminal
+    // could be told "pull complete" having silently kept its stale local
+    // transactions. Report which tables failed instead.
+    const failed = (
+      [
+        ['categories', data.categories],
+        ['products', data.products],
+        ['customers', data.customers],
+        ['users', data.users],
+        ['transactions', data.transactions],
+      ] as const
+    )
+      .filter(([, rows]) => rows === null)
+      .map(([name]) => name);
+
+    if (data.categories) setCategories(data.categories);
+    if (data.products) setProducts(data.products);
+    if (data.customers) setCustomers(data.customers);
+    // Never let a pull leave the terminal with no way back in: an empty
+    // user_accounts table would wipe every local login.
     if (data.users?.length) setUsers(data.users);
-    if (data.transactions?.length) setTransactions(data.transactions);
-    persistConfig('connected');
-    alert(t('settings.pullSuccess'));
+    if (data.transactions) setTransactions(data.transactions);
+
+    persistConfig(failed.length > 0 ? 'error' : 'connected');
+    alert(
+      failed.length > 0
+        ? t('settings.pullPartial', {
+            tables: failed.join(', '),
+            defaultValue: `Pull incomplete — these tables failed to load and were left unchanged: {{tables}}`,
+          })
+        : t('settings.pullSuccess'),
+    );
   };
 
   const handleDeleteAllTransactions = () => {
@@ -468,7 +511,11 @@ export default function Settings() {
   }> = [
     { id: 'profile', label: t('settings.title', 'Store'), icon: SettingsIcon },
     { id: 'printer', label: t('settings.printerTab', 'Receipt Printer'), icon: PrinterIcon },
-    { id: 'kitchen_printer', label: t('settings.kitchenPrinterTab', 'Kitchen Printer'), icon: ChefHat },
+    {
+      id: 'kitchen_printer',
+      label: t('settings.kitchenPrinterTab', 'Kitchen Printer'),
+      icon: ChefHat,
+    },
     { id: 'scanner', label: t('settings.scannerTab', 'Scanner'), icon: ScanLine },
     { id: 'supabase', label: t('settings.supabaseSync', 'Supabase Sync'), icon: Cloud },
     { id: 'users', label: t('settings.usersTab', 'Users'), icon: Users },
@@ -569,10 +616,14 @@ export default function Settings() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        <label
+                          htmlFor="set-store-name"
+                          className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                        >
                           {t('settings.storeName')}
                         </label>
                         <input
+                          id="set-store-name"
                           type="text"
                           value={settings.storeName}
                           onChange={(e) => handleUpdateSetting('storeName', e.target.value)}
@@ -580,10 +631,14 @@ export default function Settings() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        <label
+                          htmlFor="set-store-phone"
+                          className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                        >
                           {t('settings.storePhone')}
                         </label>
                         <input
+                          id="set-store-phone"
                           type="text"
                           value={settings.storePhone}
                           onChange={(e) => handleUpdateSetting('storePhone', e.target.value)}
@@ -591,10 +646,14 @@ export default function Settings() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        <label
+                          htmlFor="set-branch-name"
+                          className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                        >
                           {t('settings.branchName')}
                         </label>
                         <input
+                          id="set-branch-name"
                           type="text"
                           value={settings.branchName || ''}
                           onChange={(e) => handleUpdateSetting('branchName', e.target.value)}
@@ -602,10 +661,14 @@ export default function Settings() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        <label
+                          htmlFor="set-tax-number"
+                          className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                        >
                           {t('settings.taxNumber')}
                         </label>
                         <input
+                          id="set-tax-number"
                           type="text"
                           value={settings.taxNumber || ''}
                           onChange={(e) => handleUpdateSetting('taxNumber', e.target.value)}
@@ -613,10 +676,14 @@ export default function Settings() {
                         />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        <label
+                          htmlFor="set-store-address"
+                          className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                        >
                           {t('settings.storeAddress')}
                         </label>
                         <input
+                          id="set-store-address"
                           type="text"
                           value={settings.storeAddress}
                           onChange={(e) => handleUpdateSetting('storeAddress', e.target.value)}
@@ -624,11 +691,15 @@ export default function Settings() {
                         />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        <label
+                          htmlFor="set-store-logo-url"
+                          className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                        >
                           {t('settings.storeLogoUrl')}
                         </label>
                         <div className="flex gap-2">
                           <input
+                            id="set-store-logo-url"
                             type="text"
                             placeholder="Image URL..."
                             value={settings.storeLogo || ''}
@@ -678,10 +749,14 @@ export default function Settings() {
                       </h3>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                          <label
+                            htmlFor="set-currency-symbol"
+                            className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                          >
                             {t('settings.currencySymbol')}
                           </label>
                           <input
+                            id="set-currency-symbol"
                             type="text"
                             value={settings.currency}
                             onChange={(e) => handleUpdateSetting('currency', e.target.value)}
@@ -689,11 +764,15 @@ export default function Settings() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                          <label
+                            htmlFor="set-tax-rate"
+                            className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                          >
                             {t('settings.taxRate')}
                           </label>
                           <div className="relative">
                             <input
+                              id="set-tax-rate"
                               type="number"
                               min="0"
                               step="0.1"
@@ -703,16 +782,20 @@ export default function Settings() {
                               }
                               className="glass-input w-full px-4 py-2.5 rounded-xl pe-8"
                             />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm">
+                            <span className="absolute inset-e-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm">
                               %
                             </span>
                           </div>
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                          <label
+                            htmlFor="set-language"
+                            className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                          >
                             {t('settings.language')}
                           </label>
                           <select
+                            id="set-language"
                             value={language}
                             onChange={(e) => setLanguage(e.target.value as 'en' | 'ar')}
                             className="glass-input w-full px-4 py-2.5 rounded-xl appearance-none"
@@ -730,10 +813,14 @@ export default function Settings() {
                       </h3>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                          <label
+                            htmlFor="set-loyalty-points-rate"
+                            className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                          >
                             {t('settings.loyaltyPointsRate', 'Points Earned per Currency Unit')}
                           </label>
                           <input
+                            id="set-loyalty-points-rate"
                             type="number"
                             min="0"
                             step="0.1"
@@ -749,14 +836,18 @@ export default function Settings() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                          <label
+                            htmlFor="set-loyalty-point-value"
+                            className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                          >
                             {t('settings.loyaltyPointValue', 'Discount Value per Point')}
                           </label>
                           <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm">
+                            <span className="absolute inset-s-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm">
                               {settings.currency}
                             </span>
                             <input
+                              id="set-loyalty-point-value"
                               type="number"
                               min="0"
                               step="0.01"
@@ -787,10 +878,14 @@ export default function Settings() {
                     </p>
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        <label
+                          htmlFor="set-email-subject"
+                          className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                        >
                           {t('settings.emailSubject')}
                         </label>
                         <input
+                          id="set-email-subject"
                           type="text"
                           value={emailTemplate.subject}
                           onChange={(e) =>
@@ -801,10 +896,14 @@ export default function Settings() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                          <label
+                            htmlFor="set-email-header"
+                            className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                          >
                             {t('settings.emailHeader')}
                           </label>
                           <textarea
+                            id="set-email-header"
                             rows={4}
                             value={emailTemplate.header}
                             onChange={(e) =>
@@ -814,10 +913,14 @@ export default function Settings() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                          <label
+                            htmlFor="set-email-footer"
+                            className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                          >
                             {t('settings.emailFooter')}
                           </label>
                           <textarea
+                            id="set-email-footer"
                             rows={4}
                             value={emailTemplate.footer}
                             onChange={(e) =>
@@ -936,6 +1039,19 @@ export default function Settings() {
                                     : t('settings.useThisPrinter')}
                                 </button>
                               )}
+                              {p.kind === 'system' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUseSystemPrinter(p.name)}
+                                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+                                >
+                                  {(printerForm.type === 'windows' ||
+                                    printerForm.type === 'system') &&
+                                  printerForm.printerName === p.name
+                                    ? t('settings.printerInUse')
+                                    : t('settings.useThisPrinter')}
+                                </button>
+                              )}
                               <span
                                 className="w-2 h-2 rounded-full bg-emerald-500"
                                 aria-hidden="true"
@@ -993,10 +1109,14 @@ export default function Settings() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                      <label
+                        htmlFor="set-paper-size"
+                        className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                      >
                         {t('settings.paperSize')}
                       </label>
                       <select
+                        id="set-paper-size"
                         value={printerForm.paperSize}
                         onChange={(e) =>
                           setPrinterForm({
@@ -1013,10 +1133,14 @@ export default function Settings() {
 
                     {printerForm.type === 'network' && (
                       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        <label
+                          htmlFor="set-ip-address"
+                          className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                        >
                           {t('settings.ipAddress')}
                         </label>
                         <input
+                          id="set-ip-address"
                           type="text"
                           dir="ltr"
                           placeholder="192.168.1.50"
@@ -1030,10 +1154,14 @@ export default function Settings() {
                     )}
                     {printerForm.type === 'serial' && (
                       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        <label
+                          htmlFor="set-baud-rate"
+                          className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                        >
                           {t('settings.baudRate')}
                         </label>
                         <input
+                          id="set-baud-rate"
                           type="number"
                           placeholder="9600"
                           value={printerForm.baudRate ?? ''}
@@ -1049,10 +1177,14 @@ export default function Settings() {
                     )}
                     {(printerForm.type === 'windows' || printerForm.type === 'system') && (
                       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        <label
+                          htmlFor="set-printer-name"
+                          className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                        >
                           {t('settings.printerName')}
                         </label>
                         <input
+                          id="set-printer-name"
                           type="text"
                           list="os-printer-names"
                           placeholder={t('settings.printerNamePlaceholder')}
@@ -1138,7 +1270,7 @@ export default function Settings() {
                       {t('settings.savePrinter')}
                     </button>
                   </div>
-                  
+
                   {/* Customer receipt layout */}
                   <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
                     <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2 mb-1">
@@ -1311,6 +1443,13 @@ export default function Settings() {
                         ))}
                     </datalist>
 
+                    <datalist id="station-printer-names">
+                      {detectedPrinters
+                        .filter((p) => p.kind === 'system')
+                        .map((p) => (
+                          <option key={p.id} value={p.name} />
+                        ))}
+                    </datalist>
                     {stationForm.length === 0 ? (
                       <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl px-4 py-4">
                         {t('settings.noStations')}
@@ -1345,6 +1484,17 @@ export default function Settings() {
                                 aria-label={t('settings.stationPrinterIp')}
                                 className="glass-input w-40 px-4 py-2.5 rounded-xl font-mono text-sm"
                               />
+                              <input
+                                type="text"
+                                list="station-printer-names"
+                                value={station.printerName || ''}
+                                onChange={(e) =>
+                                  updateStation(station.id, { printerName: e.target.value })
+                                }
+                                placeholder={t('settings.stationPrinterName')}
+                                aria-label={t('settings.stationPrinterName')}
+                                className="glass-input w-40 px-4 py-2.5 rounded-xl text-sm"
+                              />
                               <button
                                 type="button"
                                 onClick={() => removeStation(station.id)}
@@ -1358,6 +1508,11 @@ export default function Settings() {
                               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
                                 {t('settings.stationCategories')}
                               </span>
+                              {station.categoryIds.length === 0 && (
+                                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 mb-2 leading-relaxed">
+                                  {t('settings.stationCatchAll')}
+                                </p>
+                              )}
                               <div className="flex flex-wrap gap-2">
                                 {categories.map((cat) => {
                                   const on = station.categoryIds.includes(cat.id);
@@ -1427,10 +1582,14 @@ export default function Settings() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                      <label
+                        htmlFor="set-scanner-min-length"
+                        className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                      >
                         {t('settings.scannerMinLength')}
                       </label>
                       <input
+                        id="set-scanner-min-length"
                         type="number"
                         min="1"
                         value={scannerForm.minLength}
@@ -1447,10 +1606,14 @@ export default function Settings() {
                       </p>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                      <label
+                        htmlFor="set-scanner-speed"
+                        className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                      >
                         {t('settings.scannerSpeed')}
                       </label>
                       <input
+                        id="set-scanner-speed"
                         type="number"
                         min="10"
                         step="5"
@@ -1550,10 +1713,14 @@ export default function Settings() {
 
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        <label
+                          htmlFor="set-supabase-url"
+                          className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                        >
                           {t('settings.supabaseUrl')}
                         </label>
                         <input
+                          id="set-supabase-url"
                           type="url"
                           dir="ltr"
                           placeholder="https://YOUR_PROJECT.supabase.co"
@@ -1564,10 +1731,14 @@ export default function Settings() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        <label
+                          htmlFor="set-supabase-anon-key"
+                          className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                        >
                           {t('settings.supabaseAnonKey')}
                         </label>
                         <input
+                          id="set-supabase-anon-key"
                           type="password"
                           dir="ltr"
                           placeholder="eyJhbGciOi..."
@@ -1584,10 +1755,14 @@ export default function Settings() {
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                          <label
+                            htmlFor="set-device-email"
+                            className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                          >
                             {t('settings.deviceEmail')}
                           </label>
                           <input
+                            id="set-device-email"
                             type="email"
                             dir="ltr"
                             autoComplete="off"
@@ -1598,10 +1773,14 @@ export default function Settings() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                          <label
+                            htmlFor="set-device-password"
+                            className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                          >
                             {t('settings.devicePassword')}
                           </label>
                           <input
+                            id="set-device-password"
                             type="password"
                             dir="ltr"
                             autoComplete="new-password"
@@ -1852,7 +2031,10 @@ export default function Settings() {
               </div>
               <form onSubmit={handleSubmitUser} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                  <label
+                    htmlFor="user-name-input"
+                    className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2"
+                  >
                     {t('settings.userName')}
                   </label>
                   <input
@@ -1865,7 +2047,10 @@ export default function Settings() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                  <label
+                    htmlFor="user-role-select"
+                    className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2"
+                  >
                     {t('settings.userRole')}
                   </label>
                   <select
@@ -1880,7 +2065,10 @@ export default function Settings() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                  <label
+                    htmlFor="user-pin-input"
+                    className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2"
+                  >
                     {editingUser ? t('settings.userPinKeep') : t('settings.userPin')}
                   </label>
                   <input

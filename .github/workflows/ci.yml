@@ -25,6 +25,11 @@ jobs:
       - name: ESLint
         run: npx eslint . --max-warnings 0
 
+      # The repo has always carried a .prettierrc, but nothing checked it, so
+      # 52 files had drifted from the project's own declared style.
+      - name: Formatting (Prettier)
+        run: npm run format:check
+
       - name: Unit tests (Vitest)
         run: npm test
 

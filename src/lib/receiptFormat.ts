@@ -123,7 +123,12 @@ export function legacyLayout(printerConfig: PrinterConfig): ReceiptLayout {
   return {
     ...defaultReceiptLayout(),
     footer: printerConfig.footerMessage,
-    show: { ...allTogglesOn(), branchName: false, taxNumber: false, barcode: printerConfig.showBarcode },
+    show: {
+      ...allTogglesOn(),
+      branchName: false,
+      taxNumber: false,
+      barcode: printerConfig.showBarcode,
+    },
   };
 }
 

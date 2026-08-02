@@ -116,6 +116,15 @@ ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
 -- refuses to check the PIN at all for a cool-off window.
 --
 -- These mirror src/lib/pinThrottle.ts, which throttles the on-device keypad.
+--
+-- Known trade-off: because a failure is recorded for whatever name was supplied,
+-- someone holding the anon key can deliberately lock a named account out of
+-- CLOUD login, and staff names are visible on the terminal's lock screen. That
+-- is the accepted cost of a per-account throttle without a request identity to
+-- key on. It degrades rather than denies — PIN login continues to work offline
+-- against the locally persisted users, which is the normal path — and the
+-- lockout self-clears on the ladder above. Rotate the anon key if you see it
+-- being abused.
 CREATE OR REPLACE FUNCTION public.verify_login(p_name TEXT, p_pin_hash TEXT)
 RETURNS TABLE (id TEXT, name TEXT, role TEXT, active BOOLEAN, created_at TIMESTAMPTZ)
 LANGUAGE plpgsql
@@ -129,7 +138,14 @@ DECLARE
   matched       user_accounts%ROWTYPE;
   cool_off      INTERVAL;
 BEGIN
-  SELECT * INTO att FROM login_attempts la WHERE la.name = p_name;
+  -- FOR UPDATE serializes concurrent guesses against the same account. Without
+  -- the lock, N parallel calls all read the same `failures` and all write
+  -- back the same +1, so a scripted attacker firing requests concurrently
+  -- burns far more than five attempts per rung and the escalation ladder never
+  -- really bites. Losers of the race block here until the winner commits, then
+  -- read the updated count. (No row yet = nothing to lock; the INSERT below
+  -- takes the primary-key lock instead.)
+  SELECT * INTO att FROM login_attempts la WHERE la.name = p_name FOR UPDATE;
 
   -- Still inside a cool-off: refuse without even looking at the PIN, so a
   -- locked-out account leaks nothing about which guesses are close.

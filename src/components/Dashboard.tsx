@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   TrendingUp,
   ShoppingBag,
@@ -88,7 +88,26 @@ export default function Dashboard() {
     return transactions.filter((t) => t.status === 'completed' || t.status === 'partial');
   }, [transactions]);
 
-  const todayDateString = useMemo(() => new Date().toDateString(), []);
+  // A POS terminal is routinely left running past midnight, so "today" cannot be
+  // captured once at mount — that pins every KPI to the day the screen was
+  // opened. Re-check on a minute tick and only re-render when the calendar day
+  // actually turns over.
+  const [todayDateString, setTodayDateString] = useState(() => new Date().toDateString());
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = new Date().toDateString();
+      setTodayDateString((prev) => (prev === now ? prev : now));
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Local midnight of the current day. Everything date-relative below derives
+  // from this rather than calling new Date() itself, so the tick above is a real
+  // input to those memos and the windows genuinely slide at midnight.
+  const todayStart = useMemo(
+    () => new Date(todayDateString).setHours(0, 0, 0, 0),
+    [todayDateString],
+  );
 
   const todayTransactions = useMemo(() => {
     return completedTransactions.filter(
@@ -101,11 +120,10 @@ export default function Dashboard() {
 
   const rangeTxns = useMemo(() => {
     if (range === 'all') return completedTransactions;
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
+    const start = new Date(todayStart);
     start.setDate(start.getDate() - (rangeDays - 1));
     return completedTransactions.filter((tx) => new Date(tx.date) >= start);
-  }, [completedTransactions, range, rangeDays]);
+  }, [completedTransactions, range, rangeDays, todayStart]);
 
   const kpis = useMemo(() => {
     const revenueToday = todayTransactions.reduce(
@@ -144,7 +162,7 @@ export default function Dashboard() {
 
   const salesTrendData = useMemo(() => {
     const datesMap = new Map<string, { label: string; revenue: number; profit: number }>();
-    const today = new Date();
+    const today = new Date(todayStart);
     const buckets = Math.min(range === 'all' ? 30 : rangeDays, 31);
 
     for (let i = buckets - 1; i >= 0; i--) {
@@ -179,7 +197,7 @@ export default function Dashboard() {
       revenue: Number(v.revenue.toFixed(2)),
       profit: Number(v.profit.toFixed(2)),
     }));
-  }, [rangeTxns, range, rangeDays, i18n.language]);
+  }, [rangeTxns, range, rangeDays, i18n.language, todayStart]);
 
   const topProductsData = useMemo(() => {
     const productSalesMap = new Map<string, { name: string; quantity: number; revenue: number }>();
@@ -212,11 +230,15 @@ export default function Dashboard() {
   }, [rangeTxns]);
 
   const categoryShareData = useMemo(() => {
+    // Pre-compute maps for O(1) lookups during iteration
+    const productsMap = new Map(products.map((p) => [p.id, p]));
+    const categoriesMap = new Map(categories.map((c) => [c.id, c]));
+
     const catSalesMap = new Map<string, number>();
 
     rangeTxns.forEach((tx) => {
       tx.items.forEach((item) => {
-        const prod = products.find((p) => p.id === item.productId);
+        const prod = productsMap.get(item.productId);
         const catId = prod?.category || 'general';
         const current = catSalesMap.get(catId) || 0;
         catSalesMap.set(catId, current + item.total);
@@ -227,7 +249,7 @@ export default function Dashboard() {
 
     return Array.from(catSalesMap.entries())
       .map(([catId, revenue], idx) => {
-        const catObj = categories.find((c) => c.id === catId);
+        const catObj = categoriesMap.get(catId);
         const catName = catObj
           ? t(`categories.${catObj.name.toLowerCase()}`, { defaultValue: catObj.name })
           : 'General';

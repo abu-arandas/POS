@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { canTransition, poTotal, poUnitCount, normalizePoLines } from '../../src/lib/purchaseOrders';
+import {
+  canTransition,
+  poTotal,
+  poUnitCount,
+  normalizePoLines,
+} from '../../src/lib/purchaseOrders';
 import { PurchaseOrderLine, PurchaseOrderStatus } from '../../src/types';
 
 const line = (over: Partial<PurchaseOrderLine> = {}): PurchaseOrderLine => ({

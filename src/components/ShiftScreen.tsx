@@ -10,7 +10,7 @@ import {
   Check,
   User,
   ShoppingBag,
-  Timer
+  Timer,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useShiftStore } from '../stores/shiftStore';
@@ -43,7 +43,7 @@ export default function ShiftScreen() {
 
   const shiftTxns = useMemo(
     () => (currentShift ? transactions.filter((tx) => tx.shiftId === currentShift.id) : []),
-    [transactions, currentShift]
+    [transactions, currentShift],
   );
   const summary = useMemo(() => summarizeShift(shiftTxns), [shiftTxns]);
   const expectedCash = currentShift ? summary.expectedCash(currentShift.openingFloat) : 0;
@@ -59,7 +59,7 @@ export default function ShiftScreen() {
   const handleClose = () => {
     if (!currentShift) return;
     const counted = parseFloat(countedCash) || 0;
-    if (!window.confirm(t('shift.confirmClose') || 'Close shift?')) return;
+    if (!window.confirm(t('shift.confirmClose', 'Close shift?'))) return;
     closeShift(currentShift.id, counted, closeNote, currentUser?.name ?? 'Unknown');
     setCountedCash('');
     setCloseNote('');
@@ -73,7 +73,12 @@ export default function ShiftScreen() {
     const w = window.open('', '_blank');
     if (!w) return;
     const esc = escapeHtml;
-    const c = esc(cur);
+    // row() escapes both of its arguments, so callers pass RAW values. Passing
+    // pre-escaped text (which is what `esc(cur)` and `esc(shift.openedBy)` used
+    // to do) escapes it twice and prints a store named "Ben & Co" as
+    // "Ben &amp; Co". The two places that interpolate outside row() escape for
+    // themselves.
+    const c = cur;
     const row = (label: string, val: string) =>
       `<div class="flex-row"><span>${esc(label)}</span><span>${esc(val)}</span></div>`;
     w.document.write(`<html><head><title>Z-Report ${esc(shift.id)}</title><style>
@@ -84,7 +89,7 @@ export default function ShiftScreen() {
       <div class="center bold">${esc(settings.storeName)}</div>
       <div class="center">Z-REPORT / SHIFT SUMMARY</div><div class="divider"></div>
       ${row('OPENED', new Date(shift.openedAt).toLocaleString())}
-      ${row('OPERATOR', esc(shift.openedBy))}
+      ${row('OPERATOR', shift.openedBy)}
       ${shift.closedAt ? row('CLOSED', new Date(shift.closedAt).toLocaleString()) : ''}
       <div class="divider"></div>
       ${row('SALES', String(s.saleCount))}
@@ -98,7 +103,7 @@ export default function ShiftScreen() {
       ${row('OPENING FLOAT', c + shift.openingFloat.toFixed(2))}
       ${row('EXPECTED CASH', c + expected.toFixed(2))}
       ${shift.closedAt ? row('COUNTED CASH', c + counted.toFixed(2)) : ''}
-      ${shift.closedAt ? `<div class="flex-row bold"><span>VARIANCE</span><span>${c}${(counted - expected).toFixed(2)}</span></div>` : ''}
+      ${shift.closedAt ? `<div class="flex-row bold"><span>VARIANCE</span><span>${esc(c + (counted - expected).toFixed(2))}</span></div>` : ''}
       <div class="divider"></div>
       <div class="center">${new Date().toLocaleString()}</div>
       </body></html>`);
@@ -122,7 +127,9 @@ export default function ShiftScreen() {
           <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
             <Clock className="text-emerald-500" /> {t('shift.title')}
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">{t('shift.subtitle')}</p>
+          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
+            {t('shift.subtitle')}
+          </p>
         </motion.div>
       </div>
 
@@ -144,10 +151,15 @@ export default function ShiftScreen() {
                 <h3 className="font-bold text-2xl text-slate-900 dark:text-white mb-2">
                   {t('shift.noOpenShift')}
                 </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-8">{t('shift.openHint')}</p>
-                
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-8">
+                  {t('shift.openHint')}
+                </p>
+
                 <div className="text-start bg-[#0f172a]/50 p-6 rounded-2xl border border-slate-200 dark:border-white/5 shadow-inner">
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+                  <label
+                    htmlFor="opening-float-input"
+                    className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3"
+                  >
                     {t('shift.openingFloat')}
                   </label>
                   <div className="flex items-center rounded-xl bg-white dark:bg-[#020617] px-4 py-2 border border-slate-200 dark:border-slate-700/50 focus-within:border-emerald-500/50 transition-colors">
@@ -199,7 +211,9 @@ export default function ShiftScreen() {
                       <div className="flex items-center gap-6 mt-4">
                         <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[#0f172a] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
                           <User size={16} className="text-emerald-500" />
-                          <span className="font-medium text-slate-700 dark:text-slate-200">{currentShift.openedBy}</span>
+                          <span className="font-medium text-slate-700 dark:text-slate-200">
+                            {currentShift.openedBy}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[#0f172a] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
                           <Timer size={16} className="text-blue-500" />
@@ -220,11 +234,31 @@ export default function ShiftScreen() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {[
-                    { label: t('shift.gross'), val: `${cur}${summary.grossSales.toFixed(2)}`, color: 'emerald' },
-                    { label: t('shift.cashSales'), val: `${cur}${summary.cashSales.toFixed(2)}`, color: 'emerald' },
-                    { label: t('dashboard.card'), val: `${cur}${summary.cardSales.toFixed(2)}`, color: 'blue' },
-                    { label: t('dashboard.mobile'), val: `${cur}${summary.mobileSales.toFixed(2)}`, color: 'purple' },
-                    { label: t('shift.cashRefunds'), val: `${cur}${summary.cashRefunds.toFixed(2)}`, color: 'rose' },
+                    {
+                      label: t('shift.gross'),
+                      val: `${cur}${summary.grossSales.toFixed(2)}`,
+                      color: 'emerald',
+                    },
+                    {
+                      label: t('shift.cashSales'),
+                      val: `${cur}${summary.cashSales.toFixed(2)}`,
+                      color: 'emerald',
+                    },
+                    {
+                      label: t('dashboard.card'),
+                      val: `${cur}${summary.cardSales.toFixed(2)}`,
+                      color: 'blue',
+                    },
+                    {
+                      label: t('dashboard.mobile'),
+                      val: `${cur}${summary.mobileSales.toFixed(2)}`,
+                      color: 'purple',
+                    },
+                    {
+                      label: t('shift.cashRefunds'),
+                      val: `${cur}${summary.cashRefunds.toFixed(2)}`,
+                      color: 'rose',
+                    },
                   ].map((s, i) => (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
@@ -247,34 +281,46 @@ export default function ShiftScreen() {
               {/* Close Shift (Z-Report Style) */}
               <div className="surface rounded-3xl p-6 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 inset-x-0 h-2 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjQiPgo8cGF0aCBkPSJNIDAgMCBMIDQgNCBMIDggMCBaIiBmaWxsPSIjMGYxNzJhIi8+Cjwvc3ZnPg==')] opacity-50 bg-repeat-x" />
-                
+
                 <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2 mb-6 mt-2">
                   <LockKeyhole size={18} className="text-amber-500" /> {t('shift.closeReconcile')}
                 </h3>
 
                 <div className="space-y-4">
                   <div className="flex justify-between items-center text-sm font-mono border-b border-dashed border-slate-200 dark:border-slate-700/50 pb-3">
-                    <span className="text-slate-500 dark:text-slate-400">{t('shift.openingFloat')}</span>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      {t('shift.openingFloat')}
+                    </span>
                     <span className="font-medium text-slate-600 dark:text-slate-300">
-                      {cur}{currentShift.openingFloat.toFixed(2)}
+                      {cur}
+                      {currentShift.openingFloat.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm font-mono border-b border-dashed border-slate-200 dark:border-slate-700/50 pb-3">
-                    <span className="text-slate-500 dark:text-slate-400">{t('shift.cashSales')}</span>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      {t('shift.cashSales')}
+                    </span>
                     <span className="font-medium text-slate-600 dark:text-slate-300">
-                      +{cur}{summary.cashSales.toFixed(2)}
+                      +{cur}
+                      {summary.cashSales.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm font-mono border-b border-dashed border-slate-200 dark:border-slate-700/50 pb-3">
-                    <span className="text-slate-500 dark:text-slate-400">{t('shift.cashRefunds')}</span>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      {t('shift.cashRefunds')}
+                    </span>
                     <span className="font-medium text-rose-400">
-                      -{cur}{summary.cashRefunds.toFixed(2)}
+                      -{cur}
+                      {summary.cashRefunds.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm font-mono border-b-2 border-slate-200 dark:border-slate-700/50 pb-3 mb-4">
-                    <span className="font-bold text-slate-600 dark:text-slate-300">{t('shift.expectedCash')}</span>
+                    <span className="font-bold text-slate-600 dark:text-slate-300">
+                      {t('shift.expectedCash')}
+                    </span>
                     <span className="font-extrabold text-emerald-400 text-lg">
-                      {cur}{expectedCash.toFixed(2)}
+                      {cur}
+                      {expectedCash.toFixed(2)}
                     </span>
                   </div>
 
@@ -308,11 +354,17 @@ export default function ShiftScreen() {
                       }`}
                     >
                       <span className="font-bold uppercase flex items-center gap-1.5">
-                        {Math.abs(variance) < 0.005 ? <Check size={14} /> : <AlertTriangle size={14} />}
+                        {Math.abs(variance) < 0.005 ? (
+                          <Check size={14} />
+                        ) : (
+                          <AlertTriangle size={14} />
+                        )}
                         {t('shift.variance')}
                       </span>
                       <span className="font-extrabold">
-                        {variance >= 0 ? '+' : ''}{cur}{variance.toFixed(2)}
+                        {variance >= 0 ? '+' : ''}
+                        {cur}
+                        {variance.toFixed(2)}
                       </span>
                     </motion.div>
                   )}
@@ -350,17 +402,17 @@ export default function ShiftScreen() {
               <Clock size={18} className="text-slate-500 dark:text-slate-400" />
               {t('shift.pastShifts')}
             </h3>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full text-start text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 font-medium">
-                    <th className="pb-3 px-4">{t('shift.operator') || 'Opened By'}</th>
-                    <th className="pb-3 px-4">{t('shift.closedBy') || 'Closed By'}</th>
-                    <th className="pb-3 px-4">{t('shift.openedAt') || 'Opened'}</th>
-                    <th className="pb-3 px-4">{t('shift.closedAt') || 'Closed'}</th>
-                    <th className="pb-3 px-4 text-end">{t('shift.gross') || 'Gross'}</th>
-                    <th className="pb-3 px-4 text-end">{t('shift.variance') || 'Variance'}</th>
+                    <th className="pb-3 px-4">{t('shift.operator', 'Opened By')}</th>
+                    <th className="pb-3 px-4">{t('shift.closedBy', 'Closed By')}</th>
+                    <th className="pb-3 px-4">{t('shift.openedAt', 'Opened')}</th>
+                    <th className="pb-3 px-4">{t('shift.closedAt', 'Closed')}</th>
+                    <th className="pb-3 px-4 text-end">{t('shift.gross', 'Gross')}</th>
+                    <th className="pb-3 px-4 text-end">{t('shift.variance', 'Variance')}</th>
                     <th className="pb-3 px-4 text-center"></th>
                   </tr>
                 </thead>
@@ -376,7 +428,9 @@ export default function ShiftScreen() {
                             <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs">
                               {shift.openedBy.charAt(0).toUpperCase()}
                             </div>
-                            <span className="font-medium text-slate-700 dark:text-slate-200">{shift.openedBy}</span>
+                            <span className="font-medium text-slate-700 dark:text-slate-200">
+                              {shift.openedBy}
+                            </span>
                           </div>
                         </td>
                         <td className="py-4 px-4">
@@ -385,7 +439,9 @@ export default function ShiftScreen() {
                               <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold text-xs">
                                 {shift.closedBy.charAt(0).toUpperCase()}
                               </div>
-                              <span className="text-sm text-slate-600 dark:text-slate-300">{shift.closedBy}</span>
+                              <span className="text-sm text-slate-600 dark:text-slate-300">
+                                {shift.closedBy}
+                              </span>
                             </div>
                           ) : (
                             <span className="text-slate-600">—</span>
@@ -398,11 +454,16 @@ export default function ShiftScreen() {
                           {shift.closedAt ? new Date(shift.closedAt).toLocaleString() : '—'}
                         </td>
                         <td className="py-4 px-4 text-end font-mono font-medium text-slate-900 dark:text-white">
-                          {cur}{s.grossSales.toFixed(2)}
+                          {cur}
+                          {s.grossSales.toFixed(2)}
                         </td>
                         <td className="py-4 px-4 text-end">
-                          <span className={`badge ${Math.abs(v) < 0.005 ? 'badge-emerald' : 'badge-rose'} font-mono text-xs`}>
-                            {v >= 0 ? '+' : ''}{cur}{v.toFixed(2)}
+                          <span
+                            className={`badge ${Math.abs(v) < 0.005 ? 'badge-emerald' : 'badge-rose'} font-mono text-xs`}
+                          >
+                            {v >= 0 ? '+' : ''}
+                            {cur}
+                            {v.toFixed(2)}
                           </span>
                         </td>
                         <td className="py-4 px-4 text-center">

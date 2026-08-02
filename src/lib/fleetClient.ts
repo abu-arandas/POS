@@ -134,7 +134,11 @@ export async function listStores(orgId: string): Promise<Store[]> {
   const client = await withSession();
   if (!client) return [];
   try {
-    const { data, error } = await client.from('stores').select('*').eq('org_id', orgId).order('name');
+    const { data, error } = await client
+      .from('stores')
+      .select('*')
+      .eq('org_id', orgId)
+      .order('name');
     if (error || !data) return [];
     return (data as Record<string, unknown>[]).map(mapStore);
   } catch (err) {

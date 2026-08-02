@@ -134,7 +134,11 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
   const totals = useMemo(() => fleetTotals(scopedRows), [scopedRows]);
   const ranked = useMemo(() => rankStores(summary), [summary]);
   const series = useMemo(
-    () => buildDailySeries(daily, activeFilter || undefined).map((p) => ({ ...p, label: shortDay(p.day) })),
+    () =>
+      buildDailySeries(daily, activeFilter || undefined).map((p) => ({
+        ...p,
+        label: shortDay(p.day),
+      })),
     [daily, activeFilter],
   );
 
@@ -149,7 +153,9 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
           <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-lg sm:text-xl flex items-center gap-2">
             <Activity className="text-emerald-500" size={22} /> {t('fleetReport.title')}
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{t('fleetReport.subtitle')}</p>
+          <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+            {t('fleetReport.subtitle')}
+          </p>
         </motion.div>
         <div className="flex items-center gap-2">
           {/* Store filter (drill-in) */}
@@ -173,7 +179,9 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                 key={p}
                 onClick={() => setPeriod(p)}
                 className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-colors ${
-                  period === p ? 'bg-emerald-500 text-slate-950' : 'text-slate-500 dark:text-slate-400 hover:text-white'
+                  period === p
+                    ? 'bg-emerald-500 text-slate-950'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-white'
                 }`}
               >
                 {t(`fleetReport.period_${p}`)}
@@ -252,8 +260,21 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#1e293b" />
-                      <XAxis dataKey="label" stroke="#475569" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                      <YAxis stroke="#475569" fontSize={12} tickLine={false} axisLine={false} dx={-10} />
+                      <XAxis
+                        dataKey="label"
+                        stroke="#475569"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        dy={10}
+                      />
+                      <YAxis
+                        stroke="#475569"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        dx={-10}
+                      />
                       <Tooltip content={<TrendTooltip currency={cur} />} />
                       <Area
                         type="monotone"
@@ -272,8 +293,12 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             {/* Revenue by store (ranked, click to drill in) */}
             <div className="surface rounded-3xl shadow-xl overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
-                <h3 className="font-sans font-bold text-slate-900 dark:text-white text-base">{t('fleetReport.revenueByStore')}</h3>
-                <span className="text-[10px] font-mono text-slate-500 uppercase">{t('fleetReport.clickToDrill')}</span>
+                <h3 className="font-sans font-bold text-slate-900 dark:text-white text-base">
+                  {t('fleetReport.revenueByStore')}
+                </h3>
+                <span className="text-[10px] font-mono text-slate-500 uppercase">
+                  {t('fleetReport.clickToDrill')}
+                </span>
               </div>
               <ul className="divide-y divide-white/5">
                 {ranked.map((s) => {
@@ -287,7 +312,9 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                         }`}
                       >
                         <div className="flex items-center justify-between gap-4 mb-2">
-                          <span className="text-sm font-bold text-slate-900 dark:text-white truncate">{s.storeName}</span>
+                          <span className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                            {s.storeName}
+                          </span>
                           <div className="flex items-center gap-4 shrink-0">
                             <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
                               {cur}
@@ -331,7 +358,9 @@ function KpiTile({
   return (
     <div className="surface rounded-3xl p-5 shadow-xl">
       <div className="flex justify-between items-start mb-2">
-        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">{label}</span>
+        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
+          {label}
+        </span>
         {icon}
       </div>
       <p className={`font-mono font-extrabold text-2xl ${accent}`}>{value}</p>

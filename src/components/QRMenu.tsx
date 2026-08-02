@@ -31,7 +31,8 @@ export default function QRMenu() {
     // Initial fetch without the refresh spinner: state updates only land
     // after the promise resolves, never synchronously inside the effect.
     let cancelled = false;
-    window.electronAPI?.getMenuInfo?.()
+    window.electronAPI
+      ?.getMenuInfo?.()
       .then((info) => {
         if (!cancelled) setMenuHost(info);
       })
@@ -54,7 +55,7 @@ export default function QRMenu() {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="h-full flex flex-col bg-transparent overflow-y-auto p-6"
@@ -67,7 +68,7 @@ export default function QRMenu() {
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t('qrmenu.subtitle')}</p>
         </div>
-        
+
         <button
           onClick={fetchMenuInfo}
           disabled={isRefreshing}
@@ -79,9 +80,8 @@ export default function QRMenu() {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
-        
         {/* Main QR Card */}
-        <motion.div 
+        <motion.div
           initial={{ scale: 0.95 }}
           animate={{ scale: 1 }}
           id="print-area"
@@ -116,19 +116,21 @@ export default function QRMenu() {
                 onClick={copyToClipboard}
                 aria-label={t('qrmenu.copyLink')}
                 className={`p-2 rounded-full transition-all ${
-                  copied 
-                    ? 'bg-emerald-500 text-slate-900 dark:text-white' 
+                  copied
+                    ? 'bg-emerald-500 text-slate-900 dark:text-white'
                     : 'bg-white dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-600 dark:text-slate-300 shadow-sm'
                 }`}
               >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
               </button>
             </div>
-            
+
             {/* Network Info */}
             <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-500 font-bold text-sm bg-emerald-50 dark:bg-emerald-500/10 px-4 py-2 rounded-xl">
               <Wifi size={16} />
-              <span>{menuHost.ip}:{menuHost.port}</span>
+              <span>
+                {menuHost.ip}:{menuHost.port}
+              </span>
             </div>
           </div>
         </motion.div>
@@ -141,9 +143,8 @@ export default function QRMenu() {
           <Printer size={24} />
           {t('qrmenu.printDisplay')}
         </button>
-
       </div>
-      
+
       {/* Print styles - only visible when printing */}
       <style
         dangerouslySetInnerHTML={{

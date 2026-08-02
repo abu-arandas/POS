@@ -37,9 +37,13 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const CATEGORIES = [
   { id: 'cat-bev', name: 'Beverages', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-  { id: 'cat-bak', name: 'Bakery',    color: 'bg-amber-100 text-amber-800 border-amber-200' },
-  { id: 'cat-snd', name: 'Sandwiches',color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
-  { id: 'cat-snk', name: 'Snacks',    color: 'bg-purple-100 text-purple-800 border-purple-200' },
+  { id: 'cat-bak', name: 'Bakery', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+  {
+    id: 'cat-snd',
+    name: 'Sandwiches',
+    color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  },
+  { id: 'cat-snk', name: 'Snacks', color: 'bg-purple-100 text-purple-800 border-purple-200' },
 ];
 
 // Self-contained SVG thumbnails (category gradient + emoji) so seeded products
@@ -64,32 +68,191 @@ const productThumb = (category, emoji) => {
 };
 
 const PRODUCTS = [
-  { id: 'prod-espresso',   name: 'Classic Espresso',       price: 3.25, cost: 0.65, category: 'cat-bev', sku: 'BEV-ESP-01', stock: 120, min_stock: 20, image: productThumb('cat-bev', '☕') },
-  { id: 'prod-latte',      name: 'Caffe Latte',             price: 4.50, cost: 0.90, category: 'cat-bev', sku: 'BEV-LAT-02', stock: 95,  min_stock: 15, image: productThumb('cat-bev', '🥛') },
-  { id: 'prod-greentea',   name: 'Organic Matcha Tea',      price: 4.00, cost: 0.80, category: 'cat-bev', sku: 'BEV-MAT-03', stock: 6,   min_stock: 10, image: productThumb('cat-bev', '🍵') },
-  { id: 'prod-croissant',  name: 'Butter Croissant',        price: 3.75, cost: 1.10, category: 'cat-bak', sku: 'BAK-CRO-01', stock: 45,  min_stock: 10, image: productThumb('cat-bak', '🥐') },
-  { id: 'prod-muffin',     name: 'Blueberry Muffin',        price: 3.50, cost: 0.95, category: 'cat-bak', sku: 'BAK-MUF-02', stock: 30,  min_stock: 8,  image: productThumb('cat-bak', '🧁') },
-  { id: 'prod-choccake',   name: 'Fudge Cake Slice',        price: 5.25, cost: 1.50, category: 'cat-bak', sku: 'BAK-CAK-03', stock: 12,  min_stock: 5,  image: productThumb('cat-bak', '🍰') },
-  { id: 'prod-avotoast',   name: 'Avocado Toast',           price: 8.50, cost: 2.50, category: 'cat-snd', sku: 'SND-AVO-01', stock: 35,  min_stock: 5,  image: productThumb('cat-snd', '🥑') },
-  { id: 'prod-caprese',    name: 'Caprese Panini',          price: 9.25, cost: 3.00, category: 'cat-snd', sku: 'SND-CAP-02', stock: 22,  min_stock: 5,  image: productThumb('cat-snd', '🥪') },
-  { id: 'prod-turkeyswiss',name: 'Turkey Swiss Sandwich',   price: 8.75, cost: 2.75, category: 'cat-snd', sku: 'SND-TRK-03', stock: 4,   min_stock: 5,  image: productThumb('cat-snd', '🥪') },
-  { id: 'prod-chips',      name: 'Sea Salt Potato Chips',   price: 2.00, cost: 0.50, category: 'cat-snk', sku: 'SNK-CHP-01', stock: 75,  min_stock: 15, image: productThumb('cat-snk', '🍟') },
-  { id: 'prod-fruit',      name: 'Fresh Berry Bowl',        price: 5.50, cost: 1.80, category: 'cat-snk', sku: 'SNK-FRT-02', stock: 18,  min_stock: 5,  image: productThumb('cat-snk', '🍓') },
+  {
+    id: 'prod-espresso',
+    name: 'Classic Espresso',
+    price: 3.25,
+    cost: 0.65,
+    category: 'cat-bev',
+    sku: 'BEV-ESP-01',
+    stock: 120,
+    min_stock: 20,
+    image: productThumb('cat-bev', '☕'),
+  },
+  {
+    id: 'prod-latte',
+    name: 'Caffe Latte',
+    price: 4.5,
+    cost: 0.9,
+    category: 'cat-bev',
+    sku: 'BEV-LAT-02',
+    stock: 95,
+    min_stock: 15,
+    image: productThumb('cat-bev', '🥛'),
+  },
+  {
+    id: 'prod-greentea',
+    name: 'Organic Matcha Tea',
+    price: 4.0,
+    cost: 0.8,
+    category: 'cat-bev',
+    sku: 'BEV-MAT-03',
+    stock: 6,
+    min_stock: 10,
+    image: productThumb('cat-bev', '🍵'),
+  },
+  {
+    id: 'prod-croissant',
+    name: 'Butter Croissant',
+    price: 3.75,
+    cost: 1.1,
+    category: 'cat-bak',
+    sku: 'BAK-CRO-01',
+    stock: 45,
+    min_stock: 10,
+    image: productThumb('cat-bak', '🥐'),
+  },
+  {
+    id: 'prod-muffin',
+    name: 'Blueberry Muffin',
+    price: 3.5,
+    cost: 0.95,
+    category: 'cat-bak',
+    sku: 'BAK-MUF-02',
+    stock: 30,
+    min_stock: 8,
+    image: productThumb('cat-bak', '🧁'),
+  },
+  {
+    id: 'prod-choccake',
+    name: 'Fudge Cake Slice',
+    price: 5.25,
+    cost: 1.5,
+    category: 'cat-bak',
+    sku: 'BAK-CAK-03',
+    stock: 12,
+    min_stock: 5,
+    image: productThumb('cat-bak', '🍰'),
+  },
+  {
+    id: 'prod-avotoast',
+    name: 'Avocado Toast',
+    price: 8.5,
+    cost: 2.5,
+    category: 'cat-snd',
+    sku: 'SND-AVO-01',
+    stock: 35,
+    min_stock: 5,
+    image: productThumb('cat-snd', '🥑'),
+  },
+  {
+    id: 'prod-caprese',
+    name: 'Caprese Panini',
+    price: 9.25,
+    cost: 3.0,
+    category: 'cat-snd',
+    sku: 'SND-CAP-02',
+    stock: 22,
+    min_stock: 5,
+    image: productThumb('cat-snd', '🥪'),
+  },
+  {
+    id: 'prod-turkeyswiss',
+    name: 'Turkey Swiss Sandwich',
+    price: 8.75,
+    cost: 2.75,
+    category: 'cat-snd',
+    sku: 'SND-TRK-03',
+    stock: 4,
+    min_stock: 5,
+    image: productThumb('cat-snd', '🥪'),
+  },
+  {
+    id: 'prod-chips',
+    name: 'Sea Salt Potato Chips',
+    price: 2.0,
+    cost: 0.5,
+    category: 'cat-snk',
+    sku: 'SNK-CHP-01',
+    stock: 75,
+    min_stock: 15,
+    image: productThumb('cat-snk', '🍟'),
+  },
+  {
+    id: 'prod-fruit',
+    name: 'Fresh Berry Bowl',
+    price: 5.5,
+    cost: 1.8,
+    category: 'cat-snk',
+    sku: 'SNK-FRT-02',
+    stock: 18,
+    min_stock: 5,
+    image: productThumb('cat-snk', '🍓'),
+  },
 ];
 
 const CUSTOMERS = [
-  { id: 'cust-1', name: 'Sarah Jenkins',   email: 'sarah.j@gmail.com',        phone: '555-0192', points: 124, created_at: '2026-05-10' },
-  { id: 'cust-2', name: 'Marcus Chen',     email: 'mchen99@yahoo.com',         phone: '555-0143', points: 48,  created_at: '2026-06-01' },
-  { id: 'cust-3', name: 'Olivia Martinez', email: 'olivia.m@outlook.com',      phone: '555-0177', points: 215, created_at: '2026-04-15' },
-  { id: 'cust-4', name: 'David Wilson',    email: 'david.wilson@gmail.com',    phone: '555-0188', points: 10,  created_at: '2026-06-25' },
+  {
+    id: 'cust-1',
+    name: 'Sarah Jenkins',
+    email: 'sarah.j@gmail.com',
+    phone: '555-0192',
+    points: 124,
+    created_at: '2026-05-10',
+  },
+  {
+    id: 'cust-2',
+    name: 'Marcus Chen',
+    email: 'mchen99@yahoo.com',
+    phone: '555-0143',
+    points: 48,
+    created_at: '2026-06-01',
+  },
+  {
+    id: 'cust-3',
+    name: 'Olivia Martinez',
+    email: 'olivia.m@outlook.com',
+    phone: '555-0177',
+    points: 215,
+    created_at: '2026-04-15',
+  },
+  {
+    id: 'cust-4',
+    name: 'David Wilson',
+    email: 'david.wilson@gmail.com',
+    phone: '555-0188',
+    points: 10,
+    created_at: '2026-06-25',
+  },
 ];
 
 // ⚠️  Demo PINs, public in this repository — change them in Settings → Users
 // before the terminal handles real data.
 const USER_ACCOUNTS = [
-  { id: 'user-admin',   name: 'Admin Manager',        role: 'admin',   pin: hashPinSalted('user-admin', '1234'),   active: true, created_at: '2026-01-01T00:00:00.000Z' },
-  { id: 'user-manager', name: 'Sarah Store Manager',  role: 'manager', pin: hashPinSalted('user-manager', '5555'), active: true, created_at: '2026-01-10T00:00:00.000Z' },
-  { id: 'user-cashier', name: 'John Cashier',         role: 'cashier', pin: hashPinSalted('user-cashier', '0000'), active: true, created_at: '2026-01-20T00:00:00.000Z' },
+  {
+    id: 'user-admin',
+    name: 'Admin Manager',
+    role: 'admin',
+    pin: hashPinSalted('user-admin', '1234'),
+    active: true,
+    created_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'user-manager',
+    name: 'Sarah Store Manager',
+    role: 'manager',
+    pin: hashPinSalted('user-manager', '5555'),
+    active: true,
+    created_at: '2026-01-10T00:00:00.000Z',
+  },
+  {
+    id: 'user-cashier',
+    name: 'John Cashier',
+    role: 'cashier',
+    pin: hashPinSalted('user-cashier', '0000'),
+    active: true,
+    created_at: '2026-01-20T00:00:00.000Z',
+  },
 ];
 
 const SETTINGS_TAX_RATE = 8.5;
@@ -108,7 +271,9 @@ function generateTransactions() {
     saleDate.setDate(today.getDate() - d);
 
     const isWeekend = saleDate.getDay() === 0 || saleDate.getDay() === 6;
-    const salesCount = isWeekend ? 15 + Math.floor(Math.random() * 10) : 8 + Math.floor(Math.random() * 8);
+    const salesCount = isWeekend
+      ? 15 + Math.floor(Math.random() * 10)
+      : 8 + Math.floor(Math.random() * 8);
 
     for (let s = 0; s < salesCount; s++) {
       const hour = 7 + Math.floor(Math.random() * 11);
@@ -123,8 +288,8 @@ function generateTransactions() {
         selectedIds.add(prod.id);
       }
 
-      const items = Array.from(selectedIds).map(prodId => {
-        const prod = PRODUCTS.find(p => p.id === prodId);
+      const items = Array.from(selectedIds).map((prodId) => {
+        const prod = PRODUCTS.find((p) => p.id === prodId);
         const qty = 1 + (Math.random() > 0.8 ? 1 : 0);
         return {
           productId: prod.id,
@@ -170,7 +335,7 @@ function generateTransactions() {
       let cash_change = null;
       if (payment_method === 'cash') {
         const bills = [5, 10, 20, 50, 100];
-        const payVal = bills.find(b => b >= total) || Math.ceil(total / 10) * 10;
+        const payVal = bills.find((b) => b >= total) || Math.ceil(total / 10) * 10;
         cash_paid = payVal;
         cash_change = Number((payVal - total).toFixed(2));
       }
@@ -193,7 +358,9 @@ function generateTransactions() {
         customer_id,
         customer_name,
         status: isRefunded ? 'refunded' : 'completed',
-        refund_date: isRefunded ? new Date(txDate.getTime() + 4 * 60 * 60 * 1000).toISOString() : null,
+        refund_date: isRefunded
+          ? new Date(txDate.getTime() + 4 * 60 * 60 * 1000).toISOString()
+          : null,
       });
     }
   }
@@ -209,9 +376,9 @@ async function supabaseUpsert(table, records) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Prefer': 'resolution=merge-duplicates,return=minimal',
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      Prefer: 'resolution=merge-duplicates,return=minimal',
     },
     body: JSON.stringify(records),
   });
@@ -271,7 +438,7 @@ async function main() {
   console.log('ℹ️  You can now delete src/data/seedData.ts safely.\n');
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('\n❌ Seeder failed:', err.message);
   process.exit(1);
 });

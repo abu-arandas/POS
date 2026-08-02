@@ -19,7 +19,7 @@ import {
   Filter,
   ChevronRight,
   Minus,
-  Plus
+  Plus,
 } from 'lucide-react';
 import { SaleTransaction, Product, Customer } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -81,37 +81,40 @@ export default function History() {
   }, [transactions, selectedTxId]);
 
   const filteredTransactions = useMemo(() => {
-    return transactions.filter((tx) => {
-      const matchesSearch =
-        tx.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (tx.customerName && tx.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        tx.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase());
+    return transactions
+      .filter((tx) => {
+        const matchesSearch =
+          tx.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (tx.customerName && tx.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          tx.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'refunded' ? tx.status !== 'completed' : tx.status === 'completed');
+        const matchesStatus =
+          statusFilter === 'all' ||
+          (statusFilter === 'refunded' ? tx.status !== 'completed' : tx.status === 'completed');
 
-      const matchesPayment = paymentFilter.length === 0 || paymentFilter.includes(tx.paymentMethod);
+        const matchesPayment =
+          paymentFilter.length === 0 || paymentFilter.includes(tx.paymentMethod);
 
-      let matchesDate = true;
-      const txDate = new Date(tx.date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+        let matchesDate = true;
+        const txDate = new Date(tx.date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-      if (dateFilter === 'today') {
-        matchesDate = txDate >= today;
-      } else if (dateFilter === 'yesterday') {
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-        matchesDate = txDate >= yesterday && txDate < today;
-      } else if (dateFilter === '7days') {
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 7);
-        matchesDate = txDate >= sevenDaysAgo;
-      }
+        if (dateFilter === 'today') {
+          matchesDate = txDate >= today;
+        } else if (dateFilter === 'yesterday') {
+          const yesterday = new Date(today);
+          yesterday.setDate(today.getDate() - 1);
+          matchesDate = txDate >= yesterday && txDate < today;
+        } else if (dateFilter === '7days') {
+          const sevenDaysAgo = new Date(today);
+          sevenDaysAgo.setDate(today.getDate() - 7);
+          matchesDate = txDate >= sevenDaysAgo;
+        }
 
-      return matchesSearch && matchesStatus && matchesDate && matchesPayment;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return matchesSearch && matchesStatus && matchesDate && matchesPayment;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, searchQuery, dateFilter, statusFilter, paymentFilter]);
 
   // Group by date
@@ -122,11 +125,15 @@ export default function History() {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    filteredTransactions.forEach(tx => {
+    filteredTransactions.forEach((tx) => {
       const d = new Date(tx.date);
-      d.setHours(0,0,0,0);
-      let label = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-      
+      d.setHours(0, 0, 0, 0);
+      let label = d.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+
       if (d.getTime() === today.getTime()) label = t('history.today', 'Today');
       else if (d.getTime() === yesterday.getTime()) label = t('history.yesterday', 'Yesterday');
 
@@ -149,7 +156,8 @@ export default function History() {
     selection: Record<string, number>,
     authorizedBy: string,
   ) => {
-    const tx = useTransactionStore.getState().transactions.find((t) => t.id === staleTx.id) || staleTx;
+    const tx =
+      useTransactionStore.getState().transactions.find((t) => t.id === staleTx.id) || staleTx;
     const result = computeRefund(
       tx,
       selection,
@@ -159,9 +167,12 @@ export default function History() {
     if (!result) return;
 
     const updatedProducts: Product[] = [];
+    const productState = useProductStore.getState().products;
+    const prodMap = new Map(productState.map((p) => [p.id, p]));
+
     for (const [productId, qty] of Object.entries(result.appliedItems)) {
       if (qty <= 0) continue;
-      const prod = useProductStore.getState().products.find((p) => p.id === productId);
+      const prod = prodMap.get(productId);
       if (prod) {
         const updated = { ...prod, stock: prod.stock + qty };
         handleUpdateProduct(updated);
@@ -172,7 +183,9 @@ export default function History() {
     let updatedCustomer: Customer | undefined;
     if (tx.customerId && result.pointsReversal !== 0) {
       updateCustomerPoints(tx.customerId, result.pointsReversal);
-      updatedCustomer = useCustomerStore.getState().customers.find((c) => c.id === tx.customerId);
+      const customerState = useCustomerStore.getState().customers;
+      const custMap = new Map(customerState.map((c) => [c.id, c]));
+      updatedCustomer = custMap.get(tx.customerId);
     }
 
     const refundDate = new Date().toISOString();
@@ -206,7 +219,7 @@ export default function History() {
     if (!refundModalTx) return;
     const totalQty = Object.values(refundSelection).reduce((s, q) => s + Math.max(0, q), 0);
     if (totalQty <= 0) return;
-    
+
     if (refundStep === 1) {
       setRefundStep(2);
     } else {
@@ -240,7 +253,10 @@ export default function History() {
     let authorizedUser: (typeof eligible)[number] | undefined;
     for (const u of eligible) {
       const saltedHash = await hashPinSalted(u.id, overridePin);
-      if (u.pin === saltedHash || u.pin === legacyHash) { authorizedUser = u; break; }
+      if (u.pin === saltedHash || u.pin === legacyHash) {
+        authorizedUser = u;
+        break;
+      }
     }
     if (authorizedUser && refundModalTx) {
       registerPinSuccess(OVERRIDE_THROTTLE_KEY);
@@ -267,7 +283,8 @@ export default function History() {
 
   const notifyPrint = (outcome: HardwarePrintOutcome) => {
     if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
-    else if (outcome === 'unsupported') alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
+    else if (outcome === 'unsupported')
+      alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
     else if (outcome === 'no-device') alert(t('print.noDevice'));
     else if (outcome === 'error') alert(t('print.error'));
   };
@@ -283,7 +300,9 @@ export default function History() {
 
   const handleToggleTx = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setSelectedTxIds((prev) => prev.includes(id) ? prev.filter((txId) => txId !== id) : [...prev, id]);
+    setSelectedTxIds((prev) =>
+      prev.includes(id) ? prev.filter((txId) => txId !== id) : [...prev, id],
+    );
   };
 
   const confirmBulkDelete = () => {
@@ -302,23 +321,34 @@ export default function History() {
     }
     for (const tx of txsToPrint) {
       const outcome = await printReceipt(tx, settings, printerConfig, false, receiptLayout);
-      if (outcome !== 'printed') { notifyPrint(outcome); break; }
+      if (outcome !== 'printed') {
+        notifyPrint(outcome);
+        break;
+      }
     }
   };
 
   const getPaymentIcon = (method: string) => {
     switch (method) {
-      case 'card': return <CreditCard size={13} className="text-blue-400" />;
-      case 'cash': return <DollarSign size={13} className="text-emerald-400" />;
-      case 'mobile': return <Smartphone size={13} className="text-purple-400" />;
-      case 'gift': return <Gift size={13} className="text-amber-400" />;
-      case 'loyalty': return <Award size={13} className="text-emerald-400" />;
-      default: return <CreditCard size={13} className="text-slate-500 dark:text-slate-400" />;
+      case 'card':
+        return <CreditCard size={13} className="text-blue-400" />;
+      case 'cash':
+        return <DollarSign size={13} className="text-emerald-400" />;
+      case 'mobile':
+        return <Smartphone size={13} className="text-purple-400" />;
+      case 'gift':
+        return <Gift size={13} className="text-amber-400" />;
+      case 'loyalty':
+        return <Award size={13} className="text-emerald-400" />;
+      default:
+        return <CreditCard size={13} className="text-slate-500 dark:text-slate-400" />;
     }
   };
 
   const togglePaymentFilter = (method: string) => {
-    setPaymentFilter(prev => prev.includes(method) ? prev.filter(m => m !== method) : [...prev, method]);
+    setPaymentFilter((prev) =>
+      prev.includes(method) ? prev.filter((m) => m !== method) : [...prev, method],
+    );
   };
 
   const renderRefundAmounts = () => {
@@ -335,25 +365,39 @@ export default function History() {
         {computed.pointsReversal !== 0 && (
           <div className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
             <span>{t('history.loyaltyAdjustment')}</span>
-            <span className="font-mono">{computed.pointsReversal > 0 ? '+' : ''}{computed.pointsReversal} pts</span>
+            <span className="font-mono">
+              {computed.pointsReversal > 0 ? '+' : ''}
+              {computed.pointsReversal} pts
+            </span>
           </div>
         )}
         <div className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
           <span>{t('history.totalRefundedAfter')}</span>
-          <span className="font-mono">{settings.currency}{computed.refundedAmount.toFixed(2)}</span>
+          <span className="font-mono">
+            {settings.currency}
+            {computed.refundedAmount.toFixed(2)}
+          </span>
         </div>
         <div className="flex justify-between text-lg font-bold text-slate-900 dark:text-white pt-2 border-t border-slate-300 dark:border-slate-700">
           <span>{t('history.refundAmount')}</span>
-          <span className="text-emerald-400 font-mono">{settings.currency}{computed.refundAmount.toFixed(2)}</span>
+          <span className="text-emerald-400 font-mono">
+            {settings.currency}
+            {computed.refundAmount.toFixed(2)}
+          </span>
         </div>
       </div>
     );
   };
 
   return (
-    <div id="history-root" className="flex-1 flex h-screen overflow-hidden bg-slate-50 dark:bg-[#020617] p-6 text-slate-800 dark:text-slate-100 relative">
-      <div id="transaction-list-section" className="flex-1 flex flex-col min-w-0 pe-6 overflow-hidden">
-        
+    <div
+      id="history-root"
+      className="flex-1 flex h-screen overflow-hidden bg-slate-50 dark:bg-[#020617] p-6 text-slate-800 dark:text-slate-100 relative"
+    >
+      <div
+        id="transaction-list-section"
+        className="flex-1 flex flex-col min-w-0 pe-6 overflow-hidden"
+      >
         <div id="history-header" className="mb-6 shrink-0 flex items-start justify-between gap-3">
           <div>
             <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
@@ -376,30 +420,52 @@ export default function History() {
           </button>
         </div>
 
-        <div id="history-filters" className="surface p-5 rounded-4xl shadow-2xl mb-6 shrink-0 space-y-4">
+        <div
+          id="history-filters"
+          className="surface p-5 rounded-4xl shadow-2xl mb-6 shrink-0 space-y-4"
+        >
           <div className="flex flex-col md:flex-row gap-3">
             <div className="flex-1 flex items-center space-x-2 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/10 px-4 py-2 rounded-2xl focus-within:ring-2 focus-within:ring-emerald-500/50 transition-shadow shadow-sm">
               <Search size={16} className="text-slate-400 dark:text-slate-500" />
               <input
                 id="history-search-input"
                 type="text"
+                aria-label={t('history.searchReceipts')}
                 placeholder={t('history.searchReceipts')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 bg-transparent border-none text-slate-700 dark:text-slate-200 text-sm focus:outline-none placeholder-slate-400 dark:placeholder-slate-500"
               />
             </div>
-            
+
             <div className="flex gap-2">
               <select
                 id="history-status-select"
+                aria-label={t('history.status')}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'completed' | 'refunded')}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as 'all' | 'completed' | 'refunded')
+                }
                 className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/10 rounded-2xl text-xs font-semibold px-4 py-2 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer transition-shadow shadow-sm"
               >
-                <option value="all" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{t('history.allStatuses')}</option>
-                <option value="completed" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{t('history.paidCompleted')}</option>
-                <option value="refunded" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{t('history.refundedReturned')}</option>
+                <option
+                  value="all"
+                  className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                >
+                  {t('history.allStatuses')}
+                </option>
+                <option
+                  value="completed"
+                  className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                >
+                  {t('history.paidCompleted')}
+                </option>
+                <option
+                  value="refunded"
+                  className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                >
+                  {t('history.refundedReturned')}
+                </option>
               </select>
 
               <div className="flex bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 p-1 rounded-2xl shrink-0 shadow-inner">
@@ -426,14 +492,16 @@ export default function History() {
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3 pt-1">
             <div className="flex items-center gap-2">
               <Filter size={14} className="text-slate-400 dark:text-slate-500" />
-              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t('history.paymentFilter')}</span>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                {t('history.paymentFilter')}
+              </span>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {['cash', 'card', 'mobile', 'gift'].map(method => (
+              {['cash', 'card', 'mobile', 'gift'].map((method) => (
                 <button
                   key={method}
                   onClick={() => togglePaymentFilter(method)}
@@ -450,7 +518,10 @@ export default function History() {
           </div>
         </div>
 
-        <div id="history-table-container" className="flex-1 surface rounded-4xl shadow-2xl overflow-hidden flex flex-col">
+        <div
+          id="history-table-container"
+          className="flex-1 surface rounded-4xl shadow-2xl overflow-hidden flex flex-col"
+        >
           <div className="flex-1 overflow-y-auto scrollbar-none relative">
             <table id="history-table" className="w-full text-start border-collapse table-fixed">
               <thead className="sticky top-0 z-20">
@@ -460,7 +531,10 @@ export default function History() {
                       type="checkbox"
                       aria-label={t('history.selectAll')}
                       className="rounded bg-slate-100 dark:bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500 cursor-pointer w-4 h-4"
-                      checked={filteredTransactions.length > 0 && selectedTxIds.length === filteredTransactions.length}
+                      checked={
+                        filteredTransactions.length > 0 &&
+                        selectedTxIds.length === filteredTransactions.length
+                      }
                       onChange={handleToggleSelectAll}
                     />
                   </th>
@@ -475,7 +549,10 @@ export default function History() {
               <tbody className="text-sm font-sans text-slate-700 dark:text-slate-200">
                 {filteredTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center text-slate-500 dark:text-slate-400 font-mono">
+                    <td
+                      colSpan={7}
+                      className="py-16 text-center text-slate-500 dark:text-slate-400 font-mono"
+                    >
                       <div className="flex flex-col items-center">
                         <HistoryIcon size={32} className="text-slate-600 mb-3" />
                         {t('history.noHistoricalTransactions')}
@@ -486,7 +563,10 @@ export default function History() {
                   Object.entries(groupedTransactions).map(([dateLabel, txs]) => (
                     <React.Fragment key={dateLabel}>
                       <tr>
-                        <td colSpan={7} className="py-2 px-4 bg-white/60 dark:bg-slate-900/40 text-xs font-bold text-slate-500 dark:text-slate-400 sticky top-12 z-10 backdrop-blur-sm border-y border-slate-200 dark:border-white/5 uppercase tracking-widest">
+                        <td
+                          colSpan={7}
+                          className="py-2 px-4 bg-white/60 dark:bg-slate-900/40 text-xs font-bold text-slate-500 dark:text-slate-400 sticky top-12 z-10 backdrop-blur-sm border-y border-slate-200 dark:border-white/5 uppercase tracking-widest"
+                        >
                           {dateLabel}
                         </td>
                       </tr>
@@ -516,26 +596,38 @@ export default function History() {
                                 : 'hover:bg-slate-100 dark:bg-slate-800/40'
                             } ${isRefunded ? 'opacity-60' : ''}`}
                           >
-                            <td className="py-4 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                            <td
+                              className="py-4 px-4 text-center"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <input
                                 type="checkbox"
                                 aria-label={`${t('history.selectTransaction')} ${tx.id.substring(0, 12)}`}
                                 className="rounded bg-slate-100 dark:bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500 cursor-pointer w-4 h-4"
                                 checked={isChecked}
-                                onChange={(e) => handleToggleTx(tx.id, e as unknown as React.MouseEvent)}
+                                onChange={(e) =>
+                                  handleToggleTx(tx.id, e as unknown as React.MouseEvent)
+                                }
                               />
                             </td>
                             <td className="py-4 px-2 font-mono font-bold text-slate-600 dark:text-slate-300 text-xs">
-                              {tx.id.substring(0, 12)}...
+                              {tx.id.length > 12 ? `${tx.id.substring(0, 12)}\u2026` : tx.id}
                               <div className="text-[10px] text-slate-500 mt-1 font-sans">
-                                {new Date(tx.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {new Date(tx.date).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
                               </div>
                             </td>
                             <td className="py-4 px-4">
                               {tx.customerName ? (
-                                <span className="font-bold text-slate-900 dark:text-white">{tx.customerName}</span>
+                                <span className="font-bold text-slate-900 dark:text-white">
+                                  {tx.customerName}
+                                </span>
                               ) : (
-                                <span className="text-slate-500 font-medium italic">{t('history.walkIn')}</span>
+                                <span className="text-slate-500 font-medium italic">
+                                  {t('history.walkIn')}
+                                </span>
                               )}
                             </td>
                             <td className="py-4 px-3 text-center">
@@ -544,7 +636,8 @@ export default function History() {
                               </span>
                             </td>
                             <td className="py-4 px-4 text-end font-mono font-bold text-slate-900 dark:text-white">
-                              {settings.currency}{tx.total.toFixed(2)}
+                              {settings.currency}
+                              {tx.total.toFixed(2)}
                             </td>
                             <td className="py-4 px-4">
                               <div className="flex items-center justify-center gap-1.5 font-mono uppercase text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 py-1 px-2 rounded-xl border border-slate-300 dark:border-slate-700">
@@ -553,8 +646,14 @@ export default function History() {
                               </div>
                             </td>
                             <td className="py-4 px-4 text-center">
-                              <span className={`badge ${isRefunded ? 'badge-rose' : isPartial ? 'badge-amber' : 'badge-emerald'}`}>
-                                {isRefunded ? t('history.refunded') : isPartial ? t('history.partial') : t('history.paid')}
+                              <span
+                                className={`badge ${isRefunded ? 'badge-rose' : isPartial ? 'badge-amber' : 'badge-emerald'}`}
+                              >
+                                {isRefunded
+                                  ? t('history.refunded')
+                                  : isPartial
+                                    ? t('history.partial')
+                                    : t('history.paid')}
                               </span>
                             </td>
                           </tr>
@@ -566,14 +665,20 @@ export default function History() {
               </tbody>
             </table>
           </div>
-          
+
           <div className="px-5 py-3 border-t border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/60 text-[11px] text-slate-500 dark:text-slate-400 font-mono flex justify-between shrink-0">
             <span>
               {t('history.filteredCount')} {filteredTransactions.length} {t('history.sales')}
             </span>
             <span className="font-bold text-slate-700 dark:text-slate-200">
               {t('history.totalValue')} {settings.currency}
-              {filteredTransactions.reduce((sum, tx) => sum + (tx.status === 'refunded' ? 0 : tx.total - (tx.refundedAmount ?? 0)), 0).toFixed(2)}
+              {filteredTransactions
+                .reduce(
+                  (sum, tx) =>
+                    sum + (tx.status === 'refunded' ? 0 : tx.total - (tx.refundedAmount ?? 0)),
+                  0,
+                )
+                .toFixed(2)}
             </span>
           </div>
         </div>
@@ -587,41 +692,67 @@ export default function History() {
             exit={{ opacity: 0, x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             id="receipt-view-section"
-            className="absolute top-6 right-6 bottom-6 w-96 glass dark:glass-dark border border-slate-200 dark:border-white/10 rounded-4xl shadow-2xl flex flex-col overflow-hidden z-30"
+            className="absolute top-6 inset-e-6 bottom-6 w-96 glass dark:glass-dark border border-slate-200 dark:border-white/10 rounded-4xl shadow-2xl flex flex-col overflow-hidden z-30"
           >
-            <div className={`p-5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 ${
-                activeTransaction.status === 'refunded' ? 'bg-rose-500/10' : 
-                activeTransaction.status === 'partial' ? 'bg-amber-500/10' : 'bg-emerald-500/10'
+            <div
+              className={`p-5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 ${
+                activeTransaction.status === 'refunded'
+                  ? 'bg-rose-500/10'
+                  : activeTransaction.status === 'partial'
+                    ? 'bg-amber-500/10'
+                    : 'bg-emerald-500/10'
               }`}
             >
               <div className="flex items-center space-x-2">
-                <Check size={18} className={
-                  activeTransaction.status === 'refunded' ? 'text-rose-500' :
-                  activeTransaction.status === 'partial' ? 'text-amber-500' : 'text-emerald-500'
-                }/>
+                <Check
+                  size={18}
+                  className={
+                    activeTransaction.status === 'refunded'
+                      ? 'text-rose-500'
+                      : activeTransaction.status === 'partial'
+                        ? 'text-amber-500'
+                        : 'text-emerald-500'
+                  }
+                />
                 <span className="font-sans font-bold text-sm text-slate-900 dark:text-white">
-                  {activeTransaction.status === 'refunded' ? t('history.transactionRefunded') :
-                   activeTransaction.status === 'partial' ? t('history.transactionPartial') : t('history.transactionPaid')}
+                  {activeTransaction.status === 'refunded'
+                    ? t('history.transactionRefunded')
+                    : activeTransaction.status === 'partial'
+                      ? t('history.transactionPartial')
+                      : t('history.transactionPaid')}
                 </span>
               </div>
-              <button onClick={() => setSelectedTxId(null)} aria-label={t('history.closeDetails')} className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-white rounded-xl transition-colors">
+              <button
+                onClick={() => setSelectedTxId(null)}
+                aria-label={t('history.closeDetails')}
+                className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-white rounded-xl transition-colors"
+              >
                 <X size={16} />
               </button>
             </div>
 
             <div className="flex-1 p-6 overflow-y-auto bg-white dark:bg-slate-950 flex flex-col justify-between scrollbar-none relative">
               <div className="absolute inset-0 mesh-bg-dark opacity-30 pointer-events-none" />
-              
-              <div id="audit-receipt-mockup" className="bg-white text-slate-900 rounded-lg p-5 shadow-sm font-mono text-[11px] relative z-10 receipt-paper">
+
+              <div
+                id="audit-receipt-mockup"
+                className="bg-white text-slate-900 rounded-lg p-5 shadow-sm font-mono text-[11px] relative z-10 receipt-paper"
+              >
                 <div className="text-center border-b border-dashed border-slate-300 pb-4 mb-4">
                   <div className="flex justify-center mb-2">
                     {settings.storeLogo ? (
-                      <img src={settings.storeLogo} alt="Logo" className="h-8 w-auto object-contain" />
+                      <img
+                        src={settings.storeLogo}
+                        alt="Logo"
+                        className="h-8 w-auto object-contain"
+                      />
                     ) : (
                       <ShoppingBag size={28} className="text-slate-800" />
                     )}
                   </div>
-                  <h4 className="font-bold text-slate-900 text-sm uppercase tracking-wider">{settings.storeName}</h4>
+                  <h4 className="font-bold text-slate-900 text-sm uppercase tracking-wider">
+                    {settings.storeName}
+                  </h4>
                   <p className="text-[10px] text-slate-500 mt-1">{settings.storeAddress}</p>
                   <p className="text-[10px] text-slate-500">{settings.storePhone}</p>
                 </div>
@@ -639,7 +770,7 @@ export default function History() {
                   )}
                   <div className="flex justify-between">
                     <span>{t('history.receipt')}</span>
-                    <span className="font-bold">{activeTransaction.id.substring(0,8)}...</span>
+                    <span className="font-bold">{activeTransaction.id.substring(0, 8)}...</span>
                   </div>
                   {activeTransaction.operatorName && (
                     <div className="flex justify-between">
@@ -665,7 +796,10 @@ export default function History() {
                     <div key={idx} className="grid grid-cols-12">
                       <span className="col-span-8 truncate pe-2">{item.productName}</span>
                       <span className="col-span-2 text-center">{item.quantity}</span>
-                      <span className="col-span-2 text-end">{settings.currency}{item.total.toFixed(2)}</span>
+                      <span className="col-span-2 text-end">
+                        {settings.currency}
+                        {item.total.toFixed(2)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -673,21 +807,33 @@ export default function History() {
                 <div className="space-y-1.5 border-b border-dashed border-slate-300 pb-4 mb-4">
                   <div className="flex justify-between">
                     <span>{t('history.subtotal')}</span>
-                    <span>{settings.currency}{activeTransaction.subtotal.toFixed(2)}</span>
+                    <span>
+                      {settings.currency}
+                      {activeTransaction.subtotal.toFixed(2)}
+                    </span>
                   </div>
                   {activeTransaction.discount > 0 && (
                     <div className="flex justify-between text-rose-600">
                       <span>{t('history.discount')}</span>
-                      <span>-{settings.currency}{activeTransaction.discount.toFixed(2)}</span>
+                      <span>
+                        -{settings.currency}
+                        {activeTransaction.discount.toFixed(2)}
+                      </span>
                     </div>
                   )}
                   <div className="flex justify-between text-slate-500">
                     <span>{t('history.tax')}</span>
-                    <span>{settings.currency}{activeTransaction.tax.toFixed(2)}</span>
+                    <span>
+                      {settings.currency}
+                      {activeTransaction.tax.toFixed(2)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-slate-900 font-bold pt-2 border-t border-slate-200 text-sm mt-1">
                     <span>{t('history.totalPaid')}</span>
-                    <span>{settings.currency}{activeTransaction.total.toFixed(2)}</span>
+                    <span>
+                      {settings.currency}
+                      {activeTransaction.total.toFixed(2)}
+                    </span>
                   </div>
                 </div>
 
@@ -730,7 +876,9 @@ export default function History() {
               <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
                 {selectedTxIds.length}
               </div>
-              <span className="text-slate-900 dark:text-white font-bold text-sm">{t('history.selected')}</span>
+              <span className="text-slate-900 dark:text-white font-bold text-sm">
+                {t('history.selected')}
+              </span>
             </div>
             <div className="flex gap-2">
               <button
@@ -776,7 +924,12 @@ export default function History() {
               <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle size={32} />
               </div>
-              <h3 id="delete-tx-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('history.deleteTitle')}</h3>
+              <h3
+                id="delete-tx-title"
+                className="text-xl font-bold text-slate-900 dark:text-white mb-2"
+              >
+                {t('history.deleteTitle')}
+              </h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
                 {t('history.deleteBody', { count: selectedTxIds.length })}
               </p>
@@ -814,10 +967,17 @@ export default function History() {
               className="modal-card max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]"
             >
               <div className="p-6 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 flex justify-between items-center">
-                <h3 id="refund-modal-title" className="font-sans font-bold text-slate-900 dark:text-white text-lg">
+                <h3
+                  id="refund-modal-title"
+                  className="font-sans font-bold text-slate-900 dark:text-white text-lg"
+                >
                   {refundStep === 1 ? t('history.refundStep1') : t('history.refundStep2')}
                 </h3>
-                <button onClick={() => setRefundModalTx(null)} aria-label={t('history.close')} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 hover:text-white">
+                <button
+                  onClick={() => setRefundModalTx(null)}
+                  aria-label={t('history.close')}
+                  className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 hover:text-white"
+                >
                   <X size={16} />
                 </button>
               </div>
@@ -825,28 +985,50 @@ export default function History() {
               <div className="p-6 overflow-y-auto flex-1">
                 {refundStep === 1 && (
                   <div className="space-y-4">
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('history.selectQtyHint')}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                      {t('history.selectQtyHint')}
+                    </p>
                     {refundModalTx.items.map((item, idx) => {
                       const max = refundableQuantities(refundModalTx)[item.productId] || 0;
                       if (max <= 0) return null;
                       const current = refundSelection[item.productId] || 0;
                       return (
-                        <div key={idx} className="flex items-center justify-between bg-slate-100 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200 dark:border-white/5">
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between bg-slate-100 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200 dark:border-white/5"
+                        >
                           <div className="flex-1 min-w-0 pe-4">
-                            <h4 className="text-slate-900 dark:text-white font-bold truncate">{item.productName}</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{settings.currency}{(item.total / item.quantity).toFixed(2)} {t('history.each')}</p>
+                            <h4 className="text-slate-900 dark:text-white font-bold truncate">
+                              {item.productName}
+                            </h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                              {settings.currency}
+                              {(item.total / item.quantity).toFixed(2)} {t('history.each')}
+                            </p>
                           </div>
                           <div className="flex items-center gap-3 bg-white dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-white/10">
                             <button
-                              onClick={() => setRefundSelection({ ...refundSelection, [item.productId]: Math.max(0, current - 1) })}
+                              onClick={() =>
+                                setRefundSelection({
+                                  ...refundSelection,
+                                  [item.productId]: Math.max(0, current - 1),
+                                })
+                              }
                               aria-label={`${t('history.decreaseRefundQty')} — ${item.productName}`}
                               className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-rose-500/20 hover:text-rose-400"
                             >
                               <Minus size={14} />
                             </button>
-                            <span className="w-6 text-center font-bold font-mono text-slate-900 dark:text-white">{current}</span>
+                            <span className="w-6 text-center font-bold font-mono text-slate-900 dark:text-white">
+                              {current}
+                            </span>
                             <button
-                              onClick={() => setRefundSelection({ ...refundSelection, [item.productId]: Math.min(max, current + 1) })}
+                              onClick={() =>
+                                setRefundSelection({
+                                  ...refundSelection,
+                                  [item.productId]: Math.min(max, current + 1),
+                                })
+                              }
                               aria-label={`${t('history.increaseRefundQty')} — ${item.productName}`}
                               className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-emerald-500/20 hover:text-emerald-400"
                             >
@@ -876,7 +1058,9 @@ export default function History() {
                           onChange={(e) => setOverridePin(e.target.value)}
                           className="w-full glass-input rounded-xl px-4 py-3 text-slate-900 dark:text-white text-center tracking-widest font-mono focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
                         />
-                        {overrideError && <p className="text-xs text-rose-400 mt-2 text-center">{overrideError}</p>}
+                        {overrideError && (
+                          <p className="text-xs text-rose-400 mt-2 text-center">{overrideError}</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -894,10 +1078,14 @@ export default function History() {
                 )}
                 <button
                   onClick={handleProcessRefund}
-                  disabled={refundStep === 1 && Object.values(refundSelection).reduce((a,b)=>a+b,0) === 0}
+                  disabled={
+                    refundStep === 1 &&
+                    Object.values(refundSelection).reduce((a, b) => a + b, 0) === 0
+                  }
                   className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-900 dark:text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
                 >
-                  {refundStep === 1 ? t('history.next') : t('history.confirmRefund')} {refundStep === 1 && <ChevronRight size={16} />}
+                  {refundStep === 1 ? t('history.next') : t('history.confirmRefund')}{' '}
+                  {refundStep === 1 && <ChevronRight size={16} />}
                 </button>
               </div>
             </motion.div>

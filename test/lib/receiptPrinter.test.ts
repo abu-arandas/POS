@@ -1,5 +1,11 @@
-import { describe, it, expect } from 'vitest';
-import { buildReceiptHtml, buildKitchenTicketHtml } from '../../src/lib/receiptPrinter';
+import { describe, it, expect, afterEach } from 'vitest';
+import {
+  buildReceiptHtml,
+  buildKitchenTicketHtml,
+  receiptDocHtml,
+} from '../../src/lib/receiptPrinter';
+import { defaultReceiptLayout, allTogglesOn } from '../../src/lib/receiptFormat';
+import i18n from '../../src/lib/i18n';
 import { SaleTransaction, StoreSettings, PrinterConfig } from '../../src/types';
 
 const settings: StoreSettings = {
@@ -94,7 +100,9 @@ describe('buildReceiptHtml', () => {
   it('breaks out unit price for multi-qty lines, item count, and tax rate', () => {
     const multi: SaleTransaction = {
       ...baseTx,
-      items: [{ productId: 'p1', productName: 'Latte', price: 4.5, cost: 0.9, quantity: 2, total: 9 }],
+      items: [
+        { productId: 'p1', productName: 'Latte', price: 4.5, cost: 0.9, quantity: 2, total: 9 },
+      ],
     };
     const html = buildReceiptHtml(multi, settings, printer);
     expect(html).toContain('@ $4.50 ea');
@@ -161,5 +169,54 @@ describe('buildKitchenTicketHtml', () => {
     const html = buildKitchenTicketHtml(evil, settings);
     expect(html).not.toContain('<img src=x');
     expect(html).toContain('&lt;img src=x');
+  });
+});
+
+// Arabic receipts render in a document of their own — a print window, an
+// Electron data: URL, or the settings preview iframe — so direction, language
+// and an Arabic-capable font all have to be restated there. Without them an
+// Arabic receipt prints unshaped and left-aligned.
+describe('Arabic receipts', () => {
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  it('marks the document RTL and Arabic', async () => {
+    await i18n.changeLanguage('ar');
+    const doc = receiptDocHtml('<div></div>', '80mm');
+    expect(doc).toContain('lang="ar"');
+    expect(doc).toContain('dir="rtl"');
+  });
+
+  it('falls back to faces that actually carry the Arabic script', async () => {
+    await i18n.changeLanguage('ar');
+    const doc = receiptDocHtml('<div></div>', '80mm');
+    expect(doc).toMatch(/Segoe UI|Tahoma/);
+  });
+
+  it('isolates each cell so amounts do not reorder across an RTL line', async () => {
+    await i18n.changeLanguage('ar');
+    expect(receiptDocHtml('<div></div>', '80mm')).toContain('unicode-bidi: isolate');
+  });
+
+  it('leaves an English receipt LTR with the monospace stack', () => {
+    const doc = receiptDocHtml('<div></div>', '80mm');
+    expect(doc).toContain('lang="en"');
+    expect(doc).toContain('dir="ltr"');
+    expect(doc).toContain("'Courier New'");
+  });
+
+  it('translates the labels that used to be hardcoded English', async () => {
+    await i18n.changeLanguage('ar');
+    const html = buildReceiptHtml(
+      { ...baseTx, status: 'refunded' },
+      { ...settings, storePhone: '0790000000', taxNumber: '12345' },
+      printer,
+      { ...defaultReceiptLayout(), show: { ...allTogglesOn() } },
+    );
+    expect(html).toContain('هاتف');
+    expect(html).toContain('الرقم الضريبي');
+    expect(html).toContain('مستردة');
+    expect(html).not.toContain('>refunded<');
   });
 });

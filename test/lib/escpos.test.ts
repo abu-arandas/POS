@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { encodeReceipt, encodeKitchenTicket } from '../../src/lib/escpos';
+import { defaultReceiptLayout, allTogglesOn } from '../../src/lib/receiptFormat';
 import { SaleTransaction, StoreSettings, PrinterConfig } from '../../src/types';
 
 const settings: StoreSettings = {
@@ -94,10 +95,15 @@ describe('encodeReceipt', () => {
     expect(asciiOf(encodeReceipt(tx, settings, printer))).not.toContain('YOU SAVED');
   });
 
+  // Now a right-aligned label/value pair taken from i18n, like every other
+  // total — where it used to be a bespoke "Points earned: 9" line that only
+  // this encoder produced and that could never be translated.
   it('shows earned points only for a member sale that earned some', () => {
     const member = { ...tx, customerName: 'Ann', pointsEarned: 9 };
-    expect(asciiOf(encodeReceipt(member, settings, printer))).toContain('Points earned: 9');
-    expect(asciiOf(encodeReceipt(tx, settings, printer))).not.toContain('Points earned');
+    const ascii = asciiOf(encodeReceipt(member, settings, printer));
+    expect(ascii).toContain('POINTS EARNED:');
+    expect(ascii).toMatch(/POINTS EARNED: +9/);
+    expect(asciiOf(encodeReceipt(tx, settings, printer))).not.toContain('POINTS EARNED');
   });
 
   it('emits a native Code128 barcode (GS k 73) of the receipt id when showBarcode is on', () => {
@@ -144,5 +150,32 @@ describe('encodeKitchenTicket', () => {
     // No currency amounts (the receipt shows "$9.00"; the ticket must not).
     expect(ascii(out)).not.toContain('$');
     expect(ascii(out)).not.toContain('TOTAL');
+  });
+});
+
+// Both encoders now describe the receipt from the same DocRow list, so a
+// layout toggle has to reach the thermal path too. It previously had its own
+// copy of the layout and its own hardcoded English labels.
+describe('the text encoder shares the receipt document', () => {
+  it('honours a layout toggle that hides a whole block', () => {
+    const on = asciiOf(encodeReceipt(tx, settings, printer));
+    expect(on).toContain('SUBTOTAL');
+    const off = asciiOf(
+      encodeReceipt(tx, settings, printer, false, {
+        ...defaultReceiptLayout(),
+        show: { ...allTogglesOn(), totals: false },
+      }),
+    );
+    expect(off).not.toContain('SUBTOTAL');
+  });
+
+  it('prints the translated status rather than the raw enum', () => {
+    expect(asciiOf(encodeReceipt({ ...tx, status: 'refunded' }, settings, printer))).toContain(
+      'Refunded',
+    );
+  });
+
+  it('prints the translated tender rather than the raw enum', () => {
+    expect(asciiOf(encodeReceipt(tx, settings, printer))).toContain('Card');
   });
 });

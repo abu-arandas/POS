@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { planCatalogPush, productKey, categoryKey, CatalogPushOptions } from '../../src/lib/catalogPush';
+import {
+  planCatalogPush,
+  productKey,
+  categoryKey,
+  CatalogPushOptions,
+} from '../../src/lib/catalogPush';
 import { Product, Category } from '../../src/types';
 
 const P = (over: Partial<Product>): Product => ({
@@ -15,7 +20,12 @@ const P = (over: Partial<Product>): Product => ({
   ...over,
 });
 
-const C = (over: Partial<Category>): Category => ({ id: 'c1', name: 'Cat', color: 'bg-red-500', ...over });
+const C = (over: Partial<Category>): Category => ({
+  id: 'c1',
+  name: 'Cat',
+  color: 'bg-red-500',
+  ...over,
+});
 
 const ALL: CatalogPushOptions = { addNewProducts: true, updatePrices: true, pushCategories: true };
 
@@ -46,7 +56,12 @@ describe('planCatalogPush', () => {
     const target = { categories: [], products: [] };
     const plan = planCatalogPush(source, target, ALL, counter());
     // one category created, then two products
-    expect(plan.summary).toEqual({ categoriesAdded: 1, productsAdded: 2, pricesUpdated: 0, unchanged: 0 });
+    expect(plan.summary).toEqual({
+      categoriesAdded: 1,
+      productsAdded: 2,
+      pricesUpdated: 0,
+      unchanged: 0,
+    });
     const cat = plan.categoriesToUpsert[0];
     expect(cat.name).toBe('Drinks');
     // products reference the newly created target category id, not the source id
@@ -66,7 +81,12 @@ describe('planCatalogPush', () => {
       ],
     };
     const plan = planCatalogPush(source, target, ALL, counter());
-    expect(plan.summary).toEqual({ categoriesAdded: 0, productsAdded: 0, pricesUpdated: 1, unchanged: 1 });
+    expect(plan.summary).toEqual({
+      categoriesAdded: 0,
+      productsAdded: 0,
+      pricesUpdated: 1,
+      unchanged: 1,
+    });
     const updated = plan.productsToUpsert[0];
     expect(updated.id).toBe('tp1'); // keeps the target's id
     expect(updated.price).toBe(4); // updated from source

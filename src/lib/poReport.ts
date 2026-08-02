@@ -46,15 +46,13 @@ export function buildPoReport(orders: PurchaseOrder[], days?: number): PoReport 
 
     const value = poTotal(po);
     const key = po.supplierId ?? '__none__';
-    const entry =
-      supplierMap.get(key) ??
-      {
-        supplierId: po.supplierId,
-        supplierName: po.supplierName ?? '—',
-        received: 0,
-        outstanding: 0,
-        orders: 0,
-      };
+    const entry = supplierMap.get(key) ?? {
+      supplierId: po.supplierId,
+      supplierName: po.supplierName ?? '—',
+      received: 0,
+      outstanding: 0,
+      orders: 0,
+    };
     entry.orders += 1;
     if (po.status === 'received') {
       receivedValue += value;

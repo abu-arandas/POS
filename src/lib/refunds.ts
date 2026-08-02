@@ -64,18 +64,27 @@ export function computeRefund(
   // Fully refunded once every original line is covered.
   const fullyRefunded = tx.items.every((item) => (merged[item.productId] ?? 0) >= item.quantity);
 
-  const earned = tx.pointsEarned ?? Math.floor(tx.total * loyaltyPointsRate);
-  let pointsReversal = -Math.round(earned * proportion);
-  if (fullyRefunded && tx.discountType === 'loyalty') {
-    // Return only what the redeemed points were actually worth. Sales written
-    // before checkout clamped this stored the *requested* point count, which can
-    // exceed the redemption the order could absorb — crediting that back would
-    // mint points. Deriving from tx.discount caps the reversal for those rows.
-    const redeemable =
-      loyaltyPointValue && loyaltyPointValue > 0
-        ? Math.round(tx.discount / loyaltyPointValue)
-        : tx.discountValue;
-    pointsReversal += Math.min(tx.discountValue, redeemable);
+  // Points only ever move on a sale with a linked customer. A walk-in has no
+  // balance to adjust, and buildSaleTransaction leaves pointsEarned undefined
+  // for one — so without this gate the `??` fallback below invents an award
+  // nobody received, and the refund screen offers to reverse it. The caller
+  // already refuses to apply points without a customerId; deriving 0 here keeps
+  // the number it *displays* honest too.
+  let pointsReversal = 0;
+  if (tx.customerId) {
+    const earned = tx.pointsEarned ?? Math.floor(tx.total * loyaltyPointsRate);
+    pointsReversal = -Math.round(earned * proportion);
+    if (fullyRefunded && tx.discountType === 'loyalty') {
+      // Return only what the redeemed points were actually worth. Sales written
+      // before checkout clamped this stored the *requested* point count, which can
+      // exceed the redemption the order could absorb — crediting that back would
+      // mint points. Deriving from tx.discount caps the reversal for those rows.
+      const redeemable =
+        loyaltyPointValue && loyaltyPointValue > 0
+          ? Math.round(tx.discount / loyaltyPointValue)
+          : tx.discountValue;
+      pointsReversal += Math.min(tx.discountValue, redeemable);
+    }
   }
 
   const refundedAmount = Number(((tx.refundedAmount ?? 0) + refundAmount).toFixed(2));

@@ -11,7 +11,18 @@ export interface StationTicket {
 // by the caller). An item is routed to every station whose categoryIds include
 // its category — normally that's exactly one station, but assigning a category
 // to several stations intentionally fans the item out to each (e.g. an expo
-// copy). Items whose category matches no station are collected under a synthetic
+// copy).
+//
+// A station with an EMPTY category list is a catch-all: it takes every item.
+// This is the "I have one kitchen printer" case, and it is what the settings
+// screen produces when an operator adds a station from a detected printer
+// (addStationFromPrinter creates it with categoryIds: []). Treating empty as
+// "matches nothing" instead made such a station silently inert — every item
+// fell through to the unrouted ticket below, which carries no ipAddress, so
+// tickets printed on the terminal's default transport while the station's own
+// printer sat idle. The station looked correctly configured and did nothing.
+//
+// Items whose category matches no station are still collected under a synthetic
 // "unrouted" ticket so nothing silently disappears; the caller can print or
 // ignore it. Returns only tickets that have at least one item, preserving the
 // given station order.
@@ -23,10 +34,13 @@ export function routeKitchenTickets(
   const tickets: StationTicket[] = [];
 
   for (const station of stations) {
-    const items = tx.items.filter((item) => {
-      const cat = categoryOf(item.productId);
-      return cat !== undefined && station.categoryIds.includes(cat);
-    });
+    const items =
+      station.categoryIds.length === 0
+        ? tx.items // catch-all
+        : tx.items.filter((item) => {
+            const cat = categoryOf(item.productId);
+            return cat !== undefined && station.categoryIds.includes(cat);
+          });
     if (items.length > 0) tickets.push({ station, items });
   }
 

@@ -50,7 +50,10 @@ export interface FleetSummary {
 // sums revenue/orders, counts online stores, and sorts online-first then by
 // revenue desc so the busiest live stores surface at the top.
 export function summarizeFleet(rows: FleetStoreRow[], now: number = Date.now()): FleetSummary {
-  const stores: FleetStore[] = rows.map((r) => ({ ...r, presence: storeStatus(r.lastSeenAt, now) }));
+  const stores: FleetStore[] = rows.map((r) => ({
+    ...r,
+    presence: storeStatus(r.lastSeenAt, now),
+  }));
 
   const presenceRank: Record<StorePresence, number> = { online: 0, stale: 1, offline: 2 };
   stores.sort(

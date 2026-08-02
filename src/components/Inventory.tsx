@@ -53,9 +53,9 @@ export default function Inventory() {
   const handleDeleteProduct = useProductStore((s) => s.handleDeleteProduct);
   const handleAddCategory = useProductStore((s) => s.handleAddCategory);
   const handleDeleteCategory = useProductStore((s) => s.handleDeleteCategory);
-  
+
   const settings = useSettingsStore((s) => s.settings);
-  
+
   const suppliers = useSupplyStore((s) => s.suppliers);
   const adjustments = useSupplyStore((s) => s.adjustments);
   const addSupplier = useSupplyStore((s) => s.addSupplier);
@@ -79,7 +79,9 @@ export default function Inventory() {
   const [recvQty, setRecvQty] = useState('');
   const [recvSupplierId, setRecvSupplierId] = useState('');
   const [recvNote, setRecvNote] = useState('');
-  const [recvReason, setRecvReason] = useState<'received' | 'waste' | 'correction' | 'other'>('received');
+  const [recvReason, setRecvReason] = useState<'received' | 'waste' | 'correction' | 'other'>(
+    'received',
+  );
 
   // Supplier form
   const [supplierModalOpen, setSupplierModalOpen] = useState(false);
@@ -152,14 +154,25 @@ export default function Inventory() {
     setPoModalOpen(false);
   }, [poLines, poSupplierId, poNote, products, suppliers, currentUser, createPurchaseOrder, t]);
 
-  // Receiving applies stock to the LIVE catalog and writes one audit-log entry
-  // per line, exactly like a manual receive — then locks the PO as received.
+  // Receiving locks the PO as received FIRST, then applies stock to the LIVE
+  // catalog and writes one audit-log entry per line, exactly like a manual
+  // receive.
+  //
+  // Order matters: setPurchaseOrderStatus is the authoritative guard (it
+  // refuses anything PO_TRANSITIONS disallows) and the stock movement below is
+  // not idempotent. Crediting first and asking afterwards meant a second call —
+  // a double-click, or the button rendered from a stale snapshot — added the
+  // same shipment to inventory twice while the refused status change was
+  // silently discarded. Claiming the transition up front makes the second call
+  // a no-op. Lines come from the returned record, not the caller's snapshot.
   const handleReceivePo = useCallback(
     (po: PurchaseOrder) => {
       if (!confirm(t('inventory.poReceiveConfirm'))) return;
+      const received = setPurchaseOrderStatus(po.id, 'received');
+      if (!received) return; // already received/cancelled — nothing to apply
       const liveProducts = useProductStore.getState().products;
       const updatedProducts: Product[] = [];
-      for (const line of po.lines) {
+      for (const line of received.lines) {
         const prod = liveProducts.find((p) => p.id === line.productId);
         if (!prod) continue; // product deleted since ordering — skip its line
         const updated = { ...prod, stock: prod.stock + line.quantity };
@@ -171,14 +184,13 @@ export default function Inventory() {
           delta: line.quantity,
           newStock: updated.stock,
           reason: 'received',
-          note: `PO ${po.id}`,
-          supplierId: po.supplierId,
-          supplierName: po.supplierName,
+          note: `PO ${received.id}`,
+          supplierId: received.supplierId,
+          supplierName: received.supplierName,
           operatorName: currentUser?.name ?? null,
         });
       }
       if (updatedProducts.length > 0) syncToCloudIfEnabled(updatedProducts);
-      setPurchaseOrderStatus(po.id, 'received');
     },
     [handleUpdateProduct, logAdjustment, setPurchaseOrderStatus, currentUser, t],
   );
@@ -189,7 +201,7 @@ export default function Inventory() {
     if (!product || !qty) return; // allows negative if reason is waste
     const newStock = product.stock + qty;
     if (newStock < 0) {
-      alert("Stock cannot be negative.");
+      alert('Stock cannot be negative.');
       return;
     }
     const updated = { ...product, stock: newStock };
@@ -214,25 +226,36 @@ export default function Inventory() {
     setRecvNote('');
     setRecvReason('received');
   }, [
-    products, recvProductId, recvQty, suppliers, recvSupplierId, recvReason,
-    recvNote, currentUser, handleUpdateProduct, logAdjustment
+    products,
+    recvProductId,
+    recvQty,
+    suppliers,
+    recvSupplierId,
+    recvReason,
+    recvNote,
+    currentUser,
+    handleUpdateProduct,
+    logAdjustment,
   ]);
 
-  const handleAddSupplier = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    if (!supName.trim()) return;
-    addSupplier({
-      name: supName.trim(),
-      contact: supContact.trim(),
-      phone: supPhone.trim(),
-      email: supEmail.trim(),
-    });
-    setSupName('');
-    setSupContact('');
-    setSupPhone('');
-    setSupEmail('');
-    setSupplierModalOpen(false);
-  }, [supName, supContact, supPhone, supEmail, addSupplier]);
+  const handleAddSupplier = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!supName.trim()) return;
+      addSupplier({
+        name: supName.trim(),
+        contact: supContact.trim(),
+        phone: supPhone.trim(),
+        email: supEmail.trim(),
+      });
+      setSupName('');
+      setSupContact('');
+      setSupPhone('');
+      setSupEmail('');
+      setSupplierModalOpen(false);
+    },
+    [supName, supContact, supPhone, supEmail, addSupplier],
+  );
 
   // Products Table / List State
   const [searchQuery, setSearchQuery] = useState('');
@@ -302,11 +325,13 @@ export default function Inventory() {
       return;
     }
 
-    const duplicateSku = products.find(
-      (p) => p.sku === prodSku && p.id !== editingProduct?.id
-    );
+    const duplicateSku = products.find((p) => p.sku === prodSku && p.id !== editingProduct?.id);
     if (duplicateSku) {
-      alert(t('inventory.duplicateSku', { defaultValue: 'This SKU is already used by another product.' }));
+      alert(
+        t('inventory.duplicateSku', {
+          defaultValue: 'This SKU is already used by another product.',
+        }),
+      );
       return;
     }
 
@@ -365,7 +390,7 @@ export default function Inventory() {
           ? true
           : stockFilter === 'low'
             ? prod.stock <= prod.minStock && prod.stock > 0
-            : prod.stock === 0;
+            : prod.stock <= 0;
 
       return matchesSearch && matchesCategory && matchesStock;
     });
@@ -406,10 +431,7 @@ export default function Inventory() {
   };
 
   const getProductCategoryColor = (catId: string) => {
-    return (
-      categories.find((c) => c.id === catId)?.color ||
-      'badge badge-slate'
-    );
+    return categories.find((c) => c.id === catId)?.color || 'badge badge-slate';
   };
 
   const tabs = [
@@ -435,14 +457,15 @@ export default function Inventory() {
       className="flex-1 flex flex-col h-screen overflow-hidden bg-transparent p-6 text-slate-800 dark:text-slate-100"
     >
       {/* Header Panel */}
-      <div id="inventory-header" className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+      <div
+        id="inventory-header"
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4"
+      >
         <div>
           <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-2xl flex items-center gap-3">
             <Layers className="text-emerald-500" size={28} /> {t('inventory.catalogInventory')}
           </h2>
-          <p className="text-slate-500 text-sm mt-1">
-            {t('inventory.manageStoreItems')}
-          </p>
+          <p className="text-slate-500 text-sm mt-1">{t('inventory.manageStoreItems')}</p>
         </div>
 
         <div className="flex items-center space-x-3 w-full sm:w-auto">
@@ -503,7 +526,11 @@ export default function Inventory() {
       </div>
 
       {/* Tab Navigation with Animated Underline */}
-      <div role="tablist" aria-label={t('inventory.catalogInventory')} className="flex space-x-6 border-b border-slate-200 dark:border-white/10 mb-6 relative">
+      <div
+        role="tablist"
+        aria-label={t('inventory.catalogInventory')}
+        className="flex space-x-6 border-b border-slate-200 dark:border-white/10 mb-6 relative"
+      >
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -531,8 +558,9 @@ export default function Inventory() {
 
       <div className="flex-1 overflow-hidden flex flex-col">
         {activeTab === 'products' && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="flex-1 flex flex-col overflow-hidden"
           >
             {/* Filter Bar */}
@@ -546,6 +574,7 @@ export default function Inventory() {
                 <input
                   id="inventory-search-input"
                   type="text"
+                  aria-label={t('inventory.searchProducts')}
                   placeholder={t('inventory.searchProducts')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -555,9 +584,12 @@ export default function Inventory() {
 
               {/* Select Category */}
               <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
+                <label
+                  htmlFor="filter-category-select"
+                  className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono"
+                >
                   {t('inventory.category')}
-                </span>
+                </label>
                 <select
                   id="filter-category-select"
                   value={selectedCategory}
@@ -619,13 +651,22 @@ export default function Inventory() {
               className="flex-1 surface rounded-2xl shadow-lg overflow-hidden flex flex-col"
             >
               <div className="flex-1 overflow-y-auto">
-                <table id="inventory-table" className="w-full text-start border-collapse table-fixed">
+                <table
+                  id="inventory-table"
+                  className="w-full text-start border-collapse table-fixed"
+                >
                   <thead>
                     <tr className="bg-white/90 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 sticky top-0 z-10 backdrop-blur-md">
                       <th className="py-4 px-6 w-1/4">{t('inventory.productDetails')}</th>
                       <th
                         className="py-4 px-4 w-1/8"
-                        aria-sort={sortBy === 'sku' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
+                        aria-sort={
+                          sortBy === 'sku'
+                            ? sortOrder === 'asc'
+                              ? 'ascending'
+                              : 'descending'
+                            : undefined
+                        }
                       >
                         <button
                           onClick={() => toggleSort('sku')}
@@ -634,10 +675,18 @@ export default function Inventory() {
                           {t('inventory.sku')} <ArrowUpDown size={12} />
                         </button>
                       </th>
-                      <th className="py-4 px-4 w-1/6">{t('inventory.category').replace(':', '')}</th>
+                      <th className="py-4 px-4 w-1/6">
+                        {t('inventory.category').replace(':', '')}
+                      </th>
                       <th
                         className="py-4 px-4 w-1/8 text-end"
-                        aria-sort={sortBy === 'price' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
+                        aria-sort={
+                          sortBy === 'price'
+                            ? sortOrder === 'asc'
+                              ? 'ascending'
+                              : 'descending'
+                            : undefined
+                        }
                       >
                         <button
                           onClick={() => toggleSort('price')}
@@ -650,7 +699,13 @@ export default function Inventory() {
                       <th className="py-4 px-4 w-1/8 text-end">{t('inventory.margin')}</th>
                       <th
                         className="py-4 px-6 w-1/6 text-center"
-                        aria-sort={sortBy === 'stock' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
+                        aria-sort={
+                          sortBy === 'stock'
+                            ? sortOrder === 'asc'
+                              ? 'ascending'
+                              : 'descending'
+                            : undefined
+                        }
                       >
                         <button
                           onClick={() => toggleSort('stock')}
@@ -668,15 +723,18 @@ export default function Inventory() {
                         <td colSpan={8}>
                           <div className="py-20 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 gap-3">
                             <Layers size={48} className="opacity-20" />
-                            <p className="font-medium font-mono">{t('inventory.noProductsRegistered')}</p>
+                            <p className="font-medium font-mono">
+                              {t('inventory.noProductsRegistered')}
+                            </p>
                           </div>
                         </td>
                       </tr>
                     ) : (
                       sortedAndFilteredProducts.map((prod) => {
                         const isLow = prod.stock <= prod.minStock && prod.stock > 0;
-                        const isOut = prod.stock === 0;
-                        const margin = prod.price > 0 ? ((prod.price - prod.cost) / prod.price) * 100 : 0;
+                        const isOut = prod.stock <= 0;
+                        const margin =
+                          prod.price > 0 ? ((prod.price - prod.cost) / prod.price) * 100 : 0;
 
                         return (
                           <tr
@@ -715,23 +773,35 @@ export default function Inventory() {
                               </span>
                             </td>
                             <td className="py-4 px-4 font-mono font-bold text-slate-900 dark:text-white text-end">
-                              {settings.currency}{prod.price.toFixed(2)}
+                              {settings.currency}
+                              {prod.price.toFixed(2)}
                             </td>
                             <td className="py-4 px-4 font-mono text-slate-500 dark:text-slate-400 text-end">
-                              {settings.currency}{prod.cost.toFixed(2)}
+                              {settings.currency}
+                              {prod.cost.toFixed(2)}
                             </td>
                             <td className="py-4 px-4 text-end font-mono font-medium">
-                              <span className={margin >= 50 ? 'text-emerald-400' : 'text-slate-500 dark:text-slate-400'}>
+                              <span
+                                className={
+                                  margin >= 50
+                                    ? 'text-emerald-400'
+                                    : 'text-slate-500 dark:text-slate-400'
+                                }
+                              >
                                 {margin.toFixed(0)}%
                               </span>
                             </td>
                             <td className="py-4 px-6 text-center">
                               <div className="flex flex-col items-center justify-center">
-                                <div className={`px-3 py-1 rounded-lg font-mono font-bold text-sm flex items-center gap-2 ${
-                                  isOut ? 'bg-rose-500/20 text-rose-400' 
-                                  : isLow ? 'bg-amber-500/20 text-amber-400' 
-                                  : 'bg-emerald-500/20 text-emerald-400'
-                                }`}>
+                                <div
+                                  className={`px-3 py-1 rounded-lg font-mono font-bold text-sm flex items-center gap-2 ${
+                                    isOut
+                                      ? 'bg-rose-500/20 text-rose-400'
+                                      : isLow
+                                        ? 'bg-amber-500/20 text-amber-400'
+                                        : 'bg-emerald-500/20 text-emerald-400'
+                                  }`}
+                                >
                                   {isOut || isLow ? <AlertTriangle size={14} /> : null}
                                   {prod.stock}
                                 </div>
@@ -769,18 +839,23 @@ export default function Inventory() {
               {/* Table Footer Stats */}
               <div className="px-6 py-4 border-t border-slate-200 dark:border-white/5 bg-white/80 dark:bg-slate-900/50 text-xs text-slate-500 dark:text-slate-400 font-mono flex justify-between items-center">
                 <span>
-                  {t('inventory.activeSkus')}: <strong className="text-slate-900 dark:text-white ms-1">{products.length}</strong>
+                  {t('inventory.activeSkus')}:{' '}
+                  <strong className="text-slate-900 dark:text-white ms-1">{products.length}</strong>
                 </span>
                 <span className="flex items-center gap-6">
                   <span className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-amber-500"></span>
                     {t('inventory.lowStock')}:{' '}
-                    <strong className="text-amber-400 ms-1">{products.filter((p) => p.stock <= p.minStock && p.stock > 0).length}</strong>
+                    <strong className="text-amber-400 ms-1">
+                      {products.filter((p) => p.stock <= p.minStock && p.stock > 0).length}
+                    </strong>
                   </span>
                   <span className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-rose-500"></span>
                     {t('inventory.outOfStock')}:{' '}
-                    <strong className="text-rose-400 ms-1">{products.filter((p) => p.stock === 0).length}</strong>
+                    <strong className="text-rose-400 ms-1">
+                      {products.filter((p) => p.stock <= 0).length}
+                    </strong>
                   </span>
                 </span>
               </div>
@@ -789,8 +864,9 @@ export default function Inventory() {
         )}
 
         {activeTab === 'categories' && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             id="categories-tab-content"
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto pb-6"
           >
@@ -803,7 +879,9 @@ export default function Inventory() {
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Plus size={24} />
               </div>
-              <span className="font-bold text-slate-600 dark:text-slate-300">{t('inventory.addCategory')}</span>
+              <span className="font-bold text-slate-600 dark:text-slate-300">
+                {t('inventory.addCategory')}
+              </span>
             </button>
 
             {categories.map((cat) => {
@@ -821,15 +899,17 @@ export default function Inventory() {
                         id={`del-cat-${cat.id}`}
                         disabled={productCount > 0}
                         onClick={() => handleDeleteCategory(cat.id)}
-                        aria-label={productCount > 0 ? t('inventory.cannotDeleteCategory') : t('inventory.deleteCategory')}
+                        aria-label={
+                          productCount > 0
+                            ? t('inventory.cannotDeleteCategory')
+                            : t('inventory.deleteCategory')
+                        }
                         className="text-slate-500 hover:text-white hover:bg-rose-500 disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent p-2 rounded-xl transition-all"
                       >
                         <Trash2 size={16} />
                       </button>
                     </div>
-                    <p className="text-xs text-slate-500 font-mono">
-                      ID: {cat.id}
-                    </p>
+                    <p className="text-xs text-slate-500 font-mono">ID: {cat.id}</p>
                   </div>
 
                   <div className="flex justify-between items-center pt-4 mt-4 border-t border-slate-200 dark:border-white/10">
@@ -847,8 +927,9 @@ export default function Inventory() {
         )}
 
         {activeTab === 'suppliers' && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="flex-1 overflow-hidden flex flex-col surface rounded-2xl"
           >
             <div className="flex-1 overflow-y-auto">
@@ -874,13 +955,18 @@ export default function Inventory() {
                     </tr>
                   ) : (
                     suppliers.map((sup) => (
-                      <tr key={sup.id} className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors group">
+                      <tr
+                        key={sup.id}
+                        className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors group"
+                      >
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-emerald-400">
                               <Truck size={20} />
                             </div>
-                            <span className="font-bold text-slate-900 dark:text-white">{sup.name}</span>
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              {sup.name}
+                            </span>
                           </div>
                         </td>
                         <td className="py-4 px-4 text-slate-600 dark:text-slate-300">
@@ -921,7 +1007,8 @@ export default function Inventory() {
 
         {activeTab === 'orders' && (
           <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="flex-1 overflow-hidden flex flex-col surface rounded-2xl"
           >
             <div className="flex-1 overflow-y-auto">
@@ -948,9 +1035,14 @@ export default function Inventory() {
                     </tr>
                   ) : (
                     purchaseOrders.map((po) => (
-                      <tr key={po.id} className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors">
+                      <tr
+                        key={po.id}
+                        className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors"
+                      >
                         <td className="py-4 px-6">
-                          <span className="font-mono font-bold text-slate-900 dark:text-white block text-xs">{po.id}</span>
+                          <span className="font-mono font-bold text-slate-900 dark:text-white block text-xs">
+                            {po.id}
+                          </span>
                           <span className="text-[10px] text-slate-500 font-mono mt-1 block">
                             {new Date(po.createdAt).toLocaleString()}
                             {po.createdBy && <> · {po.createdBy}</>}
@@ -974,7 +1066,8 @@ export default function Inventory() {
                           })}
                         </td>
                         <td className="py-4 px-4 text-end font-mono font-bold text-slate-900 dark:text-white">
-                          {settings.currency}{poTotal(po).toFixed(2)}
+                          {settings.currency}
+                          {poTotal(po).toFixed(2)}
                         </td>
                         <td className="py-4 px-4 text-center">
                           <span className={PO_STATUS_BADGE[po.status]}>
@@ -988,13 +1081,18 @@ export default function Inventory() {
                                 <button
                                   onClick={() => setPurchaseOrderStatus(po.id, 'ordered')}
                                   className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
-                                  style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.25)' }}
+                                  style={{
+                                    background: 'rgba(59,130,246,0.15)',
+                                    color: '#60a5fa',
+                                    border: '1px solid rgba(59,130,246,0.25)',
+                                  }}
                                 >
                                   <Send size={12} /> {t('inventory.poMarkOrdered')}
                                 </button>
                                 <button
                                   onClick={() => {
-                                    if (confirm(t('inventory.poDeleteConfirm'))) deletePurchaseOrder(po.id);
+                                    if (confirm(t('inventory.poDeleteConfirm')))
+                                      deletePurchaseOrder(po.id);
                                   }}
                                   aria-label={t('inventory.poDeleteDraft')}
                                   className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
@@ -1008,7 +1106,11 @@ export default function Inventory() {
                                 <button
                                   onClick={() => handleReceivePo(po)}
                                   className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
-                                  style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.25)' }}
+                                  style={{
+                                    background: 'rgba(16,185,129,0.15)',
+                                    color: '#34d399',
+                                    border: '1px solid rgba(16,185,129,0.25)',
+                                  }}
                                 >
                                   <PackagePlus size={12} /> {t('inventory.poReceive')}
                                 </button>
@@ -1027,7 +1129,8 @@ export default function Inventory() {
                             {po.status === 'cancelled' && (
                               <button
                                 onClick={() => {
-                                  if (confirm(t('inventory.poDeleteConfirm'))) deletePurchaseOrder(po.id);
+                                  if (confirm(t('inventory.poDeleteConfirm')))
+                                    deletePurchaseOrder(po.id);
                                 }}
                                 aria-label={t('inventory.poDeleteDraft')}
                                 className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
@@ -1047,8 +1150,9 @@ export default function Inventory() {
         )}
 
         {activeTab === 'log' && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="flex-1 surface rounded-2xl shadow-lg overflow-hidden flex flex-col"
           >
             <div className="flex-1 overflow-y-auto">
@@ -1075,12 +1179,17 @@ export default function Inventory() {
                     </tr>
                   ) : (
                     adjustments.map((a) => (
-                      <tr key={a.id} className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors">
+                      <tr
+                        key={a.id}
+                        className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors"
+                      >
                         <td className="py-4 px-6 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                           {new Date(a.createdAt).toLocaleString()}
                         </td>
                         <td className="py-4 px-4">
-                          <span className="font-bold text-slate-900 dark:text-white block">{a.productName}</span>
+                          <span className="font-bold text-slate-900 dark:text-white block">
+                            {a.productName}
+                          </span>
                           {a.supplierName && (
                             <span className="text-xs text-slate-500 font-mono mt-1 flex items-center gap-1">
                               <Truck size={12} /> {a.supplierName}
@@ -1090,17 +1199,23 @@ export default function Inventory() {
                         <td className="py-4 px-4 text-center">
                           <span
                             className={`badge ${
-                              a.reason === 'received' ? 'badge-emerald' :
-                              a.reason === 'waste' ? 'badge-rose' :
-                              a.reason === 'correction' ? 'badge-amber' :
-                              'badge-slate'
+                              a.reason === 'received'
+                                ? 'badge-emerald'
+                                : a.reason === 'waste'
+                                  ? 'badge-rose'
+                                  : a.reason === 'correction'
+                                    ? 'badge-amber'
+                                    : 'badge-slate'
                             }`}
                           >
                             {t(`inventory.reason_${a.reason}`, a.reason)}
                           </span>
                         </td>
-                        <td className={`py-4 px-4 text-end font-mono font-bold text-lg ${a.delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          {a.delta >= 0 ? '+' : ''}{a.delta}
+                        <td
+                          className={`py-4 px-4 text-end font-mono font-bold text-lg ${a.delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                        >
+                          {a.delta >= 0 ? '+' : ''}
+                          {a.delta}
                         </td>
                         <td className="py-4 px-4 text-end font-mono font-bold text-slate-600 dark:text-slate-300">
                           {a.newStock}
@@ -1140,8 +1255,15 @@ export default function Inventory() {
               className="modal-card max-w-3xl w-full flex flex-col max-h-[90vh]"
             >
               <div className="px-8 py-6 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-white/80 dark:bg-slate-900/50">
-                <h3 id="product-form-title" className="font-sans font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3">
-                  {editingProduct ? <Edit2 className="text-emerald-500" /> : <Plus className="text-emerald-500" />}
+                <h3
+                  id="product-form-title"
+                  className="font-sans font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3"
+                >
+                  {editingProduct ? (
+                    <Edit2 className="text-emerald-500" />
+                  ) : (
+                    <Plus className="text-emerald-500" />
+                  )}
                   {editingProduct
                     ? t('inventory.editCatalogProduct')
                     : t('inventory.addNewProduct')}
@@ -1157,7 +1279,6 @@ export default function Inventory() {
 
               <form onSubmit={handleSubmitProduct} className="flex flex-col overflow-hidden flex-1">
                 <div className="p-8 space-y-8 overflow-y-auto">
-                  
                   {/* Basic information */}
                   <div>
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2 border-b border-slate-200 dark:border-white/5 pb-2">
@@ -1165,7 +1286,10 @@ export default function Inventory() {
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="md:col-span-2">
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                        <label
+                          htmlFor="form-prod-name"
+                          className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+                        >
                           {t('inventory.productName')} *
                         </label>
                         <input
@@ -1180,7 +1304,10 @@ export default function Inventory() {
                       </div>
 
                       <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                        <label
+                          htmlFor="form-prod-sku"
+                          className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+                        >
                           {t('inventory.skuCode')} *
                         </label>
                         <input
@@ -1195,7 +1322,10 @@ export default function Inventory() {
                       </div>
 
                       <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                        <label
+                          htmlFor="form-prod-category"
+                          className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+                        >
                           {t('inventory.category').replace(':', ' *')}
                         </label>
                         <select
@@ -1221,7 +1351,10 @@ export default function Inventory() {
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                        <label
+                          htmlFor="form-prod-price"
+                          className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+                        >
                           {t('inventory.sellPrice')} ({settings.currency}) *
                         </label>
                         <input
@@ -1238,7 +1371,10 @@ export default function Inventory() {
                       </div>
 
                       <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                        <label
+                          htmlFor="form-prod-cost"
+                          className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+                        >
                           {t('inventory.costPrice')} ({settings.currency}) *
                         </label>
                         <input
@@ -1255,7 +1391,10 @@ export default function Inventory() {
                       </div>
 
                       <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                        <label
+                          htmlFor="form-prod-stock"
+                          className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+                        >
                           {t('inventory.inStockCount')} *
                         </label>
                         <input
@@ -1271,7 +1410,10 @@ export default function Inventory() {
                       </div>
 
                       <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                        <label
+                          htmlFor="form-prod-minstock"
+                          className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+                        >
                           {t('inventory.lowStockAlert')}
                         </label>
                         <input
@@ -1292,13 +1434,20 @@ export default function Inventory() {
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2 border-b border-slate-200 dark:border-white/5 pb-2">
                       <ImageIcon size={16} className="text-emerald-500" /> Media
                     </h4>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                    <label
+                      htmlFor="form-prod-image"
+                      className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+                    >
                       {t('inventory.productImageOptional')}
                     </label>
                     <div className="flex gap-4">
                       <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 flex items-center justify-center overflow-hidden shrink-0">
                         {prodImage ? (
-                          <img src={prodImage} alt="Preview" className="w-full h-full object-cover" />
+                          <img
+                            src={prodImage}
+                            alt="Preview"
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
                           <ImageIcon className="text-slate-500" size={32} />
                         )}
@@ -1357,7 +1506,10 @@ export default function Inventory() {
               className="modal-card max-w-sm w-full p-8 space-y-6"
             >
               <div className="flex justify-between items-center">
-                <h3 id="category-form-title" className="font-sans font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3">
+                <h3
+                  id="category-form-title"
+                  className="font-sans font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3"
+                >
                   <FolderPlus size={24} className="text-emerald-500" />{' '}
                   {t('inventory.addNewCategory')}
                 </h3>
@@ -1372,7 +1524,7 @@ export default function Inventory() {
 
               <form onSubmit={handleSubmitCategory} className="space-y-6">
                 <div>
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                  <label htmlFor="new-cat-name-input" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
                     {t('inventory.categoryName')} *
                   </label>
                   <input
@@ -1403,7 +1555,9 @@ export default function Inventory() {
                         }`}
                       >
                         <div className={`w-6 h-6 rounded-full ${colorOption.bg}`}></div>
-                        <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{colorOption.label}</span>
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                          {colorOption.label}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -1446,7 +1600,10 @@ export default function Inventory() {
               className="modal-card max-w-md w-full"
             >
               <div className="px-8 py-6 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 flex items-center justify-between">
-                <h3 id="receive-stock-title" className="font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3">
+                <h3
+                  id="receive-stock-title"
+                  className="font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3"
+                >
                   <PackagePlus size={24} className="text-emerald-500" />{' '}
                   {t('inventory.receiveStock')}
                 </h3>
@@ -1460,10 +1617,11 @@ export default function Inventory() {
               </div>
               <div className="p-8 space-y-6">
                 <div>
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                  <label htmlFor="receive-product-select" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
                     {t('inventory.products')}
                   </label>
                   <select
+                    id="receive-product-select"
                     value={recvProductId}
                     onChange={(e) => setRecvProductId(e.target.value)}
                     aria-label={t('inventory.products')}
@@ -1482,16 +1640,18 @@ export default function Inventory() {
                     Adjustment Reason
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {(['received', 'waste', 'correction', 'other'] as const).map(r => (
+                    {(['received', 'waste', 'correction', 'other'] as const).map((r) => (
                       <button
                         key={r}
                         onClick={() => setRecvReason(r)}
                         className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
-                          recvReason === r 
-                          ? r === 'waste' ? 'bg-rose-500/20 border-rose-500 text-rose-400'
-                          : r === 'received' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
-                          : 'bg-amber-500/20 border-amber-500 text-amber-400'
-                          : 'bg-white/80 dark:bg-slate-900/50 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-white'
+                          recvReason === r
+                            ? r === 'waste'
+                              ? 'bg-rose-500/20 border-rose-500 text-rose-400'
+                              : r === 'received'
+                                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
+                                : 'bg-amber-500/20 border-amber-500 text-amber-400'
+                            : 'bg-white/80 dark:bg-slate-900/50 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-white'
                         }`}
                       >
                         {t(`inventory.reason_${r}`, r.charAt(0).toUpperCase() + r.slice(1))}
@@ -1502,23 +1662,25 @@ export default function Inventory() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                    <label htmlFor="recv-qty-input" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
                       Δ Quantity
                     </label>
                     <input
+                      id="recv-qty-input"
                       type="number"
                       value={recvQty}
                       onChange={(e) => setRecvQty(e.target.value)}
                       aria-label={t('inventory.qtyChange')}
-                      placeholder={recvReason === 'waste' ? "-5" : "10"}
+                      placeholder={recvReason === 'waste' ? '-5' : '10'}
                       className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-mono text-xl text-center focus:outline-none focus:border-emerald-500"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                    <label htmlFor="recv-supplier-select" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
                       {t('inventory.suppliers')}
                     </label>
                     <select
+                      id="recv-supplier-select"
                       value={recvSupplierId}
                       onChange={(e) => setRecvSupplierId(e.target.value)}
                       aria-label={t('inventory.suppliers')}
@@ -1535,10 +1697,11 @@ export default function Inventory() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                  <label htmlFor="recv-note-input" className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
                     Notes
                   </label>
                   <input
+                    id="recv-note-input"
                     type="text"
                     value={recvNote}
                     onChange={(e) => setRecvNote(e.target.value)}
@@ -1584,7 +1747,10 @@ export default function Inventory() {
               className="modal-card max-w-sm w-full overflow-hidden"
             >
               <div className="px-8 py-6 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 flex items-center justify-between">
-                <h3 id="supplier-form-title" className="font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3">
+                <h3
+                  id="supplier-form-title"
+                  className="font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3"
+                >
                   <Truck size={24} className="text-emerald-500" /> {t('inventory.addSupplier')}
                 </h3>
                 <button
@@ -1684,7 +1850,10 @@ export default function Inventory() {
               className="modal-card max-w-2xl w-full flex flex-col max-h-[90vh]"
             >
               <div className="px-8 py-6 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 flex items-center justify-between">
-                <h3 id="po-form-title" className="font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3">
+                <h3
+                  id="po-form-title"
+                  className="font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3"
+                >
                   <ClipboardList size={24} className="text-emerald-500" />{' '}
                   {t('inventory.newPurchaseOrder')}
                 </h3>
@@ -1755,7 +1924,9 @@ export default function Inventory() {
                         className="w-24 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-3 text-slate-900 dark:text-white font-mono text-center focus:outline-none focus:border-emerald-500"
                       />
                       <div className="w-32 flex items-center bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden focus-within:border-emerald-500">
-                        <span className="ps-3 text-slate-500 font-mono text-sm">{settings.currency}</span>
+                        <span className="ps-3 text-slate-500 font-mono text-sm">
+                          {settings.currency}
+                        </span>
                         <input
                           type="number"
                           min="0"
@@ -1805,7 +1976,8 @@ export default function Inventory() {
                     {settings.currency}
                     {poLines
                       .reduce(
-                        (sum, l) => sum + (parseInt(l.quantity) || 0) * (parseFloat(l.unitCost) || 0),
+                        (sum, l) =>
+                          sum + (parseInt(l.quantity) || 0) * (parseFloat(l.unitCost) || 0),
                         0,
                       )
                       .toFixed(2)}

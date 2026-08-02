@@ -62,7 +62,7 @@ const SortableProductCard = memo(function SortableProductCard({
   };
 
   const isLowStock = prod.stock <= prod.minStock && prod.stock > 0;
-  const isOutOfStock = prod.stock === 0;
+  const isOutOfStock = prod.stock <= 0;
   // Every unit is already in the cart, so addToCart would no-op. Treat it like
   // out-of-stock for interaction purposes (no dead taps, correct a11y state)
   // while keeping the out-of-stock badge/greyscale styling to itself.
@@ -89,15 +89,17 @@ const SortableProductCard = memo(function SortableProductCard({
       initial={!isEditMode ? { opacity: 0, y: 18, scale: 0.96 } : false}
       animate={!isEditMode ? { opacity: 1, y: 0, scale: 1 } : false}
       transition={!isEditMode ? { duration: 0.28, delay: index * 0.04 } : {}}
-      onClick={() => { if (!isEditMode && !isUnavailable) addToCart(prod); }}
+      onClick={() => {
+        if (!isEditMode && !isUnavailable) addToCart(prod);
+      }}
       whileHover={!isEditMode && !isOutOfStock ? { y: -4, scale: 1.02 } : {}}
       whileTap={!isEditMode && !isOutOfStock ? { scale: 0.96 } : {}}
       className={`relative rounded-2xl overflow-hidden flex flex-col transition-all duration-200 select-none group ${
         isEditMode
           ? 'cursor-grab active:cursor-grabbing'
           : isOutOfStock
-          ? 'cursor-not-allowed opacity-50 grayscale'
-          : 'cursor-pointer'
+            ? 'cursor-not-allowed opacity-50 grayscale'
+            : 'cursor-pointer'
       }`}
       style={{
         transform: style?.transform,
@@ -194,7 +196,8 @@ const SortableProductCard = memo(function SortableProductCard({
         </div>
         <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-200 dark:border-slate-800/60">
           <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
-            {settings.currency}{prod.price.toFixed(2)}
+            {settings.currency}
+            {prod.price.toFixed(2)}
           </span>
           <span className="text-[9px] font-mono text-slate-600 uppercase tracking-wider">
             {prod.sku.split('-').slice(-1)[0]}
@@ -221,13 +224,13 @@ const ProductGrid = ({
 
   const cartQuantityMap = useMemo(() => {
     const map = new Map<string, number>();
-    cart.forEach(item => map.set(item.product.id, item.quantity));
+    cart.forEach((item) => map.set(item.product.id, item.quantity));
     return map;
   }, [cart]);
 
   const categoryMap = useMemo(() => {
     const map = new Map<string, string>();
-    categories.forEach(c => map.set(c.id, c.name));
+    categories.forEach((c) => map.set(c.id, c.name));
     return map;
   }, [categories]);
 
@@ -250,7 +253,8 @@ const ProductGrid = ({
     const q = search.trim().toLowerCase();
     return products.filter((prod) => {
       const matchesCategory = selectedCategory === 'all' || prod.category === selectedCategory;
-      const matchesSearch = q === '' || prod.name.toLowerCase().includes(q) || prod.sku.toLowerCase().includes(q);
+      const matchesSearch =
+        q === '' || prod.name.toLowerCase().includes(q) || prod.sku.toLowerCase().includes(q);
       return matchesCategory && matchesSearch;
     });
   }, [products, selectedCategory, search]);
@@ -260,22 +264,22 @@ const ProductGrid = ({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      reorderProducts(active.id as string, over.id as string);
-    }
-  }, [reorderProducts]);
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (over && active.id !== over.id) {
+        reorderProducts(active.id as string, over.id as string);
+      }
+    },
+    [reorderProducts],
+  );
 
-  const sortableIds = useMemo(() => filteredProducts.map(p => p.id), [filteredProducts]);
+  const sortableIds = useMemo(() => filteredProducts.map((p) => p.id), [filteredProducts]);
 
   return (
     <div id="catalog-section" className="flex-1 flex flex-col min-w-0 overflow-hidden">
       {/* Controls bar */}
-      <div
-        id="catalog-controls"
-        className="shrink-0 px-4 pt-4 pb-3"
-      >
+      <div id="catalog-controls" className="shrink-0 px-4 pt-4 pb-3">
         <div
           className="flex items-center gap-3 p-3 rounded-2xl"
           style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
@@ -333,9 +337,12 @@ const ProductGrid = ({
           >
             {['all', ...categories.map((c) => c.id)].map((catId) => {
               const cat = categories.find((c) => c.id === catId);
-              const label = catId === 'all'
-                ? t('register.allProducts')
-                : t(`categories.${cat?.name.toLowerCase() ?? ''}`, { defaultValue: cat?.name ?? '' });
+              const label =
+                catId === 'all'
+                  ? t('register.allProducts')
+                  : t(`categories.${cat?.name.toLowerCase() ?? ''}`, {
+                      defaultValue: cat?.name ?? '',
+                    });
               const isActive = selectedCategory === catId;
               return (
                 <button
@@ -369,7 +376,9 @@ const ProductGrid = ({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 transition-all"
               style={{
                 background: isEditMode ? 'rgba(244,63,94,0.12)' : 'var(--surface-2)',
-                border: isEditMode ? '1px solid rgba(244,63,94,0.3)' : '1px solid var(--border-subtle)',
+                border: isEditMode
+                  ? '1px solid rgba(244,63,94,0.3)'
+                  : '1px solid var(--border-subtle)',
                 color: isEditMode ? '#fb7185' : 'var(--chip-text)',
               }}
             >
@@ -393,7 +402,9 @@ const ProductGrid = ({
               className="h-64 flex flex-col items-center justify-center text-center"
             >
               <span className="text-5xl mb-4 animate-float-slow">🔍</span>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-semibold">{t('register.noProducts')}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-semibold">
+                {t('register.noProducts')}
+              </p>
               <p className="text-slate-600 text-xs mt-1">{t('register.tryDifferentSearch')}</p>
             </motion.div>
           ) : (
@@ -402,10 +413,7 @@ const ProductGrid = ({
               collisionDetection={closestCenter}
               onDragEnd={handleDragEnd}
             >
-              <SortableContext
-                items={sortableIds}
-                strategy={rectSortingStrategy}
-              >
+              <SortableContext items={sortableIds} strategy={rectSortingStrategy}>
                 <div
                   id="products-grid"
                   className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3"

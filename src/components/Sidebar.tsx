@@ -52,7 +52,12 @@ const ROLE_BADGE: Record<string, string> = {
 };
 
 function getInitials(name: string) {
-  return name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 }
 
 export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: SidebarProps) {
@@ -94,7 +99,11 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
         >
           <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
             {settings.storeLogo ? (
-              <img src={settings.storeLogo} alt="Logo" className="w-full h-full object-contain rounded-sm" />
+              <img
+                src={settings.storeLogo}
+                alt="Logo"
+                className="w-full h-full object-contain rounded-sm"
+              />
             ) : (
               <Logo size={36} />
             )}
@@ -108,14 +117,20 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
             </h1>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-              <span className="text-[9px] font-mono text-emerald-400 tracking-[0.18em] uppercase">EA POS</span>
+              <span className="text-[9px] font-mono text-emerald-400 tracking-[0.18em] uppercase">
+                EA POS
+              </span>
             </div>
           </div>
         </motion.div>
       </div>
 
       {/* ── Navigation ── */}
-      <nav id="sidebar-navigation" aria-label={t('sidebar.mainNavigation')} className="flex-1 px-3 py-4 space-y-1 relative z-10 overflow-y-auto scrollbar-none">
+      <nav
+        id="sidebar-navigation"
+        aria-label={t('sidebar.mainNavigation')}
+        className="flex-1 px-3 py-4 space-y-1 relative z-10 overflow-y-auto scrollbar-none"
+      >
         {allowedItems.map((item, i) => {
           const Icon = item.icon;
           const isActive = currentScreen === item.id;
@@ -149,7 +164,9 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
                 <Icon
                   size={16}
                   className={`transition-colors duration-200 ${
-                    isActive ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-400'
+                    isActive
+                      ? 'text-emerald-500 dark:text-emerald-400'
+                      : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-400'
                   }`}
                 />
                 <span className="tracking-wide">{t(item.labelKey)}</span>
@@ -180,9 +197,15 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
           aria-label={darkMode ? t('sidebar.lightMode') : t('sidebar.darkMode')}
         >
           {darkMode ? (
-            <><Sun size={13} className="text-amber-400" /><span className="text-slate-500 dark:text-slate-400">{t('sidebar.lightMode')}</span></>
+            <>
+              <Sun size={13} className="text-amber-400" />
+              <span className="text-slate-500 dark:text-slate-400">{t('sidebar.lightMode')}</span>
+            </>
           ) : (
-            <><Moon size={13} className="text-indigo-400" /><span className="text-slate-500 dark:text-slate-400">{t('sidebar.darkMode')}</span></>
+            <>
+              <Moon size={13} className="text-indigo-400" />
+              <span className="text-slate-500 dark:text-slate-400">{t('sidebar.darkMode')}</span>
+            </>
           )}
         </button>
 
@@ -202,7 +225,9 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
                 <p className="text-slate-900 dark:text-white text-xs font-bold truncate leading-tight">
                   {currentUser.name.split(' ')[0]}
                 </p>
-                <span className={`text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border inline-block mt-0.5 ${ROLE_BADGE[currentUser.role] || ROLE_BADGE.cashier}`}>
+                <span
+                  className={`text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border inline-block mt-0.5 ${ROLE_BADGE[currentUser.role] || ROLE_BADGE.cashier}`}
+                >
                   {currentUser.role}
                 </span>
               </div>

@@ -71,7 +71,8 @@ export const DEFAULT_SCANNER: ScannerConfig = {
 
 export const DEFAULT_EMAIL_TEMPLATE: ReceiptEmailTemplate = {
   subject: 'Receipt {receiptId} — {storeName}',
-  header: 'Hi {customerName},\n\nThank you for your purchase at {storeName}! Your receipt is below.',
+  header:
+    'Hi {customerName},\n\nThank you for your purchase at {storeName}! Your receipt is below.',
   footer: 'We hope to see you again soon.\n— The {storeName} team',
 };
 

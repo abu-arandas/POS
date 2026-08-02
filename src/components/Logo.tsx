@@ -31,17 +31,38 @@ export default function Logo({ size = 32, className, title }: LogoProps) {
     >
       {title ? <title>{title}</title> : null}
       <defs>
-        <linearGradient id={`${uid}-a`} gradientUnits="userSpaceOnUse" x1="140" y1="410" x2="380" y2="140">
+        <linearGradient
+          id={`${uid}-a`}
+          gradientUnits="userSpaceOnUse"
+          x1="140"
+          y1="410"
+          x2="380"
+          y2="140"
+        >
           <stop offset="0" stopColor="#17439a" />
           <stop offset="0.55" stopColor="#2b7fd4" />
           <stop offset="1" stopColor="#3ec6f5" />
         </linearGradient>
-        <linearGradient id={`${uid}-s`} gradientUnits="userSpaceOnUse" x1="96" y1="330" x2="410" y2="190">
+        <linearGradient
+          id={`${uid}-s`}
+          gradientUnits="userSpaceOnUse"
+          x1="96"
+          y1="330"
+          x2="410"
+          y2="190"
+        >
           <stop offset="0" stopColor="#1c3f86" />
           <stop offset="0.45" stopColor="#2f9bdd" />
           <stop offset="1" stopColor="#5cdcff" />
         </linearGradient>
-        <linearGradient id={`${uid}-k`} gradientUnits="userSpaceOnUse" x1="343" y1="62" x2="453" y2="172">
+        <linearGradient
+          id={`${uid}-k`}
+          gradientUnits="userSpaceOnUse"
+          x1="343"
+          y1="62"
+          x2="453"
+          y2="172"
+        >
           <stop offset="0" stopColor="#8eecff" />
           <stop offset="1" stopColor="#29b6f6" />
         </linearGradient>
@@ -74,7 +95,10 @@ export default function Logo({ size = 32, className, title }: LogoProps) {
         <circle cx="300" cy="206" r="15" />
       </g>
 
-      <path d="M398 62 L411 104 L453 117 L411 130 L398 172 L385 130 L343 117 L385 104 Z" fill={`url(#${uid}-k)`} />
+      <path
+        d="M398 62 L411 104 L453 117 L411 130 L398 172 L385 130 L343 117 L385 104 Z"
+        fill={`url(#${uid}-k)`}
+      />
     </svg>
   );
 }

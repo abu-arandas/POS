@@ -28,7 +28,9 @@ describe('fleetTotals', () => {
   });
 
   it('avoids divide-by-zero with no orders', () => {
-    const t = fleetTotals([{ storeId: 'x', storeName: 'X', revenue: 0, orders: 0, lastSeenAt: null }]);
+    const t = fleetTotals([
+      { storeId: 'x', storeName: 'X', revenue: 0, orders: 0, lastSeenAt: null },
+    ]);
     expect(t.avgOrder).toBe(0);
   });
 

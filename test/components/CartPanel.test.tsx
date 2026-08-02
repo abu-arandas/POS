@@ -90,7 +90,9 @@ describe('CartPanel', () => {
   it('disables the increase button once quantity reaches available stock', () => {
     const product = makeProduct({ stock: 2 });
     render(
-      <CartPanel {...defaultProps({ cart: [{ product, quantity: 2 }], subtotal: 9, totalAmount: 9 })} />,
+      <CartPanel
+        {...defaultProps({ cart: [{ product, quantity: 2 }], subtotal: 9, totalAmount: 9 })}
+      />,
     );
     expect(screen.getByRole('button', { name: /Increase quantity — Flat White/ })).toBeDisabled();
   });
@@ -100,7 +102,12 @@ describe('CartPanel', () => {
     const product = makeProduct();
     render(
       <CartPanel
-        {...defaultProps({ cart: [{ product, quantity: 1 }], subtotal: 4.5, totalAmount: 4.5, removeFromCart })}
+        {...defaultProps({
+          cart: [{ product, quantity: 1 }],
+          subtotal: 4.5,
+          totalAmount: 4.5,
+          removeFromCart,
+        })}
       />,
     );
     fireEvent.click(screen.getByRole('button', { name: /Remove from cart — Flat White/ }));
@@ -112,7 +119,12 @@ describe('CartPanel', () => {
     const product = makeProduct();
     render(
       <CartPanel
-        {...defaultProps({ cart: [{ product, quantity: 1 }], subtotal: 4.5, totalAmount: 4.5, handleCheckoutClick })}
+        {...defaultProps({
+          cart: [{ product, quantity: 1 }],
+          subtotal: 4.5,
+          totalAmount: 4.5,
+          handleCheckoutClick,
+        })}
       />,
     );
     const checkout = screen.getByRole('button', { name: /checkout/i });
