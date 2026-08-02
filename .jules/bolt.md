@@ -1,0 +1,3 @@
+## 2025-02-18 - [Optimization of synchronous array lookups in Render/Loops]
+**Learning:** Synchronous relational lookups like `Array.prototype.find()` inside render loops or heavy `useMemo` blocks (like iterating over all transactions) cause severe CPU bottlenecks as the dataset grows. However, creating a `Map` just for a *single* lookup is a performance anti-pattern because building the `Map` takes O(N) time and space, whereas `find()` is O(1) space and returns early.
+**Action:** Pre-compute Hash Maps (`Map`) for O(1) lookups *only* when you need to perform multiple lookups against the same dataset (e.g., before an iteration loop) to drop the time complexity from O(N * M) to O(N + M). Use `Array.prototype.find()` for single lookups.
