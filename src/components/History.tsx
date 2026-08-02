@@ -167,9 +167,12 @@ export default function History() {
     if (!result) return;
 
     const updatedProducts: Product[] = [];
+    const productState = useProductStore.getState().products;
+    const prodMap = new Map(productState.map((p) => [p.id, p]));
+
     for (const [productId, qty] of Object.entries(result.appliedItems)) {
       if (qty <= 0) continue;
-      const prod = useProductStore.getState().products.find((p) => p.id === productId);
+      const prod = prodMap.get(productId);
       if (prod) {
         const updated = { ...prod, stock: prod.stock + qty };
         handleUpdateProduct(updated);
@@ -180,7 +183,9 @@ export default function History() {
     let updatedCustomer: Customer | undefined;
     if (tx.customerId && result.pointsReversal !== 0) {
       updateCustomerPoints(tx.customerId, result.pointsReversal);
-      updatedCustomer = useCustomerStore.getState().customers.find((c) => c.id === tx.customerId);
+      const customerState = useCustomerStore.getState().customers;
+      const custMap = new Map(customerState.map((c) => [c.id, c]));
+      updatedCustomer = custMap.get(tx.customerId);
     }
 
     const refundDate = new Date().toISOString();

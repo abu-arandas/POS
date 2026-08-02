@@ -166,12 +166,13 @@ export default function Register() {
   const addToCart = useCallback((product: Product) => {
     if (product.stock <= 0) return;
     setCart((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
-      if (existing) {
+      const existingIndex = prev.findIndex((item) => item.product.id === product.id);
+      if (existingIndex >= 0) {
+        const existing = prev[existingIndex];
         if (existing.quantity >= product.stock) return prev;
-        return prev.map((item) =>
-          item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item,
-        );
+        const newCart = [...prev];
+        newCart[existingIndex] = { ...existing, quantity: existing.quantity + 1 };
+        return newCart;
       }
       return [...prev, { product, quantity: 1 }];
     });
@@ -283,9 +284,10 @@ export default function Register() {
       // Rebuild the cart from the current catalog so prices/stock are live; drop
       // any line whose product no longer exists.
       const liveProducts = useProductStore.getState().products;
+      const liveMap = new Map(liveProducts.map((p) => [p.id, p]));
       const rebuilt = order.items
         .map((i) => {
-          const product = liveProducts.find((p) => p.id === i.productId);
+          const product = liveMap.get(i.productId);
           return product ? { product, quantity: Math.min(i.quantity, product.stock) } : null;
         })
         .filter((x): x is { product: Product; quantity: number } => x !== null && x.quantity > 0);
@@ -392,9 +394,10 @@ export default function Register() {
     // from add-to-cart time; writing those back would silently revert any
     // price/name/stock edit made while the sale was open.
     const liveProducts = useProductStore.getState().products;
+    const liveMap = new Map(liveProducts.map((p) => [p.id, p]));
     const updatedProducts: Product[] = [];
     cart.forEach((item) => {
-      const live = liveProducts.find((p) => p.id === item.product.id);
+      const live = liveMap.get(item.product.id);
       if (!live) return; // product deleted mid-sale; nothing to decrement
       const updated = { ...live, stock: Math.max(0, live.stock - item.quantity) };
       handleUpdateProduct(updated);
@@ -405,9 +408,9 @@ export default function Register() {
     let updatedCustomer = null;
     if (selectedCustomerId) {
       updateCustomerPoints(selectedCustomerId, pointsDelta);
-      updatedCustomer = useCustomerStore
-        .getState()
-        .customers.find((c) => c.id === selectedCustomerId);
+      const customerState = useCustomerStore.getState().customers;
+      const custMap = new Map(customerState.map((c) => [c.id, c]));
+      updatedCustomer = custMap.get(selectedCustomerId) || null;
     }
 
     addTransaction(transaction);
