@@ -34,11 +34,11 @@ const declared = (set: Set<string>, key: string) =>
 
 /** Every t('a.b') / t('a.b', 'default') referenced in application source. */
 function referencedKeys(): Map<string, Set<string>> {
-  const files = execSync("git ls-files 'src/**/*.ts' 'src/**/*.tsx'")
+  const files = execSync('git ls-files "src/**/*.ts" "src/**/*.tsx"')
     .toString()
     .trim()
-    .split('\n')
-    .filter((f) => !f.endsWith('src/lib/i18n.ts'));
+    .split(/\r?\n/)
+    .filter((f) => f && !f.endsWith('src/lib/i18n.ts'));
 
   const out = new Map<string, Set<string>>();
   for (const file of files) {
