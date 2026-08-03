@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
 import { Search, X, LayoutGrid, GripHorizontal, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, StoreSettings } from '../types';
+import { Product, StoreSettings, Category } from '../types';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
@@ -229,8 +229,8 @@ const ProductGrid = ({
   }, [cart]);
 
   const categoryMap = useMemo(() => {
-    const map = new Map<string, string>();
-    categories.forEach((c) => map.set(c.id, c.name));
+    const map = new Map<string, Category>();
+    categories.forEach((c) => map.set(c.id, c));
     return map;
   }, [categories]);
 
@@ -336,7 +336,7 @@ const ProductGrid = ({
             className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-1"
           >
             {['all', ...categories.map((c) => c.id)].map((catId) => {
-              const cat = categories.find((c) => c.id === catId);
+              const cat = categoryMap.get(catId);
               const label =
                 catId === 'all'
                   ? t('register.allProducts')
@@ -426,7 +426,7 @@ const ProductGrid = ({
                         isEditMode={isEditMode}
                         addToCart={addToCart}
                         cartQty={cartQuantityMap.get(prod.id) ?? 0}
-                        categoryName={categoryMap.get(prod.category) ?? ''}
+                        categoryName={categoryMap.get(prod.category)?.name ?? ''}
                         settings={settings}
                         index={index}
                       />
