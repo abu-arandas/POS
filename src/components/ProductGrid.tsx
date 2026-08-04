@@ -335,13 +335,19 @@ const ProductGrid = ({
             id="category-pills"
             className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-1"
           >
-            {['all', ...categories.map((c) => c.id)].map((catId) => {
-              const cat = categories.find((c) => c.id === catId);
+            {/*
+              ⚡ Bolt Optimization:
+              Replaced O(N^2) category lookup with O(N) direct mapping.
+              Previously, it mapped over IDs and used `.find()` inside the render loop.
+              Now, it constructs the object array directly, significantly reducing render time.
+            */}
+            {[{ id: 'all', name: null }, ...categories].map((cat) => {
+              const catId = cat.id;
               const label =
                 catId === 'all'
                   ? t('register.allProducts')
-                  : t(`categories.${cat?.name.toLowerCase() ?? ''}`, {
-                      defaultValue: cat?.name ?? '',
+                  : t(`categories.${cat.name?.toLowerCase() ?? ''}`, {
+                      defaultValue: cat.name ?? '',
                     });
               const isActive = selectedCategory === catId;
               return (
