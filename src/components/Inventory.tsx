@@ -425,13 +425,22 @@ export default function Inventory() {
     }
   };
 
+  // ⚡ Bolt: Cache category lookups to optimize O(N*M) lookup during render loop to O(N+M)
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, { name: string; color: string }>();
+    categories.forEach((c) => {
+      map.set(c.id, { name: c.name, color: c.color });
+    });
+    return map;
+  }, [categories]);
+
   // Helpers
   const getProductCategoryName = (catId: string) => {
-    return categories.find((c) => c.id === catId)?.name || 'General';
+    return categoryMap.get(catId)?.name || 'General';
   };
 
   const getProductCategoryColor = (catId: string) => {
-    return categories.find((c) => c.id === catId)?.color || 'badge badge-slate';
+    return categoryMap.get(catId)?.color || 'badge badge-slate';
   };
 
   const tabs = [
