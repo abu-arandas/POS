@@ -62,7 +62,13 @@ import {
 } from '../lib/sync';
 
 type SettingsTab =
-  'profile' | 'printer' | 'kitchen_printer' | 'scanner' | 'supabase' | 'users' | 'danger';
+  | 'profile'
+  | 'printer'
+  | 'kitchen_printer'
+  | 'scanner'
+  | 'supabase'
+  | 'users'
+  | 'danger';
 
 const DEFAULT_PRINTER: PrinterConfig = {
   type: 'system',

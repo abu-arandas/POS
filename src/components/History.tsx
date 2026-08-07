@@ -249,11 +249,14 @@ export default function History() {
     }
 
     const eligible = users.filter((u) => u.active && (u.role === 'manager' || u.role === 'admin'));
-    const legacyHash = await hashPin(overridePin);
+    const [legacyHash, ...saltedHashes] = await Promise.all([
+      hashPin(overridePin),
+      ...eligible.map((u) => hashPinSalted(u.id, overridePin)),
+    ]);
     let authorizedUser: (typeof eligible)[number] | undefined;
-    for (const u of eligible) {
-      const saltedHash = await hashPinSalted(u.id, overridePin);
-      if (u.pin === saltedHash || u.pin === legacyHash) {
+    for (let i = 0; i < eligible.length; i++) {
+      const u = eligible[i];
+      if (u.pin === saltedHashes[i] || u.pin === legacyHash) {
         authorizedUser = u;
         break;
       }
