@@ -21,4 +21,23 @@ describe('stampStoreId', () => {
     stampStoreId(records, 'store-1');
     expect(records[0]).toEqual({ id: 'a' }); // original untouched
   });
+
+  it('handles an empty array', () => {
+    const out = stampStoreId([], 'store-1');
+    expect(out).toEqual([]);
+  });
+
+  it('overwrites an existing store_id if present', () => {
+    const records = [{ id: 'a', store_id: 'old-store' }];
+    const out = stampStoreId(records, 'new-store');
+    expect(out).toEqual([{ id: 'a', store_id: 'new-store' }]);
+  });
+
+  it('preserves all other properties on the input objects', () => {
+    const records = [{ id: 'a', name: 'Product A', price: 100, active: true }];
+    const out = stampStoreId(records, 'store-1');
+    expect(out).toEqual([
+      { id: 'a', name: 'Product A', price: 100, active: true, store_id: 'store-1' }
+    ]);
+  });
 });
