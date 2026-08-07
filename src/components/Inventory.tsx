@@ -426,12 +426,16 @@ export default function Inventory() {
   };
 
   // Helpers
+  const categoryMap = useMemo(() => {
+    return new Map(categories.map((c) => [c.id, c]));
+  }, [categories]);
+
   const getProductCategoryName = (catId: string) => {
-    return categories.find((c) => c.id === catId)?.name || 'General';
+    return categoryMap.get(catId)?.name || 'General';
   };
 
   const getProductCategoryColor = (catId: string) => {
-    return categories.find((c) => c.id === catId)?.color || 'badge badge-slate';
+    return categoryMap.get(catId)?.color || 'badge badge-slate';
   };
 
   const tabs = [
