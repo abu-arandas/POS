@@ -12,7 +12,7 @@ import {
   Layers,
   Truck,
   PackagePlus,
-  Image as ImageIcon,
+  ImageIcon,
   Mail,
   Phone,
   User,
