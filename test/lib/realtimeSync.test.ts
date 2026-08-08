@@ -42,7 +42,7 @@ describe('realtimeSync', () => {
       };
 
       vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue(mockClient as any);
-      vi.mocked(supabaseLib.signInDevice).mockResolvedValue();
+      vi.mocked(supabaseLib.signInDevice).mockResolvedValue(true);
 
       vi.mocked(useSettingsStore.getState).mockReturnValue({
         supabaseConfig: {

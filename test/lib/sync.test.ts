@@ -89,7 +89,7 @@ describe('cloudLogin', () => {
 
     const mockUserAccount = { id: '123', name: 'user', pinHash: 'hash', role: 'admin' };
     vi.mocked(supabaseLib.verifyLoginCloud).mockResolvedValue(mockUserAccount as any);
-    vi.mocked(supabaseLib.signInDevice).mockResolvedValue(undefined);
+    vi.mocked(supabaseLib.signInDevice).mockResolvedValue(true);
 
     const result = await cloudLogin('user', 'hash');
 
