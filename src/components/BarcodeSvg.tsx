@@ -28,7 +28,7 @@ export function BarcodeSvg({ data, options = {} }: BarcodeSvgProps) {
           y="0"
           width={(width * mw).toFixed(2)}
           height={height}
-        />
+        />,
       );
     }
     x += width;

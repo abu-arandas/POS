@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, memo } from 'react';
+import { useCallback, useMemo, memo } from 'react';
 import {
   User,
   Plus,

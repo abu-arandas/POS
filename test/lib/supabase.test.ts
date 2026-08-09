@@ -17,7 +17,17 @@ describe('pullProducts', () => {
 
   it('should return mapped products on success without storeId', async () => {
     const mockData = [
-      { id: '1', name: 'Product 1', price: '10', cost: '5', category: 'Cat 1', sku: 'SKU1', stock: '100', min_stock: '10', image: 'img1.png' }
+      {
+        id: '1',
+        name: 'Product 1',
+        price: '10',
+        cost: '5',
+        category: 'Cat 1',
+        sku: 'SKU1',
+        stock: '100',
+        min_stock: '10',
+        image: 'img1.png',
+      },
     ];
     mockSelect.mockResolvedValue({ data: mockData, error: null });
 
@@ -26,17 +36,19 @@ describe('pullProducts', () => {
     expect(mockClient.from).toHaveBeenCalledWith('products');
     expect(mockSelect).toHaveBeenCalledWith('*');
     expect(mockEq).not.toHaveBeenCalled();
-    expect(result).toEqual([{
-      id: '1',
-      name: 'Product 1',
-      price: 10,
-      cost: 5,
-      category: 'Cat 1',
-      sku: 'SKU1',
-      stock: 100,
-      minStock: 10,
-      image: 'img1.png'
-    }]);
+    expect(result).toEqual([
+      {
+        id: '1',
+        name: 'Product 1',
+        price: 10,
+        cost: 5,
+        category: 'Cat 1',
+        sku: 'SKU1',
+        stock: 100,
+        minStock: 10,
+        image: 'img1.png',
+      },
+    ]);
   });
 
   it('should filter by storeId if provided', async () => {

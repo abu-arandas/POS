@@ -675,7 +675,7 @@ export default function Dashboard() {
                       cursor={{ fill: '#1e293b', opacity: 0.4 }}
                     />
                     <Bar dataKey="quantity" radius={[0, 8, 8, 0]} barSize={28}>
-                      {topProductsData.map((entry, index) => (
+                      {topProductsData.map((_entry, index) => (
                         <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#3b82f6'} />
                       ))}
                     </Bar>
