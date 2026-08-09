@@ -56,10 +56,9 @@ export default function App() {
   const syncEnabled = supabaseConfig.enabled;
   const syncConnected = supabaseConfig.status === 'connected';
   useEffect(() => {
-    if (syncEnabled && syncConnected) {
-      startRealtimeSync();
-      return () => stopRealtimeSync();
-    }
+    if (!(syncEnabled && syncConnected)) return;
+    startRealtimeSync();
+    return () => stopRealtimeSync();
   }, [syncEnabled, syncConnected]);
 
   // Multi-store (super-admin) plumbing. While sync is connected: send this
