@@ -1,0 +1,73 @@
+name: Build Windows Installer
+
+# Builds the native Windows installer (.exe) for EA POS on GitHub's own
+# windows-latest runner, which has the unrestricted internet access
+# electron-builder needs to fetch the Electron runtime + NSIS/winCodeSign
+# toolchain. The finished installer is uploaded as a workflow artifact and,
+# when the token allows, published as a GitHub Release asset for direct download.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build renderer (Vite)
+        run: npm run build
+
+      - name: Package Windows installer (electron-builder)
+        env:
+          # When a code-signing certificate is provided as repository secrets the
+          # installer is signed automatically — this is what stops Windows
+          # SmartScreen from warning (immediately with an EV cert, or as
+          # reputation builds with an OV cert). Without the secrets the build is
+          # simply unsigned; nothing else changes. See docs/windows-install.md.
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+        run: npx electron-builder --win --publish never
+
+      - name: List build output
+        shell: bash
+        run: ls -la release/
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EA-POS-Windows-Installer
+          path: release/EA-POS-Setup-*.exe
+          if-no-files-found: error
+
+      - name: Publish GitHub release with installer
+        # Only publish on pushes / manual runs — never on pull_request, so an
+        # unreviewed same-repo PR can't cut a release from its branch.
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="win-build-${{ github.run_number }}"
+          gh release create "$tag" \
+            release/EA-POS-Setup-*.exe \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "EA POS Windows Installer (build ${{ github.run_number }})" \
+            --notes "Automated Windows installer built from ${GITHUB_SHA}. If no code-signing certificate is configured (repo secrets WINDOWS_CSC_LINK / WINDOWS_CSC_KEY_PASSWORD), the binary is unsigned and Windows SmartScreen may warn on first run — choose More info → Run anyway. See docs/windows-install.md to remove the warning permanently." \
+          || echo "::warning::Release publish skipped (token lacks contents:write). Download the installer from this run's artifacts instead."
