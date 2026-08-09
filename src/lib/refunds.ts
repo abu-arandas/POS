@@ -48,8 +48,10 @@ export function computeRefund(
   }
   if (refundLineSubtotal <= 0) return null; // nothing to refund
 
+  // This operation's share of the order subtotal — used to prorate earned
+  // points below. The refund *currency* is computed from cumulative boundaries
+  // further down so a piecewise return doesn't drift a cent per line.
   const proportion = tx.subtotal > 0 ? refundLineSubtotal / tx.subtotal : 0;
-  const refundAmount = Number((tx.total * proportion).toFixed(2));
 
   // Merge into cumulative refunded-items.
   const merged: Record<string, number> = {};
@@ -63,6 +65,25 @@ export function computeRefund(
 
   // Fully refunded once every original line is covered.
   const fullyRefunded = tx.items.every((item) => (merged[item.productId] ?? 0) >= item.quantity);
+
+  // Refund currency as the delta between the prorated total for everything
+  // refunded so far (this op included) and the prorated total already refunded.
+  // Rounding at each *cumulative* boundary — not each increment on its own —
+  // keeps a piecewise full return summing to exactly tx.total instead of
+  // drifting a cent per line. A full return (by quantity) trues up to the total
+  // directly, so it is also immune to any rounding in the stored subtotal.
+  const prorate = (lineSubtotal: number) =>
+    tx.subtotal > 0 ? Number((tx.total * (lineSubtotal / tx.subtotal)).toFixed(2)) : 0;
+  const priorRefundedSubtotal = tx.items.reduce(
+    (sum, item) =>
+      sum + item.price * (item.quantity - (remaining[item.productId] ?? item.quantity)),
+    0,
+  );
+  const cumulativeBefore = prorate(priorRefundedSubtotal);
+  const cumulativeAfter = fullyRefunded
+    ? tx.total
+    : prorate(priorRefundedSubtotal + refundLineSubtotal);
+  const refundAmount = Number((cumulativeAfter - cumulativeBefore).toFixed(2));
 
   // Points only ever move on a sale with a linked customer. A walk-in has no
   // balance to adjust, and buildSaleTransaction leaves pointsEarned undefined
@@ -87,7 +108,10 @@ export function computeRefund(
     }
   }
 
-  const refundedAmount = Number(((tx.refundedAmount ?? 0) + refundAmount).toFixed(2));
+  // Persist the cumulative prorated figure. It is self-correcting: a row that
+  // was missing refundedAmount, or drifted by earlier rounding, still lands on
+  // exactly tx.total once every line has been returned.
+  const refundedAmount = cumulativeAfter;
 
   return {
     refundAmount,

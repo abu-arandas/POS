@@ -183,4 +183,62 @@ describe('computeRefund', () => {
       );
     });
   });
+
+  // Regression: refunding a sale line-by-line must return exactly what the
+  // customer paid. Independent per-line rounding used to drift a cent; the
+  // refund is now prorated at cumulative boundaries.
+  describe('proration is exact across piecewise refunds', () => {
+    // 3 items summing to $10 subtotal + 10% tax = $11.00 total. The per-line
+    // prorated shares ($3.66 / $3.66 / $3.67) sum to $10.99, so the naive
+    // approach shorted the customer a cent on a full line-by-line return.
+    const driftTx: SaleTransaction = {
+      ...baseTx,
+      items: [
+        { productId: 'a', productName: 'A', price: 3.33, cost: 1, quantity: 1, total: 3.33 },
+        { productId: 'b', productName: 'B', price: 3.33, cost: 1, quantity: 1, total: 3.33 },
+        { productId: 'c', productName: 'C', price: 3.34, cost: 1, quantity: 1, total: 3.34 },
+      ],
+      subtotal: 10,
+      tax: 1,
+      total: 11,
+      customerId: null,
+      customerName: null,
+      pointsEarned: undefined,
+    };
+
+    it('sums piecewise refunds to exactly the total (no cent drift)', () => {
+      const r1 = computeRefund(driftTx, { a: 1 }, 1)!;
+      const afterR1 = {
+        ...driftTx,
+        refundedItems: r1.refundedItems,
+        refundedAmount: r1.refundedAmount,
+      };
+      const r2 = computeRefund(afterR1, { b: 1 }, 1)!;
+      const afterR2 = {
+        ...driftTx,
+        refundedItems: r2.refundedItems,
+        refundedAmount: r2.refundedAmount,
+      };
+      const r3 = computeRefund(afterR2, { c: 1 }, 1)!;
+
+      expect(r3.fullyRefunded).toBe(true);
+      const summed = Number((r1.refundAmount + r2.refundAmount + r3.refundAmount).toFixed(2));
+      expect(summed).toBe(11);
+      expect(r3.refundedAmount).toBe(11);
+    });
+
+    it('trues up to the total even if an earlier op never recorded refundedAmount', () => {
+      // Legacy row: latte:2 already returned, but refundedAmount was never
+      // persisted. Completing the return must still land on the exact total.
+      const legacy = {
+        ...baseTx,
+        refundedItems: [{ productId: 'latte', quantity: 2 }],
+        status: 'partial' as const,
+      };
+      const r = computeRefund(legacy, { muffin: 1 }, 1)!;
+      expect(r.fullyRefunded).toBe(true);
+      expect(r.refundedAmount).toBe(13.75); // not 3.85
+      expect(r.refundAmount).toBeCloseTo(3.85, 2); // this op returns only the muffin's share
+    });
+  });
 });
