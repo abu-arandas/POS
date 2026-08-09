@@ -89,6 +89,12 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
         fetchStoreCategories(sourceId),
       ]);
       const rows: PreviewRow[] = [];
+      /*
+       * ⚡ Bolt Optimization:
+       * Replaced O(N^2) store lookup with O(N) map generation before the loop.
+       * Previously, `stores.find` was called inside the `targetIds` loop, causing redundant iterations.
+       */
+      const storesMap = new Map(stores.map((s) => [s.id, s]));
       for (const tid of targetIds) {
         const [tp, tc] = await Promise.all([fetchStoreProducts(tid), fetchStoreCategories(tid)]);
         const plan = planCatalogPush(
@@ -99,7 +105,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
         );
         rows.push({
           storeId: tid,
-          storeName: stores.find((s) => s.id === tid)?.name ?? tid,
+          storeName: storesMap.get(tid)?.name ?? tid,
           summary: plan.summary,
         });
       }
@@ -118,6 +124,11 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
         fetchStoreCategories(sourceId),
       ]);
       const out: ResultRow[] = [];
+      /*
+       * ⚡ Bolt Optimization:
+       * Pre-compute stores map to avoid O(N) lookup inside the `targetIds` loop.
+       */
+      const storesMap = new Map(stores.map((s) => [s.id, s]));
       for (const tid of targetIds) {
         const [tp, tc] = await Promise.all([fetchStoreProducts(tid), fetchStoreCategories(tid)]);
         const plan = planCatalogPush(
@@ -127,7 +138,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
           genId,
         );
         const ok = await pushStoreCatalog(tid, plan.categoriesToUpsert, plan.productsToUpsert);
-        out.push({ storeId: tid, storeName: stores.find((s) => s.id === tid)?.name ?? tid, ok });
+        out.push({ storeId: tid, storeName: storesMap.get(tid)?.name ?? tid, ok });
       }
       setResults(out);
       setPreview(null);
