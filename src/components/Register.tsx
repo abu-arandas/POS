@@ -1355,7 +1355,10 @@ export default function Register() {
                   {printerConfig.showBarcode && (
                     <div className="pt-4 flex flex-col items-center gap-1">
                       <div className="bg-white rounded p-1">
-                        <BarcodeSvg data={activeReceipt.id} options={{ height: 40, moduleWidth: 1.4 }} />
+                        <BarcodeSvg
+                          data={activeReceipt.id}
+                          options={{ height: 40, moduleWidth: 1.4 }}
+                        />
                       </div>
                       <span className="font-mono text-[10px] tracking-[0.2em] text-slate-500">
                         {activeReceipt.id}

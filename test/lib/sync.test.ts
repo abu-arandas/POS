@@ -89,12 +89,16 @@ describe('cloudLogin', () => {
 
     const mockUserAccount = { id: '123', name: 'user', pinHash: 'hash', role: 'admin' };
     vi.mocked(supabaseLib.verifyLoginCloud).mockResolvedValue(mockUserAccount as any);
-    vi.mocked(supabaseLib.signInDevice).mockResolvedValue(undefined);
+    vi.mocked(supabaseLib.signInDevice).mockResolvedValue(true);
 
     const result = await cloudLogin('user', 'hash');
 
     expect(supabaseLib.getSupabaseClient).toHaveBeenCalledWith('https://example.com', 'key');
-    expect(supabaseLib.signInDevice).toHaveBeenCalledWith(mockClient, 'test@example.com', 'password123');
+    expect(supabaseLib.signInDevice).toHaveBeenCalledWith(
+      mockClient,
+      'test@example.com',
+      'password123',
+    );
     expect(supabaseLib.verifyLoginCloud).toHaveBeenCalledWith(mockClient, 'user', 'hash');
     expect(result).toEqual(mockUserAccount);
   });

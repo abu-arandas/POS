@@ -37,7 +37,7 @@ describe('stampStoreId', () => {
     const records = [{ id: 'a', name: 'Product A', price: 100, active: true }];
     const out = stampStoreId(records, 'store-1');
     expect(out).toEqual([
-      { id: 'a', name: 'Product A', price: 100, active: true, store_id: 'store-1' }
+      { id: 'a', name: 'Product A', price: 100, active: true, store_id: 'store-1' },
     ]);
   });
 });

@@ -48,5 +48,16 @@ export default tseslint.config(
     rules: {
       'react-refresh/only-export-components': 'off',
     },
+  },
+  {
+    // Unit/component tests mock third-party SDKs whose surfaces are large and
+    // awkward to reproduce exactly (the Supabase client, Web Serial, fake
+    // timers). Partial test doubles legitimately need `any`, so scope that rule
+    // off for tests only — production code under src/** stays fully strict and
+    // carries zero `any`.
+    files: ['test/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
   }
 );
