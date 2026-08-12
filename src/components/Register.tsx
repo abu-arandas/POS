@@ -437,8 +437,14 @@ export default function Register() {
       openCashDrawer(printerConfig);
     }
     if (printerConfig.kitchenTicketOnCheckout) {
-      const catOf = (productId: string) =>
-        useProductStore.getState().products.find((p) => p.id === productId)?.category;
+      /*
+        ⚡ Bolt Optimization:
+        Pre-computed product map to change O(N^2) category lookups in the kitchen
+        ticket loop into O(N) map build + O(1) loop lookups.
+      */
+      const products = useProductStore.getState().products;
+      const prodMap = new Map(products.map((p) => [p.id, p]));
+      const catOf = (productId: string) => prodMap.get(productId)?.category;
       printKitchenTickets(
         transaction,
         settings,
@@ -486,8 +492,14 @@ export default function Register() {
 
   const handlePrintKitchenTicket = useCallback(async () => {
     if (!activeReceipt) return;
-    const catOf = (productId: string) =>
-      useProductStore.getState().products.find((p) => p.id === productId)?.category;
+    /*
+      ⚡ Bolt Optimization:
+      Pre-computed product map to change O(N^2) category lookups in the kitchen
+      ticket loop into O(N) map build + O(1) loop lookups.
+    */
+    const products = useProductStore.getState().products;
+    const prodMap = new Map(products.map((p) => [p.id, p]));
+    const catOf = (productId: string) => prodMap.get(productId)?.category;
     notifyPrint(
       await printKitchenTickets(
         activeReceipt,
