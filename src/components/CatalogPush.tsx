@@ -10,6 +10,7 @@ import {
   pushStoreCatalog,
 } from '../lib/fleetClient';
 import { planCatalogPush, CatalogPushOptions } from '../lib/catalogPush';
+import { mapWithLimit } from '../lib/concurrency';
 
 interface CatalogPushProps {
   orgId: string;
@@ -29,6 +30,11 @@ interface ResultRow {
 
 const genId = (kind: 'product' | 'category') =>
   `${kind === 'category' ? 'cat' : 'prd'}-${crypto.randomUUID()}`;
+
+// Cap how many target stores are fetched/pushed in parallel. Overlapping the
+// requests keeps a multi-store push fast, but an unbounded fan-out across a
+// large fleet could swamp the backend or trip rate limits.
+const CATALOG_PUSH_CONCURRENCY = 5;
 
 // Central catalog push (Phase 4). A super-admin picks a source store's catalog
 // and pushes new products / price updates / categories into one or more target
@@ -88,11 +94,12 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
         fetchStoreProducts(sourceId),
         fetchStoreCategories(sourceId),
       ]);
-      // ⚡ Bolt Optimization:
-      // Replaced sequential for...of loop with Promise.all and map
-      // to parallelize independent network requests across target stores.
-      const rows: PreviewRow[] = await Promise.all(
-        targetIds.map(async (tid) => {
+      // Fetch + plan each target store concurrently, but cap the fan-out so a
+      // large fleet can't dispatch every request at once.
+      const rows: PreviewRow[] = await mapWithLimit(
+        targetIds,
+        CATALOG_PUSH_CONCURRENCY,
+        async (tid) => {
           const [tp, tc] = await Promise.all([fetchStoreProducts(tid), fetchStoreCategories(tid)]);
           const plan = planCatalogPush(
             { products: srcProducts, categories: srcCategories },
@@ -105,7 +112,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
             storeName: stores.find((s) => s.id === tid)?.name ?? tid,
             summary: plan.summary,
           };
-        }),
+        },
       );
       setPreview(rows);
     } finally {
@@ -121,11 +128,12 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
         fetchStoreProducts(sourceId),
         fetchStoreCategories(sourceId),
       ]);
-      // ⚡ Bolt Optimization:
-      // Replaced sequential for...of loop with Promise.all and map
-      // to parallelize independent network requests across target stores.
-      const out: ResultRow[] = await Promise.all(
-        targetIds.map(async (tid) => {
+      // Fetch + push each target store concurrently, capped so a large fleet
+      // can't dispatch every request at once.
+      const out: ResultRow[] = await mapWithLimit(
+        targetIds,
+        CATALOG_PUSH_CONCURRENCY,
+        async (tid) => {
           const [tp, tc] = await Promise.all([fetchStoreProducts(tid), fetchStoreCategories(tid)]);
           const plan = planCatalogPush(
             { products: srcProducts, categories: srcCategories },
@@ -135,7 +143,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
           );
           const ok = await pushStoreCatalog(tid, plan.categoriesToUpsert, plan.productsToUpsert);
           return { storeId: tid, storeName: stores.find((s) => s.id === tid)?.name ?? tid, ok };
-        }),
+        },
       );
       setResults(out);
       setPreview(null);
