@@ -7,13 +7,8 @@ import {
   Check,
   X,
   Printer,
-  UserPlus,
   ShoppingBag,
   ScanLine,
-  Clock,
-  Trash2,
-  Play,
-  PauseCircle,
   Share2,
   Mail,
   ChefHat,
@@ -22,6 +17,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Product, SaleTransaction, HeldOrder, Payment, PaymentMethod } from '../types';
 import ProductGrid from './ProductGrid';
 import CartPanel from './CartPanel';
+import { HeldOrdersModal } from './register/HeldOrdersModal';
+import { AddCustomerModal } from './register/AddCustomerModal';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -655,100 +652,15 @@ export default function Register() {
         )}
       </AnimatePresence>
 
-      {/* Held orders modal */}
-      <AnimatePresence>
-        {heldModalOpen && (
-          <div
-            id="held-orders-modal"
-            className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4"
-          >
-            <motion.div
-              ref={heldModalRef}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="held-orders-title"
-              tabIndex={-1}
-              initial={{ scale: 0.92, opacity: 0, y: 24 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.92, opacity: 0, y: 24 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-              className="modal-card max-w-md w-full overflow-hidden flex flex-col max-h-[80vh]"
-            >
-              <div className="p-5 flex justify-between items-center border-b border-slate-800/60">
-                <h3
-                  id="held-orders-title"
-                  className="font-sans font-bold text-slate-900 dark:text-white text-base flex items-center gap-2.5"
-                >
-                  <div className="p-1.5 bg-amber-500/15 rounded-xl text-amber-400">
-                    <Clock size={16} />
-                  </div>
-                  {t('register.heldOrders')}
-                  <span className="badge badge-amber ms-1">{heldOrders.length}</span>
-                </h3>
-                <button
-                  onClick={() => setHeldModalOpen(false)}
-                  aria-label={t('register.close')}
-                  className="p-1.5 text-slate-500 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              <div className="p-4 overflow-y-auto space-y-2.5">
-                {heldOrders.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-                    <PauseCircle size={36} className="opacity-20 mb-3" />
-                    <p className="font-mono text-xs">{t('register.noHeldOrders')}</p>
-                  </div>
-                ) : (
-                  heldOrders.map((order) => {
-                    const itemCount = order.items.reduce((s, i) => s + i.quantity, 0);
-                    const orderTotal = order.items.reduce((s, i) => s + i.price * i.quantity, 0);
-                    return (
-                      <div
-                        key={order.id}
-                        className="group flex items-center justify-between gap-3 rounded-2xl p-3.5 transition-all bg-slate-800/40 border border-slate-700/50 hover:bg-slate-800/70"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="font-sans font-bold text-slate-800 dark:text-slate-100 text-sm truncate">
-                            {order.label}
-                          </p>
-                          <p className="text-[10px] font-mono text-slate-500 mt-1">
-                            {itemCount} {t('register.itemsLower')}{' '}
-                            <span className="mx-1.5 opacity-40">•</span>
-                            {settings.currency}
-                            {orderTotal.toFixed(2)}
-                            {order.operatorName && (
-                              <>
-                                <span className="mx-1.5 opacity-40">•</span>
-                                {order.operatorName}
-                              </>
-                            )}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={() => resumeHeldOrder(order)}
-                            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"
-                          >
-                            <Play size={12} className="fill-current" /> {t('register.resume')}
-                          </button>
-                          <button
-                            onClick={() => removeHeldOrder(order.id)}
-                            aria-label={t('register.deleteHeld')}
-                            className="p-1.5 text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <HeldOrdersModal
+        open={heldModalOpen}
+        dialogRef={heldModalRef}
+        heldOrders={heldOrders}
+        currency={settings.currency}
+        onClose={() => setHeldModalOpen(false)}
+        onResume={resumeHeldOrder}
+        onRemove={removeHeldOrder}
+      />
 
       <AnimatePresence>
         {checkoutModalOpen && (
@@ -1061,116 +973,13 @@ export default function Register() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {addCustomerOpen && (
-          <div
-            id="add-customer-modal"
-            className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4"
-          >
-            <motion.div
-              ref={addCustomerModalRef}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="add-customer-title"
-              tabIndex={-1}
-              initial={{ scale: 0.9, opacity: 0, y: 24 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 24 }}
-              transition={{ type: 'spring', stiffness: 280, damping: 22 }}
-              className="modal-card max-w-sm w-full p-6 space-y-5"
-            >
-              <div
-                className="flex justify-between items-center pb-4"
-                style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
-              >
-                <h3
-                  id="add-customer-title"
-                  className="font-sans font-bold text-slate-900 dark:text-white text-base flex items-center gap-2.5"
-                >
-                  <div
-                    className="p-1.5 rounded-xl"
-                    style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}
-                  >
-                    <UserPlus size={16} />
-                  </div>
-                  {t('register.newCustomer')}
-                </h3>
-                <button
-                  onClick={() => setAddCustomerOpen(false)}
-                  aria-label={t('register.close')}
-                  className="p-1.5 text-slate-500 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <form onSubmit={handleAddNewCustomer} className="space-y-4">
-                {addCustomerFieldsArray.map(
-                  ({ label, type, value, onChange, placeholder, required }) => (
-                    <div key={label}>
-                      <label
-                        htmlFor={`customer-field-${label}`}
-                        className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5"
-                      >
-                        {label}
-                      </label>
-                      <input
-                        id={`customer-field-${label}`}
-                        type={type}
-                        required={required}
-                        placeholder={placeholder}
-                        value={value}
-                        onChange={(e) => onChange(e.target.value)}
-                        className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:outline-none transition-all placeholder:text-slate-600"
-                        style={{
-                          background: 'rgba(255,255,255,0.05)',
-                          border: '1px solid rgba(255,255,255,0.09)',
-                        }}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = '#10b981';
-                          e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.12)';
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = 'rgba(255,255,255,0.09)';
-                          e.target.style.boxShadow = 'none';
-                        }}
-                      />
-                    </div>
-                  ),
-                )}
-
-                <div
-                  className="flex justify-end gap-2.5 pt-3"
-                  style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setAddCustomerOpen(false)}
-                    className="px-5 py-2.5 text-sm font-bold rounded-xl transition-colors"
-                    style={{
-                      color: '#64748b',
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                    }}
-                  >
-                    {t('register.cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-2.5 text-sm font-bold text-slate-900 dark:text-white rounded-xl transition-all active:scale-95"
-                    style={{
-                      background: 'linear-gradient(135deg, #059669, #10b981)',
-                      boxShadow: '0 4px 14px rgba(16,185,129,0.3)',
-                    }}
-                  >
-                    {t('register.saveLink')}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <AddCustomerModal
+        open={addCustomerOpen}
+        dialogRef={addCustomerModalRef}
+        fields={addCustomerFieldsArray}
+        onSubmit={handleAddNewCustomer}
+        onClose={() => setAddCustomerOpen(false)}
+      />
 
       <AnimatePresence>
         {receiptModalOpen && activeReceipt && (
