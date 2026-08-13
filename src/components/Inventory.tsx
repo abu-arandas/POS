@@ -134,7 +134,7 @@ export default function Inventory() {
         return {
           productId: prod?.id ?? '',
           productName: prod?.name ?? '',
-          quantity: parseInt(l.quantity) || 0,
+          quantity: parseInt(l.quantity, 10) || 0,
           unitCost: parseFloat(l.unitCost) || 0,
         };
       }),
@@ -197,7 +197,7 @@ export default function Inventory() {
 
   const handleReceiveStock = useCallback(() => {
     const product = products.find((p) => p.id === recvProductId);
-    const qty = parseInt(recvQty);
+    const qty = parseInt(recvQty, 10);
     if (!product || !qty) return; // allows negative if reason is waste
     const newStock = product.stock + qty;
     if (newStock < 0) {
@@ -341,8 +341,8 @@ export default function Inventory() {
       category: prodCategory,
       price: parseFloat(prodPrice),
       cost: parseFloat(prodCost),
-      stock: parseInt(prodStock),
-      minStock: parseInt(prodMinStock) || 0,
+      stock: parseInt(prodStock, 10),
+      minStock: parseInt(prodMinStock, 10) || 0,
       image: prodImage || '',
     };
 
@@ -582,7 +582,7 @@ export default function Inventory() {
                   placeholder={t('inventory.searchProducts')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 bg-transparent border-none text-slate-700 dark:text-slate-200 text-sm focus:outline-none placeholder-slate-500 glass-input"
+                  className="flex-1 bg-transparent border-none text-slate-700 dark:text-slate-200 text-sm focus:outline-none placeholder:text-slate-500 glass-input"
                 />
               </div>
 
@@ -1462,7 +1462,7 @@ export default function Inventory() {
                         placeholder="https://images.unsplash.com/..."
                         value={prodImage}
                         onChange={(e) => setProdImage(e.target.value)}
-                        className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 placeholder-slate-600 self-center"
+                        className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 placeholder:text-slate-600 self-center"
                       />
                     </div>
                   </div>
@@ -1739,7 +1739,7 @@ export default function Inventory() {
                 </button>
                 <button
                   onClick={handleReceiveStock}
-                  disabled={!recvProductId || !recvQty || isNaN(parseInt(recvQty))}
+                  disabled={!recvProductId || !recvQty || isNaN(parseInt(recvQty, 10))}
                   className="px-6 py-3 font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-slate-900 dark:text-white rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
                 >
                   <Check size={20} /> {t('inventory.confirmReceive', 'Confirm')}
@@ -1996,7 +1996,7 @@ export default function Inventory() {
                     {poLines
                       .reduce(
                         (sum, l) =>
-                          sum + (parseInt(l.quantity) || 0) * (parseFloat(l.unitCost) || 0),
+                          sum + (parseInt(l.quantity, 10) || 0) * (parseFloat(l.unitCost) || 0),
                         0,
                       )
                       .toFixed(2)}

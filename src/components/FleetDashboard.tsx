@@ -111,6 +111,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
         setSummary(s);
         setDaily(d);
       })
+      .catch((err) => console.error('Failed to load fleet dashboard:', err))
       .finally(() => {
         if (cancelled) return;
         setLoading(false);

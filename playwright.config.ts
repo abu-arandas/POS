@@ -3,7 +3,7 @@ import process from 'node:process';
 
 // End-to-end tests drive the real app in a browser (login → checkout → receipt),
 // complementing the Vitest unit tests that cover the pure pricing/refund logic.
-const CI = !!process.env.CI;
+const CI = Boolean(process.env.CI);
 
 export default defineConfig({
   testDir: './e2e',

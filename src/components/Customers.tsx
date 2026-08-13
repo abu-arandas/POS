@@ -122,7 +122,7 @@ export default function Customers() {
       name: custName.trim(),
       phone: custPhone.trim(),
       email: custEmail.trim(),
-      points: parseInt(custPoints) || 0,
+      points: parseInt(custPoints, 10) || 0,
     };
 
     if (editingCustomer) {
@@ -218,7 +218,7 @@ export default function Customers() {
                 placeholder={t('customers.searchCrm')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent border-none text-slate-700 dark:text-slate-200 text-sm focus:outline-none placeholder-slate-500"
+                className="flex-1 bg-transparent border-none text-slate-700 dark:text-slate-200 text-sm focus:outline-none placeholder:text-slate-500"
               />
             </div>
             <div className="flex glass-input p-1 rounded-2xl shrink-0">

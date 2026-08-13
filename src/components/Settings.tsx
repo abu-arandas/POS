@@ -1168,7 +1168,7 @@ export default function Settings() {
                           onChange={(e) =>
                             setPrinterForm({
                               ...printerForm,
-                              baudRate: e.target.value ? parseInt(e.target.value) : undefined,
+                              baudRate: e.target.value ? parseInt(e.target.value, 10) : undefined,
                             })
                           }
                           className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
@@ -1596,7 +1596,7 @@ export default function Settings() {
                         onChange={(e) =>
                           setScannerForm({
                             ...scannerForm,
-                            minLength: parseInt(e.target.value) || 0,
+                            minLength: parseInt(e.target.value, 10) || 0,
                           })
                         }
                         className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
@@ -1621,7 +1621,7 @@ export default function Settings() {
                         onChange={(e) =>
                           setScannerForm({
                             ...scannerForm,
-                            maxInterKeyMs: parseInt(e.target.value) || 0,
+                            maxInterKeyMs: parseInt(e.target.value, 10) || 0,
                           })
                         }
                         className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
