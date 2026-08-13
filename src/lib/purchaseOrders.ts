@@ -1,4 +1,5 @@
 import { PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus } from '../types';
+import { nonNegative } from './money';
 
 // The only legal status moves. Received and cancelled are terminal — a
 // received PO already changed stock, so "un-receiving" would corrupt counts.
@@ -15,7 +16,11 @@ export function canTransition(from: PurchaseOrderStatus, to: PurchaseOrderStatus
 
 // Total buy value of the order (sum of qty × unit cost), rounded to cents.
 export function poTotal(po: Pick<PurchaseOrder, 'lines'>): number {
-  return Number(po.lines.reduce((sum, l) => sum + l.quantity * l.unitCost, 0).toFixed(2));
+  return Number(
+    po.lines
+      .reduce((sum, l) => sum + nonNegative(l.quantity) * nonNegative(l.unitCost), 0)
+      .toFixed(2),
+  );
 }
 
 // Total units across all lines.

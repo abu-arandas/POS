@@ -50,6 +50,15 @@ describe('poTotal / poUnitCount', () => {
     expect(poTotal({ lines: [] })).toBe(0);
     expect(poUnitCount({ lines: [] })).toBe(0);
   });
+
+  it('clamps negative quantity or unit cost so poTotal never goes negative', () => {
+    expect(poTotal({ lines: [line({ quantity: -5, unitCost: 10 })] })).toBe(0);
+    expect(
+      poTotal({
+        lines: [line({ unitCost: -10 }), line({ productId: 'p2', quantity: 2, unitCost: 3 })],
+      }),
+    ).toBe(6); // negative-cost line contributes 0; only 2×3 counts
+  });
 });
 
 describe('normalizePoLines', () => {

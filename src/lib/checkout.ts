@@ -8,6 +8,7 @@ import {
 } from '../types';
 import { summarizeTenders } from './payments';
 import { shortId } from './ids';
+import { nonNegative } from './money';
 
 export interface CheckoutRequest {
   cartItems: Omit<OrderItem, 'total'>[];
@@ -93,7 +94,7 @@ export function buildSaleTransaction(req: CheckoutRequest): CheckoutOutcome {
     date: new Date().toISOString(),
     items: req.cartItems.map((item) => ({
       ...item,
-      total: Number((item.price * item.quantity).toFixed(2)),
+      total: Number((nonNegative(item.price) * nonNegative(item.quantity)).toFixed(2)),
     })),
     subtotal: req.subtotal,
     discount: req.discountAmount,
