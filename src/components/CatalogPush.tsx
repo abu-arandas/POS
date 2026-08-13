@@ -88,21 +88,25 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
         fetchStoreProducts(sourceId),
         fetchStoreCategories(sourceId),
       ]);
-      const rows: PreviewRow[] = [];
-      for (const tid of targetIds) {
-        const [tp, tc] = await Promise.all([fetchStoreProducts(tid), fetchStoreCategories(tid)]);
-        const plan = planCatalogPush(
-          { products: srcProducts, categories: srcCategories },
-          { products: tp, categories: tc },
-          options,
-          genId,
-        );
-        rows.push({
-          storeId: tid,
-          storeName: stores.find((s) => s.id === tid)?.name ?? tid,
-          summary: plan.summary,
-        });
-      }
+      // ⚡ Bolt Optimization:
+      // Replaced sequential for...of loop with Promise.all and map
+      // to parallelize independent network requests across target stores.
+      const rows: PreviewRow[] = await Promise.all(
+        targetIds.map(async (tid) => {
+          const [tp, tc] = await Promise.all([fetchStoreProducts(tid), fetchStoreCategories(tid)]);
+          const plan = planCatalogPush(
+            { products: srcProducts, categories: srcCategories },
+            { products: tp, categories: tc },
+            options,
+            genId,
+          );
+          return {
+            storeId: tid,
+            storeName: stores.find((s) => s.id === tid)?.name ?? tid,
+            summary: plan.summary,
+          };
+        }),
+      );
       setPreview(rows);
     } finally {
       setWorking(false);
@@ -117,18 +121,22 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
         fetchStoreProducts(sourceId),
         fetchStoreCategories(sourceId),
       ]);
-      const out: ResultRow[] = [];
-      for (const tid of targetIds) {
-        const [tp, tc] = await Promise.all([fetchStoreProducts(tid), fetchStoreCategories(tid)]);
-        const plan = planCatalogPush(
-          { products: srcProducts, categories: srcCategories },
-          { products: tp, categories: tc },
-          options,
-          genId,
-        );
-        const ok = await pushStoreCatalog(tid, plan.categoriesToUpsert, plan.productsToUpsert);
-        out.push({ storeId: tid, storeName: stores.find((s) => s.id === tid)?.name ?? tid, ok });
-      }
+      // ⚡ Bolt Optimization:
+      // Replaced sequential for...of loop with Promise.all and map
+      // to parallelize independent network requests across target stores.
+      const out: ResultRow[] = await Promise.all(
+        targetIds.map(async (tid) => {
+          const [tp, tc] = await Promise.all([fetchStoreProducts(tid), fetchStoreCategories(tid)]);
+          const plan = planCatalogPush(
+            { products: srcProducts, categories: srcCategories },
+            { products: tp, categories: tc },
+            options,
+            genId,
+          );
+          const ok = await pushStoreCatalog(tid, plan.categoriesToUpsert, plan.productsToUpsert);
+          return { storeId: tid, storeName: stores.find((s) => s.id === tid)?.name ?? tid, ok };
+        }),
+      );
       setResults(out);
       setPreview(null);
     } finally {

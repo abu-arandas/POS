@@ -1,0 +1,3 @@
+## 2024-05-18 - Parallelizing Network Requests
+**Learning:** A performance anti-pattern was found where network operations (fetching target store's products/categories and pushing new data) were executed sequentially inside a `for...of` loop over target IDs, causing total execution time to grow linearly O(N).
+**Action:** Always leverage `Promise.all` coupled with `.map()` when iterating over arrays if the async operations inside the loop are independent (like querying or pushing data to separate backend endpoints). This parallelization significantly reduces the overall wait time, bringing it closer to O(1) in terms of latency.
