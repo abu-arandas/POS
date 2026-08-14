@@ -77,6 +77,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
         setStores(s);
         setMembers(m);
       })
+      .catch((err) => console.error('Failed to load stores:', err))
       .finally(() => {
         if (!cancelled) setLoading(false);
       });

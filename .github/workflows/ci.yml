@@ -1,5 +1,10 @@
 name: CI
 
+# Least-privilege default for GITHUB_TOKEN: CI only reads the repo to run
+# checks. Any job needing more can opt in with its own permissions block.
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]

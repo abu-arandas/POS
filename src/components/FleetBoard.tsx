@@ -52,6 +52,7 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
       .then((r) => {
         if (!cancelled) setRows(r);
       })
+      .catch((err) => console.error('Failed to load fleet summary:', err))
       .finally(() => {
         if (!cancelled) setLoadedOnce(true);
       });

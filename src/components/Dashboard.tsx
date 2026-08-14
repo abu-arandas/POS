@@ -116,7 +116,8 @@ export default function Dashboard() {
   }, [completedTransactions, todayDateString]);
 
   const [range, setRange] = useState<'today' | '7d' | '30d' | 'all'>('7d');
-  const rangeDays = range === 'today' ? 1 : range === '7d' ? 7 : range === '30d' ? 30 : 30;
+  // 'all' is handled separately (rangeTxns returns everything), so 30d/all both map to 30.
+  const rangeDays = range === 'today' ? 1 : range === '7d' ? 7 : 30;
 
   const rangeTxns = useMemo(() => {
     if (range === 'all') return completedTransactions;

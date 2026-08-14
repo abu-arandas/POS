@@ -74,4 +74,11 @@ describe('calculateOrderTotals', () => {
     expect(r.taxableAmount).toBe(0);
     expect(r.totalAmount).toBe(0);
   });
+
+  it('clamps a hostile negative quantity so the total never goes negative', () => {
+    // A crafted negative quantity must contribute 0, not subtract from the order.
+    const r = calculateOrderTotals([item(10, 2), item(5, -3)], 'none', 0, settings);
+    expect(r.subtotal).toBe(20); // 10×2 + (5×0), not 20 − 15
+    expect(r.totalAmount).toBe(22); // + 10% tax
+  });
 });

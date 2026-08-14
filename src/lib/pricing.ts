@@ -1,4 +1,5 @@
 import { StoreSettings } from '../types';
+import { nonNegative } from './money';
 
 export interface CheckoutItem {
   productId: string;
@@ -14,7 +15,11 @@ export function calculateOrderTotals(
   discountValue: number,
   settings: Pick<StoreSettings, 'taxRate' | 'loyaltyPointValue'>,
 ) {
-  const subtotal = Number(items.reduce((sum, i) => sum + i.price * i.quantity, 0).toFixed(2));
+  // Clamp price and quantity per line so a negative or non-finite value can
+  // never subtract from the subtotal (which would yield a negative total).
+  const subtotal = Number(
+    items.reduce((sum, i) => sum + nonNegative(i.price) * nonNegative(i.quantity), 0).toFixed(2),
+  );
 
   // Every discount is clamped so the recorded discount can never exceed the
   // order value (and a typo like "150%" can never go negative).
