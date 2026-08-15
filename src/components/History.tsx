@@ -81,12 +81,29 @@ export default function History() {
   }, [transactions, selectedTxId]);
 
   const filteredTransactions = useMemo(() => {
+    /*
+      ⚡ Bolt Optimization:
+      Moved string conversion and `Date` instantiations outside the filter loop to prevent
+      O(N) redundant allocations during filtering. Replaced `new Date().getTime()` sorting
+      with direct ISO 8601 string comparison, reducing sort overhead drastically.
+    */
+    const query = searchQuery.toLowerCase();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+
     return transactions
       .filter((tx) => {
         const matchesSearch =
-          tx.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (tx.customerName && tx.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          tx.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase());
+          tx.id.toLowerCase().includes(query) ||
+          (tx.customerName && tx.customerName.toLowerCase().includes(query)) ||
+          tx.paymentMethod.toLowerCase().includes(query);
 
         const matchesStatus =
           statusFilter === 'all' ||
@@ -97,24 +114,18 @@ export default function History() {
 
         let matchesDate = true;
         const txDate = new Date(tx.date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
 
         if (dateFilter === 'today') {
           matchesDate = txDate >= today;
         } else if (dateFilter === 'yesterday') {
-          const yesterday = new Date(today);
-          yesterday.setDate(today.getDate() - 1);
           matchesDate = txDate >= yesterday && txDate < today;
         } else if (dateFilter === '7days') {
-          const sevenDaysAgo = new Date(today);
-          sevenDaysAgo.setDate(today.getDate() - 7);
           matchesDate = txDate >= sevenDaysAgo;
         }
 
         return matchesSearch && matchesStatus && matchesDate && matchesPayment;
       })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   }, [transactions, searchQuery, dateFilter, statusFilter, paymentFilter]);
 
   // Group by date
