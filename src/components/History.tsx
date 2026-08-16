@@ -81,40 +81,70 @@ export default function History() {
   }, [transactions, selectedTxId]);
 
   const filteredTransactions = useMemo(() => {
+    // ⚡ Bolt: Hoist invariants outside the loop to avoid O(N) redundant operations
+    const lowerSearchQuery = searchQuery.toLowerCase();
+    const hasSearch = lowerSearchQuery.length > 0;
+    const hasPaymentFilter = paymentFilter.length > 0;
+
+    // ⚡ Bolt: Pre-compute date bounds as timestamps
+    let todayMs = 0, yesterdayMs = 0, sevenDaysAgoMs = 0;
+    const isDateFiltered = dateFilter !== 'all';
+
+    if (isDateFiltered) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      todayMs = today.getTime();
+
+      if (dateFilter === 'yesterday') {
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        yesterdayMs = yesterday.getTime();
+      } else if (dateFilter === '7days') {
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        sevenDaysAgoMs = sevenDaysAgo.getTime();
+      }
+    }
+
     return transactions
       .filter((tx) => {
-        const matchesSearch =
-          tx.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (tx.customerName && tx.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          tx.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase());
+        let matchesSearch = true;
+        if (hasSearch) {
+          matchesSearch =
+            tx.id.toLowerCase().includes(lowerSearchQuery) ||
+            (tx.customerName && tx.customerName.toLowerCase().includes(lowerSearchQuery)) ||
+            tx.paymentMethod.toLowerCase().includes(lowerSearchQuery);
+        }
+
+        if (!matchesSearch) return false;
 
         const matchesStatus =
           statusFilter === 'all' ||
           (statusFilter === 'refunded' ? tx.status !== 'completed' : tx.status === 'completed');
 
-        const matchesPayment =
-          paymentFilter.length === 0 || paymentFilter.includes(tx.paymentMethod);
+        if (!matchesStatus) return false;
+
+        const matchesPayment = !hasPaymentFilter || paymentFilter.includes(tx.paymentMethod);
+
+        if (!matchesPayment) return false;
 
         let matchesDate = true;
-        const txDate = new Date(tx.date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        if (dateFilter === 'today') {
-          matchesDate = txDate >= today;
-        } else if (dateFilter === 'yesterday') {
-          const yesterday = new Date(today);
-          yesterday.setDate(today.getDate() - 1);
-          matchesDate = txDate >= yesterday && txDate < today;
-        } else if (dateFilter === '7days') {
-          const sevenDaysAgo = new Date(today);
-          sevenDaysAgo.setDate(today.getDate() - 7);
-          matchesDate = txDate >= sevenDaysAgo;
+        if (isDateFiltered) {
+          // ⚡ Bolt: Use Date.parse instead of new Date() to avoid object allocation
+          const txDateMs = Date.parse(tx.date);
+          if (dateFilter === 'today') {
+            matchesDate = txDateMs >= todayMs;
+          } else if (dateFilter === 'yesterday') {
+            matchesDate = txDateMs >= yesterdayMs && txDateMs < todayMs;
+          } else if (dateFilter === '7days') {
+            matchesDate = txDateMs >= sevenDaysAgoMs;
+          }
         }
 
-        return matchesSearch && matchesStatus && matchesDate && matchesPayment;
+        return matchesDate;
       })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      // ⚡ Bolt: Sort ISO 8601 strings directly instead of parsing to Dates
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   }, [transactions, searchQuery, dateFilter, statusFilter, paymentFilter]);
 
   // Group by date
