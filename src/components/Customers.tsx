@@ -89,7 +89,7 @@ export default function Customers() {
     list.sort((a, b) => {
       if (sortBy === 'points') return b.points - a.points;
       if (sortBy === 'date')
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0;
       return a.name.localeCompare(b.name);
     });
 
