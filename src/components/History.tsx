@@ -114,7 +114,8 @@ export default function History() {
 
         return matchesSearch && matchesStatus && matchesDate && matchesPayment;
       })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      // ⚡ Bolt: Compare ISO 8601 strings directly instead of parsing with new Date() for O(1) comparison overhead.
+      .sort((a, b) => (b.date < a.date ? -1 : b.date > a.date ? 1 : 0));
   }, [transactions, searchQuery, dateFilter, statusFilter, paymentFilter]);
 
   // Group by date

@@ -89,7 +89,8 @@ export default function Customers() {
     list.sort((a, b) => {
       if (sortBy === 'points') return b.points - a.points;
       if (sortBy === 'date')
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        // ⚡ Bolt: Compare ISO 8601 strings directly to avoid Date parsing overhead in sort loop.
+        return b.createdAt < a.createdAt ? -1 : b.createdAt > a.createdAt ? 1 : 0;
       return a.name.localeCompare(b.name);
     });
 

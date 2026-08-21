@@ -5,3 +5,7 @@
 ## 2024-08-12 - Replacing O(M*N) nested finding with O(N+M) Map lookup
 **Learning:** Using `Array.prototype.find()` inside loops that process multiple items (like `tx.items` in kitchen ticket printing) leads to O(M*N) complexity. Although extracting it to a helper function like `catOf = (productId: string) => products.find(...)` hides the loop, it still executes `M` times.
 **Action:** When performing lookups inside a loop processing `M` items against a collection of `N` items, pre-compute a `Map` of the `N` items first, making the total complexity O(N + M) which is drastically faster for large `M` and `N`.
+
+## 2026-08-21 - Compare ISO date strings directly
+**Learning:** Parsing dates via `new Date()` inside a `.sort()` function causes significant overhead because it is executed O(N log N) times.
+**Action:** Instead of converting ISO date strings to Date objects, use standard string comparison (`a < b ? -1 : a > b ? 1 : 0`) as ISO strings correctly sort chronologically.

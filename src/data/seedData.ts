@@ -1171,5 +1171,6 @@ export function generatePastTransactions(): SaleTransaction[] {
   }
 
   // Sort from newest to oldest
-  return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  // ⚡ Bolt: Sort using direct string comparison of ISO dates to avoid expensive Date parsing.
+  return transactions.sort((a, b) => (b.date < a.date ? -1 : b.date > a.date ? 1 : 0));
 }
