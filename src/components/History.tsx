@@ -81,40 +81,57 @@ export default function History() {
   }, [transactions, selectedTxId]);
 
   const filteredTransactions = useMemo(() => {
-    return transactions
-      .filter((tx) => {
-        const matchesSearch =
-          tx.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (tx.customerName && tx.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          tx.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase());
+    // ⚡ Bolt: Hoist invariants outside the loop to avoid severe O(N) overhead
+    const searchLower = searchQuery.toLowerCase();
 
-        const matchesStatus =
-          statusFilter === 'all' ||
-          (statusFilter === 'refunded' ? tx.status !== 'completed' : tx.status === 'completed');
+    // ⚡ Bolt: Hoist date initializations outside the filter loop
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-        const matchesPayment =
-          paymentFilter.length === 0 || paymentFilter.includes(tx.paymentMethod);
+    let yesterday: Date | null = null;
+    if (dateFilter === 'yesterday') {
+      yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+    }
 
-        let matchesDate = true;
-        const txDate = new Date(tx.date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+    let sevenDaysAgo: Date | null = null;
+    if (dateFilter === '7days') {
+      sevenDaysAgo = new Date(today);
+      sevenDaysAgo.setDate(today.getDate() - 7);
+    }
 
-        if (dateFilter === 'today') {
-          matchesDate = txDate >= today;
-        } else if (dateFilter === 'yesterday') {
-          const yesterday = new Date(today);
-          yesterday.setDate(today.getDate() - 1);
-          matchesDate = txDate >= yesterday && txDate < today;
-        } else if (dateFilter === '7days') {
-          const sevenDaysAgo = new Date(today);
-          sevenDaysAgo.setDate(today.getDate() - 7);
-          matchesDate = txDate >= sevenDaysAgo;
-        }
+    return (
+      transactions
+        .filter((tx) => {
+          const matchesSearch =
+            tx.id.toLowerCase().includes(searchLower) ||
+            (tx.customerName && tx.customerName.toLowerCase().includes(searchLower)) ||
+            tx.paymentMethod.toLowerCase().includes(searchLower);
 
-        return matchesSearch && matchesStatus && matchesDate && matchesPayment;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          const matchesStatus =
+            statusFilter === 'all' ||
+            (statusFilter === 'refunded' ? tx.status !== 'completed' : tx.status === 'completed');
+
+          const matchesPayment =
+            paymentFilter.length === 0 || paymentFilter.includes(tx.paymentMethod);
+
+          let matchesDate = true;
+          if (dateFilter !== 'all') {
+            const txDate = new Date(tx.date);
+            if (dateFilter === 'today') {
+              matchesDate = txDate >= today;
+            } else if (dateFilter === 'yesterday' && yesterday) {
+              matchesDate = txDate >= yesterday && txDate < today;
+            } else if (dateFilter === '7days' && sevenDaysAgo) {
+              matchesDate = txDate >= sevenDaysAgo;
+            }
+          }
+
+          return matchesSearch && matchesStatus && matchesDate && matchesPayment;
+        })
+        // ⚡ Bolt: Sort ISO 8601 date strings directly using string comparison
+        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    );
   }, [transactions, searchQuery, dateFilter, statusFilter, paymentFilter]);
 
   // Group by date
