@@ -22,7 +22,14 @@ function withinWindow(po: PurchaseOrder, days?: number): boolean {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
   start.setDate(start.getDate() - (days - 1));
-  return new Date(po.createdAt) >= start;
+  const activityAt =
+    po.status === 'received'
+      ? (po.receivedAt ?? po.createdAt)
+      : po.status === 'ordered'
+        ? (po.orderedAt ?? po.createdAt)
+        : po.createdAt;
+  const activityDate = new Date(activityAt);
+  return !Number.isNaN(activityDate.getTime()) && activityDate >= start;
 }
 
 // Summarizes purchase orders for the Dashboard: total received spend,

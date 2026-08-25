@@ -61,18 +61,37 @@ interface WebSerial {
 async function printSerial(bytes: Uint8Array, baudRate = 9600): Promise<HardwarePrintOutcome> {
   const serial = (navigator as unknown as { serial?: WebSerial }).serial;
   if (!serial) return 'unsupported';
+
+  let port: WebSerialPort | undefined;
+  let writer: WritableStreamDefaultWriter<Uint8Array> | undefined;
+  let opened = false;
+  let outcome: HardwarePrintOutcome = 'error';
   try {
-    const port = await serial.requestPort();
+    port = await serial.requestPort();
     await port.open({ baudRate });
-    const writer = port.writable.getWriter();
+    opened = true;
+    writer = port.writable.getWriter();
     await writer.write(bytes);
-    writer.releaseLock();
-    await port.close();
-    return 'printed';
+    outcome = 'printed';
   } catch (e) {
     console.error('Serial print failed:', e);
-    return 'error';
+  } finally {
+    try {
+      writer?.releaseLock();
+    } catch (e) {
+      console.warn('Serial writer cleanup failed:', e);
+      outcome = 'error';
+    }
+    if (opened && port) {
+      try {
+        await port.close();
+      } catch (e) {
+        console.warn('Serial port cleanup failed:', e);
+        outcome = 'error';
+      }
+    }
   }
+  return outcome;
 }
 
 // Network printer via the Electron main process (raw TCP to port 9100). No-op

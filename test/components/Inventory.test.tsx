@@ -7,6 +7,11 @@ import { useSettingsStore } from '../../src/stores/settingsStore';
 import { useSupplyStore } from '../../src/stores/supplyStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { Product, StoreSettings, PurchaseOrder } from '../../src/types';
+import { notify } from '../../src/lib/notifications';
+import { askConfirmation } from '../../src/lib/dialogs';
+
+vi.mock('../../src/lib/notifications', () => ({ notify: vi.fn() }));
+vi.mock('../../src/lib/dialogs', () => ({ askConfirmation: vi.fn() }));
 
 // Inventory is the other place stock moves, and the place a receive can be
 // applied twice. The store-level guard has its own test; these exercise the
@@ -57,8 +62,8 @@ beforeEach(() => {
   useAuthStore.setState({
     currentUser: { id: 'u-1', name: 'Ann', role: 'admin', pin: '', active: true, createdAt: '' },
   });
-  vi.spyOn(window, 'alert').mockImplementation(() => {});
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
+  vi.mocked(notify).mockClear();
+  vi.mocked(askConfirmation).mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -135,7 +140,7 @@ describe('Inventory — manual stock movements', () => {
     await user.type(screen.getByLabelText(/Quantity change/i), '-50'); // only 10 on hand
     await user.click(screen.getByRole('button', { name: /^Receive$/i }));
 
-    expect(window.alert).toHaveBeenCalled();
+    expect(notify).toHaveBeenCalled();
     expect(useProductStore.getState().products[0].stock).toBe(10);
     expect(useSupplyStore.getState().adjustments).toHaveLength(0);
   });
@@ -227,7 +232,7 @@ describe('Inventory — editing the catalog', () => {
     await user.type(sku, 'BEV-01'); // already Latte's
     await user.click(screen.getByRole('button', { name: /Save|Update/i }));
 
-    expect(window.alert).toHaveBeenCalled();
+    expect(notify).toHaveBeenCalled();
     expect(useProductStore.getState().products.find((p) => p.id === 'p-2')!.sku).toBe('BEV-02');
   });
 });

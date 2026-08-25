@@ -207,12 +207,16 @@ export function buildReceiptDoc(
   // word "Refunded" and nothing else — no date, no authoriser. That is the
   // audit trail on a money document, and the customer copy is often the only
   // copy that leaves the building.
-  if (tx.refundDate)
-    rows.push({
-      kind: 'center',
-      text: `${i18n.t('history.refund', 'REFUND:')} ${formatDateTime(new Date(tx.refundDate), L.dateFormat)}`,
-      style: 'muted',
-    });
+  if (tx.refundDate) {
+    const refundDate = new Date(tx.refundDate);
+    if (!Number.isNaN(refundDate.getTime())) {
+      rows.push({
+        kind: 'center',
+        text: `${i18n.t('history.refund', 'REFUND:')} ${formatDateTime(refundDate, L.dateFormat)}`,
+        style: 'muted',
+      });
+    }
+  }
   if (tx.refundAuthorizedBy)
     rows.push({
       kind: 'center',

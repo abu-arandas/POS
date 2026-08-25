@@ -1,8 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { hashPin, hashPinSalted, sha256HexSync } from '../../src/lib/hash';
+import {
+  hashPin,
+  hashPinSalted,
+  hashPinSaltedLegacy,
+  hashPinSaltedLegacySync,
+  hashPinSaltedSync,
+  sha256HexSync,
+} from '../../src/lib/hash';
 
-// Known SHA-256 vectors. '1234' is also the seeded admin PIN hash used in
-// authStore/schema.sql — if these drift, default logins break.
+// Known SHA-256 vectors. These protect the explicit legacy verification path
+// used while existing account hashes migrate to PBKDF2.
 const VECTORS: Array<[string, string]> = [
   ['1234', '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4'],
   ['', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'],
@@ -35,16 +42,23 @@ describe('sha256HexSync (insecure-context fallback)', () => {
 });
 
 describe('hashPinSalted', () => {
-  it('combines userId and pin properly', async () => {
-    // The salt format is userId:pin
-    // sha256("u123:1234") -> 7279202b4bc5a1b671df119c7be961807f00fb16cc4d2e6a7c3b628dbd7e8245
+  it('matches an independent PBKDF2-SHA-256 reference vector', async () => {
     const saltedHash = await hashPinSalted('u123', '1234');
-    expect(saltedHash).toBe('7279202b4bc5a1b671df119c7be961807f00fb16cc4d2e6a7c3b628dbd7e8245');
-  });
+    expect(saltedHash).toBe(
+      'v2$600000$9b2e37bf6f878649d3d422d6dd6286a6$c48078a2acc6d963694bcd4261a95815cbf2b0e8dea87d349e1368e28fae2ce1',
+    );
+    expect(hashPinSaltedSync('u123', '1234')).toBe(saltedHash);
+  }, 30_000);
 
   it('produces different hashes for the same pin with different users', async () => {
     const hash1 = await hashPinSalted('user1', '0000');
     const hash2 = await hashPinSalted('user2', '0000');
     expect(hash1).not.toBe(hash2);
+  });
+
+  it('keeps explicit legacy SHA-256 helpers for account migration', async () => {
+    const expected = '7279202b4bc5a1b671df119c7be961807f00fb16cc4d2e6a7c3b628dbd7e8245';
+    await expect(hashPinSaltedLegacy('u123', '1234')).resolves.toBe(expected);
+    expect(hashPinSaltedLegacySync('u123', '1234')).toBe(expected);
   });
 });

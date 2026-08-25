@@ -33,6 +33,8 @@ import { useAuthStore } from '../stores/authStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
+import { notify } from '../lib/notifications';
+import { askConfirmation } from '../lib/dialogs';
 
 // Colors available for categories
 const categoryColors = [
@@ -140,7 +142,7 @@ export default function Inventory() {
       }),
     );
     if (lines.length === 0) {
-      alert(t('inventory.poNeedLines'));
+      notify(t('inventory.poNeedLines'));
       return;
     }
     const supplier = suppliers.find((s) => s.id === poSupplierId);
@@ -166,8 +168,8 @@ export default function Inventory() {
   // silently discarded. Claiming the transition up front makes the second call
   // a no-op. Lines come from the returned record, not the caller's snapshot.
   const handleReceivePo = useCallback(
-    (po: PurchaseOrder) => {
-      if (!confirm(t('inventory.poReceiveConfirm'))) return;
+    async (po: PurchaseOrder) => {
+      if (!(await askConfirmation(t('inventory.poReceiveConfirm')))) return;
       const received = setPurchaseOrderStatus(po.id, 'received');
       if (!received) return; // already received/cancelled — nothing to apply
       const liveProducts = useProductStore.getState().products;
@@ -201,7 +203,7 @@ export default function Inventory() {
     if (!product || !qty) return; // allows negative if reason is waste
     const newStock = product.stock + qty;
     if (newStock < 0) {
-      alert('Stock cannot be negative.');
+      notify('Stock cannot be negative.');
       return;
     }
     const updated = { ...product, stock: newStock };
@@ -321,13 +323,13 @@ export default function Inventory() {
   const handleSubmitProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!prodName.trim() || !prodCategory || !prodPrice || !prodCost || !prodStock) {
-      alert(t('inventory.pleaseFillRequired'));
+      notify(t('inventory.pleaseFillRequired'));
       return;
     }
 
     const duplicateSku = products.find((p) => p.sku === prodSku && p.id !== editingProduct?.id);
     if (duplicateSku) {
-      alert(
+      notify(
         t('inventory.duplicateSku', {
           defaultValue: 'This SKU is already used by another product.',
         }),
@@ -413,7 +415,7 @@ export default function Inventory() {
   // the current filter/search shows.
   const handlePrintLabels = useCallback(() => {
     const outcome = printProductLabels(sortedAndFilteredProducts, settings, { columns: 3 });
-    if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+    if (outcome === 'popup-blocked') notify(t('history.standardPrintBlocked'));
   }, [sortedAndFilteredProducts, settings, t]);
 
   const toggleSort = (field: 'name' | 'stock' | 'price' | 'sku') => {
@@ -822,8 +824,12 @@ export default function Inventory() {
                                 </button>
                                 <button
                                   id={`del-prod-${prod.id}`}
-                                  onClick={() => {
-                                    if (confirm(t('inventory.deleteConfirm', { name: prod.name })))
+                                  onClick={async () => {
+                                    if (
+                                      await askConfirmation(
+                                        t('inventory.deleteConfirm', { name: prod.name }),
+                                      )
+                                    )
                                       handleDeleteProduct(prod.id);
                                   }}
                                   aria-label={t('inventory.deleteProduct')}
@@ -993,7 +999,15 @@ export default function Inventory() {
                         </td>
                         <td className="py-4 px-6 text-end">
                           <button
-                            onClick={() => removeSupplier(sup.id)}
+                            onClick={async () => {
+                              if (
+                                await askConfirmation(
+                                  t('inventory.deleteSupplierConfirm', 'Delete this supplier?'),
+                                )
+                              ) {
+                                removeSupplier(sup.id);
+                              }
+                            }}
                             aria-label={t('inventory.deleteSupplier')}
                             className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                           >
@@ -1094,8 +1108,8 @@ export default function Inventory() {
                                   <Send size={12} /> {t('inventory.poMarkOrdered')}
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    if (confirm(t('inventory.poDeleteConfirm')))
+                                  onClick={async () => {
+                                    if (await askConfirmation(t('inventory.poDeleteConfirm')))
                                       deletePurchaseOrder(po.id);
                                   }}
                                   aria-label={t('inventory.poDeleteDraft')}
@@ -1119,8 +1133,8 @@ export default function Inventory() {
                                   <PackagePlus size={12} /> {t('inventory.poReceive')}
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    if (confirm(t('inventory.poCancelConfirm')))
+                                  onClick={async () => {
+                                    if (await askConfirmation(t('inventory.poCancelConfirm')))
                                       setPurchaseOrderStatus(po.id, 'cancelled');
                                   }}
                                   aria-label={t('inventory.poCancelOrder')}
@@ -1132,8 +1146,8 @@ export default function Inventory() {
                             )}
                             {po.status === 'cancelled' && (
                               <button
-                                onClick={() => {
-                                  if (confirm(t('inventory.poDeleteConfirm')))
+                                onClick={async () => {
+                                  if (await askConfirmation(t('inventory.poDeleteConfirm')))
                                     deletePurchaseOrder(po.id);
                                 }}
                                 aria-label={t('inventory.poDeleteDraft')}

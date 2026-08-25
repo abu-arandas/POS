@@ -9,13 +9,13 @@ export default defineConfig({
     include: ['test/**/*.{test,spec}.{ts,tsx}'],
     environment: 'jsdom',
     setupFiles: ['./test/setup.ts'],
-    // `npm run test:coverage` reports on the unit-testable core (pure lib
-    // helpers and Zustand stores). Components are exercised by the component
-    // suite and the Playwright e2e run, so they are out of this metric's scope.
+    // Coverage includes the pure core, stores, and React components. Playwright
+    // remains a separate end-to-end signal, but component branches should not
+    // disappear from the unit-test coverage report.
     coverage: {
       provider: 'v8',
       reporter: ['text', 'text-summary'],
-      include: ['src/lib/**', 'src/stores/**'],
+      include: ['src/lib/**', 'src/stores/**', 'src/components/**'],
     },
   },
 });

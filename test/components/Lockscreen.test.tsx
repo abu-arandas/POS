@@ -4,14 +4,14 @@ import userEvent from '@testing-library/user-event';
 import Lockscreen from '../../src/components/Lockscreen';
 import { useAuthStore } from '../../src/stores/authStore';
 import { usePinAttemptStore } from '../../src/stores/pinAttemptStore';
-import { hashPinSaltedSync } from '../../src/lib/hash';
+import { hashPinSaltedLegacySync } from '../../src/lib/hash';
 import { FREE_ATTEMPTS, recordFailure } from '../../src/lib/pinThrottle';
 import { UserAccount } from '../../src/types';
 
 const makeUser = (overrides: Partial<UserAccount> & { id: string }): UserAccount => ({
   name: 'Staff',
   role: 'cashier',
-  pin: hashPinSaltedSync(overrides.id, '1234'),
+  pin: hashPinSaltedLegacySync(overrides.id, '1234'),
   active: true,
   createdAt: '2026-01-01',
   ...overrides,
@@ -105,6 +105,21 @@ describe('Lockscreen staff selection', () => {
 
     await waitFor(() => expect(useAuthStore.getState().currentUser?.id).toBe('u-1'));
     expect(usePinAttemptStore.getState().attempts['u-1']).toBeUndefined();
+  });
+
+  it('creates the first administrator when no accounts exist', async () => {
+    useAuthStore.setState({ users: [], currentUser: null });
+    render(<Lockscreen />);
+
+    expect(screen.getByText('Set up your administrator account')).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Administrator name'), 'First Admin');
+    await user.type(screen.getByLabelText('Four-digit PIN'), '2468');
+    await user.click(screen.getByRole('button', { name: 'Create administrator' }));
+
+    await waitFor(() => expect(useAuthStore.getState().currentUser?.role).toBe('admin'));
+    expect(useAuthStore.getState().users[0].name).toBe('First Admin');
+    expect(useAuthStore.getState().users[0].pin).not.toBe('2468');
   });
 
   it('rejects the PIN if the account is deactivated after selection', async () => {

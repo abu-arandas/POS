@@ -48,6 +48,20 @@ interface SettingsState {
   setLanguage: (lang: 'en' | 'ar') => void;
 }
 
+const DEFAULT_SETTINGS: StoreSettings =
+  import.meta.env.DEV || import.meta.env.MODE === 'test'
+    ? INITIAL_SETTINGS
+    : {
+        storeName: '',
+        storeAddress: '',
+        storePhone: '',
+        storeLogo: '',
+        taxRate: 0,
+        currency: '$',
+        loyaltyPointsRate: 0,
+        loyaltyPointValue: 0,
+      };
+
 const DEFAULT_PRINTER: PrinterConfig = {
   type: 'system',
   paperSize: '80mm',
@@ -79,7 +93,7 @@ export const DEFAULT_EMAIL_TEMPLATE: ReceiptEmailTemplate = {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      settings: INITIAL_SETTINGS,
+      settings: DEFAULT_SETTINGS,
       printerConfig: DEFAULT_PRINTER,
       supabaseConfig: DEFAULT_SUPABASE,
       scannerConfig: DEFAULT_SCANNER,
@@ -118,6 +132,18 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'pos-settings-storage',
       storage: createJSONStorage(() => idbStorage),
+      // Device credentials are session secrets, not application settings. Keep
+      // them available in memory for the current session, but never serialize
+      // them into IndexedDB where any local page with storage access could read
+      // the cloud password.
+      partialize: (state) => ({
+        ...state,
+        supabaseConfig: {
+          ...state.supabaseConfig,
+          authEmail: undefined,
+          authPassword: undefined,
+        },
+      }),
       // Installs saved before configurable receipts existed have no
       // receiptLayout/kitchenLayout. Seed them from the defaults, carrying the
       // operator's existing footer message and barcode toggle onto the customer

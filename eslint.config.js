@@ -34,6 +34,7 @@ export default tseslint.config(
     // nothing but `node --check`, a syntax-only pass. It runs elevated and has
     // full Node access, so it is the last place that should go unlinted.
     files: ['electron/**/*.cjs'],
+    extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'commonjs',
@@ -59,5 +60,5 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
     },
-  }
+  },
 );

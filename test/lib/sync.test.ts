@@ -73,6 +73,26 @@ describe('cloudLogin', () => {
     expect(result).toBeNull();
   });
 
+  it('returns null and skips credential verification when device auth fails', async () => {
+    (useSettingsStore.getState as any).mockReturnValue({
+      supabaseConfig: {
+        enabled: true,
+        url: 'https://example.com',
+        anonKey: 'key',
+        authEmail: 'test@example.com',
+        authPassword: 'wrong-password',
+      },
+    });
+    const mockClient = { auth: {} } as any;
+    vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue(mockClient);
+    vi.mocked(supabaseLib.signInDevice).mockResolvedValue(false);
+
+    const result = await cloudLogin('user', 'hash');
+
+    expect(result).toBeNull();
+    expect(supabaseLib.verifyLoginCloud).not.toHaveBeenCalled();
+  });
+
   it('should call verifyLoginCloud and return its result on success', async () => {
     (useSettingsStore.getState as any).mockReturnValue({
       supabaseConfig: {

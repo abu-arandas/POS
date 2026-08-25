@@ -3,7 +3,6 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const express = require('express');
-const cors = require('cors');
 const os = require('os');
 const net = require('net');
 const { fileURLToPath } = require('url');
@@ -25,7 +24,85 @@ let menuData = { products: [], categories: [], settings: {} };
 // The renderer only ever sends customer-safe fields here (no cost/stock
 // counts) — see App.tsx / preload.cjs.
 const expressApp = express();
-expressApp.use(cors());
+
+const MAX_MENU_DATA_BYTES = 5 * 1024 * 1024;
+const MAX_MENU_RECORDS = 5_000;
+const MAX_MENU_STRING_LENGTH = 16_384;
+
+function isPlainObject(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+function isBoundedString(value, max = MAX_MENU_STRING_LENGTH) {
+  return typeof value === 'string' && value.length <= max;
+}
+
+function isSafeMenuData(data) {
+  if (!isPlainObject(data)) return false;
+  const { products, categories, settings } = data;
+  if (!Array.isArray(products) || products.length > MAX_MENU_RECORDS) return false;
+  if (!Array.isArray(categories) || categories.length > MAX_MENU_RECORDS) return false;
+  if (!isPlainObject(settings)) return false;
+  if (!isBoundedString(settings.storeName) || !isBoundedString(settings.currency)) return false;
+  if (settings.storeLogo !== undefined && !isBoundedString(settings.storeLogo)) return false;
+
+  return (
+    products.every(
+      (product) =>
+        isPlainObject(product) &&
+        isBoundedString(product.id) &&
+        isBoundedString(product.name) &&
+        isBoundedString(product.category) &&
+        isBoundedString(product.image) &&
+        typeof product.price === 'number' &&
+        Number.isFinite(product.price) &&
+        typeof product.inStock === 'boolean',
+    ) &&
+    categories.every(
+      (category) =>
+        isPlainObject(category) &&
+        isBoundedString(category.id) &&
+        isBoundedString(category.name) &&
+        isBoundedString(category.color),
+    )
+  );
+}
+
+function isIPv4(ip) {
+  const parts = String(ip).split('.');
+  return (
+    parts.length === 4 &&
+    parts.every(
+      (part) => /^(?:0|[1-9]\\d{0,2})$/.test(part) && Number(part) >= 0 && Number(part) <= 255,
+    )
+  );
+}
+
+function isPrivateIPv4(ip) {
+  if (!isIPv4(ip)) return false;
+  const [a, b] = ip.split('.').map(Number);
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
+
+function isValidRawBytes(data) {
+  return (
+    Array.isArray(data) &&
+    data.length > 0 &&
+    data.length <= 1_000_000 &&
+    data.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255)
+  );
+}
+
+function isValidPrinterPayload(payload) {
+  return (
+    isPlainObject(payload) &&
+    isPrivateIPv4(payload.ip) &&
+    payload.port === 9100 &&
+    isValidRawBytes(payload.data)
+  );
+}
 
 expressApp.get('/api/menu', (req, res) => {
   res.json(menuData);
@@ -41,7 +118,9 @@ expressApp.get('/', (req, res) => {
 let serverPort = null;
 
 function startMenuServer(port, attemptsLeft) {
-  const server = expressApp.listen(port, '0.0.0.0', () => {
+  const host = getLocalIp();
+  const listenHost = host === 'localhost' ? '127.0.0.1' : host;
+  const server = expressApp.listen(port, listenHost, () => {
     serverPort = port;
     console.log(`Menu Express server listening on port ${port}`);
   });
@@ -86,7 +165,7 @@ function getLocalIp() {
       lowerName.includes('ethernet')
     ) {
       for (const iface of interfaces[name]) {
-        if (iface.family === 'IPv4' && !iface.internal) {
+        if (iface.family === 'IPv4' && !iface.internal && isPrivateIPv4(iface.address)) {
           return iface.address;
         }
       }
@@ -97,7 +176,7 @@ function getLocalIp() {
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
       // Skip over non-ipv4 and internal (i.e. 127.0.0.1) addresses
-      if (iface.family === 'IPv4' && !iface.internal) {
+      if (iface.family === 'IPv4' && !iface.internal && isPrivateIPv4(iface.address)) {
         return iface.address;
       }
     }
@@ -110,19 +189,23 @@ ipcMain.handle('get-menu-info', () => {
 });
 
 ipcMain.on('update-menu-data', (event, data) => {
-  if (!data || typeof data !== 'object') return;
+  // Validate the structured-clone payload before serialization. This bounds the
+  // number and size of values the privileged main process will inspect and keeps
+  // the menu endpoint limited to its documented customer-safe shape.
+  if (!isSafeMenuData(data)) {
+    console.error('Invalid menu data payload. Update rejected.');
+    return;
+  }
   try {
     const serialized = JSON.stringify(data);
-    // Limit to ~5MB to prevent OOM
-    if (serialized.length > 5 * 1024 * 1024) {
+    if (Buffer.byteLength(serialized, 'utf8') > MAX_MENU_DATA_BYTES) {
       console.error('Menu data payload too large. Update rejected.');
       return;
     }
+    menuData = data;
   } catch (err) {
     console.error('Failed to serialize menu data:', err);
-    return;
   }
-  menuData = data;
 });
 
 // Lists the OS printers visible to this window (name, status, default flag)
@@ -166,10 +249,16 @@ function probeTcp(ip, port, timeoutMs) {
 // open — the port network thermal printers listen on. Returns the responding
 // IPs. Probes run in bounded-size batches so we never open 254 sockets at once.
 ipcMain.handle('scan-network-printers', async (event, opts) => {
-  const port = (opts && opts.port) || 9100;
-  const timeoutMs = (opts && opts.timeoutMs) || 400;
+  // Printer discovery is deliberately restricted to the terminal's private
+  // IPv4 /24 and the only supported raw-printer port. Never turn this IPC bridge
+  // into a general-purpose network scanner.
+  const port = 9100;
+  const requestedTimeout = Number(opts && opts.timeoutMs);
+  const timeoutMs = Number.isFinite(requestedTimeout)
+    ? Math.min(2_000, Math.max(100, requestedTimeout))
+    : 400;
   const base = getLocalIp();
-  if (base === 'localhost') return [];
+  if (!isPrivateIPv4(base)) return [];
   const prefix = base.slice(0, base.lastIndexOf('.') + 1); // "192.168.1."
   const self = base.slice(base.lastIndexOf('.') + 1);
   const found = [];
@@ -191,12 +280,9 @@ ipcMain.handle('scan-network-printers', async (event, opts) => {
 // Streams raw ESC/POS bytes to a network thermal printer (RAW/JetDirect on TCP
 // 9100). Resolves true on a clean write, false on any socket error/timeout.
 ipcMain.handle('print-escpos', (event, payload) => {
-  const { ip, port = 9100, data } = payload || {};
+  if (!isValidPrinterPayload(payload)) return false;
+  const { ip, port, data } = payload;
   return new Promise((resolve) => {
-    if (!ip || !Array.isArray(data)) {
-      resolve(false);
-      return;
-    }
     const socket = new net.Socket();
     let settled = false;
     const done = (ok) => {
@@ -222,7 +308,10 @@ ipcMain.handle('print-escpos', (event, payload) => {
 // no dialog — the operator is never prompted. Resolves true on success.
 ipcMain.handle('print-html', async (event, payload) => {
   const { html, deviceName } = payload || {};
-  if (typeof html !== 'string') return false;
+  if (typeof html !== 'string' || Buffer.byteLength(html, 'utf8') > MAX_MENU_DATA_BYTES)
+    return false;
+  if (deviceName !== undefined && (typeof deviceName !== 'string' || deviceName.length > 256))
+    return false;
   // The receipt HTML is assembled from operator-entered data (store name, item
   // names, footer text). It renders in a throwaway window with no preload, no
   // Node, and sandboxed — so even if something slipped past the escaping in
@@ -299,13 +388,15 @@ public class EAPosRaw {
 ipcMain.handle('print-raw', async (event, payload) => {
   const { printerName, data } = payload || {};
   if (process.platform !== 'win32') return false; // spooler RAW path is Windows-only
-  if (!printerName || !Array.isArray(data) || data.length === 0) return false;
+  if (typeof printerName !== 'string' || printerName.length === 0 || printerName.length > 256)
+    return false;
+  if (!isValidRawBytes(data)) return false;
 
   // The script is handed to PowerShell as -EncodedCommand rather than written to
-  // a .ps1 in the temp directory and executed by path. This app ships with
-  // requestedExecutionLevel "requireAdministrator", so anything that could win
-  // the race between writing that file and spawning it would have got elevated
-  // code execution. There is no longer a script file to swap. The printer name
+  // a .ps1 in the temp directory and executed by path. The packaged application
+  // runs asInvoker, so anything that could win the race between writing that file
+  // and spawning it would still be unsafe code execution. There is no longer a
+  // script file to swap. The printer name
   // and the byte payload are embedded as PowerShell literals below, so nothing
   // reaches a command line where argument parsing could reinterpret it.
   //

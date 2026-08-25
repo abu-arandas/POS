@@ -20,8 +20,12 @@ async function withSession() {
   const client = activeClient();
   if (!client) return null;
   const { supabaseConfig } = useSettingsStore.getState();
-  await signInDevice(client, supabaseConfig.authEmail || '', supabaseConfig.authPassword || '');
-  return client;
+  const signedIn = await signInDevice(
+    client,
+    supabaseConfig.authEmail || '',
+    supabaseConfig.authPassword || '',
+  );
+  return signedIn ? client : null;
 }
 
 // Marks this terminal's store as "seen" via the store_heartbeat RPC. No-op
@@ -205,22 +209,18 @@ export async function listMemberships(orgId: string): Promise<Membership[]> {
   }
 }
 
-// Assign (or re-assign) a user's role at a store. The memberships primary key
-// uses a coalesce expression that Postgres upsert can't target, so this is a
-// delete-then-insert — idempotent and RLS-checked.
+// Assign (or re-assign) a user's role at a store. The functional uniqueness
+// index and the authorization check are handled in one database transaction by
+// set_membership; a failed request cannot leave a user without a membership.
 export async function setMembership(m: Membership): Promise<boolean> {
   const client = await withSession();
   if (!client) return false;
   try {
-    // Match the existing row precisely: an org-wide membership stores NULL, which
-    // PostgREST only matches with `is`, not `eq`.
-    const del = client.from('memberships').delete().eq('user_id', m.userId);
-    await (m.storeId === null ? del.is('store_id', null) : del.eq('store_id', m.storeId));
-    const { error } = await client.from('memberships').insert({
-      user_id: m.userId,
-      org_id: m.orgId,
-      store_id: m.storeId,
-      role: m.role,
+    const { error } = await client.rpc('set_membership', {
+      p_user_id: m.userId,
+      p_org_id: m.orgId,
+      p_store_id: m.storeId,
+      p_role: m.role,
     });
     return !error;
   } catch (err) {
@@ -229,15 +229,19 @@ export async function setMembership(m: Membership): Promise<boolean> {
   }
 }
 
-export async function removeMembership(userId: string, storeId: string): Promise<boolean> {
+export async function removeMembership(
+  userId: string,
+  orgId: string,
+  storeId: string | null,
+): Promise<boolean> {
   const client = await withSession();
   if (!client) return false;
   try {
-    const { error } = await client
-      .from('memberships')
-      .delete()
-      .eq('user_id', userId)
-      .eq('store_id', storeId);
+    const { error } = await client.rpc('remove_membership', {
+      p_user_id: userId,
+      p_org_id: orgId,
+      p_store_id: storeId,
+    });
     return !error;
   } catch (err) {
     console.warn('removeMembership failed:', err);

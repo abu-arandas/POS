@@ -20,6 +20,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { summarizeShift } from '../lib/shiftReport';
 import { escapeHtml } from '../lib/escapeHtml';
 import { Shift } from '../types';
+import { askConfirmation } from '../lib/dialogs';
 
 export default function ShiftScreen() {
   const { t } = useTranslation();
@@ -56,10 +57,10 @@ export default function ShiftScreen() {
     setOpenFloat('');
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
     if (!currentShift) return;
     const counted = parseFloat(countedCash) || 0;
-    if (!window.confirm(t('shift.confirmClose', 'Close shift?'))) return;
+    if (!(await askConfirmation(t('shift.confirmClose', 'Close shift?')))) return;
     closeShift(currentShift.id, counted, closeNote, currentUser?.name ?? 'Unknown');
     setCountedCash('');
     setCloseNote('');

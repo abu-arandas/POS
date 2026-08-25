@@ -80,7 +80,7 @@ describe('normalizePoLines', () => {
     ]);
     expect(out).toHaveLength(1);
     expect(out[0].quantity).toBe(5);
-    expect(out[0].unitCost).toBe(6.5);
+    expect(out[0].unitCost).toBe(6.7); // (2×7 + 3×6.5) ÷ 5
   });
 
   it('floors fractional quantities and clamps negative costs to zero', () => {

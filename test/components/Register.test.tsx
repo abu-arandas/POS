@@ -10,6 +10,12 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { useHeldOrderStore } from '../../src/stores/heldOrderStore';
 import { useShiftStore } from '../../src/stores/shiftStore';
 import { Product, Customer, StoreSettings, PrinterConfig } from '../../src/types';
+import { askText } from '../../src/lib/dialogs';
+
+vi.mock('../../src/lib/dialogs', () => ({
+  askText: vi.fn(),
+  askConfirmation: vi.fn(),
+}));
 
 // Checkout is the highest-consequence flow in the app and had no component
 // coverage: the pure helpers (pricing, checkout, payments) are well tested, but
@@ -74,7 +80,7 @@ beforeEach(() => {
   });
   useHeldOrderStore.setState({ heldOrders: [] });
   useShiftStore.setState({ shifts: [], currentShiftId: 'shift-1' });
-  vi.spyOn(window, 'alert').mockImplementation(() => {});
+  vi.mocked(askText).mockResolvedValue('Table 4');
 });
 
 afterEach(() => {
@@ -222,7 +228,6 @@ describe('Register — loyalty', () => {
 describe('Register — held orders', () => {
   it('parks the cart and restores it on resume', async () => {
     const user = userEvent.setup();
-    vi.spyOn(window, 'prompt').mockReturnValue('Table 4');
     render(<Register />);
 
     await addToCart('Latte');

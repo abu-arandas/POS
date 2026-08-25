@@ -12,19 +12,21 @@
  */
 
 import 'dotenv/config';
-import { createHash } from 'node:crypto';
+import { createHash, pbkdf2Sync, randomUUID } from 'node:crypto';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const usingServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-// The app authenticates by comparing SHA-256('<accountId>:<entered PIN>')
-// against the stored value (hashPinSalted in src/lib/hash.ts), so seeded PINs
-// must be hashed the same way — plaintext makes the account impossible to log
-// into, and an unsalted digest means well-known PINs like '1234' show up as
-// their publicly recognizable hash.
-const hashPinSalted = (userId, pin) =>
-  createHash('sha256').update(`${userId}:${pin}`).digest('hex');
+// Keep demo fixtures compatible with src/lib/hash.ts. The application stores
+// account-bound, versioned PBKDF2-SHA-256 values rather than plaintext or the
+// legacy fast SHA-256 digest.
+const PBKDF2_ITERATIONS = 600_000;
+const hashPinSalted = (userId, pin) => {
+  const salt = createHash('sha256').update(`ea-pos-pin-salt:${userId}`).digest().subarray(0, 16);
+  const derived = pbkdf2Sync(pin, salt, PBKDF2_ITERATIONS, 32, 'sha256');
+  return `v2$${PBKDF2_ITERATIONS}$${salt.toString('hex')}$${derived.toString('hex')}`;
+};
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error(
@@ -265,6 +267,7 @@ function generateTransactions() {
   const paymentMethods = ['card', 'card', 'cash', 'mobile', 'card'];
   const today = new Date();
   let txCounter = 10001;
+  const seedRun = randomUUID().slice(0, 8);
 
   for (let d = 7; d >= 0; d--) {
     const saleDate = new Date(today);
@@ -343,7 +346,7 @@ function generateTransactions() {
       const isRefunded = d > 0 && Math.random() < 0.03;
 
       transactions.push({
-        id: `TX-${txCounter++}`,
+        id: `TX-${seedRun}-${txCounter++}`,
         date: txDate.toISOString(),
         items: items,
         subtotal,
@@ -435,7 +438,7 @@ async function main() {
   console.log(`✅ ${transactions.length} records`);
 
   console.log('\n🎉 All seed data successfully pushed to Supabase!');
-  console.log('ℹ️  You can now delete src/data/seedData.ts safely.\n');
+  console.log('ℹ️  Runtime demo fixtures remain available only in development and test builds.\n');
 }
 
 main().catch((err) => {

@@ -38,6 +38,11 @@ describe('toCsv', () => {
   it('honors an explicit column order and fills missing keys', () => {
     expect(toCsv([{ a: 1 }], ['b', 'a'])).toBe('b,a\n,1');
   });
+  it('escapes and neutralizes dynamic headers', () => {
+    expect(
+      toCsv([{ 'Customer, Name': 'ok', '=Formula': 'safe' }], ['Customer, Name', '=Formula']),
+    ).toBe('"Customer, Name",\'=Formula\nok,safe');
+  });
   it('returns just the header for empty input with columns', () => {
     expect(toCsv([], ['a', 'b'])).toBe('a,b');
   });

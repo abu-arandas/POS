@@ -43,9 +43,9 @@ function referencedKeys(): Map<string, Set<string>> {
   const out = new Map<string, Set<string>>();
   for (const file of files) {
     const source = readFileSync(file, 'utf8');
-    for (const m of source.matchAll(/\bt\(\s*'([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+)'/g)) {
-      if (!out.has(m[1])) out.set(m[1], new Set());
-      out.get(m[1])!.add(file);
+    for (const m of source.matchAll(/\bt\(\s*(['"])([a-zA-Z0-9_.]+)\1/g)) {
+      if (!out.has(m[2])) out.set(m[2], new Set());
+      out.get(m[2])!.add(file);
     }
   }
   return out;

@@ -30,7 +30,12 @@ export async function startRealtimeSync(): Promise<boolean> {
 
   const client = getSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
   if (!client) return false;
-  await signInDevice(client, supabaseConfig.authEmail || '', supabaseConfig.authPassword || '');
+  const signedIn = await signInDevice(
+    client,
+    supabaseConfig.authEmail || '',
+    supabaseConfig.authPassword || '',
+  );
+  if (!signedIn) return false;
 
   const timers: Record<string, ReturnType<typeof setTimeout>> = {};
   const refresh = (table: string) => {

@@ -1,9 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Product, Category, Customer, SaleTransaction, UserAccount, OrderItem } from '../types';
-import { hashPin } from './hash';
-
-// A stored PIN is valid only if it is already a SHA-256 hex digest.
-const isHashedPin = (pin: string) => /^[a-f0-9]{64}$/i.test(pin);
+import { useAuthStore } from '../stores/authStore';
 
 // Adds store_id to each outgoing record when a store scope is configured.
 // A no-op in single-store mode (empty storeId), so existing deployments push
@@ -80,17 +77,17 @@ export async function signInDevice(
 // Validates a staff login against the cloud via the SECURITY DEFINER
 // verify_login RPC (see scripts/schema.sql). Returns the account's non-secret
 // fields on success, or null. The PIN hash never leaves the database on the
-// return path — only the caller's SHA-256(entered PIN) is sent.
+// return path — only the caller's versioned PBKDF2-derived candidate is sent.
 export async function verifyLoginCloud(
   client: SupabaseClient,
   name: string,
   pinHash: string,
+  storeId?: string,
 ): Promise<UserAccount | null> {
   try {
-    const { data, error } = await client.rpc('verify_login', {
-      p_name: name,
-      p_pin_hash: pinHash,
-    });
+    const params: Record<string, string> = { p_name: name, p_pin_hash: pinHash };
+    if (storeId) params.p_store_id = storeId;
+    const { data, error } = await client.rpc('verify_login', params);
     if (error) {
       console.warn('Cloud verify_login failed:', error.message);
       return null;
@@ -103,7 +100,7 @@ export async function verifyLoginCloud(
       role: row.role as UserAccount['role'],
       active: !!row.active,
       createdAt: row.created_at,
-      pin: pinHash, // keep the verified hash so the local record can log in offline next time
+      pin: pinHash, // cache only the candidate hash that was just verified
     };
   } catch (err) {
     console.error('Cloud verify_login error:', err);
@@ -117,7 +114,7 @@ export async function testSupabaseConnection(url: string, anonKey: string): Prom
   if (!client) return false;
 
   try {
-    const { error } = await client.from('user_accounts').select('id').limit(1);
+    const { error } = await client.from('user_accounts_public').select('id').limit(1);
     if (error) {
       console.warn('Supabase test table fetch failed:', error.message);
       return false;
@@ -418,23 +415,21 @@ export async function pullUserAccounts(
   storeId?: string,
 ): Promise<UserAccount[] | null> {
   try {
-    let query = client.from('user_accounts').select('*');
+    let query = client.from('user_accounts_public').select('*');
     if (storeId) query = query.eq('store_id', storeId);
     const { data, error } = await query;
     if (error) throw error;
-    // Older cloud data may hold plaintext PINs. The app authenticates against
-    // SHA-256 hashes, so re-hash anything that isn't already a hash — otherwise
-    // the pulled account can never log in and may lock the terminal out.
-    return await Promise.all(
-      (data || []).map(async (r) => ({
-        id: r.id,
-        name: r.name,
-        role: r.role as UserAccount['role'],
-        pin: isHashedPin(String(r.pin)) ? r.pin : await hashPin(String(r.pin)),
-        active: !!r.active,
-        createdAt: r.created_at,
-      })),
-    );
+    // The public projection intentionally has no PIN column. Keep the local
+    // secret for matching ids so a cloud pull cannot erase offline login data.
+    const localUsers = new Map(useAuthStore.getState().users.map((user) => [user.id, user]));
+    return (data || []).map((r) => ({
+      id: r.id,
+      name: r.name,
+      role: r.role as UserAccount['role'],
+      pin: localUsers.get(r.id)?.pin ?? '',
+      active: !!r.active,
+      createdAt: r.created_at,
+    }));
   } catch (err) {
     console.error('Failed pulling user accounts:', err);
     return null;

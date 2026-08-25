@@ -11,8 +11,8 @@ The file is named `EA-POS-Setup-<version>.exe` (e.g. `EA-POS-Setup-1.0.0.exe`).
 ## Installing
 
 1. Download `EA-POS-Setup-<version>.exe`.
-2. Run it. The installer asks for elevation — see [Why it needs
-   administrator](#why-it-needs-administrator) below.
+2. Run it. The per-machine installer asks for elevation; the installed app
+   itself runs with the current user's privileges.
 3. Choose an install directory (or accept the default) and finish.
 
 The app installs per-machine with a desktop and Start Menu shortcut named
@@ -64,7 +64,7 @@ when a `publisherName` is baked into `app-update.yml` — see
 problem") when `publisherName` is unset. `win.verifyUpdateCodeSignature`
 defaulting to `true` does _not_ change that.
 
-Because the app ships with `requestedExecutionLevel: "requireAdministrator"`,
+The installed app uses `requestedExecutionLevel: "asInvoker"`, so
 silently running an unverified installer would mean granting elevated code
 execution to whoever served the file. So `electron/updatePolicy.cjs` refuses it:
 
@@ -83,19 +83,20 @@ UI can say so.
 Signing sets `publisherName` automatically from the certificate's subject; you
 can also set it explicitly under `build.win.publisherName` in `package.json`.
 
-## Why it needs administrator
+## Installer elevation and application privileges
 
-`package.json` sets `requestedExecutionLevel: "requireAdministrator"` and
-`perMachine: true`. Elevation is needed for the per-machine install location and
-for driving USB thermal printers through the Windows spooler's RAW datatype (see
-the `print-raw` handler in `electron/main.cjs`). Keep this in mind when
-deploying: everything the renderer can reach runs on an elevated process, which
-is why navigation is locked down and unattended updates are gated on a verified
-signature.
+`package.json` sets `requestedExecutionLevel: "asInvoker"` and the NSIS installer
+remains `perMachine: true`. Windows may elevate the installer itself to write the
+per-machine installation directory, but the running POS application and its
+renderer stay at the launching user's privilege level. USB thermal printers are
+accessed through the Windows spooler RAW path (see the `print-raw` handler in
+`electron/main.cjs`) without requiring the entire application to run as
+administrator. Navigation remains locked down and unattended updates remain
+gated on a verified signature as defense in depth.
 
 ## Building locally
 
-You need Node 22+ (Electron 43 requires `>= 22.12.0`):
+You need Node.js `>=22.22.2`, matching the locked dependency engine floor:
 
 ```bash
 npm ci

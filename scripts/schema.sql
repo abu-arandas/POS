@@ -12,10 +12,26 @@ CREATE TABLE IF NOT EXISTS user_accounts (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'cashier')),
-  pin TEXT NOT NULL,                       -- SHA-256 hash of the PIN, never plaintext
+  pin TEXT NOT NULL,                       -- versioned PBKDF2 hash of the PIN, never plaintext
   active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
+
+-- Staff names are authentication identifiers in the terminal UI. Enforce
+-- uniqueness in single-store mode; the multi-store migration replaces this with
+-- a (store_id, name) index after adding the store dimension.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'user_accounts' AND column_name = 'store_id'
+  ) THEN
+    EXECUTE 'DROP INDEX IF EXISTS user_accounts_name_unique';
+    EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS user_accounts_store_name_unique ON user_accounts (store_id, name)';
+  ELSE
+    EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS user_accounts_name_unique ON user_accounts (name)';
+  END IF;
+END $$;
 
 -- 3. Create Categories Table
 CREATE TABLE IF NOT EXISTS categories (
@@ -94,17 +110,27 @@ ALTER TABLE transactions ADD CONSTRAINT transactions_status_check
 -- ============================================================
 -- SECURITY DEFINER so it can validate credentials even when RLS hides
 -- user_accounts from client roles. It returns only non-secret fields — the PIN
--- hash never leaves the database. The client sends SHA-256(entered PIN); see
--- src/lib/hash.ts. This lets you keep user_accounts unreadable by clients while
--- still supporting the PIN lockscreen against the cloud copy.
+-- hash never leaves the database. The client sends a versioned PBKDF2-derived
+-- candidate; see src/lib/hash.ts for the format and legacy migration behavior.
+-- This lets you keep user_accounts unreadable by clients while still supporting
+-- the PIN lockscreen against the cloud copy.
 -- Failed-attempt ledger backing the throttle below. Not readable by clients:
 -- only the SECURITY DEFINER function touches it.
 CREATE TABLE IF NOT EXISTS login_attempts (
-  name          TEXT CONSTRAINT login_attempts_pkey PRIMARY KEY,
+  scope_key     TEXT CONSTRAINT login_attempts_pkey PRIMARY KEY,
+  name          TEXT NOT NULL,
   failures      INTEGER NOT NULL DEFAULT 0,
   locked_until  TIMESTAMPTZ,
   last_failure  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- Upgrade the original name-keyed ledger without carrying its collision-prone
+-- primary key forward. Existing counters remain under a legacy scope key.
+ALTER TABLE login_attempts ADD COLUMN IF NOT EXISTS scope_key TEXT;
+UPDATE login_attempts SET scope_key = COALESCE(scope_key, '__legacy__:' || name);
+ALTER TABLE login_attempts ALTER COLUMN scope_key SET NOT NULL;
+ALTER TABLE login_attempts DROP CONSTRAINT IF EXISTS login_attempts_pkey;
+ALTER TABLE login_attempts ADD CONSTRAINT login_attempts_pkey PRIMARY KEY (scope_key);
+ALTER TABLE login_attempts ALTER COLUMN name SET NOT NULL;
 ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
 -- No policies: RLS with zero policies denies every client. verify_login()
 -- reaches it as SECURITY DEFINER (the owner bypasses RLS).
@@ -112,7 +138,7 @@ ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
 -- verify_login is granted to `anon`, so anyone holding the public key that ships
 -- in the client bundle can call it. A 4-digit PIN is only 10,000 combinations,
 -- so without a throttle the whole space is walkable over the open internet.
--- Failures are counted per account name and, past a threshold, the function
+-- Failures are counted per login scope key and, past a threshold, the function
 -- refuses to check the PIN at all for a cool-off window.
 --
 -- These mirror src/lib/pinThrottle.ts, which throttles the on-device keypad.
@@ -136,8 +162,10 @@ DECLARE
   streak_reset  CONSTANT INTERVAL := INTERVAL '30 minutes';
   att           login_attempts%ROWTYPE;
   matched       user_accounts%ROWTYPE;
+  attempt_key   TEXT;
   cool_off      INTERVAL;
 BEGIN
+  attempt_key := '__single__:' || p_name;
   -- FOR UPDATE serializes concurrent guesses against the same account. Without
   -- the lock, N parallel calls all read the same `failures` and all write
   -- back the same +1, so a scripted attacker firing requests concurrently
@@ -145,7 +173,7 @@ BEGIN
   -- really bites. Losers of the race block here until the winner commits, then
   -- read the updated count. (No row yet = nothing to lock; the INSERT below
   -- takes the primary-key lock instead.)
-  SELECT * INTO att FROM login_attempts la WHERE la.name = p_name FOR UPDATE;
+  SELECT * INTO att FROM login_attempts la WHERE la.scope_key = attempt_key FOR UPDATE;
 
   -- Still inside a cool-off: refuse without even looking at the PIN, so a
   -- locked-out account leaks nothing about which guesses are close.
@@ -155,7 +183,7 @@ BEGIN
 
   -- A streak that has gone quiet is forgotten (an honest mistyped PIN days ago
   -- shouldn't count against today).
-  IF att.name IS NOT NULL AND att.last_failure < NOW() - streak_reset THEN
+  IF att.scope_key IS NOT NULL AND att.last_failure < NOW() - streak_reset THEN
     att.failures := 0;
   END IF;
 
@@ -165,7 +193,7 @@ BEGIN
   LIMIT 1;
 
   IF FOUND THEN
-    DELETE FROM login_attempts la WHERE la.name = p_name;
+    DELETE FROM login_attempts la WHERE la.scope_key = attempt_key;
     RETURN QUERY SELECT matched.id, matched.name, matched.role, matched.active, matched.created_at;
     RETURN;
   END IF;
@@ -183,8 +211,8 @@ BEGIN
   -- Conflict target is named by constraint, not by column: `name` is also an
   -- OUT column of this function, so `ON CONFLICT (name)` is ambiguous between
   -- the PL/pgSQL variable and the table column and fails at runtime.
-  INSERT INTO login_attempts AS la (name, failures, locked_until, last_failure)
-  VALUES (p_name, COALESCE(att.failures, 0) + 1,
+  INSERT INTO login_attempts AS la (scope_key, name, failures, locked_until, last_failure)
+  VALUES (attempt_key, p_name, COALESCE(att.failures, 0) + 1,
           CASE WHEN cool_off IS NULL THEN NULL ELSE NOW() + cool_off END, NOW())
   ON CONFLICT ON CONSTRAINT login_attempts_pkey DO UPDATE
     SET failures     = EXCLUDED.failures,
@@ -196,6 +224,22 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.verify_login(TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.verify_login(TEXT, TEXT) TO anon, authenticated;
+
+-- Public user-account projection. The PIN hash is intentionally absent; clients
+-- use verify_login() for credential checks and only receive non-secret fields.
+-- security_invoker keeps the caller's RLS and column privileges in force.
+CREATE OR REPLACE VIEW public.user_accounts_public
+WITH (security_invoker = true) AS
+SELECT id, name, role, active, created_at
+FROM public.user_accounts;
+
+REVOKE ALL ON TABLE public.user_accounts FROM anon, authenticated;
+GRANT SELECT (id, name, role, active, created_at) ON TABLE public.user_accounts TO authenticated;
+GRANT INSERT (id, name, role, pin, active, created_at) ON TABLE public.user_accounts TO authenticated;
+GRANT UPDATE (id, name, role, pin, active, created_at) ON TABLE public.user_accounts TO authenticated;
+GRANT DELETE ON TABLE public.user_accounts TO authenticated;
+GRANT SELECT ON public.user_accounts_public TO authenticated;
+REVOKE ALL ON public.user_accounts_public FROM anon;
 
 -- 8. Row Level Security (RECOMMENDED — secure by default)
 -- ============================================================
@@ -250,10 +294,21 @@ BEGIN
       'staff full access', tbl);
   END LOOP;
 
-  -- user_accounts: manageable by authenticated staff; anon logs in via verify_login() only.
+  -- User accounts: authenticated staff can manage only the explicitly granted
+  -- non-secret columns; the PIN column is used only by verify_login().
   DROP POLICY IF EXISTS "staff manage users" ON user_accounts;
-  CREATE POLICY "staff manage users" ON user_accounts
-    FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+  DROP POLICY IF EXISTS "staff read users" ON user_accounts;
+  DROP POLICY IF EXISTS "staff insert users" ON user_accounts;
+  DROP POLICY IF EXISTS "staff update users" ON user_accounts;
+  DROP POLICY IF EXISTS "staff delete users" ON user_accounts;
+  CREATE POLICY "staff read users" ON user_accounts
+    FOR SELECT TO authenticated USING (TRUE);
+  CREATE POLICY "staff insert users" ON user_accounts
+    FOR INSERT TO authenticated WITH CHECK (TRUE);
+  CREATE POLICY "staff update users" ON user_accounts
+    FOR UPDATE TO authenticated USING (TRUE) WITH CHECK (TRUE);
+  CREATE POLICY "staff delete users" ON user_accounts
+    FOR DELETE TO authenticated USING (TRUE);
 END $$;
 
 -- 8b. DEMO / PROTOTYPE ONLY — anon read/write without auth.
@@ -289,15 +344,8 @@ BEGIN
   END LOOP;
 END $$;
 
--- 9. Seed the default admin (PIN 1234)
--- The stored value is SHA-256('<id>:<pin>') — salted with the account id, the
--- same scheme the app uses (see hashPinSalted in src/lib/hash.ts). The previous
--- seed stored the bare SHA-256 of '1234', which is a publicly known digest that
--- anyone can recognize on sight in a leaked table.
---
--- ⚠️  This PIN is public in this repository. Change it in Settings → Users
--- before the terminal handles real data.
-INSERT INTO user_accounts (id, name, role, pin, active, created_at)
-VALUES ('admin-1', 'Default Administrator', 'admin',
-        '2b2aa6698b009065652d34c08b24aa244edc29e5a737d090f80f3b46505a5001', TRUE, NOW())
-ON CONFLICT (id) DO NOTHING;
+-- 9. Initial staff accounts
+-- No default account is inserted here. Production terminals create their first
+-- administrator through the lock-screen setup flow, which prevents a public PIN
+-- from becoming a forgotten production credential. Optional development
+-- fixtures remain in src/stores/authStore.ts behind import.meta.env.DEV.

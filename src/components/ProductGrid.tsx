@@ -92,12 +92,12 @@ const SortableProductCard = memo(function SortableProductCard({
       onClick={() => {
         if (!isEditMode && !isUnavailable) addToCart(prod);
       }}
-      whileHover={!isEditMode && !isOutOfStock ? { y: -4, scale: 1.02 } : {}}
-      whileTap={!isEditMode && !isOutOfStock ? { scale: 0.96 } : {}}
+      whileHover={!isEditMode && !isUnavailable ? { y: -4, scale: 1.02 } : {}}
+      whileTap={!isEditMode && !isUnavailable ? { scale: 0.96 } : {}}
       className={`relative rounded-2xl overflow-hidden flex flex-col transition-all duration-200 select-none group ${
         isEditMode
           ? 'cursor-grab active:cursor-grabbing'
-          : isOutOfStock
+          : isUnavailable
             ? 'cursor-not-allowed opacity-50 grayscale'
             : 'cursor-pointer'
       }`}
@@ -169,19 +169,23 @@ const SortableProductCard = memo(function SortableProductCard({
           <img
             src={prod.image}
             alt={prod.name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            className={`w-full h-full object-cover transition-transform duration-500 ${isUnavailable ? '' : 'group-hover:scale-110'}`}
             referrerPolicy="no-referrer"
             onError={() => setImgError(true)}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-slate-800/40 to-slate-900/40">
-            <span className="text-4xl transition-transform duration-400 group-hover:scale-110 group-hover:rotate-6 opacity-70">
+            <span
+              className={`text-4xl transition-transform duration-400 opacity-70 ${isUnavailable ? '' : 'group-hover:scale-110 group-hover:rotate-6'}`}
+            >
               {getCategoryEmoji(categoryName)}
             </span>
           </div>
         )}
         {/* Bottom gradient overlay */}
-        <div className="absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div
+          className={`absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent transition-opacity duration-300 ${isUnavailable ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
+        />
       </div>
 
       {/* Info */}

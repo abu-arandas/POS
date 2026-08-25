@@ -59,6 +59,14 @@ describe('useProductStore', () => {
     expect(useProductStore.getState().products.map((p) => p.id)).toEqual(before);
   });
 
+  it('refuses to delete a category still referenced by a product', () => {
+    const cat = useProductStore.getState().handleAddCategory('Hot Drinks', '#ff0000');
+    useProductStore.getState().handleAddProduct(payload({ category: cat.id }));
+
+    expect(useProductStore.getState().handleDeleteCategory(cat.id)).toBe(false);
+    expect(useProductStore.getState().categories).toContainEqual(cat);
+  });
+
   it('adds a category with a slugified id and deletes it', () => {
     const cat = useProductStore.getState().handleAddCategory('Hot Drinks', '#ff0000');
     expect(cat.name).toBe('Hot Drinks');

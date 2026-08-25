@@ -27,8 +27,8 @@ A modern, high-performance, cross-platform Point of Sale (POS) system built with
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) **v22.12 or newer** (Electron 43 requires
-  `>= 22.12.0` and ESLint 10 requires `^20.19 || ^22.13 || >= 24`; CI builds on
+- [Node.js](https://nodejs.org/) **v22.22.2 or newer** (the current locked
+  dependency graph requires Node 22.22.2 or a newer supported major; CI builds on
   Node 22)
 - `npm`
 
@@ -102,30 +102,26 @@ The static files will be located in the `dist/` directory.
 > checkout working on a plain-`http://` LAN deploy, but HTTPS is still the
 > recommended setup for anything beyond a trusted local network.
 
-## 🔐 Default Logins
+## 🔐 Staff Accounts
 
-A fresh install seeds three staff accounts — **change these PINs immediately**
-(Settings → Users) before using the app with real data, since they are public
-in this repository:
+Production builds do not seed public staff credentials. On a new terminal, the
+lock screen requires the operator to create the first administrator account and
+choose a four-digit PIN before the application can be opened. Additional staff
+accounts can then be created in **Settings → Users**.
 
-| Account | Role    | PIN    |
-| ------- | ------- | ------ |
-| Admin   | admin   | `1234` |
-| Manager | manager | `5555` |
-| Cashier | cashier | `0000` |
+Development builds retain three clearly marked demo accounts for local testing:
+Admin (`1234`), Manager (`5555`), and Cashier (`0000`). Never reuse those PINs
+for real operations.
 
-PINs are stored as `SHA-256("<accountId>:<pin>")` — salted with the account id,
-so two accounts sharing a PIN don't share a digest and the well-known hashes for
-`1234`/`0000` never appear in the database.
+PINs are stored as a versioned `PBKDF2-SHA-256` record with 600,000 iterations
+and an account-bound salt. Existing legacy account hashes are accepted once and
+upgraded automatically after a successful local sign-in. The PIN is still a
+four-digit convenience credential, so keep RLS enabled, protect the device
+account, and never reuse a terminal PIN as a password elsewhere.
 
-> **What that salt does and doesn't buy you.** The account id is public and
-> predictable, so the salt defeats rainbow tables across accounts — nothing more.
-> SHA-256 is deliberately fast and a 4-digit PIN is only 10,000 candidates, so
-> anyone who obtains the `user_accounts` table can recover every PIN essentially
-> instantly. The throttles below, not the hash, are what make guessing expensive.
-> Treat the PIN as a _shift-change convenience for a physically controlled
-> terminal_, keep RLS on so the table is never client-readable, and don't reuse a
-> PIN as a password anywhere else.
+> The development PINs above are fixtures only. Production terminals do not
+> contain any shipped account and must be provisioned through the first-run
+> administrator setup screen.
 
 ### Brute-force protection
 
@@ -190,8 +186,9 @@ npm test
 ```
 
 Unit tests (Vitest) cover the pricing engine, the HTML-escaping used for
-printed receipts and the QR menu, and the SHA-256 fallback used on insecure
-origins.
+printed receipts and the QR menu, the PBKDF2/SHA-256 authentication fallbacks,
+cloud-sync failure modes, printer cleanup, and the major checkout and inventory
+workflows.
 
 End-to-end tests (Playwright) drive the real app in a browser — PIN login,
 adding to the cart, card and cash checkout (with change), and role-based

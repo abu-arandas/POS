@@ -22,9 +22,14 @@ import { Product, Category, Customer, SaleTransaction, UserAccount } from '../ty
 
 // Signs the client in with the configured device account (no-op when none is
 // set). Call before any read/write so sync works once RLS is enabled.
-const ensureDeviceSession = async (client: SupabaseClient) => {
+const ensureDeviceSession = async (client: SupabaseClient): Promise<void> => {
   const { supabaseConfig } = useSettingsStore.getState();
-  await signInDevice(client, supabaseConfig.authEmail || '', supabaseConfig.authPassword || '');
+  const signedIn = await signInDevice(
+    client,
+    supabaseConfig.authEmail || '',
+    supabaseConfig.authPassword || '',
+  );
+  if (!signedIn) throw new Error('Supabase device authentication failed');
 };
 
 export const syncToCloudIfEnabled = async (
@@ -62,8 +67,16 @@ export const cloudLogin = async (name: string, pinHash: string): Promise<UserAcc
   if (!supabaseConfig.enabled || !supabaseConfig.url || !supabaseConfig.anonKey) return null;
   const client = getSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
   if (!client) return null;
-  await ensureDeviceSession(client);
-  return verifyLoginCloud(client, name, pinHash);
+  try {
+    await ensureDeviceSession(client);
+    const storeId = useSettingsStore.getState().storeId;
+    return storeId
+      ? await verifyLoginCloud(client, name, pinHash, storeId)
+      : await verifyLoginCloud(client, name, pinHash);
+  } catch (err) {
+    console.warn('Cloud login postponed:', err);
+    return null;
+  }
 };
 
 // Verifies credentials by signing in (if a device account is set) and running a
@@ -71,8 +84,13 @@ export const cloudLogin = async (name: string, pinHash: string): Promise<UserAcc
 export const testCloudConnection = async (url: string, anonKey: string): Promise<boolean> => {
   const client = getSupabaseClient(url, anonKey);
   if (!client) return false;
-  await ensureDeviceSession(client);
-  return testSupabaseConnection(url, anonKey);
+  try {
+    await ensureDeviceSession(client);
+    return await testSupabaseConnection(url, anonKey);
+  } catch (err) {
+    console.warn('Cloud connection test postponed:', err);
+    return false;
+  }
 };
 
 export interface CloudSnapshot {
@@ -92,7 +110,12 @@ export const pushAllToCloud = async (
 ): Promise<boolean> => {
   const client = getSupabaseClient(url, anonKey);
   if (!client) return false;
-  await ensureDeviceSession(client);
+  try {
+    await ensureDeviceSession(client);
+  } catch (err) {
+    console.warn('Cloud push postponed:', err);
+    return false;
+  }
 
   const storeId = useSettingsStore.getState().storeId;
   const results = await Promise.all([
@@ -120,7 +143,12 @@ export const pullAllFromCloud = async (
 } | null> => {
   const client = getSupabaseClient(url, anonKey);
   if (!client) return null;
-  await ensureDeviceSession(client);
+  try {
+    await ensureDeviceSession(client);
+  } catch (err) {
+    console.warn('Cloud pull postponed:', err);
+    return null;
+  }
 
   const storeId = useSettingsStore.getState().storeId;
   const [categories, products, customers, users, transactions] = await Promise.all([

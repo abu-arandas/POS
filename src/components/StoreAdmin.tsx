@@ -13,6 +13,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { askConfirmation } from '../lib/dialogs';
 import { Store, Membership, Role } from '../types';
 import {
   listStores,
@@ -106,7 +107,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
     const id =
       draft.id ??
       slugifyStoreId(
-        norm.name,
+        `${orgId}-${norm.name}`,
         stores.map((s) => s.id),
       );
     const existing = stores.find((s) => s.id === id);
@@ -132,6 +133,12 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
   };
 
   const toggleStatus = async (s: Store) => {
+    if (
+      s.status === 'active' &&
+      !(await askConfirmation(t('storeAdmin.confirmSuspend', `Suspend ${s.name}?`)))
+    ) {
+      return;
+    }
     setBusy(true);
     await setStoreStatus(s.id, s.status === 'active' ? 'suspended' : 'active');
     setBusy(false);
@@ -161,8 +168,13 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
 
   const dropMember = async (m: Membership) => {
     if (!m.storeId) return;
+    if (
+      !(await askConfirmation(t('storeAdmin.confirmRemove', `Remove ${m.userId} from this store?`)))
+    ) {
+      return;
+    }
     setBusy(true);
-    await removeMembership(m.userId, m.storeId);
+    await removeMembership(m.userId, orgId, m.storeId);
     setBusy(false);
     await reload();
   };

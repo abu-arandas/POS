@@ -19,34 +19,38 @@ interface AuthState {
   handleDeleteUser: (id: string) => void;
 }
 
-// Pre-hashed default PINs — salted: SHA-256("<userId>:<pin>").
+// Development-only fixture accounts. Their legacy salted hashes are retained so
+// the migration path is exercised; a successful login upgrades the hash to v2.
 // Admin PIN 1234, Manager PIN 5555, Cashier PIN 0000.
-const DEFAULT_USERS: UserAccount[] = [
-  {
-    id: 'u-1',
-    name: 'Admin',
-    role: 'admin',
-    pin: '2efd4458fced12834fc6f39317faa5a689dde4ec088267d768a3b3b0193ccbcf',
-    active: true,
-    createdAt: '2023-01-01',
-  },
-  {
-    id: 'u-2',
-    name: 'Manager',
-    role: 'manager',
-    pin: '8690c9b4e9feb5cb74a13a8b3193c9a049d0f9cf01f631d257d472f0680b42be',
-    active: true,
-    createdAt: '2023-01-01',
-  },
-  {
-    id: 'u-3',
-    name: 'Cashier',
-    role: 'cashier',
-    pin: 'e103c0738bb6f7e2f6deb31424b25de795db8c477cb839745c19e41c20ec4396',
-    active: true,
-    createdAt: '2023-01-01',
-  },
-];
+const DEFAULT_USERS: UserAccount[] =
+  import.meta.env.DEV || import.meta.env.MODE === 'test'
+    ? [
+        {
+          id: 'u-1',
+          name: 'Admin',
+          role: 'admin',
+          pin: '2efd4458fced12834fc6f39317faa5a689dde4ec088267d768a3b3b0193ccbcf',
+          active: true,
+          createdAt: '2023-01-01',
+        },
+        {
+          id: 'u-2',
+          name: 'Manager',
+          role: 'manager',
+          pin: '8690c9b4e9feb5cb74a13a8b3193c9a049d0f9cf01f631d257d472f0680b42be',
+          active: true,
+          createdAt: '2023-01-01',
+        },
+        {
+          id: 'u-3',
+          name: 'Cashier',
+          role: 'cashier',
+          pin: 'e103c0738bb6f7e2f6deb31424b25de795db8c477cb839745c19e41c20ec4396',
+          active: true,
+          createdAt: '2023-01-01',
+        },
+      ]
+    : [];
 
 export const useAuthStore = create<AuthState>()(
   persist(

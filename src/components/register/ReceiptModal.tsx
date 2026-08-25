@@ -3,7 +3,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Check, ShoppingBag } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { BarcodeSvg } from '../BarcodeSvg';
-import type { SaleTransaction, StoreSettings } from '../../types';
+import type { PrinterConfig, ReceiptLayout, SaleTransaction, StoreSettings } from '../../types';
+import { resolveCustomerLayout } from '../../lib/receiptFormat';
 
 export interface ReceiptAction {
   icon: ComponentType<{ size?: number }>;
@@ -17,6 +18,8 @@ interface ReceiptModalProps {
   dialogRef: RefObject<HTMLDivElement | null>;
   receipt: SaleTransaction | null;
   settings: StoreSettings;
+  printerConfig: PrinterConfig;
+  receiptLayout: ReceiptLayout;
   showBarcode: boolean;
   actions: ReceiptAction[];
   onClose: () => void;
@@ -31,11 +34,15 @@ export function ReceiptModal({
   dialogRef,
   receipt,
   settings,
+  printerConfig,
+  receiptLayout,
   showBarcode,
   actions,
   onClose,
 }: ReceiptModalProps) {
   const { t } = useTranslation();
+  const resolvedLayout = resolveCustomerLayout(receiptLayout, printerConfig);
+  const show = resolvedLayout.show;
   return (
     <AnimatePresence>
       {open && receipt && (
@@ -90,38 +97,52 @@ export function ReceiptModal({
                 className="bg-white dark:bg-slate-950 border-x border-slate-200 dark:border-slate-800 border-y-[6px] border-y-slate-200 dark:border-y-slate-800 border-dashed rounded-xl p-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] space-y-4 font-mono text-xs text-slate-700 dark:text-slate-300"
               >
                 <div className="text-center border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
-                  <div className="flex justify-center mb-3">
-                    {settings.storeLogo ? (
-                      <img
-                        src={settings.storeLogo}
-                        alt="Logo"
-                        className="h-8 w-auto object-contain grayscale opacity-80 dark:invert"
-                      />
-                    ) : (
-                      <ShoppingBag size={28} className="text-slate-800 dark:text-slate-200" />
-                    )}
-                  </div>
-                  <h4 className="font-bold text-slate-900 dark:text-white text-base uppercase tracking-widest">
-                    {settings.storeName}
-                  </h4>
-                  <p className="text-[10px] text-slate-500 mt-2">{settings.storeAddress}</p>
-                  <p className="text-[10px] text-slate-500">{settings.storePhone}</p>
+                  {show.logo && (
+                    <div className="flex justify-center mb-3">
+                      {settings.storeLogo ? (
+                        <img
+                          src={settings.storeLogo}
+                          alt={t('receiptCfg.tg_logo', 'Logo')}
+                          className="h-8 w-auto object-contain grayscale opacity-80 dark:invert"
+                        />
+                      ) : (
+                        <ShoppingBag size={28} className="text-slate-800 dark:text-slate-200" />
+                      )}
+                    </div>
+                  )}
+                  {show.storeName && (
+                    <h4 className="font-bold text-slate-900 dark:text-white text-base uppercase tracking-widest">
+                      {settings.storeName}
+                    </h4>
+                  )}
+                  {show.address && settings.storeAddress && (
+                    <p className="text-[10px] text-slate-500 mt-2">{settings.storeAddress}</p>
+                  )}
+                  {show.phone && settings.storePhone && (
+                    <p className="text-[10px] text-slate-500">{settings.storePhone}</p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5 text-[10px] border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
-                  <div className="flex justify-between">
-                    <span>DATE:</span>
-                    <span>{new Date(receipt.date).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>{t('register.receipt').toUpperCase()}:</span>
-                    <span>{receipt.id}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>{t('register.operator')}:</span>
-                    <span>{receipt.operatorName || '—'}</span>
-                  </div>
-                  {receipt.customerName && (
+                  {show.date && (
+                    <div className="flex justify-between">
+                      <span>{t('history.date', 'DATE:')}</span>
+                      <span>{new Date(receipt.date).toLocaleString()}</span>
+                    </div>
+                  )}
+                  {show.receiptNumber && (
+                    <div className="flex justify-between">
+                      <span>{t('register.receipt').toUpperCase()}:</span>
+                      <span>{receipt.id}</span>
+                    </div>
+                  )}
+                  {show.operator && (
+                    <div className="flex justify-between">
+                      <span>{t('register.operator')}:</span>
+                      <span>{receipt.operatorName || '—'}</span>
+                    </div>
+                  )}
+                  {show.customer && receipt.customerName && (
                     <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-bold mt-1">
                       <span>{t('register.member')}:</span>
                       <span>{receipt.customerName}</span>
@@ -137,12 +158,14 @@ export function ReceiptModal({
                           <span className="opacity-70 me-1">{item.quantity}x</span>
                           {item.productName}
                         </span>
-                        <span className="shrink-0 font-bold">
-                          {settings.currency}
-                          {item.total.toFixed(2)}
-                        </span>
+                        {show.priceColumn && (
+                          <span className="shrink-0 font-bold">
+                            {settings.currency}
+                            {item.total.toFixed(2)}
+                          </span>
+                        )}
                       </div>
-                      {item.quantity > 1 && (
+                      {show.itemUnitPrice && item.quantity > 1 && (
                         <div className="text-[10px] opacity-60 ps-4">
                           @ {settings.currency}
                           {item.price.toFixed(2)} {t('register.each', 'ea')}
@@ -152,84 +175,91 @@ export function ReceiptModal({
                   ))}
                 </div>
 
-                <div className="space-y-1.5">
-                  <div className="flex justify-between">
-                    <span>{t('register.subtotal').toUpperCase()}:</span>
-                    <span>
-                      {settings.currency}
-                      {receipt.subtotal.toFixed(2)}
-                    </span>
-                  </div>
-                  {receipt.discount > 0 && (
-                    <div className="flex justify-between text-amber-700 dark:text-amber-400">
-                      <span>{t('register.discount').toUpperCase()}</span>
+                {show.totals && (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between">
+                      <span>{t('register.subtotal').toUpperCase()}:</span>
                       <span>
-                        -{settings.currency}
-                        {receipt.discount.toFixed(2)}
+                        {settings.currency}
+                        {receipt.subtotal.toFixed(2)}
                       </span>
                     </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span>
-                      {t('register.tax').toUpperCase()}
-                      {settings.taxRate > 0 ? ` (${settings.taxRate}%)` : ''}:
-                    </span>
-                    <span>
-                      {settings.currency}
-                      {receipt.tax.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-slate-900 dark:text-white font-bold pt-3 border-t border-slate-300 dark:border-slate-700 mt-2 text-sm">
-                    <span>{t('register.totalPaid')}:</span>
-                    <span>
-                      {settings.currency}
-                      {receipt.total.toFixed(2)}
-                    </span>
-                  </div>
-                  {receipt.discount > 0 && (
-                    <div className="text-center font-bold text-amber-700 dark:text-amber-400 border border-dashed border-amber-400/50 rounded py-1 mt-2">
-                      {t('register.youSaved', 'YOU SAVED')} {settings.currency}
-                      {receipt.discount.toFixed(2)}
-                    </div>
-                  )}
-                </div>
-
-                <div className="border-t border-dashed border-slate-300 dark:border-slate-700 pt-4 space-y-1.5 text-[10px]">
-                  <div className="flex justify-between">
-                    <span>{t('register.method')}:</span>
-                    <span className="uppercase font-bold">{receipt.paymentMethod}</span>
-                  </div>
-                  {receipt.paymentMethod === 'cash' && (
-                    <>
-                      <div className="flex justify-between">
-                        <span>{t('register.cashTenderedReceipt')}:</span>
+                    {receipt.discount > 0 && (
+                      <div className="flex justify-between text-amber-700 dark:text-amber-400">
+                        <span>{t('register.discount').toUpperCase()}</span>
                         <span>
-                          {settings.currency}
-                          {(receipt.cashPaid || 0).toFixed(2)}
+                          -{settings.currency}
+                          {receipt.discount.toFixed(2)}
                         </span>
                       </div>
-                      <div className="flex justify-between text-slate-900 dark:text-white font-bold">
-                        <span>{t('register.change')}:</span>
-                        <span>
-                          {settings.currency}
-                          {(receipt.cashChange || 0).toFixed(2)}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                  {receipt.customerName && (receipt.pointsEarned ?? 0) > 0 && (
-                    <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-bold">
-                      <span>{t('register.pointsEarned', 'POINTS EARNED')}:</span>
-                      <span>{receipt.pointsEarned}</span>
+                    )}
+                    <div className="flex justify-between">
+                      <span>
+                        {t('register.tax').toUpperCase()}
+                        {settings.taxRate > 0 ? ` (${settings.taxRate}%)` : ''}:
+                      </span>
+                      <span>
+                        {settings.currency}
+                        {receipt.tax.toFixed(2)}
+                      </span>
                     </div>
-                  )}
-                </div>
+                    <div className="flex justify-between text-slate-900 dark:text-white font-bold pt-3 border-t border-slate-300 dark:border-slate-700 mt-2 text-sm">
+                      <span>{t('register.totalPaid')}:</span>
+                      <span>
+                        {settings.currency}
+                        {receipt.total.toFixed(2)}
+                      </span>
+                    </div>
+                    {receipt.discount > 0 && (
+                      <div className="text-center font-bold text-amber-700 dark:text-amber-400 border border-dashed border-amber-400/50 rounded py-1 mt-2">
+                        {t('register.youSaved', 'YOU SAVED')} {settings.currency}
+                        {receipt.discount.toFixed(2)}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                <div className="text-center pt-5 border-t border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-slate-500 dark:text-slate-400">
-                  <p className="tracking-widest">{t('register.thankYou')}</p>
-                </div>
+                {show.paymentDetails && (
+                  <div className="border-t border-dashed border-slate-300 dark:border-slate-700 pt-4 space-y-1.5 text-[10px]">
+                    <div className="flex justify-between">
+                      <span>{t('register.method')}:</span>
+                      <span className="uppercase font-bold">{receipt.paymentMethod}</span>
+                    </div>
+                    {show.changeDue && receipt.paymentMethod === 'cash' && (
+                      <>
+                        <div className="flex justify-between">
+                          <span>{t('register.cashTenderedReceipt')}:</span>
+                          <span>
+                            {settings.currency}
+                            {(receipt.cashPaid || 0).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-slate-900 dark:text-white font-bold">
+                          <span>{t('register.change')}:</span>
+                          <span>
+                            {settings.currency}
+                            {(receipt.cashChange || 0).toFixed(2)}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
 
-                {showBarcode && (
+                {show.loyalty && receipt.customerName && (receipt.pointsEarned ?? 0) > 0 && (
+                  <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-bold">
+                    <span>{t('register.pointsEarned', 'POINTS EARNED')}:</span>
+                    <span>{receipt.pointsEarned}</span>
+                  </div>
+                )}
+
+                {resolvedLayout.footer && (
+                  <div className="text-center pt-5 border-t border-dashed border-slate-300 dark:border-slate-700 text-[10px] text-slate-500 dark:text-slate-400">
+                    <p className="tracking-widest">{resolvedLayout.footer}</p>
+                  </div>
+                )}
+
+                {show.barcode && showBarcode && (
                   <div className="pt-4 flex flex-col items-center gap-1">
                     <div className="bg-white rounded p-1">
                       <BarcodeSvg data={receipt.id} options={{ height: 40, moduleWidth: 1.4 }} />

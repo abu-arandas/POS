@@ -25,7 +25,7 @@ export function poTotal(po: Pick<PurchaseOrder, 'lines'>): number {
 
 // Total units across all lines.
 export function poUnitCount(po: Pick<PurchaseOrder, 'lines'>): number {
-  return po.lines.reduce((sum, l) => sum + l.quantity, 0);
+  return po.lines.reduce((sum, l) => sum + Math.floor(nonNegative(l.quantity)), 0);
 }
 
 // Drops empty/invalid lines and merges duplicates of the same product so a
@@ -34,13 +34,18 @@ export function poUnitCount(po: Pick<PurchaseOrder, 'lines'>): number {
 export function normalizePoLines(lines: PurchaseOrderLine[]): PurchaseOrderLine[] {
   const merged = new Map<string, PurchaseOrderLine>();
   for (const line of lines) {
-    const quantity = Math.floor(line.quantity);
+    const quantity = Math.floor(nonNegative(line.quantity));
     if (!line.productId || quantity <= 0) continue;
-    const unitCost = Math.max(0, line.unitCost || 0);
+    const unitCost = nonNegative(line.unitCost);
     const existing = merged.get(line.productId);
     if (existing) {
+      const previousCost = existing.unitCost * existing.quantity;
       existing.quantity += quantity;
-      existing.unitCost = unitCost; // last entry wins for cost
+      // Keep the merged line's total value equal to the sum of the original
+      // lines instead of silently discarding all but the last unit cost.
+      existing.unitCost = Number(
+        ((previousCost + unitCost * quantity) / existing.quantity).toFixed(2),
+      );
     } else {
       merged.set(line.productId, { ...line, quantity, unitCost });
     }

@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { SaleTransaction, RefundedItem } from '../types';
-import { generatePastTransactions } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
 import { deleteTransactionsCloudIfEnabled } from '../lib/sync';
 
@@ -15,10 +14,8 @@ export interface RefundPatch {
 
 interface TransactionState {
   transactions: SaleTransaction[];
-  // True once demo data has been seeded (or the install already had data).
-  // Guards against re-seeding: "list is empty" alone would resurrect fake
-  // sales after a user deliberately deletes all history — and live sync would
-  // then push those fakes to the cloud.
+  // Retained for persisted-state compatibility. New production installs start
+  // empty; demo data is loaded only by explicit development/test fixtures.
   demoSeeded: boolean;
   setTransactions: (transactions: SaleTransaction[]) => void;
   addTransaction: (transaction: SaleTransaction) => void;
@@ -66,13 +63,7 @@ export const useTransactionStore = create<TransactionState>()(
       name: 'pos-transaction-storage',
       storage: createJSONStorage(() => idbStorage),
       onRehydrateStorage: () => (state) => {
-        // Populate demo data exactly once per install (see demoSeeded above).
-        if (state && !state.demoSeeded) {
-          if (state.transactions.length === 0) {
-            state.setTransactions(generatePastTransactions());
-          }
-          useTransactionStore.setState({ demoSeeded: true });
-        }
+        if (state && !state.demoSeeded) useTransactionStore.setState({ demoSeeded: true });
       },
     },
   ),

@@ -73,7 +73,7 @@ export function buildLabelSheetHtml(
         gap: 2px;
       }
       .label-store { font-size: 8px; letter-spacing: 1px; text-transform: uppercase; color: #6b7280; }
-      .label-name { font-size: 12px; font-weight: 700; line-height: 1.15; min-height: 2.3em; display: flex; align-items: center; }
+      .label-name { font-size: 12px; font-weight: 700; line-height: 1.15; min-height: 2.3em; width: 100%; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; word-break: break-word; }
       .label-price { font-size: 18px; font-weight: 800; margin: 2px 0; }
       .label-barcode { margin-top: 2px; }
       .label-barcode svg { max-width: 100%; height: auto; }

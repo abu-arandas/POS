@@ -159,13 +159,31 @@ describe('printReceipt', () => {
       expect(closeMock).toHaveBeenCalled();
     });
 
-    it('returns error if serial print fails', async () => {
+    it('returns error if serial print fails before a port is selected', async () => {
       const requestPortMock = vi.fn().mockRejectedValue(new Error('fail'));
       (navigator as any).serial = { requestPort: requestPortMock };
       const printer: PrinterConfig = { ...basePrinter, type: 'serial', baudRate: 9600 };
 
       const outcome = await printReceipt(baseTx, baseSettings, printer);
       expect(outcome).toBe('error');
+    });
+
+    it('cleans up the writer and port when writing fails', async () => {
+      const writeMock = vi.fn().mockRejectedValue(new Error('write failed'));
+      const releaseLockMock = vi.fn();
+      const getWriterMock = vi
+        .fn()
+        .mockReturnValue({ write: writeMock, releaseLock: releaseLockMock });
+      const openMock = vi.fn().mockResolvedValue(undefined);
+      const closeMock = vi.fn().mockResolvedValue(undefined);
+      const portMock = { open: openMock, close: closeMock, writable: { getWriter: getWriterMock } };
+      (navigator as any).serial = { requestPort: vi.fn().mockResolvedValue(portMock) };
+      const printer: PrinterConfig = { ...basePrinter, type: 'serial', baudRate: 9600 };
+
+      const outcome = await printReceipt(baseTx, baseSettings, printer);
+      expect(outcome).toBe('error');
+      expect(releaseLockMock).toHaveBeenCalled();
+      expect(closeMock).toHaveBeenCalled();
     });
   });
 

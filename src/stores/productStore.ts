@@ -20,14 +20,19 @@ interface ProductState {
   reorderProducts: (activeId: string, overId: string) => void;
 
   handleAddCategory: (name: string, color: string) => Category;
-  handleDeleteCategory: (id: string) => void;
+  handleDeleteCategory: (id: string) => boolean;
 }
+
+const DEFAULT_PRODUCTS: Product[] =
+  import.meta.env.DEV || import.meta.env.MODE === 'test' ? INITIAL_PRODUCTS : [];
+const DEFAULT_CATEGORIES: Category[] =
+  import.meta.env.DEV || import.meta.env.MODE === 'test' ? INITIAL_CATEGORIES : [];
 
 export const useProductStore = create<ProductState>()(
   persist(
     (set, get) => ({
-      products: INITIAL_PRODUCTS,
-      categories: INITIAL_CATEGORIES,
+      products: DEFAULT_PRODUCTS,
+      categories: DEFAULT_CATEGORIES,
 
       setProducts: (products) => set({ products }),
       setCategories: (categories) => set({ categories }),
@@ -77,10 +82,14 @@ export const useProductStore = create<ProductState>()(
       },
 
       handleDeleteCategory: (id) => {
+        // Keep the invariant at the state boundary as well as in the UI button:
+        // realtime callers and future screens must not be able to orphan products.
+        if (get().products.some((product) => product.category === id)) return false;
         set({
           categories: get().categories.filter((c) => c.id !== id),
         });
         deleteCategoriesCloudIfEnabled([id]);
+        return true;
       },
     }),
     {

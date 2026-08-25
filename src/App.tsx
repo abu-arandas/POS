@@ -34,6 +34,9 @@ import { useProductStore } from './stores/productStore';
 import { ScreenId, isScreenAllowed } from './lib/access';
 import { startRealtimeSync, stopRealtimeSync } from './lib/realtimeSync';
 import { startFleetHeartbeat, stopFleetHeartbeat, fetchSuperadminOrg } from './lib/fleetClient';
+import NotificationCenter from './components/NotificationCenter';
+import DialogCenter from './components/DialogCenter';
+import { notify } from './lib/notifications';
 
 function ScreenLoader() {
   return (
@@ -135,12 +138,11 @@ export default function App() {
   }, [products, categories, settings]);
 
   useEffect(() => {
-    if (window.electronAPI?.onMenuServerError) {
-      window.electronAPI.onMenuServerError((_event, msg) => {
-        console.error('QR Menu Server Error:', msg);
-        alert(msg);
-      });
-    }
+    if (!window.electronAPI?.onMenuServerError) return;
+    return window.electronAPI.onMenuServerError((_event, msg) => {
+      console.error('QR Menu Server Error:', msg);
+      notify(msg, 'error');
+    });
   }, []);
 
   // A screen is viewable if the terminal role allows it AND, for the super-admin
@@ -233,6 +235,8 @@ export default function App() {
         id="application-container"
         className={`flex min-h-screen overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300 ${darkMode ? 'mesh-bg-dark' : 'mesh-bg'}`}
       >
+        <NotificationCenter />
+        <DialogCenter />
         <div id="desktop-sidebar-rail" className="hidden lg:block shrink-0">
           <Sidebar currentScreen={activeScreen} setScreen={setScreen} isSuperadmin={isSuperadmin} />
         </div>

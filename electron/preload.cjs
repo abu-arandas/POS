@@ -3,6 +3,11 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Expose a minimal, explicit API to the renderer instead of enabling full
 // nodeIntegration. This keeps contextIsolation on so a compromised renderer
 // (e.g. via a malicious image/logo URL) cannot reach Node.js/Electron internals.
+function subscribe(channel, callback) {
+  ipcRenderer.on(channel, callback);
+  return () => ipcRenderer.removeListener(channel, callback);
+}
+
 contextBridge.exposeInMainWorld('electronAPI', {
   // Returns the machine's LAN IPv4 address and the actual port the embedded
   // QR digital-menu server bound to (it falls back past 3001 when taken).
@@ -25,12 +30,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // printers). Resolves an array of responding IP strings. { port?, timeoutMs? }.
   scanNetworkPrinters: (opts) => ipcRenderer.invoke('scan-network-printers', opts),
   // Listen for fatal errors from the embedded QR menu server
-  onMenuServerError: (callback) => ipcRenderer.on('menu-server-error', callback),
+  onMenuServerError: (callback) => subscribe('menu-server-error', callback),
   // Auto-updater API for daily checks & installation.
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   // Applies a downloaded update now. Needed for unsigned builds, where the main
   // process refuses to install unattended (see electron/updatePolicy.cjs).
   installUpdate: () => ipcRenderer.invoke('install-update'),
-  onUpdateAvailable: (callback) => ipcRenderer.on('update-available', callback),
-  onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', callback),
+  onUpdateAvailable: (callback) => subscribe('update-available', callback),
+  onUpdateDownloaded: (callback) => subscribe('update-downloaded', callback),
 });

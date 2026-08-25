@@ -69,10 +69,10 @@ are slugified from the name (`slugifyStoreId`) with numeric disambiguation.
 Writes are RLS-checked as `is_superadmin(org)` — the client-side guard is
 convenience only, the database is the boundary.
 
-`memberships` has no usable upsert target (its uniqueness comes from a partial
-expression index over `COALESCE(store_id, '__org__')`, which `ON CONFLICT`
-cannot name), so `setMembership` is a delete-then-insert. Org-wide rows store
-`NULL`, which PostgREST matches with `is`, not `eq`.
+`memberships` has no usable PostgREST upsert target because its uniqueness
+comes from an expression index over `COALESCE(store_id, '__org__')`. The client
+therefore calls database-side transactional RPCs for set/remove operations.
+Org-wide rows store `NULL`, and the RPCs use NULL-safe matching.
 
 ## 6. Phase 4 — central catalog push
 
@@ -88,8 +88,9 @@ Four rules keep it safe:
    matched by name and created on demand.
 4. **Stock is never pushed.** Inventory is per-store; new products land at 0.
 
-The plan only adds products/categories and updates prices. It never deletes, so
-a push cannot wipe a store's catalog.
+The default plan adds products/categories and updates prices. Operators may
+explicitly enable metadata reconciliation for names, SKUs, categories, images,
+and reorder levels. It never deletes, so a push cannot wipe a store's catalog.
 
 ## 7. Enforcing the store boundary
 
@@ -117,15 +118,13 @@ them. A commented rollback block at the bottom returns you to advisory mode.
 
 ## 8. Notes and known gaps
 
-- **Store ids are global.** Two orgs can slugify to the same id; the second
-  write is refused by RLS rather than colliding, but the UI surfaces it only as
-  a generic failure.
-- **`removeMembership` cannot remove an org-wide row** — it matches on
-  `store_id`, so super-admin memberships are managed in Supabase directly.
-- **Terminal PIN accounts are not per-store.** `user_accounts` gained a
-  `store_id` for scoping, but the lock screen still authenticates against the
-  local list first; cloud login goes through `verify_login`, which does not
-  consider store membership.
+- **Store ids remain globally keyed for backward compatibility,** but new UI-created
+  ids are prefixed with the organization identifier so common names do not collide.
+- **Membership changes are transactional.** `setMembership` and
+  `removeMembership` use database-side RPCs, including NULL-safe org-wide rows.
+- **Cloud PIN verification is store-scoped when a terminal has a Store ID.** The
+  local lock screen remains available offline, while `verify_login` filters the
+  cloud account by `store_id` and cannot authenticate an unrelated store context.
 - **The fleet RPCs are `SECURITY INVOKER`** by design, so they stay RLS-scoped
   to the caller. The predicates they lean on are `SECURITY DEFINER` with a
   pinned `search_path`.

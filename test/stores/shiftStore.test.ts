@@ -16,11 +16,12 @@ describe('useShiftStore', () => {
     expect(useShiftStore.getState().shifts).toHaveLength(1);
   });
 
-  it('prepends newer shifts and moves "current" to the latest', () => {
+  it('returns the existing active shift instead of opening an overlapping session', () => {
     const first = useShiftStore.getState().openShift('Alice', 100);
     const second = useShiftStore.getState().openShift('Bob', 50);
-    expect(useShiftStore.getState().shifts.map((s) => s.id)).toEqual([second.id, first.id]);
-    expect(useShiftStore.getState().currentShiftId).toBe(second.id);
+    expect(second.id).toBe(first.id);
+    expect(useShiftStore.getState().shifts.map((s) => s.id)).toEqual([first.id]);
+    expect(useShiftStore.getState().currentShiftId).toBe(first.id);
   });
 
   it('closes a shift, recording the count and clearing current', () => {
@@ -40,10 +41,9 @@ describe('useShiftStore', () => {
     expect(useShiftStore.getState().shifts.find((s) => s.id === shift.id)!.note).toBeNull();
   });
 
-  it('leaves currentShiftId alone when a different shift is closed', () => {
-    const first = useShiftStore.getState().openShift('Alice', 100);
-    const second = useShiftStore.getState().openShift('Bob', 50); // current = second
-    useShiftStore.getState().closeShift(first.id, 100, '', 'Manager');
-    expect(useShiftStore.getState().currentShiftId).toBe(second.id);
+  it('clears the current shift when the active shift is closed', () => {
+    const shift = useShiftStore.getState().openShift('Alice', 100);
+    useShiftStore.getState().closeShift(shift.id, 100, '', 'Manager');
+    expect(useShiftStore.getState().currentShiftId).toBeNull();
   });
 });

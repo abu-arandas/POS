@@ -1,10 +1,3 @@
-// SHA-256 hashing for PIN storage/verification.
-//
-// `crypto.subtle` only exists in secure contexts (https / localhost / Electron).
-// POS terminals are commonly served over plain http on a LAN, where it is
-// undefined — without a fallback, login is impossible there. The pure-JS
-// implementation below produces identical digests.
-
 const K = [
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
   0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -17,12 +10,20 @@ const K = [
 ];
 
 const rotr = (x: number, n: number) => (x >>> n) | (x << (32 - n));
+const bytesToHex = (bytes: Uint8Array) =>
+  Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+const concatBytes = (...parts: Uint8Array[]) => {
+  const result = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
+  let offset = 0;
+  for (const part of parts) {
+    result.set(part, offset);
+    offset += part.length;
+  }
+  return result;
+};
 
-export function sha256HexSync(input: string): string {
-  const msg = new TextEncoder().encode(input);
+function sha256BytesSync(msg: Uint8Array): Uint8Array {
   const bitLen = msg.length * 8;
-
-  // Pad: 0x80, zeros, then 64-bit big-endian bit length.
   const padded = new Uint8Array((((msg.length + 8) >> 6) + 1) << 6);
   padded.set(msg);
   padded[msg.length] = 0x80;
@@ -71,28 +72,110 @@ export function sha256HexSync(input: string): string {
     h[7] = (h[7] + hh) >>> 0;
   }
 
-  return h.map((x) => x.toString(16).padStart(8, '0')).join('');
+  const digest = new Uint8Array(32);
+  const digestView = new DataView(digest.buffer);
+  h.forEach((value, index) => digestView.setUint32(index * 4, value));
+  return digest;
 }
 
+export function sha256HexSync(input: string): string {
+  return bytesToHex(sha256BytesSync(new TextEncoder().encode(input)));
+}
+
+// Legacy unsalted SHA-256 helper. It remains available only to verify and
+// migrate hashes created by older releases.
 export async function hashPin(pin: string): Promise<string> {
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) return sha256HexSync(pin);
-  const data = new TextEncoder().encode(pin);
-  const hashBuffer = await subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  const hashBuffer = await subtle.digest('SHA-256', new TextEncoder().encode(pin));
+  return bytesToHex(new Uint8Array(hashBuffer));
 }
 
-// Salted PIN hash: SHA-256("<userId>:<pin>"). Using the stable account ID as
-// salt means identical PINs on different accounts produce different digests, and
-// the well-known hashes for "1234" / "0000" etc. no longer appear in the DB.
-// The output is still a 64-hex SHA-256, so the cloud schema needs no migration.
-export async function hashPinSalted(userId: string, pin: string): Promise<string> {
+export const PBKDF2_ITERATIONS = 600_000;
+const HASH_VERSION = 'v2';
+const SALT_PREFIX = 'ea-pos-pin-salt:';
+
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++)
+    bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return bytes;
+}
+
+function hmacSha256Sync(key: Uint8Array, message: Uint8Array): Uint8Array {
+  const blockSize = 64;
+  const normalizedKey = key.length > blockSize ? sha256BytesSync(key) : key;
+  const keyBlock = new Uint8Array(blockSize);
+  keyBlock.set(normalizedKey);
+  const innerPad = keyBlock.map((value) => value ^ 0x36);
+  const outerPad = keyBlock.map((value) => value ^ 0x5c);
+  const inner = sha256BytesSync(concatBytes(innerPad, message));
+  return sha256BytesSync(concatBytes(outerPad, inner));
+}
+
+function deriveSalt(userId: string): Uint8Array {
+  // The stable account-derived salt is required because the cloud RPC receives
+  // a derived hash, not a raw PIN. The high PBKDF2 work factor still defeats
+  // cheap brute force and prevents a single precomputed table for all accounts.
+  return hexToBytes(sha256HexSync(`${SALT_PREFIX}${userId}`).slice(0, 32));
+}
+
+async function pbkdf2Sha256Async(pin: string, salt: Uint8Array): Promise<Uint8Array> {
+  const password = new TextEncoder().encode(pin);
+  const block = new Uint8Array(4);
+  new DataView(block.buffer).setUint32(0, 1);
+  let u = hmacSha256Sync(password, concatBytes(salt, block));
+  const result = u.slice();
+  for (let iteration = 1; iteration < PBKDF2_ITERATIONS; iteration++) {
+    u = hmacSha256Sync(password, u);
+    for (let i = 0; i < result.length; i++) result[i] ^= u[i];
+    if (iteration % 2_000 === 0) await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+  return result;
+}
+
+function pbkdf2Sha256Sync(pin: string, salt: Uint8Array): Uint8Array {
+  const password = new TextEncoder().encode(pin);
+  const block = new Uint8Array(4);
+  new DataView(block.buffer).setUint32(0, 1);
+  let u = hmacSha256Sync(password, concatBytes(salt, block));
+  const result = u.slice();
+  for (let iteration = 1; iteration < PBKDF2_ITERATIONS; iteration++) {
+    u = hmacSha256Sync(password, u);
+    for (let i = 0; i < result.length; i++) result[i] ^= u[i];
+  }
+  return result;
+}
+
+export function hashPinSaltedLegacySync(userId: string, pin: string): string {
+  return sha256HexSync(`${userId}:${pin}`);
+}
+
+export async function hashPinSaltedLegacy(userId: string, pin: string): Promise<string> {
   return hashPin(`${userId}:${pin}`);
 }
 
-// Synchronous variant for seed scripts / tests.
 export function hashPinSaltedSync(userId: string, pin: string): string {
-  return sha256HexSync(`${userId}:${pin}`);
+  const salt = deriveSalt(userId);
+  const derived = pbkdf2Sha256Sync(pin, salt);
+  return `${HASH_VERSION}$${PBKDF2_ITERATIONS}$${bytesToHex(salt)}$${bytesToHex(derived)}`;
+}
+
+export async function hashPinSalted(userId: string, pin: string): Promise<string> {
+  const subtle = globalThis.crypto?.subtle;
+  const salt = deriveSalt(userId);
+  if (!subtle) {
+    const derived = await pbkdf2Sha256Async(pin, salt);
+    return `${HASH_VERSION}$${PBKDF2_ITERATIONS}$${bytesToHex(salt)}$${bytesToHex(derived)}`;
+  }
+
+  const key = await subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, [
+    'deriveBits',
+  ]);
+  const bits = await subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    key,
+    256,
+  );
+  return `${HASH_VERSION}$${PBKDF2_ITERATIONS}$${bytesToHex(salt)}$${bytesToHex(new Uint8Array(bits))}`;
 }

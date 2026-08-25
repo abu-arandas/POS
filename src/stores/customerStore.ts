@@ -15,10 +15,13 @@ interface CustomerState {
   updateCustomerPoints: (id: string, delta: number) => void;
 }
 
+const DEFAULT_CUSTOMERS: Customer[] =
+  import.meta.env.DEV || import.meta.env.MODE === 'test' ? INITIAL_CUSTOMERS : [];
+
 export const useCustomerStore = create<CustomerState>()(
   persist(
     (set, get) => ({
-      customers: INITIAL_CUSTOMERS,
+      customers: DEFAULT_CUSTOMERS,
 
       setCustomers: (customers) => set({ customers }),
 

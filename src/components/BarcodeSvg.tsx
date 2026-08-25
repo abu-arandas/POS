@@ -43,7 +43,10 @@ export function BarcodeSvg({ data, options = {} }: BarcodeSvgProps) {
       viewBox={`0 0 ${w.toFixed(1)} ${height}`}
       fill="#000"
       shapeRendering="crispEdges"
+      role="img"
+      aria-label={`Barcode ${data}`}
     >
+      <title>{`Barcode ${data}`}</title>
       {rects}
     </svg>
   );

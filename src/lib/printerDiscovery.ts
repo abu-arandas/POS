@@ -67,7 +67,9 @@ export async function listGrantedSerialPorts(): Promise<DetectedPrinter[]> {
       const info = port.getInfo();
       const hasUsbIds = info.usbVendorId !== undefined || info.usbProductId !== undefined;
       return {
-        id: `serial-${i}-${hex(info.usbVendorId)}-${hex(info.usbProductId)}`,
+        id: hasUsbIds
+          ? `serial-usb-${hex(info.usbVendorId)}-${hex(info.usbProductId)}`
+          : `serial-generic-${i + 1}`,
         name: hasUsbIds
           ? `USB Serial ${hex(info.usbVendorId)}:${hex(info.usbProductId)}`
           : `Serial port ${i + 1}`,

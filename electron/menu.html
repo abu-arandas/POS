@@ -247,6 +247,18 @@
           .replace(/'/g, '&#39;');
       }
 
+      function safeImageUrl(value) {
+        const raw = String(value ?? '').trim();
+        if (!raw) return '';
+        if (/^data:image\/[a-z0-9.+-]+(?:;[^,]*)?,/i.test(raw)) return raw;
+        try {
+          const url = new URL(raw, window.location.origin);
+          return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+        } catch {
+          return '';
+        }
+      }
+
       async function fetchMenu() {
         try {
           const response = await fetch('/api/menu');
@@ -274,10 +286,11 @@
         // Header (textContent — no markup interpretation)
         document.getElementById('store-name').textContent =
           storeSettings.storeName || 'Our Menu';
-        if (storeSettings.storeLogo) {
+        const storeLogo = safeImageUrl(storeSettings.storeLogo);
+        if (storeLogo) {
           const logoContainer = document.getElementById('store-logo-container');
           const logoImg = document.getElementById('store-logo');
-          logoImg.src = storeSettings.storeLogo;
+          logoImg.src = storeLogo;
           logoContainer.classList.add('visible');
         }
 
@@ -351,8 +364,9 @@
             const isTailwindColor = product.image && String(product.image).startsWith('bg-');
             let imgContent = '';
 
-            if (product.image && !isTailwindColor) {
-              imgContent = `<img src="${esc(product.image)}" alt="${name}">`;
+            const imageUrl = safeImageUrl(product.image);
+            if (imageUrl && !isTailwindColor) {
+              imgContent = `<img src="${esc(imageUrl)}" alt="${name}">`;
             } else {
               imgContent = `<div class="thumb-fallback">${esc(String(product.name || '?').charAt(0))}</div>`;
             }

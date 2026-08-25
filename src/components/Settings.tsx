@@ -53,12 +53,15 @@ import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { hashPinSalted } from '../lib/hash';
 import { INITIAL_SETTINGS } from '../data/seedData';
+import { notify } from '../lib/notifications';
+import { askConfirmation } from '../lib/dialogs';
 import {
   testCloudConnection,
   pushAllToCloud,
   pullAllFromCloud,
   syncToCloudIfEnabled,
   deleteUsersCloudIfEnabled,
+  deleteTransactionsCloudIfEnabled,
 } from '../lib/sync';
 
 type SettingsTab =
@@ -246,7 +249,7 @@ export default function Settings() {
       }));
     setKitchenStations(cleaned);
     setStationForm(cleaned);
-    alert(t('settings.stationsSaved'));
+    notify(t('settings.stationsSaved'));
   };
 
   // --- Scanner config form state + live test ---
@@ -294,7 +297,7 @@ export default function Settings() {
     e.preventDefault();
     if (!uName.trim()) return;
     if ((!editingUser || uPin) && !/^\d{4}$/.test(uPin)) {
-      alert(t('settings.pinMustBe4'));
+      notify(t('settings.pinMustBe4'));
       return;
     }
 
@@ -304,7 +307,7 @@ export default function Settings() {
         editingUser.active &&
         users.filter((x) => x.role === 'admin' && x.active).length <= 1;
       if (isLastActiveAdmin && (uRole !== 'admin' || !uActive)) {
-        alert(t('settings.cannotDeleteLastAdmin'));
+        notify(t('settings.cannotDeleteLastAdmin'));
         return;
       }
 
@@ -332,24 +335,24 @@ export default function Settings() {
     setUserModalOpen(false);
   };
 
-  const handleRemoveUser = (u: UserAccount) => {
+  const handleRemoveUser = async (u: UserAccount) => {
     if (currentUser && u.id === currentUser.id) {
-      alert(t('settings.cannotDeleteSelf'));
+      notify(t('settings.cannotDeleteSelf'));
       return;
     }
     const activeAdmins = users.filter((x) => x.role === 'admin' && x.active);
     if (u.role === 'admin' && u.active && activeAdmins.length <= 1) {
-      alert(t('settings.cannotDeleteLastAdmin'));
+      notify(t('settings.cannotDeleteLastAdmin'));
       return;
     }
-    if (!confirm(t('settings.deleteUserConfirm', { name: u.name }))) return;
+    if (!(await askConfirmation(t('settings.deleteUserConfirm', { name: u.name })))) return;
     handleDeleteUser(u.id);
     deleteUsersCloudIfEnabled([u.id]);
   };
 
   const handleSavePrinter = () => {
     setPrinterConfig(printerForm);
-    alert(t('settings.printerSaved'));
+    notify(t('settings.printerSaved'));
   };
 
   const handleSaveScanner = () => {
@@ -358,7 +361,7 @@ export default function Settings() {
       minLength: Math.max(1, Math.floor(scannerForm.minLength) || 3),
       maxInterKeyMs: Math.max(10, Math.floor(scannerForm.maxInterKeyMs) || 50),
     });
-    alert(t('settings.scannerSaved'));
+    notify(t('settings.scannerSaved'));
   };
 
   const buildConfig = (enabled: boolean, status: 'disconnected' | 'connected' | 'error') => ({
@@ -376,13 +379,13 @@ export default function Settings() {
 
   const hasCreds = () => {
     if (sbUrl.trim() && sbKey.trim()) return true;
-    alert(t('settings.missingCreds'));
+    notify(t('settings.missingCreds'));
     return false;
   };
 
   const handleSaveConfig = () => {
     persistConfig(supabaseConfig.status);
-    alert(t('settings.configSaved'));
+    notify(t('settings.configSaved'));
   };
 
   const handleToggleEnabled = (value: boolean) => {
@@ -396,7 +399,7 @@ export default function Settings() {
     const ok = await testCloudConnection(sbUrl.trim(), sbKey.trim());
     persistConfig(ok ? 'connected' : 'error');
     setBusy(null);
-    alert(ok ? t('settings.connectionSuccess') : t('settings.connectionFailed'));
+    notify(ok ? t('settings.connectionSuccess') : t('settings.connectionFailed'));
   };
 
   const handlePush = async () => {
@@ -411,18 +414,18 @@ export default function Settings() {
     });
     persistConfig(ok ? 'connected' : 'error');
     setBusy(null);
-    alert(ok ? t('settings.pushSuccess') : t('settings.pushFailed'));
+    notify(ok ? t('settings.pushSuccess') : t('settings.pushFailed'));
   };
 
   const handlePull = async () => {
     if (!hasCreds()) return;
-    if (!confirm(t('settings.pullWarning'))) return;
+    if (!(await askConfirmation(t('settings.pullWarning')))) return;
     setBusy('pull');
     const data = await pullAllFromCloud(sbUrl.trim(), sbKey.trim());
     setBusy(null);
     if (!data) {
       persistConfig('error');
-      alert(t('settings.pullFailed'));
+      notify(t('settings.pullFailed'));
       return;
     }
     // `null` means that table failed to load; an empty array means it loaded
@@ -451,7 +454,7 @@ export default function Settings() {
     if (data.transactions) setTransactions(data.transactions);
 
     persistConfig(failed.length > 0 ? 'error' : 'connected');
-    alert(
+    notify(
       failed.length > 0
         ? t('settings.pullPartial', {
             tables: failed.join(', '),
@@ -461,23 +464,25 @@ export default function Settings() {
     );
   };
 
-  const handleDeleteAllTransactions = () => {
+  const handleDeleteAllTransactions = async () => {
     if (
-      confirm(
+      await askConfirmation(
         t(
           'settings.confirmDeleteAllTransactions',
           'Are you sure you want to permanently delete ALL transactions? This cannot be undone.',
         ),
       )
     ) {
-      deleteTransactions(transactions.map((t) => t.id));
-      alert(t('settings.transactionsDeleted', 'All transactions deleted.'));
+      const ids = transactions.map((t) => t.id);
+      deleteTransactions(ids);
+      void deleteTransactionsCloudIfEnabled(ids);
+      notify(t('settings.transactionsDeleted', 'All transactions deleted.'));
     }
   };
 
-  const handleResetDefaults = () => {
+  const handleResetDefaults = async () => {
     if (
-      confirm(
+      await askConfirmation(
         t(
           'settings.confirmResetDefaults',
           'Reset all settings to default values? This will not delete your transactions or users.',
@@ -499,7 +504,7 @@ export default function Settings() {
       setSbAuthEmail('');
       setSbAuthPassword('');
       setSbEnabled(false);
-      alert(t('settings.defaultsReset', 'Settings reset to defaults.'));
+      notify(t('settings.defaultsReset', 'Settings reset to defaults.'));
     }
   };
 

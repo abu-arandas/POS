@@ -9,6 +9,9 @@ export interface CheckoutItem {
   quantity: number;
 }
 
+const finiteNonNegative = (value: number): number =>
+  Number.isFinite(value) && value > 0 ? value : 0;
+
 export function calculateOrderTotals(
   items: CheckoutItem[],
   discountType: 'none' | 'percentage' | 'fixed' | 'loyalty',
@@ -20,24 +23,27 @@ export function calculateOrderTotals(
   const subtotal = Number(
     items.reduce((sum, i) => sum + nonNegative(i.price) * nonNegative(i.quantity), 0).toFixed(2),
   );
+  const safeDiscountValue = finiteNonNegative(discountValue);
+  const safeTaxRate = finiteNonNegative(settings.taxRate);
+  const safeLoyaltyPointValue = finiteNonNegative(settings.loyaltyPointValue);
 
   // Every discount is clamped so the recorded discount can never exceed the
-  // order value (and a typo like "150%" can never go negative).
+  // order value (and a typo like "150%" can never make the order negative).
   let discountAmount = 0;
   if (discountType === 'percentage') {
-    const pct = Math.min(100, Math.max(0, discountValue));
+    const pct = Math.min(100, safeDiscountValue);
     discountAmount = Number(((subtotal * pct) / 100).toFixed(2));
   } else if (discountType === 'fixed') {
-    discountAmount = Math.min(Math.max(0, discountValue), subtotal);
+    discountAmount = Math.min(safeDiscountValue, subtotal);
   } else if (discountType === 'loyalty') {
     discountAmount = Math.min(
-      Number((discountValue * settings.loyaltyPointValue).toFixed(2)),
+      Number((safeDiscountValue * safeLoyaltyPointValue).toFixed(2)),
       subtotal,
     );
   }
 
   const taxableAmount = Math.max(0, subtotal - discountAmount);
-  const taxAmount = Number((taxableAmount * (settings.taxRate / 100)).toFixed(2));
+  const taxAmount = Number((taxableAmount * (safeTaxRate / 100)).toFixed(2));
   const totalAmount = Number((taxableAmount + taxAmount).toFixed(2));
 
   return { subtotal, discountAmount, taxableAmount, taxAmount, totalAmount };

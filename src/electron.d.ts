@@ -63,7 +63,7 @@ declare global {
       scanNetworkPrinters?: (opts?: { port?: number; timeoutMs?: number }) => Promise<string[]>;
       // The first argument is Electron's IpcRendererEvent. Typing it as unknown
       // keeps the renderer free of an electron import; callers ignore it.
-      onMenuServerError?: (callback: (event: unknown, message: string) => void) => void;
+      onMenuServerError?: (callback: (event: unknown, message: string) => void) => () => void;
       checkForUpdates?: () => Promise<{
         status: string;
         version?: string;
@@ -75,8 +75,8 @@ declare global {
         installSilently?: boolean;
       }>;
       installUpdate?: () => Promise<boolean>;
-      onUpdateAvailable?: (callback: (event: unknown, info: UpdateInfo) => void) => void;
-      onUpdateDownloaded?: (callback: (event: unknown, info: UpdateInfo) => void) => void;
+      onUpdateAvailable?: (callback: (event: unknown, info: UpdateInfo) => void) => () => void;
+      onUpdateDownloaded?: (callback: (event: unknown, info: UpdateInfo) => void) => () => void;
     };
   }
 }

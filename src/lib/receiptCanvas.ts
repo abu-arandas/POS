@@ -134,7 +134,7 @@ export function renderReceiptRaster(
     } else if (row.kind === 'pair') {
       ctx.font = fontFor(row.style ?? 'normal', family);
       const boxInset = row.boxed ? (PAD + BOX_PAD) * 2 : 0;
-      const avail = inner - ctx.measureText(row.value).width - 12 - boxInset;
+      const avail = Math.max(1, inner - ctx.measureText(row.value).width - 12 - boxInset);
       const lines = wrapText(ctx, row.label, avail);
       wrapped.set(row, lines);
       height += rowHeight(row) + (lines.length - 1) * (SIZE[row.style ?? 'normal'] ?? SIZE.normal);

@@ -75,6 +75,16 @@ describe('calculateOrderTotals', () => {
     expect(r.totalAmount).toBe(0);
   });
 
+  it('treats non-finite discount and rate settings as zero', () => {
+    const r = calculateOrderTotals([item(10)], 'percentage', Number.NaN, {
+      taxRate: Number.POSITIVE_INFINITY,
+      loyaltyPointValue: Number.NaN,
+    });
+    expect(r.discountAmount).toBe(0);
+    expect(r.taxAmount).toBe(0);
+    expect(r.totalAmount).toBe(10);
+  });
+
   it('clamps a hostile negative quantity so the total never goes negative', () => {
     // A crafted negative quantity must contribute 0, not subtract from the order.
     const r = calculateOrderTotals([item(10, 2), item(5, -3)], 'none', 0, settings);

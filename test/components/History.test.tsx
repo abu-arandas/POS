@@ -8,7 +8,7 @@ import { useSettingsStore } from '../../src/stores/settingsStore';
 import { useTransactionStore } from '../../src/stores/transactionStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { usePinAttemptStore } from '../../src/stores/pinAttemptStore';
-import { hashPinSaltedSync } from '../../src/lib/hash';
+import { hashPinSaltedLegacySync } from '../../src/lib/hash';
 import { recordFailure, FREE_ATTEMPTS } from '../../src/lib/pinThrottle';
 import {
   SaleTransaction,
@@ -74,7 +74,7 @@ const SALE: SaleTransaction = {
 const staff = (over: Partial<UserAccount> & { id: string }): UserAccount => ({
   name: 'Mgr',
   role: 'manager',
-  pin: hashPinSaltedSync(over.id, '9999'),
+  pin: hashPinSaltedLegacySync(over.id, '9999'),
   active: true,
   createdAt: '2026-01-01',
   ...over,

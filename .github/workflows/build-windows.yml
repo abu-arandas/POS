@@ -1,10 +1,10 @@
-name: Build Windows Installer
-
 # Builds the native Windows installer (.exe) for EA POS on GitHub's own
 # windows-latest runner, which has the unrestricted internet access
 # electron-builder needs to fetch the Electron runtime + NSIS/winCodeSign
 # toolchain. The finished installer is uploaded as a workflow artifact and,
 # when the token allows, published as a GitHub Release asset for direct download.
+
+name: Build Windows Installer
 
 on:
   push:
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-windows:
@@ -55,10 +55,20 @@ jobs:
           path: release/EA-POS-Setup-*.exe
           if-no-files-found: error
 
+  publish-release:
+    if: github.event_name != 'pull_request'
+    needs: build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: EA-POS-Windows-Installer
+          path: release
+
       - name: Publish GitHub release with installer
-        # Only publish on pushes / manual runs — never on pull_request, so an
-        # unreviewed same-repo PR can't cut a release from its branch.
-        if: github.event_name != 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

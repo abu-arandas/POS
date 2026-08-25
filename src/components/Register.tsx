@@ -38,6 +38,8 @@ import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
+import { notify } from '../lib/notifications';
+import { askConfirmation, askText } from '../lib/dialogs';
 
 export default function Register() {
   const { t } = useTranslation();
@@ -75,17 +77,15 @@ export default function Register() {
   const [addCustomerOpen, setAddCustomerOpen] = useState<boolean>(false);
   const [receiptModalOpen, setReceiptModalOpen] = useState<boolean>(false);
   const [activeReceipt, setActiveReceipt] = useState<SaleTransaction | null>(null);
+  const [receiptPrinted, setReceiptPrinted] = useState(false);
 
-  // Auto-close receipt modal if auto-printing is enabled
+  // Auto-close only after the hardware transport confirms success. A failed
+  // print keeps the receipt visible so the operator can retry or use a backup.
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (receiptModalOpen && printerConfig.autoPrintOnCheckout) {
-      timer = setTimeout(() => {
-        setReceiptModalOpen(false);
-      }, 3000);
-    }
+    if (!receiptModalOpen || !receiptPrinted) return;
+    const timer = setTimeout(() => setReceiptModalOpen(false), 3000);
     return () => clearTimeout(timer);
-  }, [receiptModalOpen, printerConfig.autoPrintOnCheckout]);
+  }, [receiptModalOpen, receiptPrinted]);
 
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
@@ -239,11 +239,11 @@ export default function Register() {
     return () => clearTimeout(timer);
   }, [scanFeedback]);
 
-  const handleHoldOrder = useCallback(() => {
+  const handleHoldOrder = useCallback(async () => {
     if (cart.length === 0) return;
-    const label = window
-      .prompt(t('register.holdLabelPrompt'), new Date().toLocaleTimeString())
-      ?.trim();
+    const label = (
+      await askText(t('register.holdLabelPrompt'), new Date().toLocaleTimeString())
+    )?.trim();
     if (label === undefined || label === null) return; // cancelled
     holdOrder({
       label: label || new Date().toLocaleTimeString(),
@@ -274,18 +274,31 @@ export default function Register() {
   ]);
 
   const resumeHeldOrder = useCallback(
-    (order: HeldOrder) => {
-      if (cart.length > 0 && !window.confirm(t('register.resumeReplaceWarning'))) return;
+    async (order: HeldOrder) => {
+      if (cart.length > 0 && !(await askConfirmation(t('register.resumeReplaceWarning')))) return;
       // Rebuild the cart from the current catalog so prices/stock are live; drop
       // any line whose product no longer exists.
       const liveProducts = useProductStore.getState().products;
       const liveMap = new Map(liveProducts.map((p) => [p.id, p]));
+      const adjustedItems: string[] = [];
       const rebuilt = order.items
         .map((i) => {
           const product = liveMap.get(i.productId);
-          return product ? { product, quantity: Math.min(i.quantity, product.stock) } : null;
+          if (!product) {
+            adjustedItems.push(i.productName);
+            return null;
+          }
+          const quantity = Math.min(i.quantity, product.stock);
+          if (quantity !== i.quantity) adjustedItems.push(product.name);
+          return { product, quantity };
         })
         .filter((x): x is { product: Product; quantity: number } => x !== null && x.quantity > 0);
+      if (adjustedItems.length > 0) {
+        setScanFeedback({
+          ok: false,
+          text: t('register.heldOrderAdjusted', { items: adjustedItems.join(', ') }),
+        });
+      }
       setCart(rebuilt);
       setSelectedCustomerId(order.customerId);
       setDiscountType(order.discountType);
@@ -343,11 +356,11 @@ export default function Register() {
 
   const notifyPrint = useCallback(
     (outcome: HardwarePrintOutcome) => {
-      if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+      if (outcome === 'popup-blocked') notify(t('history.standardPrintBlocked'));
       else if (outcome === 'unsupported')
-        alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
-      else if (outcome === 'no-device') alert(t('print.noDevice'));
-      else if (outcome === 'error') alert(t('print.error'));
+        notify(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
+      else if (outcome === 'no-device') notify(t('print.noDevice'));
+      else if (outcome === 'error') notify(t('print.error'));
     },
     [t, printerConfig],
   );
@@ -375,9 +388,10 @@ export default function Register() {
 
     const outcome = buildSaleTransaction(req);
     if (!outcome.success) {
-      if (outcome.error === 'split-incomplete') alert(t('register.splitIncomplete'));
-      else if (outcome.error === 'split-non-cash-overpay') alert(t('register.splitNonCashOverpay'));
-      else if (outcome.error === 'insufficient-cash') alert(t('register.insufficientCash'));
+      if (outcome.error === 'split-incomplete') notify(t('register.splitIncomplete'));
+      else if (outcome.error === 'split-non-cash-overpay')
+        notify(t('register.splitNonCashOverpay'));
+      else if (outcome.error === 'insufficient-cash') notify(t('register.insufficientCash'));
       return;
     }
 
@@ -417,6 +431,7 @@ export default function Register() {
     );
 
     setActiveReceipt(transaction);
+    setReceiptPrinted(false);
     setCheckoutModalOpen(false);
     setReceiptModalOpen(true);
     clearCart();
@@ -426,7 +441,10 @@ export default function Register() {
 
     if (printerConfig.autoPrintOnCheckout) {
       printReceipt(transaction, settings, printerConfig, isCashSale, receiptLayout).then(
-        notifyPrint,
+        (outcome) => {
+          notifyPrint(outcome);
+          if (outcome === 'printed') setReceiptPrinted(true);
+        },
       );
     } else if (isCashSale) {
       openCashDrawer(printerConfig);
@@ -657,7 +675,11 @@ export default function Register() {
         currency={settings.currency}
         onClose={() => setHeldModalOpen(false)}
         onResume={resumeHeldOrder}
-        onRemove={removeHeldOrder}
+        onRemove={async (id) => {
+          if (await askConfirmation(t('register.deleteHeldConfirm', 'Delete this held order?'))) {
+            removeHeldOrder(id);
+          }
+        }}
       />
 
       <PaymentModal
@@ -704,6 +726,8 @@ export default function Register() {
         dialogRef={receiptModalRef}
         receipt={activeReceipt}
         settings={settings}
+        printerConfig={printerConfig}
+        receiptLayout={receiptLayout}
         showBarcode={printerConfig.showBarcode}
         actions={receiptActionsArray}
         onClose={() => setReceiptModalOpen(false)}

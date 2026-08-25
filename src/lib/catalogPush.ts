@@ -19,6 +19,7 @@ import { Product, Category } from '../types';
 export interface CatalogPushOptions {
   addNewProducts: boolean;
   updatePrices: boolean;
+  updateMetadata?: boolean;
   pushCategories: boolean;
 }
 
@@ -29,6 +30,7 @@ export interface CatalogPushPlan {
     categoriesAdded: number;
     productsAdded: number;
     pricesUpdated: number;
+    metadataUpdated: number;
     unchanged: number;
   };
 }
@@ -85,6 +87,7 @@ export function planCatalogPush(
   const productsToUpsert: Product[] = [];
   let productsAdded = 0;
   let pricesUpdated = 0;
+  let metadataUpdated = 0;
   let unchanged = 0;
 
   for (const sp of source.products) {
@@ -107,11 +110,35 @@ export function planCatalogPush(
         });
         productsAdded += 1;
       }
-    } else if (options.updatePrices && (match.price !== sp.price || match.cost !== sp.cost)) {
-      productsToUpsert.push({ ...match, price: sp.price, cost: sp.cost });
-      pricesUpdated += 1;
     } else {
-      unchanged += 1;
+      const priceChanged = match.price !== sp.price || match.cost !== sp.cost;
+      const metadataChanged =
+        options.updateMetadata === true &&
+        (match.name !== sp.name ||
+          match.category !== targetCat ||
+          match.sku !== sp.sku ||
+          match.minStock !== sp.minStock ||
+          match.image !== sp.image);
+
+      if ((options.updatePrices && priceChanged) || metadataChanged) {
+        productsToUpsert.push({
+          ...match,
+          ...(options.updatePrices && priceChanged ? { price: sp.price, cost: sp.cost } : {}),
+          ...(metadataChanged
+            ? {
+                name: sp.name,
+                category: targetCat,
+                sku: sp.sku,
+                minStock: sp.minStock,
+                image: sp.image,
+              }
+            : {}),
+        });
+        if (options.updatePrices && priceChanged) pricesUpdated += 1;
+        if (metadataChanged) metadataUpdated += 1;
+      } else {
+        unchanged += 1;
+      }
     }
   }
 
@@ -122,6 +149,7 @@ export function planCatalogPush(
       categoriesAdded: categoriesToUpsert.length,
       productsAdded,
       pricesUpdated,
+      metadataUpdated,
       unchanged,
     },
   };

@@ -72,6 +72,10 @@ BEGIN
 
     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', 'staff full access', tbl);
     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', 'staff manage users', tbl);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I', 'staff read users', tbl);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I', 'staff insert users', tbl);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I', 'staff update users', tbl);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I', 'staff delete users', tbl);
 
     EXECUTE format('DROP POLICY IF EXISTS %I ON %I', tbl || '_read', tbl);
     EXECUTE format(

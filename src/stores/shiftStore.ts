@@ -20,6 +20,10 @@ export const useShiftStore = create<ShiftState>()(
       currentShiftId: null,
 
       openShift: (openedBy, openingFloat) => {
+        const active = get().shifts.find(
+          (shift) => shift.id === get().currentShiftId && !shift.closedAt,
+        );
+        if (active) return active;
         const shift: Shift = {
           id: `shift-${shortId()}`,
           openedAt: new Date().toISOString(),

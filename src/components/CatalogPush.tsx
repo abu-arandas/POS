@@ -49,6 +49,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
   const [options, setOptions] = useState<CatalogPushOptions>({
     addNewProducts: true,
     updatePrices: true,
+    updateMetadata: true,
     pushCategories: true,
   });
   const [preview, setPreview] = useState<PreviewRow[] | null>(null);
@@ -261,6 +262,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                   [
                     ['addNewProducts', 'optAddProducts'],
                     ['updatePrices', 'optUpdatePrices'],
+                    ['updateMetadata', 'optUpdateMetadata'],
                     ['pushCategories', 'optPushCategories'],
                   ] as const
                 ).map(([k, label]) => (
@@ -325,6 +327,9 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                           {t('catalogPush.colPrices')}
                         </th>
                         <th className="text-end px-4 py-2 font-semibold">
+                          {t('catalogPush.colMetadata', 'Details')}
+                        </th>
+                        <th className="text-end px-4 py-2 font-semibold">
                           {t('catalogPush.colCategories')}
                         </th>
                         <th className="text-end px-6 py-2 font-semibold">
@@ -346,6 +351,9 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                           </td>
                           <td className="px-4 py-3 text-end font-mono text-blue-400">
                             {r.summary.pricesUpdated}
+                          </td>
+                          <td className="px-4 py-3 text-end font-mono text-cyan-400">
+                            {r.summary.metadataUpdated}
                           </td>
                           <td className="px-4 py-3 text-end font-mono text-violet-400">
                             +{r.summary.categoriesAdded}

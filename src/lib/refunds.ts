@@ -48,10 +48,8 @@ export function computeRefund(
   }
   if (refundLineSubtotal <= 0) return null; // nothing to refund
 
-  // This operation's share of the order subtotal — used to prorate earned
-  // points below. The refund *currency* is computed from cumulative boundaries
-  // further down so a piecewise return doesn't drift a cent per line.
-  const proportion = tx.subtotal > 0 ? refundLineSubtotal / tx.subtotal : 0;
+  // This operation's share is used only after cumulative boundaries are known;
+  // rounding each partial operation independently would make points drift.
 
   // Merge into cumulative refunded-items.
   const merged: Record<string, number> = {};
@@ -94,7 +92,14 @@ export function computeRefund(
   let pointsReversal = 0;
   if (tx.customerId) {
     const earned = tx.pointsEarned ?? Math.floor(tx.total * loyaltyPointsRate);
-    pointsReversal = -Math.round(earned * proportion);
+    const priorPoints =
+      tx.subtotal > 0 ? Math.round(earned * (priorRefundedSubtotal / tx.subtotal)) : 0;
+    const cumulativePoints = fullyRefunded
+      ? earned
+      : tx.subtotal > 0
+        ? Math.round(earned * ((priorRefundedSubtotal + refundLineSubtotal) / tx.subtotal))
+        : 0;
+    pointsReversal = -(cumulativePoints - priorPoints);
     if (fullyRefunded && tx.discountType === 'loyalty') {
       // Return only what the redeemed points were actually worth. Sales written
       // before checkout clamped this stored the *requested* point count, which can

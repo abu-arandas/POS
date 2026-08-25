@@ -48,11 +48,13 @@ const CustomTooltip = ({
   payload,
   label,
   currency,
+  valueType = 'currency',
 }: {
   active?: boolean;
   payload?: TooltipEntry[];
   label?: string;
   currency: string;
+  valueType?: 'currency' | 'number';
 }) => {
   if (active && payload && payload.length) {
     return (
@@ -63,8 +65,8 @@ const CustomTooltip = ({
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
             <span className="text-slate-500 dark:text-slate-400 capitalize">{entry.name}:</span>
             <span className="text-slate-900 dark:text-white font-bold">
-              {currency}
-              {Number(entry.value).toFixed(2)}
+              {valueType === 'currency' ? currency : ''}
+              {Number(entry.value).toFixed(valueType === 'currency' ? 2 : 0)}
             </span>
           </div>
         ))}
@@ -672,7 +674,7 @@ export default function Dashboard() {
                       axisLine={false}
                     />
                     <Tooltip
-                      content={<CustomTooltip currency={settings.currency} />}
+                      content={<CustomTooltip currency={settings.currency} valueType="number" />}
                       cursor={{ fill: '#1e293b', opacity: 0.4 }}
                     />
                     <Bar dataKey="quantity" radius={[0, 8, 8, 0]} barSize={28}>

@@ -27,7 +27,12 @@ const C = (over: Partial<Category>): Category => ({
   ...over,
 });
 
-const ALL: CatalogPushOptions = { addNewProducts: true, updatePrices: true, pushCategories: true };
+const ALL: CatalogPushOptions = {
+  addNewProducts: true,
+  updatePrices: true,
+  updateMetadata: false,
+  pushCategories: true,
+};
 
 // Deterministic id generator for assertions.
 function counter() {
@@ -60,6 +65,7 @@ describe('planCatalogPush', () => {
       categoriesAdded: 1,
       productsAdded: 2,
       pricesUpdated: 0,
+      metadataUpdated: 0,
       unchanged: 0,
     });
     const cat = plan.categoriesToUpsert[0];
@@ -85,12 +91,28 @@ describe('planCatalogPush', () => {
       categoriesAdded: 0,
       productsAdded: 0,
       pricesUpdated: 1,
+      metadataUpdated: 0,
       unchanged: 1,
     });
     const updated = plan.productsToUpsert[0];
     expect(updated.id).toBe('tp1'); // keeps the target's id
     expect(updated.price).toBe(4); // updated from source
-    expect(updated.name).toBe('Latte (old)'); // name is NOT overwritten on a price update
+    expect(updated.name).toBe('Latte (old)'); // metadata is opt-in
+  });
+
+  it('updates product metadata when the metadata option is enabled', () => {
+    const target = {
+      categories: [C({ id: 'tc1', name: 'Drinks' })],
+      products: [P({ id: 'tp1', name: 'Latte (old)', sku: 'L1', category: 'tc1', minStock: 1 })],
+    };
+    const plan = planCatalogPush(source, target, { ...ALL, updateMetadata: true }, counter());
+    expect(plan.summary.metadataUpdated).toBe(1);
+    expect(plan.productsToUpsert[0]).toMatchObject({
+      id: 'tp1',
+      name: 'Latte',
+      category: 'tc1',
+      minStock: 2,
+    });
   });
 
   it('honors options: prices off, adds off', () => {

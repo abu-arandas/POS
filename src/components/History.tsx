@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { SaleTransaction, Product, Customer } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { hashPin, hashPinSalted } from '../lib/hash';
+import { hashPinSalted, hashPinSaltedLegacy } from '../lib/hash';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
@@ -33,6 +33,7 @@ import { syncToCloudIfEnabled } from '../lib/sync';
 import { printTransactions } from '../lib/receiptPrinter';
 import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { computeRefund, refundableQuantities } from '../lib/refunds';
+import { notify } from '../lib/notifications';
 import { useModalA11y } from '../lib/useModalA11y';
 import { usePinAttemptStore } from '../stores/pinAttemptStore';
 import { lockoutStatus, formatRemaining } from '../lib/pinThrottle';
@@ -249,14 +250,14 @@ export default function History() {
     }
 
     const eligible = users.filter((u) => u.active && (u.role === 'manager' || u.role === 'admin'));
-    const [legacyHash, ...saltedHashes] = await Promise.all([
-      hashPin(overridePin),
-      ...eligible.map((u) => hashPinSalted(u.id, overridePin)),
+    const [saltedHashes, legacyHashes] = await Promise.all([
+      Promise.all(eligible.map((u) => hashPinSalted(u.id, overridePin))),
+      Promise.all(eligible.map((u) => hashPinSaltedLegacy(u.id, overridePin))),
     ]);
     let authorizedUser: (typeof eligible)[number] | undefined;
     for (let i = 0; i < eligible.length; i++) {
       const u = eligible[i];
-      if (u.pin === saltedHashes[i] || u.pin === legacyHash) {
+      if (u.pin === saltedHashes[i] || u.pin === legacyHashes[i]) {
         authorizedUser = u;
         break;
       }
@@ -285,11 +286,11 @@ export default function History() {
   };
 
   const notifyPrint = (outcome: HardwarePrintOutcome) => {
-    if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+    if (outcome === 'popup-blocked') notify(t('history.standardPrintBlocked'));
     else if (outcome === 'unsupported')
-      alert(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
-    else if (outcome === 'no-device') alert(t('print.noDevice'));
-    else if (outcome === 'error') alert(t('print.error'));
+      notify(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
+    else if (outcome === 'no-device') notify(t('print.noDevice'));
+    else if (outcome === 'error') notify(t('print.error'));
   };
 
   const handlePrintReceipt = async (tx: SaleTransaction) => {
@@ -319,7 +320,7 @@ export default function History() {
     const txsToPrint = transactions.filter((tx) => selectedTxIds.includes(tx.id));
     if (printerConfig.type === 'system') {
       const outcome = printTransactions(txsToPrint, settings, printerConfig, receiptLayout);
-      if (outcome === 'popup-blocked') alert(t('history.standardPrintBlocked'));
+      if (outcome === 'popup-blocked') notify(t('history.standardPrintBlocked'));
       return;
     }
     for (const tx of txsToPrint) {

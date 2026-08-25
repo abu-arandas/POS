@@ -20,7 +20,7 @@ export function toCsv(rows: Array<Record<string, unknown>>, columns?: string[]):
     const s = neutralizeFormula(v == null ? '' : String(v));
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const header = cols.join(',');
+  const header = cols.map((column) => esc(column)).join(',');
   const body = rows.map((r) => cols.map((c) => esc(r[c])).join(',')).join('\n');
   return `${header}\n${body}`;
 }
