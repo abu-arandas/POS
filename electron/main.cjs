@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const express = require('express');
+const { rateLimit } = require('express-rate-limit');
 const os = require('os');
 const net = require('net');
 const { fileURLToPath } = require('url');
@@ -103,6 +104,16 @@ function isValidPrinterPayload(payload) {
     isValidRawBytes(payload.data)
   );
 }
+
+const menuRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: 'Too many requests. Please try again later.',
+});
+
+expressApp.use(menuRateLimiter);
 
 expressApp.get('/api/menu', (req, res) => {
   res.json(menuData);

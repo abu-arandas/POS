@@ -35,6 +35,7 @@ import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
 import { notify } from '../lib/notifications';
 import { askConfirmation } from '../lib/dialogs';
+import { safeImageUrl } from '../lib/imageUrl';
 
 // Colors available for categories
 const categoryColors = [
@@ -750,9 +751,9 @@ export default function Inventory() {
                           >
                             <td className="py-4 px-6 flex items-center gap-4 truncate">
                               <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center text-xl">
-                                {prod.image ? (
+                                {safeImageUrl(prod.image) ? (
                                   <img
-                                    src={prod.image}
+                                    src={safeImageUrl(prod.image)}
                                     alt={prod.name}
                                     className="w-full h-full object-cover"
                                     referrerPolicy="no-referrer"
@@ -1460,9 +1461,9 @@ export default function Inventory() {
                     </label>
                     <div className="flex gap-4">
                       <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                        {prodImage ? (
+                        {safeImageUrl(prodImage) ? (
                           <img
-                            src={prodImage}
+                            src={safeImageUrl(prodImage)}
                             alt="Preview"
                             className="w-full h-full object-cover"
                           />
