@@ -7,12 +7,12 @@ export function safeImageUrl(value: unknown): string {
   if (typeof value !== 'string') return '';
   const raw = value.trim();
   if (!raw || raw.length > MAX_IMAGE_URL_LENGTH) return '';
-  if (IMAGE_DATA_URL_PATTERN.test(raw)) return raw;
+  if (IMAGE_DATA_URL_PATTERN.test(raw)) return encodeURI(raw);
   if (!/^https?:\/\//i.test(raw) && !(raw.startsWith('/') && !raw.startsWith('//'))) return '';
 
   try {
     const url = new URL(raw, window.location.origin);
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+    return url.protocol === 'http:' || url.protocol === 'https:' ? encodeURI(url.href) : '';
   } catch {
     return '';
   }
