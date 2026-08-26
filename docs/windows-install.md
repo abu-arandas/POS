@@ -20,22 +20,18 @@ The app installs per-machine with a desktop and Start Menu shortcut named
 
 ## The SmartScreen warning
 
-On an unsigned build, Windows shows:
+A public installer should be signed before it is distributed to customers. Windows shows the following warning for an unsigned build or for a signed build whose publisher has not established reputation yet:
 
 > **Windows protected your PC** — Microsoft Defender SmartScreen prevented an
 > unrecognized app from starting.
 
-Choose **More info → Run anyway**.
+For an unsigned internal artifact, choose **More info → Run anyway** only when you have independently verified the file and intended to test that build. Do not bypass this warning for a customer-facing release.
 
-This is expected when no code-signing certificate is configured, and it is not a
-sign that anything is wrong with the download — SmartScreen warns about any
-binary whose publisher it does not recognise. To verify you have the right file,
-compare it against the artifact attached to the workflow run that built it.
+This warning is expected when no trusted code-signing certificate is configured, and it does not by itself prove that the file is malicious. Verify the release URL, compare the SHA-256 checksum when one is provided, and inspect the publisher in **Properties → Digital Signatures**. Public Releases are now gated on successful Authenticode verification, but SmartScreen reputation can still take time to build for a newly signed publisher.
 
 ## Removing the warning permanently (code signing)
 
-Sign the installer and the warning goes away — immediately with an EV
-certificate, or gradually as reputation accrues with an OV certificate.
+Sign the installer with a trusted certificate. This gives Windows a recognized publisher; SmartScreen reputation may still build gradually for a new publisher, even when the signature is valid.
 
 Add two repository secrets (**Settings → Secrets and variables → Actions**):
 
@@ -44,9 +40,7 @@ Add two repository secrets (**Settings → Secrets and variables → Actions**):
 | `WINDOWS_CSC_LINK`         | The `.pfx` certificate, base64-encoded |
 | `WINDOWS_CSC_KEY_PASSWORD` | That certificate's password            |
 
-The workflow already passes both to `electron-builder` as `CSC_LINK` /
-`CSC_KEY_PASSWORD`. With the secrets absent the build simply produces an
-unsigned installer; nothing else about the build changes.
+The workflow already passes both to `electron-builder` as `CSC_LINK` / `CSC_KEY_PASSWORD`. It verifies the Authenticode signature on Windows before publishing a public GitHub Release. If either secret is absent, the build remains available as an unsigned workflow artifact for internal testing, but the workflow does not publish an unsigned public Release.
 
 To base64-encode the certificate:
 

@@ -19,6 +19,8 @@ permissions:
 jobs:
   build-windows:
     runs-on: windows-latest
+    outputs:
+      signed: ${{ steps.signing.outputs.signed }}
     steps:
       - uses: actions/checkout@v5
 
@@ -29,6 +31,19 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Check code-signing configuration
+        id: signing
+        shell: pwsh
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+        run: |
+          $configured = -not [string]::IsNullOrWhiteSpace($env:CSC_LINK) -and -not [string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)
+          "signed=$($configured.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          if (-not $configured) {
+            Write-Host "::warning::Windows Release publication is disabled because the code-signing certificate secrets are not configured. The workflow artifact will be unsigned."
+          }
 
       - name: Build renderer (Vite)
         run: npm run build
@@ -44,6 +59,18 @@ jobs:
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
         run: npx electron-builder --win --publish never
 
+      - name: Verify installer signature
+        if: steps.signing.outputs.signed == 'true'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release\\EA-POS-Setup-*.exe | Select-Object -First 1
+          if ($null -eq $installer) { throw "Installer was not produced." }
+          $signature = Get-AuthenticodeSignature -FilePath $installer.FullName
+          if ($signature.Status -ne 'Valid') {
+            throw "Installer signature is not valid: $($signature.Status)"
+          }
+          Write-Host "Verified publisher: $($signature.SignerCertificate.Subject)"
+
       - name: List build output
         shell: bash
         run: ls -la release/
@@ -56,7 +83,7 @@ jobs:
           if-no-files-found: error
 
   publish-release:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.build-windows.outputs.signed == 'true'
     needs: build-windows
     runs-on: ubuntu-latest
     permissions:
@@ -79,5 +106,5 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "EA POS Windows Installer (build ${{ github.run_number }})" \
-            --notes "Automated Windows installer built from ${GITHUB_SHA}. If no code-signing certificate is configured (repo secrets WINDOWS_CSC_LINK / WINDOWS_CSC_KEY_PASSWORD), the binary is unsigned and Windows SmartScreen may warn on first run — choose More info → Run anyway. See docs/windows-install.md to remove the warning permanently." \
+            --notes "Automated signed Windows installer built from ${GITHUB_SHA}. The public Release is published only after Authenticode signature verification succeeds. See docs/windows-install.md for certificate configuration." \
           || echo "::warning::Release publish skipped (token lacks contents:write). Download the installer from this run's artifacts instead."
