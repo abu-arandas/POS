@@ -20,7 +20,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     outputs:
-      signed: ${{ steps.signing.outputs.signed }}
+      signing_configured: ${{ steps.signing.outputs.configured }}
     steps:
       - uses: actions/checkout@v5
 
@@ -40,7 +40,7 @@ jobs:
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
         run: |
           $configured = -not [string]::IsNullOrWhiteSpace($env:CSC_LINK) -and -not [string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)
-          "signed=$($configured.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          "configured=$($configured.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
           if (-not $configured) {
             Write-Host "::warning::Windows Release publication is disabled because the code-signing certificate secrets are not configured. The workflow artifact will be unsigned."
           }
@@ -53,14 +53,14 @@ jobs:
           # When a code-signing certificate is provided as repository secrets the
           # installer is signed automatically — this is what stops Windows
           # SmartScreen from warning (immediately with an EV cert, or as
-          # reputation builds with an OV cert). Without the secrets the build is
-          # simply unsigned; nothing else changes. See docs/windows-install.md.
+          # reputation builds with an OV cert). Unsigned builds remain available
+          # only as workflow artifacts; public Releases require signature verification.
           CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
         run: npx electron-builder --win --publish never
 
       - name: Verify installer signature
-        if: steps.signing.outputs.signed == 'true'
+        if: steps.signing.outputs.configured == 'true'
         shell: pwsh
         run: |
           $installer = Get-ChildItem release\\EA-POS-Setup-*.exe | Select-Object -First 1
@@ -83,7 +83,7 @@ jobs:
           if-no-files-found: error
 
   publish-release:
-    if: github.event_name != 'pull_request' && needs.build-windows.outputs.signed == 'true'
+    if: github.event_name != 'pull_request' && needs.build-windows.outputs.signing_configured == 'true'
     needs: build-windows
     runs-on: ubuntu-latest
     permissions:
