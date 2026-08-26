@@ -48,11 +48,28 @@ To base64-encode the certificate:
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("cert.pfx")) | Set-Clipboard
 ```
 
-## Signing also gates automatic updates
+## Automatic updates from signed GitHub Releases
 
-This matters more than the SmartScreen prompt.
+The packaged application uses `electron-updater` with the GitHub provider configured in `package.json` for `abu-arandas/POS`. Each release must use a new semantic application version in `package.json`; changing only the Git tag or workflow run number is not enough because electron-updater compares application versions.
 
-`electron-updater` only actually **verifies** a downloaded update's signature
+The Windows workflow publishes the signed installer together with `latest.yml` and the generated blockmap file. Those metadata files are required by electron-updater to discover the latest version, verify the download hash, and resume large downloads safely. The workflow refuses to publish a public Release unless signing is configured and the installer’s Authenticode signature is valid.
+
+At startup, the packaged app checks for updates and then repeats the check once every 24 hours. It downloads an available update automatically. When `app-update.yml` contains the publisher identity produced by the signing configuration, the updater is permitted to install the staged update on application exit. If the publisher identity is absent, the update is staged but installation waits for an explicit operator action through the app’s `install-update` IPC path.
+
+For a new release, update the version, run the normal checks, and push to `main`:
+
+```bash
+npm version patch --no-git-tag-version
+npm ci
+npm run lint
+npm test
+npm run build
+```
+
+Commit the version change and push it. The Windows workflow then builds the installer, verifies its signature, publishes the installer plus update metadata, and creates the GitHub Release. The installed application will discover the newer semantic version during its next startup check or daily check.
+
+`electron-updater` only actually **verifies**
+a downloaded update's signature
 when a `publisherName` is baked into `app-update.yml` — see
 `NsisUpdater#verifySignature`, which returns `null` (read by the caller as "no
 problem") when `publisherName` is unset. `win.verifyUpdateCodeSignature`

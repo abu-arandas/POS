@@ -79,7 +79,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: EA-POS-Windows-Installer
-          path: release/EA-POS-Setup-*.exe
+          path: |
+            release/EA-POS-Setup-*.exe
+            release/latest.yml
+            release/*.blockmap
           if-no-files-found: error
 
   publish-release:
@@ -101,10 +104,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="win-build-${{ github.run_number }}"
-          gh release create "$tag" \
-            release/EA-POS-Setup-*.exe \
+          shopt -s nullglob
+          assets=(release/EA-POS-Setup-*.exe release/latest.yml release/*.blockmap)
+          if (( ${#assets[@]} < 2 )); then
+            echo "::error::Missing installer or Electron update metadata in release/."
+            exit 1
+          fi
+          gh release create "$tag" "${assets[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "EA POS Windows Installer (build ${{ github.run_number }})" \
-            --notes "Automated signed Windows installer built from ${GITHUB_SHA}. The public Release is published only after Authenticode signature verification succeeds. See docs/windows-install.md for certificate configuration." \
+            --notes "Automated signed Windows installer built from ${GITHUB_SHA}. The public Release includes the installer, latest.yml, and blockmap metadata required by electron-updater. Authenticode signature verification succeeded. See docs/windows-install.md for certificate configuration." \
           || echo "::warning::Release publish skipped (token lacks contents:write). Download the installer from this run's artifacts instead."
