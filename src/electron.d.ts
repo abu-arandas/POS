@@ -36,7 +36,7 @@ declare global {
     // Undefined in a plain browser.
     electronAPI?: {
       // LAN address + actual port of the embedded QR-menu server.
-      getMenuInfo: () => Promise<{ ip: string; port: number }>;
+      getMenuInfo: () => Promise<{ ip: string; port: number; running?: boolean }>;
       updateMenuData: (data: {
         products: PublicMenuProduct[];
         categories: PublicMenuCategory[];

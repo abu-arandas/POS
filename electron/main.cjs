@@ -8,6 +8,7 @@ const os = require('os');
 const net = require('net');
 const { fileURLToPath } = require('url');
 const { hasPublisherName, resolveUpdatePolicy } = require('./updatePolicy.cjs');
+const { selectLocalIp, pickListenHost, shouldRebindMenuServer } = require('./menuServer.cjs');
 const {
   MAX_MENU_DATA_BYTES,
   isValidRawBytes,
@@ -51,23 +52,30 @@ expressApp.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'menu.html'));
 });
 
-// The port actually bound (null until the server is up). Starts at 3001 and
-// walks forward when the port is taken — an unhandled 'listen' error would
-// otherwise crash the whole app (EADDRINUSE is an async 'error' event).
+// The port and address actually bound (null until the server is up). The port
+// starts at 3001 and walks forward when it is taken — an unhandled 'listen'
+// error would otherwise crash the whole app (EADDRINUSE is an async 'error'
+// event).
 let serverPort = null;
+let boundHost = null;
+let menuServer = null;
 
 function startMenuServer(port, attemptsLeft) {
   const host = getLocalIp();
-  const listenHost = host === 'localhost' ? '127.0.0.1' : host;
-  const server = expressApp.listen(port, listenHost, () => {
+  const server = expressApp.listen(port, pickListenHost(host), () => {
+    menuServer = server;
     serverPort = port;
-    console.log(`Menu Express server listening on port ${port}`);
+    boundHost = host;
+    console.log(`Menu Express server listening on ${host}:${port}`);
   });
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE' && attemptsLeft > 0) {
       console.warn(`Port ${port} in use, trying ${port + 1}…`);
       startMenuServer(port + 1, attemptsLeft - 1);
     } else {
+      menuServer = null;
+      serverPort = null;
+      boundHost = null;
       console.error('Menu server failed to start:', err.message);
       if (mainWindow) {
         mainWindow.webContents.send(
@@ -82,49 +90,39 @@ function startMenuServer(port, attemptsLeft) {
 startMenuServer(3001, 10);
 
 function getLocalIp() {
-  const interfaces = os.networkInterfaces();
+  return selectLocalIp(os.networkInterfaces());
+}
 
-  // 1. Prioritize typical physical adapter names (ignore virtual ones)
-  for (const name of Object.keys(interfaces)) {
-    const lowerName = name.toLowerCase();
-    if (
-      lowerName.includes('veth') ||
-      lowerName.includes('virtual') ||
-      lowerName.includes('tailscale') ||
-      lowerName.includes('wg') ||
-      lowerName.includes('vmware')
-    ) {
-      continue;
-    }
-    if (
-      lowerName.includes('eth') ||
-      lowerName.includes('en') ||
-      lowerName.includes('wlan') ||
-      lowerName.includes('wi-fi') ||
-      lowerName.includes('ethernet')
-    ) {
-      for (const iface of interfaces[name]) {
-        if (iface.family === 'IPv4' && !iface.internal && isPrivateIPv4(iface.address)) {
-          return iface.address;
-        }
-      }
-    }
-  }
+// The bound address and the advertised one must not drift apart. A DHCP renewal
+// or a move from wifi to ethernet leaves the server listening on an address the
+// machine no longer has, while the QR code is drawn from the current one — so
+// the code resolves to nowhere and the menu silently stops working. Checked
+// whenever the renderer asks for the menu address, which is exactly when a QR
+// code is about to be produced.
+function ensureMenuServerAddress() {
+  const currentHost = getLocalIp();
+  if (!shouldRebindMenuServer({ boundHost, currentHost })) return;
 
-  // 2. Fallback to any non-internal IPv4
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
-      // Skip over non-ipv4 and internal (i.e. 127.0.0.1) addresses
-      if (iface.family === 'IPv4' && !iface.internal && isPrivateIPv4(iface.address)) {
-        return iface.address;
-      }
-    }
-  }
-  return 'localhost';
+  console.log(`Menu server address changed (${boundHost} -> ${currentHost}); rebinding.`);
+  const previous = menuServer;
+  menuServer = null;
+  boundHost = null;
+  serverPort = null;
+  if (previous) previous.close();
+  startMenuServer(3001, 10);
 }
 
 ipcMain.handle('get-menu-info', () => {
-  return { ip: getLocalIp(), port: serverPort ?? 3001 };
+  ensureMenuServerAddress();
+  // `running` distinguishes "listening on 3001" from "never started" — the
+  // previous `serverPort ?? 3001` reported the default port either way, so a
+  // server that failed to bind still produced a confident QR code for an
+  // endpoint nothing was serving.
+  return {
+    ip: boundHost ?? getLocalIp(),
+    port: serverPort ?? 3001,
+    running: serverPort !== null,
+  };
 });
 
 ipcMain.on('update-menu-data', (event, data) => {
