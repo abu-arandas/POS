@@ -5,6 +5,9 @@ import { createRequire } from 'node:module';
 // loaded the way Electron itself loads it.
 const require = createRequire(import.meta.url);
 const {
+  MAX_MENU_DATA_BYTES,
+  MAX_MENU_LABEL_LENGTH,
+  MAX_MENU_IMAGE_LENGTH,
   isIPv4,
   isPrivateIPv4,
   isValidRawBytes,
@@ -161,5 +164,45 @@ describe('isSafeMenuData', () => {
   it('bounds how many records the privileged process will walk', () => {
     const product = menu.products[0];
     expect(isSafeMenuData({ ...menu, products: new Array(5_001).fill(product) })).toBe(false);
+  });
+
+  it('holds labels to a label-sized bound', () => {
+    const name = 'x'.repeat(MAX_MENU_LABEL_LENGTH);
+    expect(isSafeMenuData({ ...menu, products: [{ ...menu.products[0], name }] })).toBe(true);
+    expect(isSafeMenuData({ ...menu, products: [{ ...menu.products[0], name: name + 'x' }] })).toBe(
+      false,
+    );
+  });
+
+  it('lets an uploaded logo through at a size a real logo actually is', () => {
+    // FileReader.readAsDataURL turns even a small PNG into far more than a
+    // label's worth of characters; a 16 KB bound rejected the whole payload and
+    // froze the QR menu.
+    const storeLogo = `data:image/png;base64,${'A'.repeat(64 * 1024)}`;
+    expect(isSafeMenuData({ ...menu, settings: { ...menu.settings, storeLogo } })).toBe(true);
+
+    const huge = 'A'.repeat(MAX_MENU_IMAGE_LENGTH + 1);
+    expect(isSafeMenuData({ ...menu, settings: { ...menu.settings, storeLogo: huge } })).toBe(
+      false,
+    );
+  });
+
+  it('stops walking once the payload cannot fit the serialized-size limit', () => {
+    // Per-field bounds alone would bless 5,000 half-megabyte images — gigabytes
+    // that main.cjs only rejects after JSON.stringify has built the string.
+    const image = 'A'.repeat(MAX_MENU_IMAGE_LENGTH);
+    const fat = Array.from({ length: 32 }, (_, i) => ({
+      ...menu.products[0],
+      id: `p${i}`,
+      image,
+    }));
+    expect(32 * MAX_MENU_IMAGE_LENGTH).toBeGreaterThan(MAX_MENU_DATA_BYTES);
+    expect(isSafeMenuData({ ...menu, products: fat })).toBe(false);
+
+    // Just under the budget still passes, so the guard is a ceiling and not a
+    // blanket ban on image-heavy menus.
+    const lean = fat.slice(0, 9);
+    expect(9 * MAX_MENU_IMAGE_LENGTH).toBeLessThan(MAX_MENU_DATA_BYTES);
+    expect(isSafeMenuData({ ...menu, products: lean })).toBe(true);
   });
 });

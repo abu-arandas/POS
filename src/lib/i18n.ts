@@ -264,6 +264,8 @@ const en = {
       pullFailed: 'Pull failed. Check the console for details.',
       pullPartial:
         'Pull incomplete — these tables failed to load and were left unchanged: {{tables}}',
+      cloudDeleteFailed:
+        'Deleted here, but the cloud copy could not be removed. Those records may reappear on the next pull.',
       statusConnected: 'Connected',
       statusDisconnected: 'Disconnected',
       statusError: 'Error',
@@ -1125,6 +1127,8 @@ const ar = {
       pullSuccess: 'تم استبدال البيانات المحلية بنسخة السحابة.',
       pullFailed: 'فشل الجلب. راجع وحدة التحكم للتفاصيل.',
       pullPartial: 'الجلب غير مكتمل — فشل تحميل هذه الجداول وتُركت دون تغيير: {{tables}}',
+      cloudDeleteFailed:
+        'تم الحذف محليًا، لكن تعذّر حذف النسخة السحابية. قد تظهر هذه السجلات مجددًا عند الجلب التالي.',
       statusConnected: 'متصل',
       statusDisconnected: 'غير متصل',
       statusError: 'خطأ',

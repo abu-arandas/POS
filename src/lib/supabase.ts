@@ -338,25 +338,33 @@ export type SyncTable = 'products' | 'categories' | 'customers' | 'transactions'
 // any URL limit.
 export const DELETE_CHUNK_SIZE = 500;
 
+// A chunked delete is not one transaction, so a failure part-way through leaves
+// the earlier chunks already deleted. Every remaining chunk is still attempted
+// rather than abandoned: the local rows are gone either way, so each chunk that
+// does land is a row that will not resurrect on the next Pull From Cloud.
+// Returns false if any chunk failed — callers must not read that as "nothing
+// was deleted".
 export async function deleteRowsSupabase(
   client: SupabaseClient,
   table: SyncTable,
   ids: string[],
 ): Promise<boolean> {
   if (ids.length === 0) return true;
-  try {
-    for (let i = 0; i < ids.length; i += DELETE_CHUNK_SIZE) {
-      const { error } = await client
-        .from(table)
-        .delete()
-        .in('id', ids.slice(i, i + DELETE_CHUNK_SIZE));
+  let failedRows = 0;
+  for (let i = 0; i < ids.length; i += DELETE_CHUNK_SIZE) {
+    const chunk = ids.slice(i, i + DELETE_CHUNK_SIZE);
+    try {
+      const { error } = await client.from(table).delete().in('id', chunk);
       if (error) throw error;
+    } catch (err) {
+      failedRows += chunk.length;
+      console.error(`Failed deleting ${chunk.length} row(s) from ${table}:`, err);
     }
-    return true;
-  } catch (err) {
-    console.error(`Failed deleting ${table}:`, err);
-    return false;
   }
+  if (failedRows > 0) {
+    console.error(`${failedRows} of ${ids.length} ${table} row(s) survive in the cloud.`);
+  }
+  return failedRows === 0;
 }
 
 // Pull transactions

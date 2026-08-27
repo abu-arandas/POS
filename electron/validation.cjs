@@ -18,7 +18,16 @@
 
 const MAX_MENU_DATA_BYTES = 5 * 1024 * 1024;
 const MAX_MENU_RECORDS = 5_000;
-const MAX_MENU_STRING_LENGTH = 16_384;
+// Two bounds, because the fields are not alike. Everything on a menu except
+// the pictures is a label — a name, a category, a CSS class — and a 16 KB
+// "name" is an attack, not a product. Images and the store logo, on the other
+// hand, arrive as data: URLs from FileReader.readAsDataURL, and an ordinary
+// uploaded logo clears 16 KB easily; bounding them that tightly rejected the
+// whole payload and froze the QR menu with nothing but a main-process log to
+// say why. The aggregate budget in isSafeMenuData is what actually caps the
+// payload, so the per-image bound only has to stop one field from eating it.
+const MAX_MENU_LABEL_LENGTH = 512;
+const MAX_MENU_IMAGE_LENGTH = 512 * 1024;
 const MAX_RAW_PRINT_BYTES = 1_000_000;
 
 function isPlainObject(value) {
@@ -27,7 +36,7 @@ function isPlainObject(value) {
   return proto === Object.prototype || proto === null;
 }
 
-function isBoundedString(value, max = MAX_MENU_STRING_LENGTH) {
+function isBoundedString(value, max = MAX_MENU_LABEL_LENGTH) {
   return typeof value === 'string' && value.length <= max;
 }
 
@@ -71,33 +80,54 @@ function isValidPrinterPayload(payload) {
 // The menu endpoint is served over the LAN to anyone who scans the QR code, so
 // the main process accepts only the documented customer-safe shape — never
 // cost, stock counts, or the rest of the store settings.
+//
+// Order matters here. The cheap gates — object shape, array-ness, record counts
+// — run first so a hostile payload is thrown out before anything walks it. Then
+// the walk carries a running byte budget, because per-field bounds alone still
+// admit 5,000 records x half a megabyte of image data, which main.cjs would
+// only reject after JSON.stringify had already built the whole string. A JS
+// string's `length` is never greater than its UTF-8 byte length, so blowing the
+// budget in characters proves the payload blows it in bytes — nothing that
+// would have been accepted downstream is rejected here.
 function isSafeMenuData(data) {
   if (!isPlainObject(data)) return false;
   const { products, categories, settings } = data;
   if (!Array.isArray(products) || products.length > MAX_MENU_RECORDS) return false;
   if (!Array.isArray(categories) || categories.length > MAX_MENU_RECORDS) return false;
   if (!isPlainObject(settings)) return false;
-  if (!isBoundedString(settings.storeName) || !isBoundedString(settings.currency)) return false;
-  if (settings.storeLogo !== undefined && !isBoundedString(settings.storeLogo)) return false;
+
+  let budget = MAX_MENU_DATA_BYTES;
+  // Charges a string against the budget once its own length bound passes.
+  const spend = (value, max) => {
+    if (!isBoundedString(value, max)) return false;
+    budget -= value.length;
+    return budget >= 0;
+  };
+
+  if (!spend(settings.storeName, MAX_MENU_LABEL_LENGTH)) return false;
+  if (!spend(settings.currency, MAX_MENU_LABEL_LENGTH)) return false;
+  if (settings.storeLogo !== undefined && !spend(settings.storeLogo, MAX_MENU_IMAGE_LENGTH)) {
+    return false;
+  }
 
   return (
     products.every(
       (product) =>
         isPlainObject(product) &&
-        isBoundedString(product.id) &&
-        isBoundedString(product.name) &&
-        isBoundedString(product.category) &&
-        isBoundedString(product.image) &&
         typeof product.price === 'number' &&
         Number.isFinite(product.price) &&
-        typeof product.inStock === 'boolean',
+        typeof product.inStock === 'boolean' &&
+        spend(product.id, MAX_MENU_LABEL_LENGTH) &&
+        spend(product.name, MAX_MENU_LABEL_LENGTH) &&
+        spend(product.category, MAX_MENU_LABEL_LENGTH) &&
+        spend(product.image, MAX_MENU_IMAGE_LENGTH),
     ) &&
     categories.every(
       (category) =>
         isPlainObject(category) &&
-        isBoundedString(category.id) &&
-        isBoundedString(category.name) &&
-        isBoundedString(category.color),
+        spend(category.id, MAX_MENU_LABEL_LENGTH) &&
+        spend(category.name, MAX_MENU_LABEL_LENGTH) &&
+        spend(category.color, MAX_MENU_LABEL_LENGTH),
     )
   );
 }
@@ -105,7 +135,8 @@ function isSafeMenuData(data) {
 module.exports = {
   MAX_MENU_DATA_BYTES,
   MAX_MENU_RECORDS,
-  MAX_MENU_STRING_LENGTH,
+  MAX_MENU_LABEL_LENGTH,
+  MAX_MENU_IMAGE_LENGTH,
   MAX_RAW_PRINT_BYTES,
   isPlainObject,
   isBoundedString,

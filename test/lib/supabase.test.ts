@@ -120,17 +120,29 @@ describe('deleteRowsSupabase', () => {
     }
   });
 
-  it('stops and reports failure when a chunk errors', async () => {
+  it('reports failure but still attempts every remaining chunk', async () => {
+    // The local rows are already deleted, so abandoning the rest of the chunks
+    // would strand them in the cloud to resurrect on the next pull for nothing.
     const inFn = vi
       .fn()
       .mockResolvedValueOnce({ error: null })
-      .mockResolvedValueOnce({ error: { message: 'boom' } });
+      .mockResolvedValueOnce({ error: { message: 'boom' } })
+      .mockResolvedValueOnce({ error: null });
     const del = vi.fn().mockReturnValue({ in: inFn });
     const client = { from: vi.fn().mockReturnValue({ delete: del }) } as unknown as SupabaseClient;
 
     const ids = Array.from({ length: DELETE_CHUNK_SIZE * 3 }, (_, i) => `tx-${i}`);
     await expect(deleteRowsSupabase(client, 'transactions', ids)).resolves.toBe(false);
-    expect(inFn).toHaveBeenCalledTimes(2); // did not continue past the failure
+    expect(inFn).toHaveBeenCalledTimes(3);
+    expect(inFn.mock.calls.flatMap((call) => call[1] as string[])).toEqual(ids);
+  });
+
+  it('reports failure when the request itself rejects, not just on an error result', async () => {
+    const inFn = vi.fn().mockRejectedValue(new Error('network down'));
+    const del = vi.fn().mockReturnValue({ in: inFn });
+    const client = { from: vi.fn().mockReturnValue({ delete: del }) } as unknown as SupabaseClient;
+
+    await expect(deleteRowsSupabase(client, 'products', ['p1', 'p2'])).resolves.toBe(false);
   });
 
   it('makes no request at all for an empty id list', async () => {

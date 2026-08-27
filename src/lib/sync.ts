@@ -18,6 +18,8 @@ import {
 } from './supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useSettingsStore } from '../stores/settingsStore';
+import { notify } from './notifications';
+import i18n from './i18n';
 import { Product, Category, Customer, SaleTransaction, UserAccount } from '../types';
 
 // Signs the client in with the configured device account (no-op when none is
@@ -163,29 +165,46 @@ export const pullAllFromCloud = async (
 
 // Propagates a local deletion to the cloud when live sync is enabled. Without
 // this, deleted rows survive in Supabase and reappear on the next Pull.
-const deleteFromCloudIfEnabled = async (table: SyncTable, ids: string[]) => {
+const deleteFromCloudIfEnabled = async (table: SyncTable, ids: string[]): Promise<boolean> => {
   const { supabaseConfig } = useSettingsStore.getState();
-  if (!supabaseConfig.enabled || !supabaseConfig.url || !supabaseConfig.anonKey) return;
-  if (!ids || ids.length === 0) return;
+  if (!supabaseConfig.enabled || !supabaseConfig.url || !supabaseConfig.anonKey) return true;
+  if (!ids || ids.length === 0) return true;
 
   const client = getSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
-  if (!client) return;
+  if (!client) return false;
 
   try {
     await ensureDeviceSession(client);
-    await deleteRowsSupabase(client, table, ids);
   } catch (err) {
+    // Not being able to reach Supabase at all is ordinary offline behaviour
+    // that the rest of the app already tolerates quietly.
     console.warn('Background live sync delete postponed:', err);
+    return false;
   }
+
+  const deleted = await deleteRowsSupabase(client, table, ids);
+  if (!deleted) {
+    // The local rows are already gone. If the cloud copy survives, the next
+    // Pull From Cloud silently brings them back and the user has no idea why —
+    // so a rejected delete is worth saying out loud instead of swallowing.
+    notify(
+      i18n.t(
+        'settings.cloudDeleteFailed',
+        'Deleted here, but the cloud copy could not be removed. Those records may reappear on the next pull.',
+      ),
+      'error',
+    );
+  }
+  return deleted;
 };
 
-export const deleteTransactionsCloudIfEnabled = (ids: string[]) =>
+export const deleteTransactionsCloudIfEnabled = (ids: string[]): Promise<boolean> =>
   deleteFromCloudIfEnabled('transactions', ids);
-export const deleteProductsCloudIfEnabled = (ids: string[]) =>
+export const deleteProductsCloudIfEnabled = (ids: string[]): Promise<boolean> =>
   deleteFromCloudIfEnabled('products', ids);
-export const deleteCategoriesCloudIfEnabled = (ids: string[]) =>
+export const deleteCategoriesCloudIfEnabled = (ids: string[]): Promise<boolean> =>
   deleteFromCloudIfEnabled('categories', ids);
-export const deleteCustomersCloudIfEnabled = (ids: string[]) =>
+export const deleteCustomersCloudIfEnabled = (ids: string[]): Promise<boolean> =>
   deleteFromCloudIfEnabled('customers', ids);
-export const deleteUsersCloudIfEnabled = (ids: string[]) =>
+export const deleteUsersCloudIfEnabled = (ids: string[]): Promise<boolean> =>
   deleteFromCloudIfEnabled('user_accounts', ids);

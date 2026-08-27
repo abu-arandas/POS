@@ -247,20 +247,22 @@
           .replace(/'/g, '&#39;');
       }
 
-      // Mirrors src/lib/imageUrl.ts. Raster data URLs only — image/svg+xml is
-      // deliberately excluded, because an SVG is a document that can carry
-      // script, and this page is served over the LAN to anyone who scans the
-      // QR code. The app-side copy has a test asserting that rejection; keep
-      // the two in step.
+      // Mirrors src/lib/imageUrl.ts — keep the two in step. Both outputs are
+      // only ever assigned to an <img src>, where SVG loads in a restricted
+      // mode: no script execution, no external fetches. The app generates its
+      // own product thumbnails as `data:image/svg+xml,<url-encoded>`, so
+      // rejecting that format blanked every seeded thumbnail on this page.
       const MAX_IMAGE_URL_LENGTH = 4096;
-      const IMAGE_DATA_URL_PATTERN =
+      const RASTER_DATA_URL_PATTERN =
         /^data:image\/(?:png|jpe?g|gif|webp|avif|bmp);(?:charset=[^;,]+;)?base64,[a-z0-9+/=\s]+$/i;
+      const SVG_DATA_URL_PATTERN =
+        /^data:image\/svg\+xml(?:;charset=[\w-]+)?(?:;base64)?,[a-z0-9%+/=._~!*'()\s-]*$/i;
 
       function safeImageUrl(value) {
         if (typeof value !== 'string') return '';
         const raw = value.trim();
         if (!raw || raw.length > MAX_IMAGE_URL_LENGTH) return '';
-        if (IMAGE_DATA_URL_PATTERN.test(raw)) return encodeURI(raw);
+        if (RASTER_DATA_URL_PATTERN.test(raw) || SVG_DATA_URL_PATTERN.test(raw)) return raw;
         try {
           const url = new URL(raw, window.location.origin);
           return url.protocol === 'http:' || url.protocol === 'https:' ? encodeURI(url.href) : '';
