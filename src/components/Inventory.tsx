@@ -204,7 +204,7 @@ export default function Inventory() {
     if (!product || !qty) return; // allows negative if reason is waste
     const newStock = product.stock + qty;
     if (newStock < 0) {
-      notify('Stock cannot be negative.');
+      notify(t('inventory.stockCannotBeNegative'));
       return;
     }
     const updated = { ...product, stock: newStock };
@@ -239,6 +239,7 @@ export default function Inventory() {
     currentUser,
     handleUpdateProduct,
     logAdjustment,
+    t,
   ]);
 
   const handleAddSupplier = useCallback(
@@ -274,7 +275,9 @@ export default function Inventory() {
   // Category Add State
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [newCatName, setNewCatName] = useState('');
-  const [newCatColor, setNewCatColor] = useState('bg-blue-100 text-blue-800 border-blue-200');
+  // Must be one of categoryColors, or the picker shows nothing selected and a
+  // category saved without touching it stores a class the badge styles ignore.
+  const [newCatColor, setNewCatColor] = useState(categoryColors[0].class);
 
   const productModalRef = useModalA11y(productModalOpen, () => setProductModalOpen(false));
   const categoryModalRef = useModalA11y(categoryModalOpen, () => setCategoryModalOpen(false));
@@ -378,6 +381,7 @@ export default function Inventory() {
     const added = handleAddCategory(newCatName.trim(), newCatColor);
     syncToCloudIfEnabled(undefined, [added]);
     setNewCatName('');
+    setNewCatColor(categoryColors[0].class);
     setCategoryModalOpen(false); // only close if not inline, but we want inline behavior to stay same for states
   };
 
@@ -481,7 +485,7 @@ export default function Inventory() {
               id="print-labels-btn"
               onClick={handlePrintLabels}
               disabled={sortedAndFilteredProducts.length === 0}
-              className="glass dark:glass-dark hover:bg-slate-100 dark:bg-slate-800 disabled:opacity-40 text-slate-900 dark:text-white font-sans font-bold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all"
+              className="glass dark:glass-dark hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-slate-900 dark:text-white font-sans font-bold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all"
               title={t('inventory.printLabelsHint')}
             >
               <Tag size={18} />
@@ -496,7 +500,7 @@ export default function Inventory() {
                 setRecvProductId(products[0]?.id || '');
                 setReceiveOpen(true);
               }}
-              className="glass dark:glass-dark hover:bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-sans font-bold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all"
+              className="glass dark:glass-dark hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-sans font-bold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all"
             >
               <PackagePlus size={18} />
               <span className="hidden sm:inline">{t('inventory.receiveStock')}</span>
@@ -515,7 +519,7 @@ export default function Inventory() {
                       ? handleOpenPoModal
                       : () => setSupplierModalOpen(true)
               }
-              className="bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-sans font-bold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-bold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
             >
               <Plus size={18} />
               <span>
@@ -547,7 +551,7 @@ export default function Inventory() {
             className={`pb-3 text-sm font-semibold transition-colors relative z-10 ${
               activeTab === tab.id
                 ? 'text-emerald-500'
-                : 'text-slate-500 hover:text-slate-600 dark:text-slate-300'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
             }`}
           >
             {tab.label}
@@ -677,7 +681,7 @@ export default function Inventory() {
                       >
                         <button
                           onClick={() => toggleSort('sku')}
-                          className="flex items-center gap-2 hover:text-white transition-colors"
+                          className="flex items-center gap-2 hover:text-slate-900 dark:hover:text-white transition-colors"
                         >
                           {t('inventory.sku')} <ArrowUpDown size={12} />
                         </button>
@@ -697,7 +701,7 @@ export default function Inventory() {
                       >
                         <button
                           onClick={() => toggleSort('price')}
-                          className="flex items-center gap-2 hover:text-white transition-colors justify-end w-full"
+                          className="flex items-center gap-2 hover:text-slate-900 dark:hover:text-white transition-colors justify-end w-full"
                         >
                           {t('inventory.price')} <ArrowUpDown size={12} />
                         </button>
@@ -716,7 +720,7 @@ export default function Inventory() {
                       >
                         <button
                           onClick={() => toggleSort('stock')}
-                          className="flex items-center gap-2 hover:text-white transition-colors justify-center w-full"
+                          className="flex items-center gap-2 hover:text-slate-900 dark:hover:text-white transition-colors justify-center w-full"
                         >
                           {t('inventory.stock')} <ArrowUpDown size={12} />
                         </button>
@@ -747,7 +751,7 @@ export default function Inventory() {
                           <tr
                             key={prod.id}
                             id={`inventory-row-${prod.id}`}
-                            className={`hover:bg-slate-100 dark:bg-slate-800/50 transition-colors group ${isOut ? 'bg-rose-500/5' : isLow ? 'bg-amber-500/5' : ''}`}
+                            className={`hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors group ${isOut ? 'bg-rose-500/5' : isLow ? 'bg-amber-500/5' : ''}`}
                           >
                             <td className="py-4 px-6 flex items-center gap-4 truncate">
                               <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center text-xl">
@@ -819,7 +823,7 @@ export default function Inventory() {
                                 <button
                                   onClick={() => handleOpenEditProduct(prod)}
                                   aria-label={t('inventory.editCatalogProduct')}
-                                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
                                 >
                                   <Edit2 size={16} />
                                 </button>
@@ -834,7 +838,7 @@ export default function Inventory() {
                                       handleDeleteProduct(prod.id);
                                   }}
                                   aria-label={t('inventory.deleteProduct')}
-                                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
+                                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
                                 >
                                   <Trash2 size={16} />
                                 </button>
@@ -909,13 +913,20 @@ export default function Inventory() {
                       <button
                         id={`del-cat-${cat.id}`}
                         disabled={productCount > 0}
-                        onClick={() => handleDeleteCategory(cat.id)}
+                        onClick={async () => {
+                          if (
+                            await askConfirmation(
+                              t('inventory.deleteCategoryConfirm', { name: cat.name }),
+                            )
+                          )
+                            handleDeleteCategory(cat.id);
+                        }}
                         aria-label={
                           productCount > 0
                             ? t('inventory.cannotDeleteCategory')
                             : t('inventory.deleteCategory')
                         }
-                        className="text-slate-500 hover:text-white hover:bg-rose-500 disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent p-2 rounded-xl transition-all"
+                        className="text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-rose-500 disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent p-2 rounded-xl transition-all"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -968,7 +979,7 @@ export default function Inventory() {
                     suppliers.map((sup) => (
                       <tr
                         key={sup.id}
-                        className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors group"
+                        className="hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors group"
                       >
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-3">
@@ -1010,7 +1021,7 @@ export default function Inventory() {
                               }
                             }}
                             aria-label={t('inventory.deleteSupplier')}
-                            className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -1056,7 +1067,7 @@ export default function Inventory() {
                     purchaseOrders.map((po) => (
                       <tr
                         key={po.id}
-                        className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors"
+                        className="hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
                       >
                         <td className="py-4 px-6">
                           <span className="font-mono font-bold text-slate-900 dark:text-white block text-xs">
@@ -1114,7 +1125,7 @@ export default function Inventory() {
                                       deletePurchaseOrder(po.id);
                                   }}
                                   aria-label={t('inventory.poDeleteDraft')}
-                                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
+                                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
                                 >
                                   <Trash2 size={14} />
                                 </button>
@@ -1152,7 +1163,7 @@ export default function Inventory() {
                                     deletePurchaseOrder(po.id);
                                 }}
                                 aria-label={t('inventory.poDeleteDraft')}
-                                className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
+                                className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -1200,7 +1211,7 @@ export default function Inventory() {
                     adjustments.map((a) => (
                       <tr
                         key={a.id}
-                        className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors"
+                        className="hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
                       >
                         <td className="py-4 px-6 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                           {new Date(a.createdAt).toLocaleString()}
@@ -1290,7 +1301,7 @@ export default function Inventory() {
                 <button
                   onClick={() => setProductModalOpen(false)}
                   aria-label={t('inventory.cancel')}
-                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -1301,7 +1312,8 @@ export default function Inventory() {
                   {/* Basic information */}
                   <div>
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2 border-b border-slate-200 dark:border-white/5 pb-2">
-                      <Layers size={16} className="text-emerald-500" /> Basic Details
+                      <Layers size={16} className="text-emerald-500" />{' '}
+                      {t('inventory.sectionBasics')}
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="md:col-span-2">
@@ -1366,7 +1378,8 @@ export default function Inventory() {
                   {/* Financials & Stock */}
                   <div>
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2 border-b border-slate-200 dark:border-white/5 pb-2">
-                      <PackagePlus size={16} className="text-emerald-500" /> Financials & Inventory
+                      <PackagePlus size={16} className="text-emerald-500" />{' '}
+                      {t('inventory.sectionFinancials')}
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
@@ -1451,7 +1464,8 @@ export default function Inventory() {
                   {/* Asset settings */}
                   <div>
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2 border-b border-slate-200 dark:border-white/5 pb-2">
-                      <ImageIcon size={16} className="text-emerald-500" /> Media
+                      <ImageIcon size={16} className="text-emerald-500" />{' '}
+                      {t('inventory.sectionMedia')}
                     </h4>
                     <label
                       htmlFor="form-prod-image"
@@ -1474,7 +1488,7 @@ export default function Inventory() {
                       <input
                         id="form-prod-image"
                         type="url"
-                        placeholder="https://images.unsplash.com/..."
+                        placeholder={t('inventory.imageUrlPlaceholder')}
                         value={prodImage}
                         onChange={(e) => setProdImage(e.target.value)}
                         className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 placeholder:text-slate-600 self-center"
@@ -1494,7 +1508,7 @@ export default function Inventory() {
                   <button
                     type="submit"
                     id="form-submit-prod-btn"
-                    className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-transform active:scale-95"
+                    className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-transform active:scale-95"
                   >
                     <Check size={20} />
                     <span>{t('inventory.saveCatalogItem')}</span>
@@ -1535,7 +1549,7 @@ export default function Inventory() {
                 <button
                   onClick={() => setCategoryModalOpen(false)}
                   aria-label={t('inventory.cancel')}
-                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -1595,7 +1609,7 @@ export default function Inventory() {
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
+                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
                   >
                     {t('inventory.saveCategory')}
                   </button>
@@ -1632,7 +1646,7 @@ export default function Inventory() {
                 <button
                   onClick={() => setReceiveOpen(false)}
                   aria-label={t('inventory.cancel')}
-                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -1654,7 +1668,7 @@ export default function Inventory() {
                   >
                     {products.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name} (Cur: {p.stock})
+                        {p.name} ({t('inventory.currentStockShort', { count: p.stock })})
                       </option>
                     ))}
                   </select>
@@ -1662,7 +1676,7 @@ export default function Inventory() {
 
                 <div>
                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
-                    Adjustment Reason
+                    {t('inventory.adjustmentReason')}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {(['received', 'waste', 'correction', 'other'] as const).map((r) => (
@@ -1676,7 +1690,7 @@ export default function Inventory() {
                               : r === 'received'
                                 ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
                                 : 'bg-amber-500/20 border-amber-500 text-amber-400'
-                            : 'bg-white/80 dark:bg-slate-900/50 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-white'
+                            : 'bg-white/80 dark:bg-slate-900/50 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         {t(`inventory.reason_${r}`, r.charAt(0).toUpperCase() + r.slice(1))}
@@ -1691,7 +1705,7 @@ export default function Inventory() {
                       htmlFor="recv-qty-input"
                       className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
                     >
-                      Δ Quantity
+                      {t('inventory.deltaQuantity')}
                     </label>
                     <input
                       id="recv-qty-input"
@@ -1718,7 +1732,7 @@ export default function Inventory() {
                       disabled={recvReason !== 'received'}
                       className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 disabled:opacity-50"
                     >
-                      <option value="">— None —</option>
+                      <option value="">{t('inventory.noneOption')}</option>
                       {suppliers.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
@@ -1732,7 +1746,7 @@ export default function Inventory() {
                     htmlFor="recv-note-input"
                     className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
                   >
-                    Notes
+                    {t('inventory.notes')}
                   </label>
                   <input
                     id="recv-note-input"
@@ -1755,7 +1769,7 @@ export default function Inventory() {
                 <button
                   onClick={handleReceiveStock}
                   disabled={!recvProductId || !recvQty || isNaN(parseInt(recvQty, 10))}
-                  className="px-6 py-3 font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-slate-900 dark:text-white rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+                  className="px-6 py-3 font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
                 >
                   <Check size={20} /> {t('inventory.confirmReceive', 'Confirm')}
                 </button>
@@ -1790,7 +1804,7 @@ export default function Inventory() {
                 <button
                   onClick={() => setSupplierModalOpen(false)}
                   aria-label={t('inventory.cancel')}
-                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -1798,7 +1812,7 @@ export default function Inventory() {
               <form onSubmit={handleAddSupplier} className="p-8 space-y-5">
                 <div>
                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
-                    Company / Name *
+                    {t('inventory.supplierCompany')} *
                   </label>
                   <input
                     type="text"
@@ -1811,7 +1825,7 @@ export default function Inventory() {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
-                    Contact Person
+                    {t('inventory.supplierContactPerson')}
                   </label>
                   <input
                     type="text"
@@ -1824,7 +1838,7 @@ export default function Inventory() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
-                      Phone
+                      {t('inventory.supplierPhone')}
                     </label>
                     <input
                       type="tel"
@@ -1836,7 +1850,7 @@ export default function Inventory() {
                   </div>
                   <div>
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
-                      Email
+                      {t('inventory.supplierEmail')}
                     </label>
                     <input
                       type="email"
@@ -1857,7 +1871,7 @@ export default function Inventory() {
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-3 font-bold bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+                    className="px-6 py-3 font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
                   >
                     {t('inventory.saveSupplier')}
                   </button>
@@ -1894,7 +1908,7 @@ export default function Inventory() {
                 <button
                   onClick={() => setPoModalOpen(false)}
                   aria-label={t('inventory.cancel')}
-                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -2028,7 +2042,7 @@ export default function Inventory() {
                 </button>
                 <button
                   onClick={handleSavePoDraft}
-                  className="px-6 py-3 font-bold bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+                  className="px-6 py-3 font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
                 >
                   <Check size={20} /> {t('inventory.poSaveDraft')}
                 </button>

@@ -45,6 +45,8 @@ jobs:
         run: |
           node --check electron/main.cjs
           node --check electron/preload.cjs
+          node --check electron/updatePolicy.cjs
+          node --check electron/validation.cjs
           node --check scripts/seed.mjs
 
   e2e:

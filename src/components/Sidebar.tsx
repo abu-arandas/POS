@@ -20,6 +20,7 @@ import { ScreenId, isScreenAllowed } from '../lib/access';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
+import { safeImageUrl } from '../lib/imageUrl';
 
 interface SidebarProps {
   currentScreen: ScreenId;
@@ -98,9 +99,9 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
           className="flex items-center gap-3"
         >
           <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
-            {settings.storeLogo ? (
+            {safeImageUrl(settings.storeLogo) ? (
               <img
-                src={settings.storeLogo}
+                src={safeImageUrl(settings.storeLogo)}
                 alt="Logo"
                 className="w-full h-full object-contain rounded-sm"
               />

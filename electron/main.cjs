@@ -8,6 +8,13 @@ const os = require('os');
 const net = require('net');
 const { fileURLToPath } = require('url');
 const { hasPublisherName, resolveUpdatePolicy } = require('./updatePolicy.cjs');
+const {
+  MAX_MENU_DATA_BYTES,
+  isValidRawBytes,
+  isValidPrinterPayload,
+  isSafeMenuData,
+  isPrivateIPv4,
+} = require('./validation.cjs');
 
 // Exactly one terminal process per machine. Two instances would fight over the
 // menu server's port, and cleanupTempFiles() below deletes every eapos-*.bin at
@@ -25,85 +32,6 @@ let menuData = { products: [], categories: [], settings: {} };
 // The renderer only ever sends customer-safe fields here (no cost/stock
 // counts) — see App.tsx / preload.cjs.
 const expressApp = express();
-
-const MAX_MENU_DATA_BYTES = 5 * 1024 * 1024;
-const MAX_MENU_RECORDS = 5_000;
-const MAX_MENU_STRING_LENGTH = 16_384;
-
-function isPlainObject(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const proto = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null;
-}
-
-function isBoundedString(value, max = MAX_MENU_STRING_LENGTH) {
-  return typeof value === 'string' && value.length <= max;
-}
-
-function isSafeMenuData(data) {
-  if (!isPlainObject(data)) return false;
-  const { products, categories, settings } = data;
-  if (!Array.isArray(products) || products.length > MAX_MENU_RECORDS) return false;
-  if (!Array.isArray(categories) || categories.length > MAX_MENU_RECORDS) return false;
-  if (!isPlainObject(settings)) return false;
-  if (!isBoundedString(settings.storeName) || !isBoundedString(settings.currency)) return false;
-  if (settings.storeLogo !== undefined && !isBoundedString(settings.storeLogo)) return false;
-
-  return (
-    products.every(
-      (product) =>
-        isPlainObject(product) &&
-        isBoundedString(product.id) &&
-        isBoundedString(product.name) &&
-        isBoundedString(product.category) &&
-        isBoundedString(product.image) &&
-        typeof product.price === 'number' &&
-        Number.isFinite(product.price) &&
-        typeof product.inStock === 'boolean',
-    ) &&
-    categories.every(
-      (category) =>
-        isPlainObject(category) &&
-        isBoundedString(category.id) &&
-        isBoundedString(category.name) &&
-        isBoundedString(category.color),
-    )
-  );
-}
-
-function isIPv4(ip) {
-  const parts = String(ip).split('.');
-  return (
-    parts.length === 4 &&
-    parts.every(
-      (part) => /^(?:0|[1-9]\\d{0,2})$/.test(part) && Number(part) >= 0 && Number(part) <= 255,
-    )
-  );
-}
-
-function isPrivateIPv4(ip) {
-  if (!isIPv4(ip)) return false;
-  const [a, b] = ip.split('.').map(Number);
-  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
-}
-
-function isValidRawBytes(data) {
-  return (
-    Array.isArray(data) &&
-    data.length > 0 &&
-    data.length <= 1_000_000 &&
-    data.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255)
-  );
-}
-
-function isValidPrinterPayload(payload) {
-  return (
-    isPlainObject(payload) &&
-    isPrivateIPv4(payload.ip) &&
-    payload.port === 9100 &&
-    isValidRawBytes(payload.data)
-  );
-}
 
 const menuRateLimiter = rateLimit({
   windowMs: 60 * 1000,

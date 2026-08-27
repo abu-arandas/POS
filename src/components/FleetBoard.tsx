@@ -82,7 +82,7 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
         <button
           onClick={load}
           disabled={loading}
-          className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold uppercase px-4 py-2 rounded-xl shadow-sm transition-colors"
+          className="flex items-center gap-2 bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold uppercase px-4 py-2 rounded-xl shadow-sm transition-colors"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           {t('fleet.refresh')}
@@ -148,7 +148,7 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
               {summary.stores.map((s) => (
                 <li
                   key={s.storeId}
-                  className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-slate-100 dark:bg-slate-800/30 transition-colors"
+                  className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-slate-100 dark:hover:bg-slate-800/30 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span

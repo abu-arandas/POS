@@ -93,7 +93,7 @@ export default function QRMenu() {
             {t('qrmenu.scanToOrder')}
           </h3>
           <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base mb-8 font-medium relative z-10">
-            Customers can scan this code to browse your menu
+            {t('qrmenu.scanHint')}
           </p>
 
           <div className="bg-white p-6 rounded-4xl shadow-xl border-4 border-slate-100 dark:border-slate-800 mb-8 relative z-10 transition-transform hover:scale-105">
@@ -117,8 +117,8 @@ export default function QRMenu() {
                 aria-label={t('qrmenu.copyLink')}
                 className={`p-2 rounded-full transition-all ${
                   copied
-                    ? 'bg-emerald-500 text-slate-900 dark:text-white'
-                    : 'bg-white dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-600 dark:text-slate-300 shadow-sm'
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white shadow-sm'
                 }`}
               >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
@@ -138,7 +138,7 @@ export default function QRMenu() {
         {/* Print Button */}
         <button
           onClick={printQR}
-          className="bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold py-4 px-8 rounded-2xl shadow-lg shadow-emerald-600/20 flex items-center gap-3 transition-all hover:-translate-y-1 active:translate-y-0 w-full max-w-sm justify-center text-lg"
+          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-8 rounded-2xl shadow-lg shadow-emerald-600/20 flex items-center gap-3 transition-all hover:-translate-y-1 active:translate-y-0 w-full max-w-sm justify-center text-lg"
         >
           <Printer size={24} />
           {t('qrmenu.printDisplay')}

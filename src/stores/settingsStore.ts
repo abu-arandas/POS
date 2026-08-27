@@ -48,7 +48,12 @@ interface SettingsState {
   setLanguage: (lang: 'en' | 'ar') => void;
 }
 
-const DEFAULT_SETTINGS: StoreSettings =
+// Exported so Settings' "Reset to defaults" restores exactly what a fresh
+// install of THIS build starts with. It used to reset to INITIAL_SETTINGS
+// directly, which is the demo fixture — a production terminal that reset its
+// settings came back branded "EA POS" with a Seattle address and an 8.5% tax
+// rate, and printed both onto its next receipt.
+export const DEFAULT_SETTINGS: StoreSettings =
   import.meta.env.DEV || import.meta.env.MODE === 'test'
     ? INITIAL_SETTINGS
     : {
@@ -62,7 +67,7 @@ const DEFAULT_SETTINGS: StoreSettings =
         loyaltyPointValue: 0,
       };
 
-const DEFAULT_PRINTER: PrinterConfig = {
+export const DEFAULT_PRINTER: PrinterConfig = {
   type: 'system',
   paperSize: '80mm',
   showBarcode: true,
@@ -70,7 +75,7 @@ const DEFAULT_PRINTER: PrinterConfig = {
   autoPrintOnCheckout: true,
 };
 
-const DEFAULT_SUPABASE: SupabaseConfig = {
+export const DEFAULT_SUPABASE: SupabaseConfig = {
   url: '',
   anonKey: '',
   enabled: false,

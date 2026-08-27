@@ -59,7 +59,7 @@ function TrendTooltip({
 }) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 shadow-xl">
+    <div className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 shadow-xl">
       <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mb-1">{label}</p>
       <p className="text-sm font-mono font-bold text-emerald-400">
         {currency}
@@ -164,7 +164,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             value={activeFilter}
             onChange={(e) => setStoreFilter(e.target.value)}
             aria-label={t('fleetReport.storeFilter')}
-            className="bg-[#0f172a] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-emerald-500/40"
+            className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-emerald-500/40"
           >
             <option value="">{t('fleetReport.allStores')}</option>
             {ranked.map((s) => (
@@ -174,7 +174,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             ))}
           </select>
           {/* Period selector */}
-          <div className="flex bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-xl p-1">
+          <div className="flex bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 rounded-xl p-1">
             {periods.map((p) => (
               <button
                 key={p}
@@ -182,7 +182,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                 className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-colors ${
                   period === p
                     ? 'bg-emerald-500 text-slate-950'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-white'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {t(`fleetReport.period_${p}`)}
@@ -193,7 +193,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             onClick={load}
             disabled={loading}
             aria-label={t('fleet.refresh')}
-            className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+            className="flex items-center gap-2 bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -309,7 +309,9 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                       <button
                         onClick={() => setStoreFilter(selected ? '' : s.storeId)}
                         className={`w-full text-start px-6 py-4 transition-colors ${
-                          selected ? 'bg-emerald-500/10' : 'hover:bg-slate-100 dark:bg-slate-800/30'
+                          selected
+                            ? 'bg-emerald-500/10'
+                            : 'hover:bg-slate-100 dark:hover:bg-slate-800/30'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-4 mb-2">

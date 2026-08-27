@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { pullProducts } from '../../src/lib/supabase';
+import { pullProducts, deleteRowsSupabase, DELETE_CHUNK_SIZE } from '../../src/lib/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 describe('pullProducts', () => {
@@ -85,5 +85,57 @@ describe('pullProducts', () => {
     expect(consoleSpy).toHaveBeenCalledWith('Failed pulling products:', mockError);
 
     consoleSpy.mockRestore();
+  });
+});
+
+// A single `.in('id', ids)` puts every id in the query string. "Delete All
+// Transactions" on a busy terminal built a URL past what proxies and PostgREST
+// accept, and the request failed after the local rows were already gone.
+describe('deleteRowsSupabase', () => {
+  const makeClient = () => {
+    const inFn = vi.fn().mockResolvedValue({ error: null });
+    const del = vi.fn().mockReturnValue({ in: inFn });
+    const client = { from: vi.fn().mockReturnValue({ delete: del }) };
+    return { client: client as unknown as SupabaseClient, inFn };
+  };
+
+  it('sends a single request when the ids fit in one chunk', async () => {
+    const { client, inFn } = makeClient();
+    const ids = Array.from({ length: 10 }, (_, i) => `tx-${i}`);
+    await expect(deleteRowsSupabase(client, 'transactions', ids)).resolves.toBe(true);
+    expect(inFn).toHaveBeenCalledTimes(1);
+    expect(inFn).toHaveBeenCalledWith('id', ids);
+  });
+
+  it('splits a large delete into bounded chunks covering every id exactly once', async () => {
+    const { client, inFn } = makeClient();
+    const ids = Array.from({ length: DELETE_CHUNK_SIZE * 2 + 7 }, (_, i) => `tx-${i}`);
+    await expect(deleteRowsSupabase(client, 'transactions', ids)).resolves.toBe(true);
+
+    expect(inFn).toHaveBeenCalledTimes(3);
+    const sent = inFn.mock.calls.flatMap((call) => call[1] as string[]);
+    expect(sent).toEqual(ids);
+    for (const call of inFn.mock.calls) {
+      expect((call[1] as string[]).length).toBeLessThanOrEqual(DELETE_CHUNK_SIZE);
+    }
+  });
+
+  it('stops and reports failure when a chunk errors', async () => {
+    const inFn = vi
+      .fn()
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ error: { message: 'boom' } });
+    const del = vi.fn().mockReturnValue({ in: inFn });
+    const client = { from: vi.fn().mockReturnValue({ delete: del }) } as unknown as SupabaseClient;
+
+    const ids = Array.from({ length: DELETE_CHUNK_SIZE * 3 }, (_, i) => `tx-${i}`);
+    await expect(deleteRowsSupabase(client, 'transactions', ids)).resolves.toBe(false);
+    expect(inFn).toHaveBeenCalledTimes(2); // did not continue past the failure
+  });
+
+  it('makes no request at all for an empty id list', async () => {
+    const { client, inFn } = makeClient();
+    await expect(deleteRowsSupabase(client, 'transactions', [])).resolves.toBe(true);
+    expect(inFn).not.toHaveBeenCalled();
   });
 });

@@ -451,7 +451,6 @@ export default function Register() {
     }
     if (printerConfig.kitchenTicketOnCheckout) {
       /*
-        ⚡ Bolt Optimization:
         Pre-computed product map to change O(N^2) category lookups in the kitchen
         ticket loop into O(N) map build + O(1) loop lookups.
       */
@@ -506,7 +505,6 @@ export default function Register() {
   const handlePrintKitchenTicket = useCallback(async () => {
     if (!activeReceipt) return;
     /*
-      ⚡ Bolt Optimization:
       Pre-computed product map to change O(N^2) category lookups in the kitchen
       ticket loop into O(N) map build + O(1) loop lookups.
     */
@@ -657,9 +655,7 @@ export default function Register() {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] ring-1 ring-black/5 text-sm font-semibold tracking-wide ${
-              scanFeedback.ok
-                ? 'bg-emerald-600 text-slate-900 dark:text-white'
-                : 'bg-rose-600 text-slate-900 dark:text-white'
+              scanFeedback.ok ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
             }`}
           >
             <ScanLine size={18} className="opacity-90" />

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import CartPanel from '../../src/components/CartPanel';
+import { useSettingsStore } from '../../src/stores/settingsStore';
 import { Product, Customer } from '../../src/types';
 
 const makeProduct = (overrides: Partial<Product> = {}): Product => ({
@@ -131,6 +132,55 @@ describe('CartPanel', () => {
     expect(checkout).toBeEnabled();
     fireEvent.click(checkout);
     expect(handleCheckoutClick).toHaveBeenCalledTimes(1);
+  });
+
+  // Production defaults ship loyaltyPointValue: 0. The offer used to be gated on
+  // the points balance alone, so it divided by that zero — Infinity for a
+  // non-empty cart (a redemption worth $0.00) and NaN for an empty one, which
+  // reached the discount badge as a literal "NaN pts".
+  it('hides the loyalty offer when a point is worth nothing', () => {
+    const previous = useSettingsStore.getState().settings;
+    useSettingsStore.setState({ settings: { ...previous, loyaltyPointValue: 0 } });
+    try {
+      const customer = makeCustomer({ points: 120 });
+      render(
+        <CartPanel
+          {...defaultProps({
+            activeCustomer: customer,
+            selectedCustomerId: customer.id,
+            cart: [{ product: makeProduct(), quantity: 1 }],
+            subtotal: 4.5,
+            totalAmount: 4.5,
+          })}
+        />,
+      );
+      expect(screen.queryByText('Loyalty Points Available')).not.toBeInTheDocument();
+      expect(screen.queryByText(/NaN/)).not.toBeInTheDocument();
+    } finally {
+      useSettingsStore.setState({ settings: previous });
+    }
+  });
+
+  it('never renders NaN with an empty cart and no point value', () => {
+    const previous = useSettingsStore.getState().settings;
+    useSettingsStore.setState({ settings: { ...previous, loyaltyPointValue: 0 } });
+    try {
+      const customer = makeCustomer({ points: 120 });
+      const { container } = render(
+        <CartPanel
+          {...defaultProps({
+            activeCustomer: customer,
+            selectedCustomerId: customer.id,
+            cart: [],
+            subtotal: 0,
+            totalAmount: 0,
+          })}
+        />,
+      );
+      expect(container.textContent).not.toMatch(/NaN/);
+    } finally {
+      useSettingsStore.setState({ settings: previous });
+    }
   });
 
   it('offers loyalty points when a customer with points is linked', () => {

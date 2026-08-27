@@ -8,8 +8,10 @@
 // publisher name is the thing that gates it.
 //
 // So an unsigned build with autoDownload + quitAndInstall gives anyone who can
-// serve a release artifact silent code execution — and this app ships with
-// requestedExecutionLevel "requireAdministrator", so that execution is elevated.
+// serve a release artifact silent code execution. The app itself runs
+// asInvoker, but the NSIS installer is perMachine and Windows elevates it to
+// write the install directory — so running an unverified one still hands
+// elevated execution to whoever served the file.
 // Unless signature verification is genuinely in force, updates are downloaded
 // and staged but never installed without a person deciding to.
 //

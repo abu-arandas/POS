@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { BarcodeSvg } from '../BarcodeSvg';
 import type { PrinterConfig, ReceiptLayout, SaleTransaction, StoreSettings } from '../../types';
 import { resolveCustomerLayout } from '../../lib/receiptFormat';
+import { safeImageUrl } from '../../lib/imageUrl';
 
 export interface ReceiptAction {
   icon: ComponentType<{ size?: number }>;
@@ -99,9 +100,9 @@ export function ReceiptModal({
                 <div className="text-center border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
                   {show.logo && (
                     <div className="flex justify-center mb-3">
-                      {settings.storeLogo ? (
+                      {safeImageUrl(settings.storeLogo) ? (
                         <img
-                          src={settings.storeLogo}
+                          src={safeImageUrl(settings.storeLogo)}
                           alt={t('receiptCfg.tg_logo', 'Logo')}
                           className="h-8 w-auto object-contain grayscale opacity-80 dark:invert"
                         />

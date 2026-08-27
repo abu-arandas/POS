@@ -197,7 +197,7 @@ export default function Customers() {
           <button
             id="add-customer-trigger-btn"
             onClick={handleOpenAddCustomer}
-            className="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-slate-900 dark:text-white font-sans font-bold text-xs sm:text-sm px-4 py-2 rounded-2xl flex items-center space-x-1.5 transition-all shadow-lg shadow-emerald-500/20"
+            className="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-sans font-bold text-xs sm:text-sm px-4 py-2 rounded-2xl flex items-center space-x-1.5 transition-all shadow-lg shadow-emerald-500/20"
           >
             <UserPlus size={16} />
             <span>{t('customers.newCustomer')}</span>
@@ -235,7 +235,7 @@ export default function Customers() {
                   className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all shrink-0 ${
                     sortBy === opt.id
                       ? 'bg-slate-700 text-slate-900 dark:text-white shadow-md'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 hover:bg-white/5'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/5'
                   }`}
                 >
                   {opt.label}
@@ -253,7 +253,7 @@ export default function Customers() {
                 {t('customers.noCustomersMatching')}
               </h3>
               <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 max-w-sm">
-                Try adjusting your search filters or add a new customer to the database.
+                {t('customers.noMatchHint')}
               </p>
               <button
                 onClick={handleOpenAddCustomer}
@@ -297,7 +297,7 @@ export default function Customers() {
                     className={`glass dark:glass-dark rounded-3xl border p-5 shadow-lg hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between card-hover group ${
                       isSelected
                         ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-slate-200 dark:bg-slate-800/80'
-                        : 'border-slate-200 dark:border-white/5 hover:border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:bg-slate-800/40'
+                        : 'border-slate-200 dark:border-white/5 hover:border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-slate-800/40'
                     }`}
                   >
                     <div className="flex items-center gap-4 mb-4">
@@ -334,7 +334,7 @@ export default function Customers() {
                             {cust.points}
                           </span>
                           <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-                            Pts
+                            {t('customers.pointsShort')}
                           </span>
                         </div>
                       </div>
@@ -344,7 +344,7 @@ export default function Customers() {
                             e.stopPropagation();
                             handleOpenEditCustomer(cust);
                           }}
-                          className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                          className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
                           aria-label={t('customers.editCustomerDetails')}
                         >
                           <Edit2 size={14} />
@@ -355,7 +355,7 @@ export default function Customers() {
                             e.stopPropagation();
                             confirmDelete(cust);
                           }}
-                          className="p-2 text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
+                          className="p-2 text-rose-400 hover:text-slate-900 dark:hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
                           aria-label={t('customers.deleteCustomerRecord')}
                         >
                           <Trash2 size={14} />
@@ -401,7 +401,7 @@ export default function Customers() {
                 </div>
                 <button
                   onClick={() => setSelectedCustomerId(null)}
-                  className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-white rounded-xl transition-colors shadow-sm"
+                  className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors shadow-sm"
                   aria-label={t('register.close', 'Close')}
                 >
                   <X size={16} />
@@ -529,7 +529,7 @@ export default function Customers() {
                 <button
                   type="button"
                   onClick={() => setCustomerModalOpen(false)}
-                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
                   aria-label={t('register.close', 'Close')}
                 >
                   <X size={18} />
@@ -618,7 +618,7 @@ export default function Customers() {
                   <button
                     type="submit"
                     id="form-submit-cust-btn"
-                    className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-slate-900 dark:text-white font-sans font-bold text-sm rounded-xl flex items-center shadow-lg shadow-emerald-500/20 transition-all"
+                    className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-sans font-bold text-sm rounded-xl flex items-center shadow-lg shadow-emerald-500/20 transition-all"
                   >
                     <Check size={16} className="me-2" />
                     <span>{t('customers.saveCustomer')}</span>
@@ -655,8 +655,7 @@ export default function Customers() {
                   {t('customers.deleteConfirm', { name: customerToDelete.name })}
                 </h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-                  This action cannot be undone. All related customer data will be permanently
-                  removed.
+                  {t('customers.deleteIrreversible')}
                 </p>
                 <div className="flex w-full gap-3">
                   <button
@@ -667,14 +666,14 @@ export default function Customers() {
                     }}
                     className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
                   >
-                    Cancel
+                    {t('customers.cancel')}
                   </button>
                   <button
                     type="button"
                     onClick={handleDeleteConfirm}
-                    className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-slate-900 dark:text-white rounded-xl font-bold shadow-lg shadow-rose-500/20 transition-colors"
+                    className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold shadow-lg shadow-rose-500/20 transition-colors"
                   >
-                    Delete
+                    {t('customers.delete')}
                   </button>
                 </div>
               </div>

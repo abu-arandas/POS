@@ -109,12 +109,20 @@ export async function verifyLoginCloud(
 }
 
 // Direct sync functions pushing local lists to Supabase and resolving updates
+//
+// The probe targets `categories`, not `user_accounts_public`: schema.sql
+// REVOKEs that view from `anon`, so a terminal running without a device account
+// (the "anonymous mode" signInDevice explicitly allows) got a hard permission
+// error and was told its credentials were wrong. `categories` is only
+// RLS-filtered, so an unauthorised caller gets an empty result rather than an
+// error — which still distinguishes a bad URL/key (network or 401) from a
+// working project.
 export async function testSupabaseConnection(url: string, anonKey: string): Promise<boolean> {
   const client = getSupabaseClient(url, anonKey);
   if (!client) return false;
 
   try {
-    const { error } = await client.from('user_accounts_public').select('id').limit(1);
+    const { error } = await client.from('categories').select('id').limit(1);
     if (error) {
       console.warn('Supabase test table fetch failed:', error.message);
       return false;
@@ -323,6 +331,13 @@ export async function pushTransactions(
 // the next Pull From Cloud.
 export type SyncTable = 'products' | 'categories' | 'customers' | 'transactions' | 'user_accounts';
 
+// PostgREST puts an `in` filter in the query string, so one request per id-set
+// has a hard ceiling: "Delete All Transactions" on a busy terminal built a URL
+// past what proxies and the server accept, and the whole delete failed after
+// the local rows were already gone. Chunking keeps each request well inside
+// any URL limit.
+export const DELETE_CHUNK_SIZE = 500;
+
 export async function deleteRowsSupabase(
   client: SupabaseClient,
   table: SyncTable,
@@ -330,8 +345,13 @@ export async function deleteRowsSupabase(
 ): Promise<boolean> {
   if (ids.length === 0) return true;
   try {
-    const { error } = await client.from(table).delete().in('id', ids);
-    if (error) throw error;
+    for (let i = 0; i < ids.length; i += DELETE_CHUNK_SIZE) {
+      const { error } = await client
+        .from(table)
+        .delete()
+        .in('id', ids.slice(i, i + DELETE_CHUNK_SIZE));
+      if (error) throw error;
+    }
     return true;
   } catch (err) {
     console.error(`Failed deleting ${table}:`, err);

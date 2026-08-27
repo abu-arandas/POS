@@ -26,14 +26,7 @@ import {
   Receipt,
   Plus,
 } from 'lucide-react';
-import {
-  StoreSettings,
-  UserAccount,
-  PrinterConfig,
-  SupabaseConfig,
-  ScannerConfig,
-  KitchenStation,
-} from '../types';
+import { StoreSettings, UserAccount, PrinterConfig, ScannerConfig, KitchenStation } from '../types';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import ReceiptSettingsPanel from './ReceiptSettingsPanel';
@@ -46,13 +39,21 @@ import {
   DetectedPrinter,
 } from '../lib/printerDiscovery';
 import { useTranslation } from 'react-i18next';
-import { useSettingsStore, DEFAULT_EMAIL_TEMPLATE, DEFAULT_SCANNER } from '../stores/settingsStore';
+import {
+  useSettingsStore,
+  DEFAULT_EMAIL_TEMPLATE,
+  DEFAULT_SCANNER,
+  DEFAULT_SETTINGS,
+  DEFAULT_PRINTER,
+  DEFAULT_SUPABASE,
+} from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { hashPinSalted } from '../lib/hash';
-import { INITIAL_SETTINGS } from '../data/seedData';
+import { shortId } from '../lib/ids';
+import { safeImageUrl } from '../lib/imageUrl';
 import { notify } from '../lib/notifications';
 import { askConfirmation } from '../lib/dialogs';
 import {
@@ -61,26 +62,10 @@ import {
   pullAllFromCloud,
   syncToCloudIfEnabled,
   deleteUsersCloudIfEnabled,
-  deleteTransactionsCloudIfEnabled,
 } from '../lib/sync';
 
 type SettingsTab =
   'profile' | 'printer' | 'kitchen_printer' | 'scanner' | 'supabase' | 'users' | 'danger';
-
-const DEFAULT_PRINTER: PrinterConfig = {
-  type: 'system',
-  paperSize: '80mm',
-  showBarcode: true,
-  footerMessage: 'Thank you for shopping with us!',
-  autoPrintOnCheckout: true,
-};
-
-const DEFAULT_SUPABASE: SupabaseConfig = {
-  url: '',
-  anonKey: '',
-  enabled: false,
-  status: 'disconnected',
-};
 
 export default function Settings() {
   const {
@@ -104,6 +89,8 @@ export default function Settings() {
     setKitchenLayout,
     autoScanPrinters,
     setAutoScanPrinters,
+    storeId,
+    setStoreId,
   } = useSettingsStore();
   const { products, categories, setProducts, setCategories } = useProductStore();
   const { customers, setCustomers } = useCustomerStore();
@@ -206,15 +193,12 @@ export default function Settings() {
   // --- Kitchen station routing form state ---
   const [stationForm, setStationForm] = useState<KitchenStation[]>(kitchenStations);
   const addStation = () =>
-    setStationForm((prev) => [
-      ...prev,
-      { id: `station-${crypto.randomUUID?.() ?? Date.now()}`, name: '', categoryIds: [] },
-    ]);
+    setStationForm((prev) => [...prev, { id: `station-${shortId()}`, name: '', categoryIds: [] }]);
   const addStationFromPrinter = (pName: string, ipAddress?: string) => {
     setStationForm((prev) => [
       ...prev,
       {
-        id: `station-${crypto.randomUUID?.() ?? Date.now()}`,
+        id: `station-${shortId()}`,
         name: pName,
         ipAddress: ipAddress || '',
         categoryIds: [],
@@ -269,6 +253,7 @@ export default function Settings() {
   const [sbAuthEmail, setSbAuthEmail] = useState(supabaseConfig.authEmail || '');
   const [sbAuthPassword, setSbAuthPassword] = useState(supabaseConfig.authPassword || '');
   const [sbEnabled, setSbEnabled] = useState(supabaseConfig.enabled);
+  const [sbStoreId, setSbStoreId] = useState(storeId);
   const [busy, setBusy] = useState<null | 'test' | 'push' | 'pull'>(null);
 
   const handleUpdateSetting = (key: keyof StoreSettings, value: string | number) => {
@@ -321,7 +306,7 @@ export default function Settings() {
       handleUpdateUser(updated);
       syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [updated]);
     } else {
-      const tempId = `user-${crypto.randomUUID?.() ?? Date.now()}`;
+      const tempId = `user-${shortId()}`;
       const pinHash = await hashPinSalted(tempId, uPin);
       const created = handleAddUser(uName.trim(), uRole, pinHash, tempId);
       if (!uActive) {
@@ -385,6 +370,11 @@ export default function Settings() {
 
   const handleSaveConfig = () => {
     persistConfig(supabaseConfig.status);
+    // The store scope is what stamps store_id on every synced row. Without a
+    // way to set it, multi-store mode was documented but unreachable, and
+    // running multi-store-rls-enforce.sql would have locked terminals out of
+    // their own data.
+    setStoreId(sbStoreId.trim());
     notify(t('settings.configSaved'));
   };
 
@@ -473,9 +463,10 @@ export default function Settings() {
         ),
       )
     ) {
-      const ids = transactions.map((t) => t.id);
-      deleteTransactions(ids);
-      void deleteTransactionsCloudIfEnabled(ids);
+      // deleteTransactions already propagates the deletion to the cloud; calling
+      // deleteTransactionsCloudIfEnabled here as well doubled the largest
+      // request the app makes.
+      deleteTransactions(transactions.map((tx) => tx.id));
       notify(t('settings.transactionsDeleted', 'All transactions deleted.'));
     }
   };
@@ -489,7 +480,7 @@ export default function Settings() {
         ),
       )
     ) {
-      setSettings(INITIAL_SETTINGS);
+      setSettings(DEFAULT_SETTINGS);
       setPrinterConfig(DEFAULT_PRINTER);
       setPrinterForm(DEFAULT_PRINTER);
       setScannerConfig(DEFAULT_SCANNER);
@@ -504,6 +495,8 @@ export default function Settings() {
       setSbAuthEmail('');
       setSbAuthPassword('');
       setSbEnabled(false);
+      setStoreId('');
+      setSbStoreId('');
       notify(t('settings.defaultsReset', 'Settings reset to defaults.'));
     }
   };
@@ -582,7 +575,7 @@ export default function Settings() {
                     ? tab.danger
                       ? 'text-rose-600 dark:text-rose-500'
                       : 'text-emerald-600 dark:text-emerald-500'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-700 dark:text-slate-200'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 <Icon size={16} />
@@ -706,7 +699,7 @@ export default function Settings() {
                           <input
                             id="set-store-logo-url"
                             type="text"
-                            placeholder="Image URL..."
+                            placeholder={t('settings.logoUrlPlaceholder')}
                             value={settings.storeLogo || ''}
                             onChange={(e) => handleUpdateSetting('storeLogo', e.target.value)}
                             className="glass-input w-full px-4 py-2.5 rounded-xl"
@@ -733,10 +726,10 @@ export default function Settings() {
                             />
                           </label>
                         </div>
-                        {settings.storeLogo && (
+                        {safeImageUrl(settings.storeLogo) && (
                           <div className="mt-4 p-4 surface border border-slate-200 dark:border-slate-700 rounded-xl inline-block shadow-sm">
                             <img
-                              src={settings.storeLogo}
+                              src={safeImageUrl(settings.storeLogo)}
                               alt="Store Logo"
                               className="h-16 w-auto object-contain rounded-lg"
                             />
@@ -939,7 +932,7 @@ export default function Settings() {
                         <button
                           type="button"
                           onClick={() => setEmailTemplate(DEFAULT_EMAIL_TEMPLATE)}
-                          className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center gap-2 transition-colors"
+                          className="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center gap-2 transition-colors"
                         >
                           <RotateCcw size={14} />
                           {t('settings.resetTemplate')}
@@ -1269,7 +1262,7 @@ export default function Settings() {
                     <button
                       id="save-printer-btn"
                       onClick={handleSavePrinter}
-                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-900 dark:text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                     >
                       <Save size={18} />
                       {t('settings.savePrinter')}
@@ -1530,7 +1523,7 @@ export default function Settings() {
                                       className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
                                         on
                                           ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-400'
-                                          : 'bg-slate-200/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-slate-700 dark:text-slate-200'
+                                          : 'bg-slate-200/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                                       }`}
                                     >
                                       {cat.name}
@@ -1548,7 +1541,7 @@ export default function Settings() {
                       <button
                         type="button"
                         onClick={handleSaveStations}
-                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-900 dark:text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                       >
                         <Save size={18} />
                         {t('settings.saveStations')}
@@ -1669,7 +1662,7 @@ export default function Settings() {
                     <button
                       id="save-scanner-btn"
                       onClick={handleSaveScanner}
-                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-900 dark:text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                     >
                       <Save size={18} />
                       {t('settings.saveScanner')}
@@ -1798,6 +1791,27 @@ export default function Settings() {
                       </div>
                     </div>
 
+                    <div>
+                      <label
+                        htmlFor="set-store-id"
+                        className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                      >
+                        {t('settings.storeIdLabel')}
+                      </label>
+                      <input
+                        id="set-store-id"
+                        type="text"
+                        dir="ltr"
+                        placeholder={t('settings.storeIdPlaceholder')}
+                        value={sbStoreId}
+                        onChange={(e) => setSbStoreId(e.target.value)}
+                        className="glass-input w-full px-4 py-2.5 rounded-xl font-mono text-sm"
+                      />
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                        {t('settings.storeIdHint')}
+                      </p>
+                    </div>
+
                     <label className="flex items-start gap-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-2xl cursor-pointer">
                       <input
                         type="checkbox"
@@ -1819,7 +1833,7 @@ export default function Settings() {
                       <button
                         onClick={handleSaveConfig}
                         disabled={busy !== null}
-                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-slate-900 dark:text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                       >
                         <Save size={16} />
                         {t('settings.saveConfig')}
@@ -1836,7 +1850,7 @@ export default function Settings() {
                       <button
                         onClick={handlePull}
                         disabled={busy !== null}
-                        className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-900 dark:text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                        className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                       >
                         <DownloadCloud size={16} />
                         {busy === 'pull' ? t('settings.pulling') : t('settings.pullFromCloud')}
@@ -1844,7 +1858,7 @@ export default function Settings() {
                       <button
                         onClick={handlePush}
                         disabled={busy !== null}
-                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-slate-900 dark:text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                       >
                         <UploadCloud size={16} />
                         {busy === 'push' ? t('settings.pushing') : t('settings.pushToCloud')}
@@ -1870,7 +1884,7 @@ export default function Settings() {
                     <button
                       id="add-user-btn"
                       onClick={openAddUser}
-                      className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-900 dark:text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                      className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                     >
                       <UserPlus size={16} />
                       {t('settings.addUser')}
@@ -1881,7 +1895,7 @@ export default function Settings() {
                       <div
                         key={u.id}
                         id={`user-row-${u.id}`}
-                        className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-100 dark:bg-slate-800/30 transition-colors"
+                        className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-100 dark:hover:bg-slate-800/30 transition-colors"
                       >
                         <div className="flex items-center gap-4 min-w-0">
                           <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300 font-bold">
@@ -1961,12 +1975,12 @@ export default function Settings() {
                               {t('settings.deleteAllTransactions', 'Delete All Transactions')}
                             </h4>
                             <p className="text-xs text-slate-500 mt-1">
-                              Permanently removes all transaction history.
+                              {t('settings.deleteAllTransactionsHint')}
                             </p>
                           </div>
                           <button
                             onClick={handleDeleteAllTransactions}
-                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-slate-900 dark:text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-colors shrink-0"
+                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-colors shrink-0"
                           >
                             <Trash2 size={16} />
                             {t('settings.deleteNow', 'Delete')}
@@ -1979,15 +1993,15 @@ export default function Settings() {
                               {t('settings.resetToDefaults', 'Reset to Defaults')}
                             </h4>
                             <p className="text-xs text-slate-500 mt-1">
-                              Resets store, printer, and sync settings to default values.
+                              {t('settings.resetToDefaultsHint')}
                             </p>
                           </div>
                           <button
                             onClick={handleResetDefaults}
-                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-slate-900 dark:text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-colors shrink-0"
+                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-colors shrink-0"
                           >
                             <RotateCcw size={16} />
-                            Reset
+                            {t('settings.resetNow')}
                           </button>
                         </div>
                       </div>
@@ -2103,14 +2117,14 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={() => setUserModalOpen(false)}
-                    className="px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                    className="px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
                   >
                     {t('settings.cancel')}
                   </button>
                   <button
                     id="user-save-btn"
                     type="submit"
-                    className="px-5 py-2.5 text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-900 dark:text-white rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+                    className="px-5 py-2.5 text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl flex items-center gap-2 shadow-sm transition-colors"
                   >
                     <Check size={16} />
                     {t('settings.saveUser')}

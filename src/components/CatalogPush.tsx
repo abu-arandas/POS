@@ -11,6 +11,7 @@ import {
 } from '../lib/fleetClient';
 import { planCatalogPush, CatalogPushOptions } from '../lib/catalogPush';
 import { mapWithLimit } from '../lib/concurrency';
+import { shortId } from '../lib/ids';
 
 interface CatalogPushProps {
   orgId: string;
@@ -28,8 +29,12 @@ interface ResultRow {
   ok: boolean;
 }
 
+// shortId(), not crypto.randomUUID(): the latter exists only in secure
+// contexts, and a plain-http LAN deploy is a supported deployment (see the
+// README). A bare call threw before the first plan was ever computed, taking
+// the whole screen down.
 const genId = (kind: 'product' | 'category') =>
-  `${kind === 'category' ? 'cat' : 'prd'}-${crypto.randomUUID()}`;
+  `${kind === 'category' ? 'cat' : 'prd'}-${shortId()}`;
 
 // Cap how many target stores are fetched/pushed in parallel. Overlapping the
 // requests keeps a multi-store push fast, but an unbounded fan-out across a
@@ -168,7 +173,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
           onClick={load}
           disabled={loading || working}
           aria-label={t('fleet.refresh')}
-          className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+          className="flex items-center gap-2 bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
@@ -204,7 +209,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                       setPreview(null);
                       setResults(null);
                     }}
-                    className="mt-1 w-full bg-[#0f172a] border border-slate-200 dark:border-white/10 focus:border-emerald-500/40 text-slate-700 dark:text-slate-200 text-sm px-3 py-2 rounded-lg focus:outline-none"
+                    className="mt-1 w-full bg-[var(--surface-1)] border border-slate-200 dark:border-white/10 focus:border-emerald-500/40 text-slate-700 dark:text-slate-200 text-sm px-3 py-2 rounded-lg focus:outline-none"
                   >
                     <option value="">{t('catalogPush.chooseSource')}</option>
                     {stores.map((s) => (
@@ -242,8 +247,8 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                             }}
                             className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-colors ${
                               on
-                                ? 'border-emerald-500/40 bg-emerald-500/10 text-slate-900 dark:text-white'
-                                : 'border-white/8 bg-[#0f172a] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200'
+                                ? 'border-emerald-500/40 bg-emerald-500/10 text-white'
+                                : 'border-white/8 bg-[var(--surface-1)] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                             }`}
                           >
                             <span className="truncate">{s.name}</span>
@@ -288,7 +293,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                 <button
                   onClick={runPreview}
                   disabled={!canRun}
-                  className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/10 hover:border-emerald-500/40 disabled:opacity-40 text-slate-700 dark:text-slate-200 text-xs font-bold uppercase px-4 py-2 rounded-xl transition-colors"
+                  className="flex items-center gap-2 bg-[var(--surface-1)] border border-slate-200 dark:border-white/10 hover:border-emerald-500/40 disabled:opacity-40 text-slate-700 dark:text-slate-200 text-xs font-bold uppercase px-4 py-2 rounded-xl transition-colors"
                 >
                   <Eye size={14} /> {t('catalogPush.preview')}
                 </button>

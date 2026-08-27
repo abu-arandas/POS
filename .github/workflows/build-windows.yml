@@ -103,16 +103,31 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="win-build-${{ github.run_number }}"
           shopt -s nullglob
           assets=(release/EA-POS-Setup-*.exe release/latest.yml release/*.blockmap)
           if (( ${#assets[@]} < 2 )); then
             echo "::error::Missing installer or Electron update metadata in release/."
             exit 1
           fi
+          # Tag with the application version, not the run number: that is what
+          # electron-updater compares, and docs/windows-install.md tells the
+          # release engineer to bump it. A run-number tag left no way to tell
+          # which build carried which version.
+          installer=$(basename release/EA-POS-Setup-*.exe)
+          version="${installer#EA-POS-Setup-}"
+          version="${version%.exe}"
+          if [[ -z "$version" ]]; then
+            echo "::error::Could not derive the version from $installer."
+            exit 1
+          fi
+          tag="v${version}"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release $tag already exists. Bump the version in package.json — electron-updater compares application versions, not tags."
+            exit 1
+          fi
           gh release create "$tag" "${assets[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "EA POS Windows Installer (build ${{ github.run_number }})" \
-            --notes "Automated signed Windows installer built from ${GITHUB_SHA}. The public Release includes the installer, latest.yml, and blockmap metadata required by electron-updater. Authenticode signature verification succeeded. See docs/windows-install.md for certificate configuration." \
+            --title "EA POS ${version}" \
+            --notes "Automated signed Windows installer for version ${version}, built from ${GITHUB_SHA}. The public Release includes the installer, latest.yml, and blockmap metadata required by electron-updater. Authenticode signature verification succeeded. See docs/windows-install.md for certificate configuration." \
           || echo "::warning::Release publish skipped (token lacks contents:write). Download the installer from this run's artifacts instead."

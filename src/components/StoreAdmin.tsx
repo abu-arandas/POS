@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { askConfirmation } from '../lib/dialogs';
+import { notify } from '../lib/notifications';
 import { Store, Membership, Role } from '../types';
 import {
   listStores,
@@ -40,8 +41,13 @@ type Draft = StoreFormInput & { id?: string };
 
 const EMPTY_DRAFT: Draft = { name: '', address: '', timezone: 'UTC', currency: '$' };
 
+// memberships.user_id is a UUID referencing auth.users. The field takes free
+// text, so a mistyped id used to reach the database and come back as an
+// unexplained no-op.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const FLD =
-  'w-full bg-[#0f172a] border border-slate-200 dark:border-white/10 focus:border-emerald-500/40 text-slate-700 dark:text-slate-200 text-sm px-3 py-2 rounded-lg focus:outline-none placeholder:text-slate-600';
+  'w-full bg-[var(--surface-1)] border border-slate-200 dark:border-white/10 focus:border-emerald-500/40 text-slate-700 dark:text-slate-200 text-sm px-3 py-2 rounded-lg focus:outline-none placeholder:text-slate-600';
 
 // Central store & staff management (Phase 3). A super-admin can create, rename,
 // and suspend/activate stores, and manage each store's cloud memberships
@@ -125,11 +131,13 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
     setBusy(true);
     const ok = await upsertStore(record);
     setBusy(false);
-    if (ok) {
-      setDraft(null);
-      setErrors({});
-      await reload();
+    if (!ok) {
+      notify(t('storeAdmin.saveFailed'), 'error');
+      return;
     }
+    setDraft(null);
+    setErrors({});
+    await reload();
   };
 
   const toggleStatus = async (s: Store) => {
@@ -140,29 +148,37 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
       return;
     }
     setBusy(true);
-    await setStoreStatus(s.id, s.status === 'active' ? 'suspended' : 'active');
+    const ok = await setStoreStatus(s.id, s.status === 'active' ? 'suspended' : 'active');
     setBusy(false);
+    if (!ok) notify(t('storeAdmin.statusFailed'), 'error');
     await reload();
   };
 
   const addMember = async (storeId: string) => {
     const uid = memberUserId.trim();
     if (!uid) return;
+    if (!UUID_RE.test(uid)) {
+      notify(t('storeAdmin.invalidUserId'), 'error');
+      return;
+    }
     setBusy(true);
     const ok = await setMembership({ userId: uid, orgId, storeId, role: memberRole });
     setBusy(false);
-    if (ok) {
-      setMemberUserId('');
-      setMemberRole('cashier');
-      await reload();
+    if (!ok) {
+      notify(t('storeAdmin.memberFailed'), 'error');
+      return;
     }
+    setMemberUserId('');
+    setMemberRole('cashier');
+    await reload();
   };
 
   const changeRole = async (m: Membership, role: Role) => {
     if (!m.storeId) return;
     setBusy(true);
-    await setMembership({ userId: m.userId, orgId, storeId: m.storeId, role });
+    const ok = await setMembership({ userId: m.userId, orgId, storeId: m.storeId, role });
     setBusy(false);
+    if (!ok) notify(t('storeAdmin.memberFailed'), 'error');
     await reload();
   };
 
@@ -174,8 +190,9 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
       return;
     }
     setBusy(true);
-    await removeMembership(m.userId, orgId, m.storeId);
+    const ok = await removeMembership(m.userId, orgId, m.storeId);
     setBusy(false);
+    if (!ok) notify(t('storeAdmin.memberFailed'), 'error');
     await reload();
   };
 
@@ -195,7 +212,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
             onClick={reload}
             disabled={loading || busy}
             aria-label={t('fleet.refresh')}
-            className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+            className="flex items-center gap-2 bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -273,7 +290,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                   setDraft(null);
                   setErrors({});
                 }}
-                className="flex items-center gap-2 bg-[#0f172a] border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 hover:text-white text-xs font-bold uppercase px-4 py-2 rounded-xl transition-colors"
+                className="flex items-center gap-2 bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold uppercase px-4 py-2 rounded-xl transition-colors"
               >
                 <X size={14} /> {t('storeAdmin.cancel')}
               </button>
@@ -368,7 +385,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                                 value={m.role}
                                 onChange={(e) => changeRole(m, e.target.value as Role)}
                                 disabled={busy}
-                                className="bg-[#0f172a] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-[11px] font-semibold px-2 py-1 rounded-lg focus:outline-none focus:border-emerald-500/40"
+                                className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-[11px] font-semibold px-2 py-1 rounded-lg focus:outline-none focus:border-emerald-500/40"
                               >
                                 {ASSIGNABLE_ROLES.map((r) => (
                                   <option key={r} value={r}>
@@ -401,7 +418,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                         aria-label={t('storeAdmin.roleLabel')}
                         value={memberRole}
                         onChange={(e) => setMemberRole(e.target.value as Role)}
-                        className="bg-[#0f172a] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-[11px] font-semibold px-2 py-2 rounded-lg focus:outline-none focus:border-emerald-500/40"
+                        className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-[11px] font-semibold px-2 py-2 rounded-lg focus:outline-none focus:border-emerald-500/40"
                       >
                         {ASSIGNABLE_ROLES.map((r) => (
                           <option key={r} value={r}>
@@ -488,7 +505,7 @@ function IconBtn({
           ? 'bg-emerald-500/15 text-emerald-300'
           : danger
             ? 'text-slate-500 dark:text-slate-400 hover:text-rose-400 hover:bg-rose-500/10'
-            : 'text-slate-500 dark:text-slate-400 hover:text-white hover:bg-white/5'
+            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/5'
       }`}
     >
       {children}

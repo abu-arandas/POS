@@ -247,13 +247,23 @@
           .replace(/'/g, '&#39;');
       }
 
+      // Mirrors src/lib/imageUrl.ts. Raster data URLs only — image/svg+xml is
+      // deliberately excluded, because an SVG is a document that can carry
+      // script, and this page is served over the LAN to anyone who scans the
+      // QR code. The app-side copy has a test asserting that rejection; keep
+      // the two in step.
+      const MAX_IMAGE_URL_LENGTH = 4096;
+      const IMAGE_DATA_URL_PATTERN =
+        /^data:image\/(?:png|jpe?g|gif|webp|avif|bmp);(?:charset=[^;,]+;)?base64,[a-z0-9+/=\s]+$/i;
+
       function safeImageUrl(value) {
-        const raw = String(value ?? '').trim();
-        if (!raw) return '';
-        if (/^data:image\/[a-z0-9.+-]+(?:;[^,]*)?,/i.test(raw)) return raw;
+        if (typeof value !== 'string') return '';
+        const raw = value.trim();
+        if (!raw || raw.length > MAX_IMAGE_URL_LENGTH) return '';
+        if (IMAGE_DATA_URL_PATTERN.test(raw)) return encodeURI(raw);
         try {
           const url = new URL(raw, window.location.origin);
-          return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+          return url.protocol === 'http:' || url.protocol === 'https:' ? encodeURI(url.href) : '';
         } catch {
           return '';
         }

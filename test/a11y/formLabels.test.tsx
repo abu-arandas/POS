@@ -10,6 +10,10 @@ import History from '../../src/components/History';
 import Customers from '../../src/components/Customers';
 import ShiftScreen from '../../src/components/ShiftScreen';
 import Settings from '../../src/components/Settings';
+import FleetBoard from '../../src/components/FleetBoard';
+import FleetDashboard from '../../src/components/FleetDashboard';
+import StoreAdmin from '../../src/components/StoreAdmin';
+import CatalogPush from '../../src/components/CatalogPush';
 import ReceiptSettingsPanel from '../../src/components/ReceiptSettingsPanel';
 import { defaultReceiptLayout, defaultKitchenLayout } from '../../src/lib/receiptFormat';
 
@@ -62,7 +66,7 @@ beforeEach(() => {
     customers: [{ id: 'c-1', name: 'Sarah', email: '', phone: '', points: 5, createdAt: '2026' }],
   });
   useSettingsStore.setState({ settings: SETTINGS });
-  useTransactionStore.setState({ transactions: [], demoSeeded: true });
+  useTransactionStore.setState({ transactions: [] });
   useSupplyStore.setState({ suppliers: [], adjustments: [], purchaseOrders: [] });
   useShiftStore.setState({ shifts: [], currentShiftId: null });
   useAuthStore.setState({
@@ -100,6 +104,14 @@ const screens: Array<[string, () => ReactElement]> = [
   ['Customers', () => <Customers />],
   ['ShiftScreen', () => <ShiftScreen />],
   ['Settings', () => <Settings />],
+  // The super-admin surface. These four render against a cloud backend that is
+  // absent here, so each falls back to its empty state — which is still the
+  // state an operator sees before the first heartbeat lands, and its controls
+  // still have to be named.
+  ['FleetBoard', () => <FleetBoard orgId="org-test" />],
+  ['FleetDashboard', () => <FleetDashboard orgId="org-test" />],
+  ['StoreAdmin', () => <StoreAdmin orgId="org-test" />],
+  ['CatalogPush', () => <CatalogPush orgId="org-test" />],
 ];
 
 describe('every form control has an accessible name', () => {

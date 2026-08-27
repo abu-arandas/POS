@@ -40,6 +40,7 @@ import { lockoutStatus, formatRemaining } from '../lib/pinThrottle';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
 import type { RefundPatch } from '../stores/transactionStore';
 import { useTranslation } from 'react-i18next';
+import { safeImageUrl } from '../lib/imageUrl';
 
 // Single throttle bucket for the manager-override PIN (it is not tied to one
 // account — any manager/admin PIN authorizes, so the guesser names no user).
@@ -418,7 +419,7 @@ export default function History() {
               downloadCsv(`transactions-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
             }}
             disabled={filteredTransactions.length === 0}
-            className="shrink-0 flex items-center gap-1.5 glass-input hover:bg-slate-100 dark:bg-slate-800 disabled:opacity-40 text-slate-900 dark:text-white text-xs font-semibold px-4 py-2.5 rounded-2xl shadow-lg transition-colors"
+            className="shrink-0 flex items-center gap-1.5 glass-input hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-slate-900 dark:text-white text-xs font-semibold px-4 py-2.5 rounded-2xl shadow-lg transition-colors"
           >
             <Download size={14} /> {t('history.exportCsv')}
           </button>
@@ -597,7 +598,7 @@ export default function History() {
                             className={`transition-colors cursor-pointer border-b border-slate-200 dark:border-white/5 last:border-0 ${
                               isSelected
                                 ? 'bg-slate-200 dark:bg-slate-800/80 hover:bg-slate-300 dark:hover:bg-slate-700/80'
-                                : 'hover:bg-slate-100 dark:bg-slate-800/40'
+                                : 'hover:bg-slate-100 dark:hover:bg-slate-800/40'
                             } ${isRefunded ? 'opacity-60' : ''}`}
                           >
                             <td
@@ -729,7 +730,7 @@ export default function History() {
               <button
                 onClick={() => setSelectedTxId(null)}
                 aria-label={t('history.closeDetails')}
-                className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-white rounded-xl transition-colors"
+                className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors"
               >
                 <X size={16} />
               </button>
@@ -744,9 +745,9 @@ export default function History() {
               >
                 <div className="text-center border-b border-dashed border-slate-300 pb-4 mb-4">
                   <div className="flex justify-center mb-2">
-                    {settings.storeLogo ? (
+                    {safeImageUrl(settings.storeLogo) ? (
                       <img
-                        src={settings.storeLogo}
+                        src={safeImageUrl(settings.storeLogo)}
                         alt="Logo"
                         className="h-8 w-auto object-contain"
                       />
@@ -858,7 +859,7 @@ export default function History() {
               {activeTransaction.status !== 'refunded' && (
                 <button
                   onClick={() => openRefundModal(activeTransaction)}
-                  className="flex-1 bg-rose-500 hover:bg-rose-600 text-slate-900 dark:text-white py-3 rounded-xl text-xs font-bold transition-colors shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2"
+                  className="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-3 rounded-xl text-xs font-bold transition-colors shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2"
                 >
                   <RotateCcw size={16} /> {t('history.refund')}
                 </button>
@@ -894,7 +895,7 @@ export default function History() {
               {canDelete && (
                 <button
                   onClick={() => setShowDeleteModal(true)}
-                  className="bg-rose-500 hover:bg-rose-600 text-slate-900 dark:text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-colors"
+                  className="bg-rose-500 hover:bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-colors"
                 >
                   <Trash2 size={16} /> {t('history.delete')}
                 </button>
@@ -946,7 +947,7 @@ export default function History() {
                 </button>
                 <button
                   onClick={confirmBulkDelete}
-                  className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
+                  className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold transition-colors"
                 >
                   {t('history.delete')}
                 </button>
@@ -980,7 +981,7 @@ export default function History() {
                 <button
                   onClick={() => setRefundModalTx(null)}
                   aria-label={t('history.close')}
-                  className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 hover:text-white"
+                  className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 >
                   <X size={16} />
                 </button>
@@ -1086,7 +1087,7 @@ export default function History() {
                     refundStep === 1 &&
                     Object.values(refundSelection).reduce((a, b) => a + b, 0) === 0
                   }
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-900 dark:text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
                 >
                   {refundStep === 1 ? t('history.next') : t('history.confirmRefund')}{' '}
                   {refundStep === 1 && <ChevronRight size={16} />}

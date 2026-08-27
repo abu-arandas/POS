@@ -156,7 +156,7 @@ export default function ShiftScreen() {
                   {t('shift.openHint')}
                 </p>
 
-                <div className="text-start bg-[#0f172a]/50 p-6 rounded-2xl border border-slate-200 dark:border-white/5 shadow-inner">
+                <div className="text-start bg-[var(--surface-2)] p-6 rounded-2xl border border-slate-200 dark:border-white/5 shadow-inner">
                   <label
                     htmlFor="opening-float-input"
                     className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3"
@@ -210,19 +210,19 @@ export default function ShiftScreen() {
                         </span>
                       </h3>
                       <div className="flex items-center gap-6 mt-4">
-                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[#0f172a] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
+                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[var(--surface-1)] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
                           <User size={16} className="text-emerald-500" />
                           <span className="font-medium text-slate-700 dark:text-slate-200">
                             {currentShift.openedBy}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[#0f172a] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
+                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[var(--surface-1)] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
                           <Timer size={16} className="text-blue-500" />
                           <span className="font-mono font-medium text-slate-700 dark:text-slate-200">
                             {getShiftDuration(currentShift.openedAt)}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[#0f172a] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
+                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[var(--surface-1)] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
                           <ShoppingBag size={16} className="text-purple-500" />
                           <span className="font-mono font-medium text-slate-700 dark:text-slate-200">
                             {summary.saleCount} {t('shift.sales')}
@@ -266,7 +266,7 @@ export default function ShiftScreen() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.05 }}
                       key={s.label}
-                      className="surface rounded-2xl p-5 hover:bg-[#1e293b] transition-colors"
+                      className="surface rounded-2xl p-5 hover:bg-[var(--surface-hover)] transition-colors"
                     >
                       <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono block mb-2">
                         {s.label}
@@ -471,7 +471,7 @@ export default function ShiftScreen() {
                           <button
                             onClick={() => printReport(shift)}
                             aria-label={t('shift.printReport')}
-                            className="p-2 text-slate-500 hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                            className="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                             title={t('shift.printReport')}
                           >
                             <Printer size={16} />

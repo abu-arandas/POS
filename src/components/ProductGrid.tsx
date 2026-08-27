@@ -5,6 +5,7 @@ import { Product, StoreSettings } from '../types';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
+import { safeImageUrl } from '../lib/imageUrl';
 import {
   DndContext,
   closestCenter,
@@ -69,6 +70,7 @@ const SortableProductCard = memo(function SortableProductCard({
   const isLimitReached = cartQty >= prod.stock;
   const isUnavailable = isOutOfStock || isLimitReached;
   const [imgError, setImgError] = useState(false);
+  const imageUrl = safeImageUrl(prod.image);
   const { t } = useTranslation();
 
   const getCategoryEmoji = (catName: string) => {
@@ -135,7 +137,7 @@ const SortableProductCard = memo(function SortableProductCard({
       {/* Status overlays */}
       <div className="absolute top-2 inset-s-2 z-20 flex flex-col gap-1.5">
         {isOutOfStock && (
-          <span className="bg-rose-500/90 backdrop-blur-sm text-slate-900 dark:text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+          <span className="bg-rose-500/90 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
             {t('register.outOfStock')}
           </span>
         )}
@@ -148,7 +150,7 @@ const SortableProductCard = memo(function SortableProductCard({
           <motion.span
             initial={{ scale: 0, rotate: -10 }}
             animate={{ scale: 1, rotate: 0 }}
-            className="flex items-center gap-1 bg-emerald-500 text-slate-900 dark:text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-lg shadow-emerald-500/30"
+            className="flex items-center gap-1 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-lg shadow-emerald-500/30"
           >
             <Check size={9} className="stroke-3" />
             {cartQty}
@@ -165,9 +167,9 @@ const SortableProductCard = memo(function SortableProductCard({
 
       {/* Product image */}
       <div className="relative aspect-4/3 w-full overflow-hidden bg-slate-100 dark:bg-slate-800/50 pointer-events-none">
-        {prod.image && !imgError ? (
+        {imageUrl && !imgError ? (
           <img
-            src={prod.image}
+            src={imageUrl}
             alt={prod.name}
             className={`w-full h-full object-cover transition-transform duration-500 ${isUnavailable ? '' : 'group-hover:scale-110'}`}
             referrerPolicy="no-referrer"
@@ -326,7 +328,7 @@ const ProductGrid = ({
                   exit={{ opacity: 0, scale: 0.8 }}
                   onClick={() => setSearch('')}
                   aria-label={t('register.clearSearch')}
-                  className="absolute inset-e-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 dark:text-slate-300 transition-colors"
+                  className="absolute inset-e-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
                 >
                   <X size={12} />
                 </motion.button>
@@ -339,12 +341,9 @@ const ProductGrid = ({
             id="category-pills"
             className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-1"
           >
-            {/*
-              ⚡ Bolt Optimization:
-              Replaced O(N^2) category lookup with O(N) direct mapping.
-              Previously, it mapped over IDs and used `.find()` inside the render loop.
-              Now, it constructs the object array directly, significantly reducing render time.
-            */}
+            {/* Built as an object array rather than mapping ids and calling
+                .find() per pill, which was an O(N²) lookup inside the render
+                loop. */}
             {[{ id: 'all', name: null }, ...categories].map((cat) => {
               const catId = cat.id;
               const label =

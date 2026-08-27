@@ -60,7 +60,7 @@ export function HeldOrdersModal({
               <button
                 onClick={onClose}
                 aria-label={t('register.close')}
-                className="p-1.5 text-slate-500 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
+                className="p-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 rounded-xl transition-colors"
               >
                 <X size={16} />
               </button>
@@ -78,7 +78,7 @@ export function HeldOrdersModal({
                   return (
                     <div
                       key={order.id}
-                      className="group flex items-center justify-between gap-3 rounded-2xl p-3.5 transition-all bg-slate-800/40 border border-slate-700/50 hover:bg-slate-800/70"
+                      className="group flex items-center justify-between gap-3 rounded-2xl p-3.5 transition-all bg-slate-800/40 border border-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-800/70"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="font-sans font-bold text-slate-800 dark:text-slate-100 text-sm truncate">

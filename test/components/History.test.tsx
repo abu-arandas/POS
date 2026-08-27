@@ -91,7 +91,7 @@ beforeEach(() => {
     ],
   });
   useSettingsStore.setState({ settings: SETTINGS, printerConfig: PRINTER });
-  useTransactionStore.setState({ transactions: [SALE], demoSeeded: true });
+  useTransactionStore.setState({ transactions: [SALE] });
   useAuthStore.setState({ users: [MANAGER, CASHIER], currentUser: MANAGER });
   usePinAttemptStore.setState({ attempts: {} });
   vi.spyOn(window, 'alert').mockImplementation(() => {});
@@ -164,7 +164,6 @@ describe('History — refunding as a manager', () => {
           refundedItems: [{ productId: 'p-1', quantity: 2 }],
         },
       ],
-      demoSeeded: true,
     });
     render(<History />);
     await userEvent.setup().click(screen.getByText(/^TX-1/));

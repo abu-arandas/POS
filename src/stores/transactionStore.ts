@@ -14,9 +14,6 @@ export interface RefundPatch {
 
 interface TransactionState {
   transactions: SaleTransaction[];
-  // Retained for persisted-state compatibility. New production installs start
-  // empty; demo data is loaded only by explicit development/test fixtures.
-  demoSeeded: boolean;
   setTransactions: (transactions: SaleTransaction[]) => void;
   addTransaction: (transaction: SaleTransaction) => void;
   applyRefund: (id: string, patch: RefundPatch) => void;
@@ -27,7 +24,6 @@ export const useTransactionStore = create<TransactionState>()(
   persist(
     (set, get) => ({
       transactions: [],
-      demoSeeded: false,
 
       setTransactions: (transactions) => set({ transactions }),
 
@@ -62,9 +58,10 @@ export const useTransactionStore = create<TransactionState>()(
     {
       name: 'pos-transaction-storage',
       storage: createJSONStorage(() => idbStorage),
-      onRehydrateStorage: () => (state) => {
-        if (state && !state.demoSeeded) useTransactionStore.setState({ demoSeeded: true });
-      },
+      // The vestigial demoSeeded flag was dropped. persist's default merge is a
+      // shallow spread of the stored blob over the initial state, so an install
+      // that saved the key still carries it as an inert extra property — no
+      // migration needed, and nothing reads it.
     },
   ),
 );

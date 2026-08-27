@@ -42,13 +42,18 @@ describe('sha256HexSync (insecure-context fallback)', () => {
 });
 
 describe('hashPinSalted', () => {
+  // 600,000 iterations of the pure-JS fallback is deliberately expensive — that
+  // is the whole point of the work factor. It runs in roughly 15 s here and
+  // ~35 s under v8 coverage instrumentation, so the budget has to clear the
+  // instrumented figure or `npm run test:coverage` fails while `npm test`
+  // passes, which is a confusing way to find out.
   it('matches an independent PBKDF2-SHA-256 reference vector', async () => {
     const saltedHash = await hashPinSalted('u123', '1234');
     expect(saltedHash).toBe(
       'v2$600000$9b2e37bf6f878649d3d422d6dd6286a6$c48078a2acc6d963694bcd4261a95815cbf2b0e8dea87d349e1368e28fae2ce1',
     );
     expect(hashPinSaltedSync('u123', '1234')).toBe(saltedHash);
-  }, 30_000);
+  }, 120_000);
 
   it('produces different hashes for the same pin with different users', async () => {
     const hash1 = await hashPinSalted('user1', '0000');

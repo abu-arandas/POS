@@ -70,7 +70,7 @@ export function AddCustomerModal({
               <button
                 onClick={onClose}
                 aria-label={t('register.close')}
-                className="p-1.5 text-slate-500 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
+                className="p-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 rounded-xl transition-colors"
               >
                 <X size={16} />
               </button>

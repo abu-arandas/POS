@@ -58,7 +58,7 @@ const CustomTooltip = ({
 }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-xl">
+      <div className="bg-[var(--surface-1)] backdrop-blur-md border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-xl">
         <p className="text-slate-900 dark:text-white font-bold mb-2">{label}</p>
         {payload.map((entry, index) => (
           <div key={index} className="flex items-center gap-2 text-sm font-mono mt-1">
@@ -407,7 +407,7 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[#1e293b] transition-colors"
+            className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[var(--surface-hover)] transition-colors"
           >
             <div className="absolute -inset-e-6 -top-6 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-colors" />
             <div className="flex justify-between items-start mb-4 relative z-10">
@@ -434,8 +434,9 @@ export default function Dashboard() {
                   </span>
                 )}
                 <span className="text-slate-500 font-mono">
-                  vs {settings.currency}
-                  {kpis.avgDailyRevenue.toFixed(0)} avg
+                  {t('dashboard.vsAvg', {
+                    amount: `${settings.currency}${kpis.avgDailyRevenue.toFixed(0)}`,
+                  })}
                 </span>
               </div>
             </div>
@@ -446,7 +447,7 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[#1e293b] transition-colors"
+            className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[var(--surface-hover)] transition-colors"
           >
             <div className="absolute -inset-e-6 -top-6 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors" />
             <div className="flex justify-between items-start mb-4 relative z-10">
@@ -464,13 +465,13 @@ export default function Dashboard() {
               </h3>
               <div className="flex items-center gap-2 text-xs font-medium">
                 <span className="badge badge-blue px-2 py-0.5">
-                  Margin{' '}
+                  {t('dashboard.margin').replace(':', '')}{' '}
                   {kpis.revenueToday > 0
                     ? ((kpis.profitToday / kpis.revenueToday) * 100).toFixed(0)
                     : 0}
                   %
                 </span>
-                <span className="text-slate-500 font-mono">excl. tax</span>
+                <span className="text-slate-500 font-mono">{t('dashboard.exclTax')}</span>
               </div>
             </div>
           </motion.div>
@@ -480,7 +481,7 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[#1e293b] transition-colors"
+            className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[var(--surface-hover)] transition-colors"
           >
             <div className="absolute -inset-e-6 -top-6 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-colors" />
             <div className="flex justify-between items-start mb-4 relative z-10">
@@ -498,7 +499,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 text-xs font-medium">
                 <span className="badge badge-purple px-2 py-0.5 font-mono">
                   {settings.currency}
-                  {kpis.aovToday} AOV
+                  {kpis.aovToday} {t('dashboard.aov')}
                 </span>
               </div>
             </div>
@@ -509,7 +510,7 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[#1e293b] transition-colors"
+            className="surface rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group hover:bg-[var(--surface-hover)] transition-colors"
           >
             <div
               className={`absolute -inset-e-6 -top-6 w-32 h-32 rounded-full blur-3xl transition-colors ${kpis.lowStockItems > 0 ? 'bg-amber-500/10 group-hover:bg-amber-500/20' : 'bg-slate-500/10'}`}
@@ -531,11 +532,12 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 text-xs font-medium">
                 {kpis.lowStockItems > 0 ? (
                   <span className="badge badge-amber flex items-center gap-1.5 px-2 py-0.5">
-                    <AlertTriangle size={12} /> Action Needed
+                    <AlertTriangle size={12} /> {t('dashboard.actionNeeded')}
                   </span>
                 ) : (
                   <span className="badge badge-slate flex items-center gap-1.5 px-2 py-0.5">
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" /> All Good
+                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />{' '}
+                    {t('dashboard.allGood')}
                   </span>
                 )}
               </div>
@@ -560,7 +562,7 @@ export default function Dashboard() {
                 {t('dashboard.historicalPerf')}
               </p>
             </div>
-            <div className="flex items-center gap-4 text-xs font-mono bg-[#0f172a] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
+            <div className="flex items-center gap-4 text-xs font-mono bg-[var(--surface-1)] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
               <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                 <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                 {t('dashboard.revenue')}
@@ -645,7 +647,7 @@ export default function Dashboard() {
             </div>
             <div className="h-72 w-full">
               {topProductsData.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 bg-[var(--surface-1)] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
                   <Package size={32} className="mb-3 opacity-50" />
                   <span>{t('dashboard.noSales')}</span>
                 </div>
@@ -702,7 +704,7 @@ export default function Dashboard() {
             </div>
             <div className="flex-1 min-h-55 w-full relative">
               {categoryShareData.length === 0 ? (
-                <div className="w-full h-full flex items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
+                <div className="w-full h-full flex items-center justify-center text-slate-500 bg-[var(--surface-1)] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
                   {t('dashboard.noCategoryStats')}
                 </div>
               ) : (
@@ -771,7 +773,7 @@ export default function Dashboard() {
                 return (
                   <div
                     key={method}
-                    className="bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl p-5 hover:border-slate-200 transition-colors"
+                    className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 rounded-2xl p-5 hover:border-slate-200 transition-colors"
                   >
                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block mb-2">
                       {t(`dashboard.${method}`, { defaultValue: method })}
@@ -787,7 +789,7 @@ export default function Dashboard() {
                       />
                     </div>
                     <span className="text-xs text-slate-500 font-mono">
-                      {pct.toFixed(1)}% of total
+                      {t('dashboard.percentOfTotal', { percent: pct.toFixed(1) })}
                     </span>
                   </div>
                 );
@@ -807,7 +809,7 @@ export default function Dashboard() {
               </h3>
             </div>
             {operatorBreakdown.length === 0 ? (
-              <div className="w-full py-12 flex items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
+              <div className="w-full py-12 flex items-center justify-center text-slate-500 bg-[var(--surface-1)] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
                 {t('dashboard.noSales')}
               </div>
             ) : (
@@ -837,7 +839,7 @@ export default function Dashboard() {
                             />
                           </div>
                           <span className="text-[10px] font-mono text-slate-500 shrink-0">
-                            {op.orders} orders
+                            {op.orders} {t('dashboard.ordersLabel')}
                           </span>
                         </div>
                       </div>
@@ -863,7 +865,7 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div className="bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
+            <div className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block mb-2">
                 {t('dashboard.poReceived')}
               </span>
@@ -872,7 +874,7 @@ export default function Dashboard() {
                 {poReport.receivedValue.toFixed(2)}
               </span>
             </div>
-            <div className="bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
+            <div className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block mb-2">
                 {t('dashboard.poOutstanding')}
               </span>
@@ -881,7 +883,7 @@ export default function Dashboard() {
                 {poReport.outstandingValue.toFixed(2)}
               </span>
             </div>
-            <div className="bg-[#0f172a] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
+            <div className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block mb-2">
                 {t('dashboard.poOpenOrders')}
               </span>
@@ -895,7 +897,7 @@ export default function Dashboard() {
           </div>
 
           {poReport.suppliers.length === 0 ? (
-            <div className="w-full py-10 flex items-center justify-center text-slate-500 bg-[#0f172a] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
+            <div className="w-full py-10 flex items-center justify-center text-slate-500 bg-[var(--surface-1)] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
               {t('dashboard.noPurchaseData')}
             </div>
           ) : (

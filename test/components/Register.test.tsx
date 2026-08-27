@@ -74,7 +74,7 @@ beforeEach(() => {
   });
   useCustomerStore.setState({ customers: [CUSTOMER] });
   useSettingsStore.setState({ settings: SETTINGS, printerConfig: PRINTER });
-  useTransactionStore.setState({ transactions: [], demoSeeded: true });
+  useTransactionStore.setState({ transactions: [] });
   useAuthStore.setState({
     currentUser: { id: 'u-1', name: 'Ann', role: 'admin', pin: '', active: true, createdAt: '' },
   });

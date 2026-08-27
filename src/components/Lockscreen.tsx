@@ -357,7 +357,7 @@ export default function Lockscreen() {
                         </div>
                         <ChevronRight
                           size={16}
-                          className="text-slate-600 group-hover:text-slate-500 dark:text-slate-400 transition-colors rtl:rotate-180"
+                          className="text-slate-600 group-hover:text-slate-500 dark:text-slate-500 dark:group-hover:text-slate-300 transition-colors rtl:rotate-180"
                         />
                       </motion.button>
                     );
@@ -378,7 +378,7 @@ export default function Lockscreen() {
                 <div className="flex items-center justify-between mb-6">
                   <button
                     onClick={handleBackToUsers}
-                    className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 hover:text-white text-xs font-semibold transition-colors p-1.5 rounded-xl hover:bg-white/8"
+                    className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs font-semibold transition-colors p-1.5 rounded-xl hover:bg-white/8"
                     aria-label={t('lockscreen.back')}
                   >
                     <ArrowLeft size={14} className="rtl:rotate-180" />
@@ -505,7 +505,7 @@ export default function Lockscreen() {
                     disabled={lockout.locked}
                     whileTap={{ scale: 0.9 }}
                     aria-label={t('lockscreen.backspace')}
-                    className="h-13 rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-white flex items-center justify-center transition-all disabled:opacity-30"
+                    className="h-13 rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-all disabled:opacity-30"
                   >
                     <Delete size={18} />
                   </motion.button>

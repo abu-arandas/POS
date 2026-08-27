@@ -21,6 +21,7 @@ import { Product, Customer } from '../types';
 import { useCustomerStore } from '../stores/customerStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useTranslation } from 'react-i18next';
+import { safeImageUrl } from '../lib/imageUrl';
 
 interface CartPanelProps {
   cart: Array<{ product: Product; quantity: number }>;
@@ -79,8 +80,14 @@ const CartPanel = ({
   const settings = useSettingsStore((s) => s.settings);
   const { t } = useTranslation();
 
+  // Redemption is only meaningful when a point is worth something. Production
+  // defaults ship loyaltyPointValue: 0, which made this divide by zero —
+  // Infinity for a non-empty cart (offering a redemption worth $0.00) and NaN
+  // for an empty one, which rendered as a literal "NaN pts" discount badge.
+  const loyaltyEnabled = settings.loyaltyPointValue > 0;
+
   const applyLoyaltyPoints = useCallback(() => {
-    if (!activeCustomer) return;
+    if (!activeCustomer || !loyaltyEnabled) return;
     const maxPointsUse = Math.min(
       activeCustomer.points,
       Math.ceil(subtotal / settings.loyaltyPointValue),
@@ -90,6 +97,7 @@ const CartPanel = ({
     setShowPromoInput(false);
   }, [
     activeCustomer,
+    loyaltyEnabled,
     subtotal,
     settings.loyaltyPointValue,
     setDiscountType,
@@ -105,13 +113,13 @@ const CartPanel = ({
   }, [discountInput, setShowPromoInput]);
 
   const loyaltySavings = useMemo(() => {
-    if (!activeCustomer) return 0;
+    if (!activeCustomer || !loyaltyEnabled) return 0;
     return Math.min(
       Math.min(activeCustomer.points, Math.ceil(subtotal / settings.loyaltyPointValue)) *
         settings.loyaltyPointValue,
       subtotal,
     );
-  }, [activeCustomer, subtotal, settings.loyaltyPointValue]);
+  }, [activeCustomer, loyaltyEnabled, subtotal, settings.loyaltyPointValue]);
 
   return (
     <aside
@@ -218,10 +226,10 @@ const CartPanel = ({
                 className="flex items-center gap-2.5 p-2.5 rounded-xl group bg-slate-100/70 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700/40 hover:bg-slate-800/50 transition-colors"
               >
                 {/* Product thumbnail */}
-                {item.product.image && (
+                {safeImageUrl(item.product.image) && (
                   <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
                     <img
-                      src={item.product.image}
+                      src={safeImageUrl(item.product.image)}
                       alt={item.product.name}
                       className="w-full h-full object-cover"
                     />
@@ -252,7 +260,7 @@ const CartPanel = ({
                     <button
                       onClick={() => updateCartQty(item.product.id, -1)}
                       aria-label={`${t('register.decreaseQty')} — ${item.product.name}`}
-                      className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/8 transition-colors"
+                      className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 transition-colors"
                     >
                       <Minus size={11} />
                     </button>
@@ -263,7 +271,7 @@ const CartPanel = ({
                       onClick={() => updateCartQty(item.product.id, 1)}
                       disabled={item.quantity >= item.product.stock}
                       aria-label={`${t('register.increaseQty')} — ${item.product.name}`}
-                      className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/8 disabled:opacity-25 transition-colors"
+                      className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 disabled:opacity-25 transition-colors"
                     >
                       <Plus size={11} />
                     </button>
@@ -288,32 +296,35 @@ const CartPanel = ({
         className="shrink-0 px-3 py-2.5 space-y-2 border-t border-slate-200 dark:border-slate-800/60"
       >
         {/* Loyalty points offer */}
-        {activeCustomer && activeCustomer.points > 0 && discountType !== 'loyalty' && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <Star size={13} className="text-emerald-400 shrink-0 fill-emerald-400/30" />
-              <div className="min-w-0">
-                <p className="text-emerald-300 text-[11px] font-bold leading-tight">
-                  {t('register.loyaltyPointsAvail')}
-                </p>
-                <p className="text-emerald-500 text-[10px]">
-                  {t('register.save')} {settings.currency}
-                  {loyaltySavings.toFixed(2)}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={applyLoyaltyPoints}
-              className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg shrink-0 transition-colors bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+        {loyaltyEnabled &&
+          activeCustomer &&
+          activeCustomer.points > 0 &&
+          discountType !== 'loyalty' && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
             >
-              {t('register.apply')}
-            </button>
-          </motion.div>
-        )}
+              <div className="flex items-center gap-2 min-w-0">
+                <Star size={13} className="text-emerald-400 shrink-0 fill-emerald-400/30" />
+                <div className="min-w-0">
+                  <p className="text-emerald-300 text-[11px] font-bold leading-tight">
+                    {t('register.loyaltyPointsAvail')}
+                  </p>
+                  <p className="text-emerald-500 text-[10px]">
+                    {t('register.save')} {settings.currency}
+                    {loyaltySavings.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={applyLoyaltyPoints}
+                className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg shrink-0 transition-colors bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+              >
+                {t('register.apply')}
+              </button>
+            </motion.div>
+          )}
 
         {/* Active discount badge */}
         {discountType !== 'none' && !showPromoInput && (
@@ -357,7 +368,7 @@ const CartPanel = ({
                     setDiscountType('percentage');
                     setShowPromoInput(true);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                 >
                   <Percent size={12} />
                   <span dir="ltr">{t('register.addPercent')}</span>
@@ -367,7 +378,7 @@ const CartPanel = ({
                     setDiscountType('fixed');
                     setShowPromoInput(true);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-white"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                 >
                   <DollarSign size={12} />
                   {t('register.fixed')}
@@ -401,7 +412,7 @@ const CartPanel = ({
                     setShowPromoInput(false);
                   }}
                   aria-label={t('register.cancelDiscount')}
-                  className="p-1.5 text-slate-500 hover:text-slate-600 dark:text-slate-300 transition-colors shrink-0"
+                  className="p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors shrink-0"
                 >
                   <X size={13} />
                 </button>

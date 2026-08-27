@@ -49,7 +49,12 @@ const CATEGORIES = [
 ];
 
 // Self-contained SVG thumbnails (category gradient + emoji) so seeded products
-// render offline with no external image host — mirrors src/data/seedData.ts.
+// render offline with no external image host.
+//
+// The catalogue below is this script's own demo dataset and is deliberately
+// NOT the same as src/data/seedData.ts, which carries the development
+// fixture. Seeding a project with this script and then opening a development
+// build gives you two different catalogues; that is expected.
 const CATEGORY_GRADIENT = {
   'cat-bev': ['#38bdf8', '#2563eb'],
   'cat-bak': ['#fbbf24', '#d97706'],
