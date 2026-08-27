@@ -61,12 +61,7 @@ export function ReceiptModal({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.88, opacity: 0, y: 32 }}
             transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-            className="max-w-sm w-full overflow-hidden flex flex-col rounded-3xl"
-            style={{
-              background: 'var(--receipt-bg)',
-              border: '1px solid var(--border-subtle)',
-              boxShadow: 'var(--shadow-lg)',
-            }}
+            className="receipt-card max-w-sm w-full overflow-hidden flex flex-col rounded-3xl"
           >
             <div className="bg-linear-to-br from-emerald-500 to-emerald-600 text-slate-900 dark:text-white p-8 pb-10 text-center flex flex-col items-center relative overflow-hidden">
               {/* Decorative background circle */}
@@ -273,29 +268,13 @@ export function ReceiptModal({
               </div>
             </div>
 
-            <div
-              className="p-4 space-y-2.5"
-              style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
-            >
+            <div className="modal-divider-top p-4 space-y-2.5">
               <div className="flex items-center gap-2">
                 {actions.map(({ icon: Icon, label, onClick }) => (
                   <button
                     key={label}
                     onClick={onClick}
-                    className="flex-1 flex justify-center items-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all group"
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      color: '#64748b',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = '#34d399';
-                      e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = '#64748b';
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                    }}
+                    className="btn-ghost-emerald flex-1 flex justify-center items-center gap-1.5 py-2.5 rounded-xl text-xs font-bold group"
                   >
                     <Icon size={14} />
                     <span>{label}</span>
@@ -305,11 +284,7 @@ export function ReceiptModal({
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={onClose}
-                className="w-full py-3.5 rounded-xl text-sm font-bold text-slate-950 transition-all active:scale-[0.98]"
-                style={{
-                  background: 'linear-gradient(135deg, #10b981, #34d399)',
-                  boxShadow: '0 4px 16px rgba(16,185,129,0.3)',
-                }}
+                className="btn-primary w-full py-3.5 rounded-xl text-sm font-bold active:scale-[0.98]"
               >
                 {t('register.newSale')}
               </motion.button>

@@ -606,11 +606,7 @@ export default function Register() {
   );
 
   return (
-    <div
-      id="register-root"
-      className="flex flex-1 h-full overflow-hidden"
-      style={{ background: 'var(--app-bg)' }}
-    >
+    <div id="register-root" className="app-canvas flex flex-1 h-full overflow-hidden">
       <ProductGrid
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}

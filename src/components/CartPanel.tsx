@@ -125,8 +125,7 @@ const CartPanel = ({
     <aside
       id="cart-section"
       aria-label={t('register.checkout')}
-      className="flex flex-col h-full shrink-0 relative z-10 w-[300px] border-s"
-      style={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}
+      className="app-panel flex flex-col h-full shrink-0 relative z-10 w-[300px] border-s"
     >
       {/* ── Customer Header ── */}
       <div

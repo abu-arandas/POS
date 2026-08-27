@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useCallback, useEffect, type CSSProperties } from 'react';
 import {
   TrendingUp,
   ShoppingBag,
@@ -62,7 +62,10 @@ const CustomTooltip = ({
         <p className="text-slate-900 dark:text-white font-bold mb-2">{label}</p>
         {payload.map((entry, index) => (
           <div key={index} className="flex items-center gap-2 text-sm font-mono mt-1">
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+            <span
+              className="swatch w-2 h-2 rounded-full"
+              style={{ '--swatch-color': entry.color } as CSSProperties}
+            />
             <span className="text-slate-500 dark:text-slate-400 capitalize">{entry.name}:</span>
             <span className="text-slate-900 dark:text-white font-bold">
               {valueType === 'currency' ? currency : ''}
@@ -733,8 +736,8 @@ export default function Dashboard() {
               {categoryShareData.slice(0, 4).map((item, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <span
-                    className="w-3 h-3 rounded-full shrink-0"
-                    style={{ backgroundColor: item.color }}
+                    className="swatch w-3 h-3 rounded-full shrink-0"
+                    style={{ '--swatch-color': item.color } as CSSProperties}
                   />
                   <div className="flex flex-col">
                     <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate w-20">
@@ -784,8 +787,8 @@ export default function Dashboard() {
                     </span>
                     <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mb-2">
                       <div
-                        className="bg-blue-500 h-1.5 rounded-full"
-                        style={{ width: `${pct}%` }}
+                        className="bar-fill bg-blue-500 h-1.5 rounded-full"
+                        style={{ '--bar-width': `${pct}%` } as CSSProperties}
                       />
                     </div>
                     <span className="text-xs text-slate-500 font-mono">
@@ -834,8 +837,12 @@ export default function Dashboard() {
                         <div className="flex items-center gap-3">
                           <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-emerald-500 rounded-full"
-                              style={{ width: `${Math.max(2, (op.revenue / max) * 100)}%` }}
+                              className="bar-fill h-full bg-emerald-500 rounded-full"
+                              style={
+                                {
+                                  '--bar-width': `${Math.max(2, (op.revenue / max) * 100)}%`,
+                                } as CSSProperties
+                              }
                             />
                           </div>
                           <span className="text-[10px] font-mono text-slate-500 shrink-0">
@@ -933,8 +940,12 @@ export default function Dashboard() {
                       <div className="flex items-center gap-3">
                         <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-emerald-500 rounded-full"
-                            style={{ width: `${Math.max(2, (spend / maxSpend) * 100)}%` }}
+                            className="bar-fill h-full bg-emerald-500 rounded-full"
+                            style={
+                              {
+                                '--bar-width': `${Math.max(2, (spend / maxSpend) * 100)}%`,
+                              } as CSSProperties
+                            }
                           />
                         </div>
                         <span className="text-[10px] font-mono text-slate-500 shrink-0">

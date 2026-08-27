@@ -248,10 +248,7 @@ export default function App() {
           id="app-shell"
           className="relative flex flex-col flex-1 min-w-0 h-screen overflow-hidden"
         >
-          <header
-            className="lg:hidden text-slate-800 dark:text-slate-100 px-4 py-3 flex items-center justify-between shadow-md shrink-0 border-b"
-            style={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}
-          >
+          <header className="app-panel lg:hidden text-slate-800 dark:text-slate-100 px-4 py-3 flex items-center justify-between shadow-md shrink-0 border-b">
             <div className="flex items-center space-x-2">
               <div className="bg-emerald-500 text-slate-950 p-1.5 rounded-lg">
                 <ShoppingBag size={16} className="stroke-[2.5]" />
@@ -308,8 +305,7 @@ export default function App() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="lg:hidden absolute top-[48px] inset-x-0 border-b shadow-2xl z-40 p-4 space-y-2 flex flex-col"
-                style={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}
+                className="app-panel lg:hidden absolute top-[48px] inset-x-0 border-b shadow-2xl z-40 p-4 space-y-2 flex flex-col"
               >
                 {allowedMobileItems.map((item) => {
                   const Icon = item.icon;

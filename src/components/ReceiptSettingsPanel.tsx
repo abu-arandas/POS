@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Eye } from 'lucide-react';
 import { ReceiptLayout, ReceiptToggles, SaleTransaction } from '../types';
@@ -200,8 +200,8 @@ export default function ReceiptSettingsPanel({
           <iframe
             title={t('receiptCfg.preview')}
             srcDoc={previewDoc}
-            style={{ width: previewWidth }}
-            className="h-95 bg-white block"
+            style={{ '--preview-width': previewWidth } as CSSProperties}
+            className="preview-frame h-95 bg-white block"
             sandbox=""
           />
         </div>

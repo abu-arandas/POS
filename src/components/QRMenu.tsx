@@ -144,30 +144,6 @@ export default function QRMenu() {
           {t('qrmenu.printDisplay')}
         </button>
       </div>
-
-      {/* Print styles - only visible when printing */}
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-        @media print {
-          body * { visibility: hidden; }
-          #print-area, #print-area * { visibility: visible; }
-          #print-area { 
-            position: absolute; 
-            left: 50%; 
-            top: 50%; 
-            transform: translate(-50%, -50%); 
-            width: 100%; 
-            max-width: 600px;
-            box-shadow: none; 
-            border: none;
-            background: white !important;
-          }
-          #print-area h3, #print-area p { color: black !important; }
-        }
-      `,
-        }}
-      />
     </motion.div>
   );
 }

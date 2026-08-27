@@ -1110,12 +1110,7 @@ export default function Inventory() {
                               <>
                                 <button
                                   onClick={() => setPurchaseOrderStatus(po.id, 'ordered')}
-                                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
-                                  style={{
-                                    background: 'rgba(59,130,246,0.15)',
-                                    color: '#60a5fa',
-                                    border: '1px solid rgba(59,130,246,0.25)',
-                                  }}
+                                  className="btn-chip-blue flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl"
                                 >
                                   <Send size={12} /> {t('inventory.poMarkOrdered')}
                                 </button>
@@ -1135,12 +1130,7 @@ export default function Inventory() {
                               <>
                                 <button
                                   onClick={() => handleReceivePo(po)}
-                                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
-                                  style={{
-                                    background: 'rgba(16,185,129,0.15)',
-                                    color: '#34d399',
-                                    border: '1px solid rgba(16,185,129,0.25)',
-                                  }}
+                                  className="btn-chip-emerald flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl"
                                 >
                                   <PackagePlus size={12} /> {t('inventory.poReceive')}
                                 </button>
@@ -1990,8 +1980,7 @@ export default function Inventory() {
                         onClick={() => setPoLines((prev) => prev.filter((_, i) => i !== idx))}
                         disabled={poLines.length <= 1}
                         aria-label={t('inventory.poRemoveLine')}
-                        className="p-2.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl disabled:opacity-25 transition-colors shrink-0"
-                        style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+                        className="btn-icon-outline p-2.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl disabled:opacity-25 transition-colors shrink-0"
                       >
                         <X size={14} />
                       </button>
@@ -2009,8 +1998,7 @@ export default function Inventory() {
                         },
                       ]);
                     }}
-                    className="text-xs font-bold px-3 py-2 rounded-lg transition-colors"
-                    style={{ color: '#34d399', border: '1px dashed rgba(16,185,129,0.35)' }}
+                    className="btn-dashed-add text-xs font-bold px-3 py-2 rounded-lg"
                   >
                     + {t('inventory.poAddLine')}
                   </button>
