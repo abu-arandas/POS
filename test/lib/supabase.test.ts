@@ -7,36 +7,49 @@ import {
 } from '../../src/lib/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
 
-// A pull walks the table in pages. The builder is chainable and thenable, so
-// the mock has to be too: .select().order().range() and an optional .eq(), with
-// the terminal object awaited. `pages` is consumed one response per range call.
+// A pull walks the table by primary key, not by offset. The builder is
+// chainable and thenable, so the mock has to be too:
+// .select().order().limit()[.gt()][.eq()], with the terminal object awaited.
+// `pages` is consumed one response per page.
 function makeProductClient(pages: Array<{ data: unknown[] | null; error?: unknown }>) {
-  const ranges: Array<[number, number]> = [];
-  const eq = vi.fn();
+  const cursors: Array<string | null> = [];
+  const limits: number[] = [];
   const orders: unknown[][] = [];
+  const eq = vi.fn();
   let call = 0;
 
+  // .order() returns the builder; .limit() ends one page and hands back a
+  // terminal object that is both chainable (.gt for the cursor, .eq for the
+  // store filter) and thenable, so `await query` resolves that page.
   const builder: Record<string, unknown> = {
     order: vi.fn((...args: unknown[]) => {
       orders.push(args);
       return builder;
     }),
-    range: vi.fn((from: number, to: number) => {
-      ranges.push([from, to]);
-      const page = pages[call++] ?? { data: [] };
-      const settled = Promise.resolve({ data: page.data, error: page.error ?? null });
-      // The range() result must still expose .eq() — pullProducts appends the
-      // store filter after range() — and must be awaitable.
-      return {
-        eq: eq.mockReturnValue(settled),
+    limit: vi.fn((n: number) => {
+      limits.push(n);
+      const index = cursors.push(null) - 1; // null until .gt() says otherwise
+      const { data, error } = pages[call++] ?? { data: [] };
+      const settled = Promise.resolve({ data, error: error ?? null });
+
+      const terminal: Record<string, unknown> = {
+        gt: vi.fn((_column: string, value: string) => {
+          cursors[index] = value;
+          return terminal;
+        }),
+        eq: vi.fn((...args: unknown[]) => {
+          eq(...args);
+          return terminal;
+        }),
         then: settled.then.bind(settled),
       };
+      return terminal;
     }),
   };
 
   const select = vi.fn(() => builder);
   const client = { from: vi.fn(() => ({ select })) } as unknown as SupabaseClient;
-  return { client, select, eq, ranges, orders };
+  return { client, select, eq, cursors, limits, orders };
 }
 
 const productRow = (id: string) => ({
@@ -52,20 +65,17 @@ const productRow = (id: string) => ({
 });
 
 describe('pullProducts', () => {
-  it('maps rows, and confirms the end with an empty page rather than a short one', async () => {
-    // A short page is exactly what a server-side row cap looks like, so it
-    // cannot be treated as "that was the last of them". Only an empty page ends
-    // the walk — hence the second range call here for a single-row table.
-    const { client, select, eq, ranges } = makeProductClient([{ data: [productRow('1')] }]);
+  it('maps rows and asks for a page keyed by primary key', async () => {
+    const { client, select, limits, orders } = makeProductClient([
+      { data: [productRow('1')] },
+      { data: [] },
+    ]);
 
     const result = await pullProducts(client);
 
     expect(select).toHaveBeenCalledWith('*');
-    expect(eq).not.toHaveBeenCalled();
-    expect(ranges).toEqual([
-      [0, PULL_PAGE_SIZE - 1],
-      [1, PULL_PAGE_SIZE],
-    ]);
+    expect(orders[0]).toEqual(['id']);
+    expect(limits[0]).toBe(PULL_PAGE_SIZE);
     expect(result).toEqual([
       {
         id: '1',
@@ -81,10 +91,28 @@ describe('pullProducts', () => {
     ]);
   });
 
-  it('orders the query, because paging an unordered table skips and repeats rows', async () => {
-    const { client, orders } = makeProductClient([{ data: [] }]);
+  it('carries the last id forward as the cursor, so offsets cannot shift', async () => {
+    // Offset paging re-counts from the start of the result on every request, so
+    // a sale rung up mid-pull slides a row across the page boundary and it is
+    // fetched twice or missed. A keyset cursor has no such window.
+    const { client, cursors } = makeProductClient([
+      { data: [productRow('a'), productRow('b')] },
+      { data: [productRow('c')] },
+      { data: [] },
+    ]);
+
+    const result = await pullProducts(client);
+
+    expect(result?.map((p) => p.id)).toEqual(['a', 'b', 'c']);
+    expect(cursors).toEqual([null, 'b', 'c']);
+  });
+
+  it('confirms the end with an empty page rather than a short one', async () => {
+    // A short page is exactly what a server-side row cap looks like, so it
+    // cannot be read as "that was the last of them".
+    const { client, cursors } = makeProductClient([{ data: [productRow('only')] }, { data: [] }]);
     await pullProducts(client);
-    expect(orders).toEqual([['id']]);
+    expect(cursors).toHaveLength(2);
   });
 
   it('filters by storeId when one is configured', async () => {
@@ -92,38 +120,6 @@ describe('pullProducts', () => {
     const result = await pullProducts(client, 'store-123');
     expect(eq).toHaveBeenCalledWith('store_id', 'store-123');
     expect(result).toEqual([]);
-  });
-
-  it('walks every page until one comes back empty', async () => {
-    const full = Array.from({ length: PULL_PAGE_SIZE }, (_, i) => productRow(`p${i}`));
-    const { client, ranges } = makeProductClient([
-      { data: full },
-      { data: [productRow('last')] },
-      { data: [] },
-    ]);
-
-    const result = await pullProducts(client);
-
-    expect(result).toHaveLength(PULL_PAGE_SIZE + 1);
-    expect(ranges).toEqual([
-      [0, PULL_PAGE_SIZE - 1],
-      [PULL_PAGE_SIZE, PULL_PAGE_SIZE * 2 - 1],
-      [PULL_PAGE_SIZE + 1, PULL_PAGE_SIZE * 2],
-    ]);
-  });
-
-  it('advances by rows received, so a server-side row cap cannot skip rows', async () => {
-    // The server caps responses below PULL_PAGE_SIZE. Advancing by the page
-    // size we *asked* for would jump straight past everything it withheld —
-    // and because "Pull From Cloud" replaces all local data, those rows would
-    // be silently destroyed rather than merely missed.
-    const capped = Array.from({ length: 500 }, (_, i) => productRow(`c${i}`));
-    const { client, ranges } = makeProductClient([{ data: capped }, { data: [] }]);
-
-    const result = await pullProducts(client);
-
-    expect(result).toHaveLength(500);
-    expect(ranges[1]).toEqual([500, 500 + PULL_PAGE_SIZE - 1]);
   });
 
   it('treats a null page as the end rather than crashing', async () => {

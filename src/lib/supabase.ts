@@ -179,30 +179,51 @@ export async function pushProducts(
 // its ids.
 export const PULL_PAGE_SIZE = 1000;
 
-// Two details this has to get right:
+// Paged by primary key, not by offset.
 //
-//   * Advance by the number of rows actually received, never by the requested
-//     page size. If the server's own cap is lower than PULL_PAGE_SIZE, asking
-//     for 0-999 and then assuming the next page starts at 1000 skips every row
-//     the server withheld.
-//   * Stop on an empty page, not on a short one. A short page means the server
-//     returned less than asked for, which is exactly the capped case above.
+// `.range(from, to)` counts rows from the start of the result on each request,
+// so anything inserted or deleted before a later page shifts every offset after
+// it — a sale rung up mid-pull slides one row across the page boundary and it is
+// either fetched twice or missed entirely. Pulls are not short (they walk the
+// whole table) and the register is writing the whole time, so that window is
+// wide open in normal use. Because the result then *replaces* local state, a
+// dropped row is not a stale read, it is data destroyed.
 //
-// The caller must supply a deterministic order, or the database is free to
-// return rows in a different order per request and paging will both duplicate
-// and skip rows.
-async function fetchAllPages<Row>(
-  page: (from: number, to: number) => PromiseLike<{ data: Row[] | null; error: unknown }>,
+// Keying each page off the last id seen has no such window: rows before the
+// cursor cannot move it, and inserts land on a page that has not been read yet.
+//
+// Two further details:
+//
+//   * Stop on an empty page, not a short one. A short page is exactly what a
+//     server-side row cap (Supabase's `max-rows`) looks like, and treating it
+//     as the end would silently truncate the pull.
+//   * `id` is the primary key on every synced table, so it is unique and stable
+//     — the two properties a keyset cursor needs.
+async function fetchAllPages<Row extends { id: string }>(
+  page: (
+    afterId: string | null,
+    limit: number,
+  ) => PromiseLike<{ data: Row[] | null; error: unknown }>,
 ): Promise<Row[]> {
   const rows: Row[] = [];
-  for (let from = 0; ;) {
-    const { data, error } = await page(from, from + PULL_PAGE_SIZE - 1);
+  let afterId: string | null = null;
+  for (;;) {
+    const { data, error } = await page(afterId, PULL_PAGE_SIZE);
     if (error) throw error;
     const batch = data ?? [];
     if (batch.length === 0) return rows;
     for (const row of batch) rows.push(row);
-    from += batch.length;
+    afterId = batch[batch.length - 1].id;
   }
+}
+
+// Applies the keyset cursor to a query. Ascending id order is what makes the
+// cursor meaningful; callers that want a different order sort the result.
+function keyset<
+  T extends { order: (c: string) => T; limit: (n: number) => T; gt: (c: string, v: string) => T },
+>(query: T, afterId: string | null, limit: number): T {
+  const ordered = query.order('id').limit(limit);
+  return afterId === null ? ordered : ordered.gt('id', afterId);
 }
 
 // Pull products from Supabase
@@ -211,8 +232,8 @@ export async function pullProducts(
   storeId?: string,
 ): Promise<Product[] | null> {
   try {
-    const data = await fetchAllPages((from, to) => {
-      let query = client.from('products').select('*').order('id').range(from, to);
+    const data = await fetchAllPages((afterId, limit) => {
+      let query = keyset(client.from('products').select('*'), afterId, limit);
       if (storeId) query = query.eq('store_id', storeId);
       return query;
     });
@@ -256,8 +277,8 @@ export async function pullCategories(
   storeId?: string,
 ): Promise<Category[] | null> {
   try {
-    const data = await fetchAllPages((from, to) => {
-      let query = client.from('categories').select('*').order('id').range(from, to);
+    const data = await fetchAllPages((afterId, limit) => {
+      let query = keyset(client.from('categories').select('*'), afterId, limit);
       if (storeId) query = query.eq('store_id', storeId);
       return query;
     });
@@ -303,8 +324,8 @@ export async function pullCustomers(
   storeId?: string,
 ): Promise<Customer[] | null> {
   try {
-    const data = await fetchAllPages((from, to) => {
-      let query = client.from('customers').select('*').order('id').range(from, to);
+    const data = await fetchAllPages((afterId, limit) => {
+      let query = keyset(client.from('customers').select('*'), afterId, limit);
       if (storeId) query = query.eq('store_id', storeId);
       return query;
     });
@@ -415,19 +436,17 @@ export async function pullTransactions(
   storeId?: string,
 ): Promise<SaleTransaction[] | null> {
   try {
-    const data = await fetchAllPages((from, to) => {
-      // `id` is a tiebreaker, not decoration: two sales in the same millisecond
-      // order arbitrarily between requests, and an unstable order across pages
-      // both duplicates and drops rows.
-      let query = client
-        .from('transactions')
-        .select('*')
-        .order('date', { ascending: false })
-        .order('id')
-        .range(from, to);
+    // Walked by id so the cursor is stable, then sorted newest-first here.
+    // Ordering by date server-side would need the cursor to be the (date, id)
+    // pair, which PostgREST cannot express as a single filter; sorting the
+    // finished set costs nothing next to the round trips and keeps this
+    // function's contract — newest first — exactly as it was.
+    const data = await fetchAllPages((afterId, limit) => {
+      let query = keyset(client.from('transactions').select('*'), afterId, limit);
       if (storeId) query = query.eq('store_id', storeId);
       return query;
     });
+    data.sort((a, b) => String(b.date).localeCompare(String(a.date)));
     return (data || []).map((r) => ({
       id: r.id,
       date: r.date,
@@ -494,8 +513,8 @@ export async function pullUserAccounts(
   storeId?: string,
 ): Promise<UserAccount[] | null> {
   try {
-    const data = await fetchAllPages((from, to) => {
-      let query = client.from('user_accounts_public').select('*').order('id').range(from, to);
+    const data = await fetchAllPages((afterId, limit) => {
+      let query = keyset(client.from('user_accounts_public').select('*'), afterId, limit);
       if (storeId) query = query.eq('store_id', storeId);
       return query;
     });

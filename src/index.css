@@ -1318,12 +1318,21 @@ select {
 
 /* Product card in the register grid. The lifted stacking order and ghosting
    while a card is dragged are the app's own decisions, so they live here;
-   only dnd-kit's per-frame transform stays on the element. */
+   only dnd-kit's per-frame transform stays on the element.
+   
+   Deliberately no `opacity: 1` in the base rule. These declarations are
+   unlayered, and unlayered CSS outranks anything in a cascade layer whatever
+   its specificity — so an explicit `opacity: 1` here silently beat Tailwind's
+   `opacity-50` (which lives in @layer utilities) and unavailable products
+   rendered at full strength while still being unclickable. Confirmed in
+   Chromium: computed opacity was 1 with the base rule, 0.5 without it. The
+   resting value is the initial one anyway, so there is nothing to restore. */
 .product-card {
   z-index: 1;
-  opacity: 1;
 }
 
+/* Same reasoning in reverse: this one *should* outrank the utility, because a
+   card being dragged is a stronger state than a card being out of stock. */
 .product-card.is-dragging {
   z-index: 50;
   opacity: 0.4;

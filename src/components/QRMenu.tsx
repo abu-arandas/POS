@@ -6,9 +6,12 @@ import { motion } from 'motion/react';
 
 export default function QRMenu() {
   const { t } = useTranslation();
-  const [menuHost, setMenuHost] = useState<{ ip: string; port: number }>(() => ({
+  // `running` starts true so the browser build — which has no Electron menu
+  // server and never calls getMenuInfo — does not show a permanent warning.
+  const [menuHost, setMenuHost] = useState<{ ip: string; port: number; running: boolean }>(() => ({
     ip: typeof window !== 'undefined' ? window.location.hostname : 'localhost',
     port: 3001,
+    running: true,
   }));
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -18,7 +21,7 @@ export default function QRMenu() {
     try {
       if (window.electronAPI?.getMenuInfo) {
         const info = await window.electronAPI.getMenuInfo();
-        setMenuHost(info);
+        setMenuHost({ ...info, running: info.running !== false });
       }
     } catch (err) {
       console.error('Failed to get menu server info:', err);
@@ -34,7 +37,7 @@ export default function QRMenu() {
     window.electronAPI
       ?.getMenuInfo?.()
       .then((info) => {
-        if (!cancelled) setMenuHost(info);
+        if (!cancelled) setMenuHost({ ...info, running: info.running !== false });
       })
       .catch((err) => console.error('Failed to get menu server info:', err));
     return () => {
@@ -95,6 +98,18 @@ export default function QRMenu() {
           <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base mb-8 font-medium relative z-10">
             {t('qrmenu.scanHint')}
           </p>
+
+          {/* The address and port below are only meaningful while something is
+              listening on them. Saying so beats printing a confident code for a
+              dead endpoint and letting a customer find out. */}
+          {!menuHost.running && (
+            <p
+              role="alert"
+              className="badge badge-amber max-w-md mb-8 relative z-10 !normal-case !tracking-normal !text-[11px] leading-relaxed py-2 px-3 text-center"
+            >
+              {t('qrmenu.serverDown')}
+            </p>
+          )}
 
           <div className="bg-white p-6 rounded-4xl shadow-xl border-4 border-slate-100 dark:border-slate-800 mb-8 relative z-10 transition-transform hover:scale-105">
             <QRCodeSVG

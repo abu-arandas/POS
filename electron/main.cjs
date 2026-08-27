@@ -60,19 +60,30 @@ let serverPort = null;
 let boundHost = null;
 let menuServer = null;
 
+// Resolves once the server is either listening or definitively not coming up.
+// listen() is asynchronous, so without something to await, get-menu-info called
+// during startup — or during the port-retry walk, or the moment after a rebind
+// — would report the fallback port while nothing was bound there yet, and the
+// QR code would be generated for an endpoint that does not exist.
+//
+// It resolves rather than rejects on failure: the caller wants to know the
+// attempt is over, and `running` in the reply already says how it ended.
 function startMenuServer(port, attemptsLeft) {
-  const host = getLocalIp();
-  const server = expressApp.listen(port, pickListenHost(host), () => {
-    menuServer = server;
-    serverPort = port;
-    boundHost = host;
-    console.log(`Menu Express server listening on ${host}:${port}`);
-  });
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE' && attemptsLeft > 0) {
-      console.warn(`Port ${port} in use, trying ${port + 1}…`);
-      startMenuServer(port + 1, attemptsLeft - 1);
-    } else {
+  return new Promise((resolve) => {
+    const host = getLocalIp();
+    const server = expressApp.listen(port, pickListenHost(host), () => {
+      menuServer = server;
+      serverPort = port;
+      boundHost = host;
+      console.log(`Menu Express server listening on ${host}:${port}`);
+      resolve();
+    });
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE' && attemptsLeft > 0) {
+        console.warn(`Port ${port} in use, trying ${port + 1}…`);
+        startMenuServer(port + 1, attemptsLeft - 1).then(resolve);
+        return;
+      }
       menuServer = null;
       serverPort = null;
       boundHost = null;
@@ -83,11 +94,12 @@ function startMenuServer(port, attemptsLeft) {
           'Menu server failed to start: ' + err.message,
         );
       }
-    }
+      resolve();
+    });
   });
 }
 
-startMenuServer(3001, 10);
+let menuServerReady = startMenuServer(3001, 10);
 
 function getLocalIp() {
   return selectLocalIp(os.networkInterfaces());
@@ -109,15 +121,19 @@ function ensureMenuServerAddress() {
   boundHost = null;
   serverPort = null;
   if (previous) previous.close();
-  startMenuServer(3001, 10);
+  menuServerReady = startMenuServer(3001, 10);
 }
 
-ipcMain.handle('get-menu-info', () => {
+ipcMain.handle('get-menu-info', async () => {
   ensureMenuServerAddress();
-  // `running` distinguishes "listening on 3001" from "never started" — the
-  // previous `serverPort ?? 3001` reported the default port either way, so a
-  // server that failed to bind still produced a confident QR code for an
-  // endpoint nothing was serving.
+  // Wait for the bind to settle before answering. A QR code is about to be
+  // drawn from this reply, and reporting a provisional address during startup,
+  // a port-retry walk, or the instant after a rebind produces a code for an
+  // endpoint nothing is serving yet.
+  await menuServerReady;
+  // `running` then distinguishes "listening" from "gave up" — the previous
+  // `serverPort ?? 3001` reported the default port either way, so a server that
+  // failed to bind still produced a confident QR code.
   return {
     ip: boundHost ?? getLocalIp(),
     port: serverPort ?? 3001,

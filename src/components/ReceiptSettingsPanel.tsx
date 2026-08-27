@@ -200,7 +200,11 @@ export default function ReceiptSettingsPanel({
           <iframe
             title={t('receiptCfg.preview')}
             srcDoc={previewDoc}
-            style={{ '--preview-width': previewWidth } as CSSProperties}
+            // `${n}px`, not the bare number. React appends px to a numeric
+            // `width`, but never to a custom property, so `--preview-width: 240`
+            // made `width: var(--preview-width)` an invalid declaration and the
+            // 58mm and 80mm previews both fell back to full width.
+            style={{ '--preview-width': `${previewWidth}px` } as CSSProperties}
             className="preview-frame h-95 bg-white block"
             sandbox=""
           />
