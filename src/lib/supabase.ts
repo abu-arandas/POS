@@ -166,17 +166,57 @@ export async function pushProducts(
   }
 }
 
+// A pull used to be one unbounded request: `.select('*')` with no limit, for
+// every row in the table. Two things go wrong with that. PostgREST caps how
+// many rows a single response may return (Supabase exposes it as `max-rows`),
+// and a cap silently truncates — the client cannot tell a capped response from
+// a complete one, so a terminal would quietly pull a partial catalogue and,
+// because "Pull From Cloud" replaces all local data, overwrite the rest. And a
+// terminal that has been trading for a year has a transaction history that is
+// simply too large to want in one response.
+//
+// So the pulls walk the table in pages, the same way deleteRowsSupabase chunks
+// its ids.
+export const PULL_PAGE_SIZE = 1000;
+
+// Two details this has to get right:
+//
+//   * Advance by the number of rows actually received, never by the requested
+//     page size. If the server's own cap is lower than PULL_PAGE_SIZE, asking
+//     for 0-999 and then assuming the next page starts at 1000 skips every row
+//     the server withheld.
+//   * Stop on an empty page, not on a short one. A short page means the server
+//     returned less than asked for, which is exactly the capped case above.
+//
+// The caller must supply a deterministic order, or the database is free to
+// return rows in a different order per request and paging will both duplicate
+// and skip rows.
+async function fetchAllPages<Row>(
+  page: (from: number, to: number) => PromiseLike<{ data: Row[] | null; error: unknown }>,
+): Promise<Row[]> {
+  const rows: Row[] = [];
+  for (let from = 0; ;) {
+    const { data, error } = await page(from, from + PULL_PAGE_SIZE - 1);
+    if (error) throw error;
+    const batch = data ?? [];
+    if (batch.length === 0) return rows;
+    for (const row of batch) rows.push(row);
+    from += batch.length;
+  }
+}
+
 // Pull products from Supabase
 export async function pullProducts(
   client: SupabaseClient,
   storeId?: string,
 ): Promise<Product[] | null> {
   try {
-    let query = client.from('products').select('*');
-    if (storeId) query = query.eq('store_id', storeId);
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data || []).map((r) => ({
+    const data = await fetchAllPages((from, to) => {
+      let query = client.from('products').select('*').order('id').range(from, to);
+      if (storeId) query = query.eq('store_id', storeId);
+      return query;
+    });
+    return data.map((r) => ({
       id: r.id,
       name: r.name,
       price: Number(r.price),
@@ -216,12 +256,13 @@ export async function pullCategories(
   storeId?: string,
 ): Promise<Category[] | null> {
   try {
-    let query = client.from('categories').select('*');
-    if (storeId) query = query.eq('store_id', storeId);
-    const { data, error } = await query;
-    if (error) throw error;
+    const data = await fetchAllPages((from, to) => {
+      let query = client.from('categories').select('*').order('id').range(from, to);
+      if (storeId) query = query.eq('store_id', storeId);
+      return query;
+    });
     // store_id is a sync-only column; strip it so the domain object stays clean.
-    return (data || []).map((r) => ({ id: r.id, name: r.name, color: r.color }));
+    return data.map((r) => ({ id: r.id, name: r.name, color: r.color }));
   } catch (err) {
     console.error('Failed pulling categories:', err);
     return null;
@@ -262,10 +303,11 @@ export async function pullCustomers(
   storeId?: string,
 ): Promise<Customer[] | null> {
   try {
-    let query = client.from('customers').select('*');
-    if (storeId) query = query.eq('store_id', storeId);
-    const { data, error } = await query;
-    if (error) throw error;
+    const data = await fetchAllPages((from, to) => {
+      let query = client.from('customers').select('*').order('id').range(from, to);
+      if (storeId) query = query.eq('store_id', storeId);
+      return query;
+    });
     return (data || []).map((r) => ({
       id: r.id,
       name: r.name,
@@ -373,10 +415,19 @@ export async function pullTransactions(
   storeId?: string,
 ): Promise<SaleTransaction[] | null> {
   try {
-    let query = client.from('transactions').select('*').order('date', { ascending: false });
-    if (storeId) query = query.eq('store_id', storeId);
-    const { data, error } = await query;
-    if (error) throw error;
+    const data = await fetchAllPages((from, to) => {
+      // `id` is a tiebreaker, not decoration: two sales in the same millisecond
+      // order arbitrarily between requests, and an unstable order across pages
+      // both duplicates and drops rows.
+      let query = client
+        .from('transactions')
+        .select('*')
+        .order('date', { ascending: false })
+        .order('id')
+        .range(from, to);
+      if (storeId) query = query.eq('store_id', storeId);
+      return query;
+    });
     return (data || []).map((r) => ({
       id: r.id,
       date: r.date,
@@ -443,10 +494,11 @@ export async function pullUserAccounts(
   storeId?: string,
 ): Promise<UserAccount[] | null> {
   try {
-    let query = client.from('user_accounts_public').select('*');
-    if (storeId) query = query.eq('store_id', storeId);
-    const { data, error } = await query;
-    if (error) throw error;
+    const data = await fetchAllPages((from, to) => {
+      let query = client.from('user_accounts_public').select('*').order('id').range(from, to);
+      if (storeId) query = query.eq('store_id', storeId);
+      return query;
+    });
     // The public projection intentionally has no PIN column. Keep the local
     // secret for matching ids so a cloud pull cannot erase offline login data.
     const localUsers = new Map(useAuthStore.getState().users.map((user) => [user.id, user]));

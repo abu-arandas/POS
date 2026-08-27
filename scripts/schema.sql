@@ -106,6 +106,27 @@ ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_status_check;
 ALTER TABLE transactions ADD CONSTRAINT transactions_status_check
   CHECK (status IN ('completed', 'partial', 'refunded'));
 
+-- 6c. Indexes
+-- ============================================================
+-- Postgres creates an index for a PRIMARY KEY and a UNIQUE constraint and for
+-- nothing else — notably NOT for a foreign key. Until this section the only
+-- indexes here were those implicit ones, so a single-store install (the default,
+-- and the path the README documents) ran every one of these as a sequential
+-- scan. The multi-store migration added indexes for the fleet queries and left
+-- the base schema without them.
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date DESC);
+
+-- pullTransactions() orders by date with no store filter until the multi-store
+-- migration runs. (That migration adds (store_id, date), which serves the
+-- scoped query; this one still serves the unscoped ORDER BY.)
+
+CREATE INDEX IF NOT EXISTS idx_products_category ON products (category);
+
+-- products.category REFERENCES categories(id) ON DELETE SET NULL. On every
+-- category delete Postgres must find the referencing product rows, and with no
+-- index on the referencing column that is a full scan of products. Deleting a
+-- category is a normal operator action in Inventory, not a rare migration.
+
 -- 7. Login RPC
 -- ============================================================
 -- SECURITY DEFINER so it can validate credentials even when RLS hides
@@ -132,6 +153,8 @@ ALTER TABLE login_attempts DROP CONSTRAINT IF EXISTS login_attempts_pkey;
 ALTER TABLE login_attempts ADD CONSTRAINT login_attempts_pkey PRIMARY KEY (scope_key);
 ALTER TABLE login_attempts ALTER COLUMN name SET NOT NULL;
 ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
+-- Backs the opportunistic prune inside verify_login() below.
+CREATE INDEX IF NOT EXISTS idx_login_attempts_last_failure ON login_attempts (last_failure);
 -- No policies: RLS with zero policies denies every client. verify_login()
 -- reaches it as SECURITY DEFINER (the owner bypasses RLS).
 
@@ -208,9 +231,34 @@ BEGIN
     ELSE INTERVAL '15 minutes'
   END;
 
-  -- Conflict target is named by constraint, not by column: `name` is also an
-  -- OUT column of this function, so `ON CONFLICT (name)` is ambiguous between
-  -- the PL/pgSQL variable and the table column and fails at runtime.
+
+  -- Prune before writing. verify_login is granted to `anon`, the name is
+  -- caller-supplied and arbitrary, and a row is only ever deleted when that
+  -- exact name later logs in successfully. So every distinct name anyone ever
+  -- fails against leaves a row behind for good: whoever holds the public key
+  -- can grow this table without limit just by cycling names, and the honest
+  -- case leaks rows too (a typo'd name, a since-deleted account). Dropping
+  -- streaks past the reset window bounds the table to the names actually seen
+  -- in the last streak_reset. It cannot forgive a live lockout — rows still
+  -- inside their cool-off are excluded.
+  --
+  -- FOR UPDATE SKIP LOCKED, not a bare DELETE: this transaction already holds a
+  -- lock on its own row from the SELECT above, so two concurrent logins whose
+  -- rows are both stale would each block trying to delete the other's and
+  -- deadlock, which Postgres resolves by aborting one — turning a routine login
+  -- into an error. Skipping rows another transaction holds makes that
+  -- impossible; a row skipped now is simply pruned by the next caller. LIMIT
+  -- keeps one login from paying for a large backlog in a single call.
+  DELETE FROM login_attempts la
+   WHERE la.scope_key IN (
+     SELECT sub.scope_key
+       FROM login_attempts sub
+      WHERE sub.last_failure < NOW() - streak_reset
+        AND (sub.locked_until IS NULL OR sub.locked_until <= NOW())
+      LIMIT 100
+      FOR UPDATE SKIP LOCKED
+   );
+
   INSERT INTO login_attempts AS la (scope_key, name, failures, locked_until, last_failure)
   VALUES (attempt_key, p_name, COALESCE(att.failures, 0) + 1,
           CASE WHEN cool_off IS NULL THEN NULL ELSE NOW() + cool_off END, NOW())
@@ -228,18 +276,50 @@ GRANT EXECUTE ON FUNCTION public.verify_login(TEXT, TEXT) TO anon, authenticated
 -- Public user-account projection. The PIN hash is intentionally absent; clients
 -- use verify_login() for credential checks and only receive non-secret fields.
 -- security_invoker keeps the caller's RLS and column privileges in force.
-CREATE OR REPLACE VIEW public.user_accounts_public
-WITH (security_invoker = true) AS
-SELECT id, name, role, active, created_at
-FROM public.user_accounts;
+--
+-- Both the view and the column grants below are store_id-aware, for the same
+-- reason the unique index at the top of this file and the policies further down
+-- are: re-running this script is the documented upgrade path, and on a fleet
+-- deployment multi-store-schema.sql has already widened both to include
+-- store_id. A fixed five-column projection here broke that re-run twice over.
+--
+--   * CREATE OR REPLACE VIEW cannot drop a column, so replacing the six-column
+--     view with a five-column one raised "cannot drop columns from view" — and
+--     because the SQL editor runs the file as one transaction, the whole
+--     re-run rolled back, including the ALTER TABLE … ADD COLUMN statements
+--     above that are the entire point of re-running it.
+--   * REVOKE ALL followed by grants that omit store_id would have stripped the
+--     column privileges multi-store-schema.sql relies on, so store-scoped
+--     upserts would start failing on a database that had been working.
+DO $$
+DECLARE
+  has_store_id boolean;
+  user_cols    text;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'user_accounts' AND column_name = 'store_id'
+  ) INTO has_store_id;
 
-REVOKE ALL ON TABLE public.user_accounts FROM anon, authenticated;
-GRANT SELECT (id, name, role, active, created_at) ON TABLE public.user_accounts TO authenticated;
-GRANT INSERT (id, name, role, pin, active, created_at) ON TABLE public.user_accounts TO authenticated;
-GRANT UPDATE (id, name, role, pin, active, created_at) ON TABLE public.user_accounts TO authenticated;
-GRANT DELETE ON TABLE public.user_accounts TO authenticated;
-GRANT SELECT ON public.user_accounts_public TO authenticated;
-REVOKE ALL ON public.user_accounts_public FROM anon;
+  user_cols := CASE WHEN has_store_id
+    THEN 'id, name, role, active, created_at, store_id'
+    ELSE 'id, name, role, active, created_at'
+  END;
+
+  EXECUTE format(
+    'CREATE OR REPLACE VIEW public.user_accounts_public WITH (security_invoker = true) AS '
+    'SELECT %s FROM public.user_accounts', user_cols);
+
+  EXECUTE 'REVOKE ALL ON TABLE public.user_accounts FROM anon, authenticated';
+  EXECUTE format('GRANT SELECT (%s) ON TABLE public.user_accounts TO authenticated', user_cols);
+  EXECUTE format(
+    'GRANT INSERT (%s) ON TABLE public.user_accounts TO authenticated', user_cols || ', pin');
+  EXECUTE format(
+    'GRANT UPDATE (%s) ON TABLE public.user_accounts TO authenticated', user_cols || ', pin');
+  EXECUTE 'GRANT DELETE ON TABLE public.user_accounts TO authenticated';
+  EXECUTE 'GRANT SELECT ON public.user_accounts_public TO authenticated';
+  EXECUTE 'REVOKE ALL ON public.user_accounts_public FROM anon';
+END $$;
 
 -- 8. Row Level Security (RECOMMENDED — secure by default)
 -- ============================================================

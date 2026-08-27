@@ -128,6 +128,34 @@ BEGIN
     ELSE INTERVAL '15 minutes'
   END;
 
+
+  -- Prune before writing. verify_login is granted to `anon`, the name is
+  -- caller-supplied and arbitrary, and a row is only ever deleted when that
+  -- exact name later logs in successfully. So every distinct name anyone ever
+  -- fails against leaves a row behind for good: whoever holds the public key
+  -- can grow this table without limit just by cycling names, and the honest
+  -- case leaks rows too (a typo'd name, a since-deleted account). Dropping
+  -- streaks past the reset window bounds the table to the names actually seen
+  -- in the last streak_reset. It cannot forgive a live lockout — rows still
+  -- inside their cool-off are excluded.
+  --
+  -- FOR UPDATE SKIP LOCKED, not a bare DELETE: this transaction already holds a
+  -- lock on its own row from the SELECT above, so two concurrent logins whose
+  -- rows are both stale would each block trying to delete the other's and
+  -- deadlock, which Postgres resolves by aborting one — turning a routine login
+  -- into an error. Skipping rows another transaction holds makes that
+  -- impossible; a row skipped now is simply pruned by the next caller. LIMIT
+  -- keeps one login from paying for a large backlog in a single call.
+  DELETE FROM login_attempts la
+   WHERE la.scope_key IN (
+     SELECT sub.scope_key
+       FROM login_attempts sub
+      WHERE sub.last_failure < NOW() - streak_reset
+        AND (sub.locked_until IS NULL OR sub.locked_until <= NOW())
+      LIMIT 100
+      FOR UPDATE SKIP LOCKED
+   );
+
   INSERT INTO login_attempts AS la (scope_key, name, failures, locked_until, last_failure)
   VALUES (attempt_key, p_name, COALESCE(att.failures, 0) + 1,
           CASE WHEN cool_off IS NULL THEN NULL ELSE NOW() + cool_off END, NOW())
@@ -159,6 +187,25 @@ GRANT UPDATE (id, name, role, pin, active, created_at, store_id) ON TABLE public
 CREATE INDEX IF NOT EXISTS idx_transactions_store_date ON transactions (store_id, date);
 CREATE INDEX IF NOT EXISTS idx_products_store           ON products (store_id);
 CREATE INDEX IF NOT EXISTS idx_memberships_user         ON memberships (user_id);
+
+-- Every store_id column added in section 2 is filtered on by a pull in
+-- src/lib/supabase.ts, but only products and transactions were indexed, so
+-- pullCategories() and pullCustomers() scanned the whole table on a fleet
+-- database and got slower with every store added to the org.
+CREATE INDEX IF NOT EXISTS idx_categories_store ON categories (store_id);
+CREATE INDEX IF NOT EXISTS idx_customers_store  ON customers (store_id);
+
+-- The fleet console filters both of these by org_id — listStores() and
+-- listMemberships() in src/lib/fleetClient.ts. memberships was indexed by
+-- user_id only, which serves the access predicates but not the console's
+-- listing, and stores had no index beyond its primary key.
+CREATE INDEX IF NOT EXISTS idx_stores_org      ON stores (org_id);
+CREATE INDEX IF NOT EXISTS idx_memberships_org ON memberships (org_id);
+
+-- memberships.store_id REFERENCES stores(id) ON DELETE CASCADE, and Postgres
+-- does not index a foreign key for you. Deleting a store had to scan
+-- memberships to find the rows to cascade.
+CREATE INDEX IF NOT EXISTS idx_memberships_store ON memberships (store_id);
 
 -- 5. Access predicates (SECURITY DEFINER so policies can call them) --------
 --
