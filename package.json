@@ -19,52 +19,13 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron:build": "npm run build && electron-builder",
+    "electron:build": "npm run build && electron-builder --config electron-builder.config.cjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"test/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"scripts/*.mjs\" \"electron/*.cjs\" \"*.{json,md}\" \"docs/*.md\"",
     "portable": "vite build --config vite.portable.config.ts",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"test/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"scripts/*.mjs\" \"electron/*.cjs\" \"*.{json,md}\" \"docs/*.md\""
   },
   "engines": {
     "node": ">=22.22.2"
-  },
-  "build": {
-    "appId": "com.eapos.app",
-    "productName": "EA POS",
-    "copyright": "Copyright © 2026 abu-arandas",
-    "artifactName": "EA-POS-Setup-${version}.${ext}",
-    "directories": {
-      "output": "release",
-      "buildResources": "buildResources"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "abu-arandas",
-        "repo": "POS"
-      }
-    ],
-    "win": {
-      "target": [
-        "nsis"
-      ],
-      "requestedExecutionLevel": "asInvoker",
-      "verifyUpdateCodeSignature": true,
-      "icon": "buildResources/icon.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": true,
-      "allowElevation": true,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "runAfterFinish": true,
-      "shortcutName": "EA POS"
-    },
-    "files": [
-      "dist/**/*",
-      "electron/**/*"
-    ]
   },
   "dependencies": {
     "electron-updater": "^6.3.9",

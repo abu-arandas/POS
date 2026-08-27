@@ -47,7 +47,22 @@ jobs:
           node --check electron/preload.cjs
           node --check electron/updatePolicy.cjs
           node --check electron/validation.cjs
+          node --check electron/windowsSigning.cjs
           node --check scripts/seed.mjs
+
+      # A broken packaging config only shows up on the Windows runner otherwise,
+      # after a full Electron toolchain download. Loading it here catches a
+      # syntax or resolution error in seconds. The unsigned path is the one a
+      # pull request builds, so that is the one asserted.
+      - name: electron-builder config loads
+        run: |
+          node -e "
+            const config = require('./electron-builder.config.cjs');
+            if (config.win.publisherName || config.win.azureSignOptions) {
+              throw new Error('Unsigned build must not claim a publisher — see electron/windowsSigning.cjs');
+            }
+            if (config.appId !== 'com.eapos.app') throw new Error('appId changed unexpectedly');
+          "
 
   e2e:
     runs-on: ubuntu-latest

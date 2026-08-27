@@ -82,10 +82,14 @@ Once completed successfully, your executables will be located in the `release/` 
 
 _Troubleshooting: If you get an `EPERM` error during the build, ensure you do not have any File Explorer windows or terminals open inside the `release` folder, as Windows locks files while being viewed._
 
-> **Code signing.** Without a certificate the installer is unsigned, so Windows
-> SmartScreen warns on first run **and** the auto-updater refuses to install
-> updates unattended (it stages them for an operator instead). See
-> [docs/windows-install.md](docs/windows-install.md) for both.
+> **Code signing.** Without a certificate the installer is unsigned, which costs
+> you three things: Chrome and Edge block or flag the download, Windows
+> SmartScreen warns on first run, and the auto-updater refuses to install updates
+> unattended (it stages them for an operator instead). Signing is the only fix —
+> no build setting suppresses those warnings. Note that a `.pfx` file is no
+> longer something a public CA will issue you; see
+> [docs/windows-install.md](docs/windows-install.md) for the two paths that do
+> work, and for how to verify a download in the meantime.
 
 ### Build for Web
 
