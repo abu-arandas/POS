@@ -1,0 +1,238 @@
+# Builds the native Windows installer (.exe) for EA POS on GitHub's own
+# windows-latest runner, which has the unrestricted internet access
+# electron-builder needs to fetch the Electron runtime + NSIS/winCodeSign
+# toolchain. The finished installer is uploaded as a workflow artifact and,
+# when it is signed, published as a GitHub Release asset for direct download.
+#
+# Signing is what makes the download trusted — see docs/windows-install.md.
+# Two paths are supported, and electron-builder.config.cjs picks between them
+# from the environment:
+#
+#   Azure Trusted Signing  AZURE_* secrets + WINDOWS_PUBLISHER_NAME. The path
+#                          that works with a certificate bought today.
+#   .pfx via signtool      WINDOWS_CSC_LINK + WINDOWS_CSC_KEY_PASSWORD. Only
+#                          usable with an existing exportable certificate.
+
+name: Build Windows Installer
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      publish_unsigned:
+        description: >-
+          Publish an UNSIGNED installer as a pre-release. Windows SmartScreen and
+          Chrome/Edge will warn on it. For internal testing only.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    outputs:
+      signing_mode: ${{ steps.signing.outputs.mode }}
+      signed: ${{ steps.signing.outputs.signed }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Resolved by the same module the build itself uses, so CI can never
+      # disagree with electron-builder about whether this build is signed.
+      - name: Resolve code-signing configuration
+        id: signing
+        shell: bash
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_CODE_SIGNING_ENDPOINT: ${{ secrets.AZURE_CODE_SIGNING_ENDPOINT }}
+          AZURE_CODE_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT_NAME }}
+          AZURE_CERT_PROFILE_NAME: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          WINDOWS_PUBLISHER_NAME: ${{ secrets.WINDOWS_PUBLISHER_NAME }}
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+        run: |
+          mode=$(node -e "process.stdout.write(require('./electron/windowsSigning.cjs').resolveWindowsSigning(process.env).mode)")
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          if [ "$mode" = "none" ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No code-signing certificate is configured, so this installer is UNSIGNED. Windows SmartScreen and Chrome/Edge will warn users. See docs/windows-install.md."
+          else
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "Signing via: $mode"
+          fi
+
+      - name: Build renderer (Vite)
+        run: npm run build
+
+      - name: Package Windows installer (electron-builder)
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_CODE_SIGNING_ENDPOINT: ${{ secrets.AZURE_CODE_SIGNING_ENDPOINT }}
+          AZURE_CODE_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT_NAME }}
+          AZURE_CERT_PROFILE_NAME: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          WINDOWS_PUBLISHER_NAME: ${{ secrets.WINDOWS_PUBLISHER_NAME }}
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+        run: npx electron-builder --win --config electron-builder.config.cjs --publish never
+
+      # A signed build that failed to sign must not reach a Release looking like
+      # a signed one, so this is a hard failure rather than a warning.
+      - name: Verify Authenticode signature
+        if: steps.signing.outputs.signed == 'true'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release/EA-POS-Setup-*.exe | Select-Object -First 1
+          if ($null -eq $installer) { throw "Installer was not produced." }
+          $signature = Get-AuthenticodeSignature -FilePath $installer.FullName
+          if ($signature.Status -ne 'Valid') {
+            throw "Installer signature is not valid: $($signature.Status)"
+          }
+          Write-Host "Verified publisher: $($signature.SignerCertificate.Subject)"
+
+      # docs/windows-install.md tells people to compare a SHA-256 checksum before
+      # running the installer. Publishing one is what makes that possible — and
+      # it is the only integrity check available at all on an unsigned build.
+      - name: Generate SHA-256 checksums
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release/EA-POS-Setup-*.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $installer) { throw "Installer was not produced." }
+          # latest.yml is what electron-updater reads to discover a new version.
+          # Missing it means installed terminals would never see this release, so
+          # fail here rather than publishing a release nothing can find.
+          $latest = Get-ChildItem release/latest.yml -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $latest) { throw "latest.yml was not produced — electron-updater could not discover this release." }
+          $lines = @($installer, $latest) | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 -Path $_.FullName).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          }
+          $lines | Set-Content -Path release/SHA256SUMS.txt -Encoding ascii
+          Write-Host ($lines -join "`n")
+          "## Windows installer" >> $env:GITHUB_STEP_SUMMARY
+          "Signing: ``${{ steps.signing.outputs.mode }}``" >> $env:GITHUB_STEP_SUMMARY
+          '```' >> $env:GITHUB_STEP_SUMMARY
+          $lines | ForEach-Object { $_ >> $env:GITHUB_STEP_SUMMARY }
+          '```' >> $env:GITHUB_STEP_SUMMARY
+
+      - name: List build output
+        shell: bash
+        run: ls -la release/
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: EA-POS-Windows-Installer
+          path: |
+            release/EA-POS-Setup-*.exe
+            release/latest.yml
+            release/SHA256SUMS.txt
+            release/*.blockmap
+          if-no-files-found: error
+
+  publish-release:
+    # A signed build publishes automatically. An unsigned one publishes only
+    # when a human explicitly asks for it on a manual run, and is marked as a
+    # pre-release so electron-updater does not push it to installed terminals.
+    if: >-
+      github.event_name != 'pull_request' &&
+      (needs.build-windows.outputs.signed == 'true' ||
+       inputs.publish_unsigned)
+    needs: build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download installer artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: EA-POS-Windows-Installer
+          path: release
+
+      - name: Publish GitHub release with installer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SIGNED: ${{ needs.build-windows.outputs.signed }}
+          SIGNING_MODE: ${{ needs.build-windows.outputs.signing_mode }}
+        run: |
+          shopt -s nullglob
+          assets=(release/EA-POS-Setup-*.exe release/latest.yml release/SHA256SUMS.txt release/*.blockmap)
+          if (( ${#assets[@]} < 3 )); then
+            echo "::error::Missing installer, checksums, or Electron update metadata in release/."
+            exit 1
+          fi
+          # Tag with the application version, not the run number: that is what
+          # electron-updater compares, and docs/windows-install.md tells the
+          # release engineer to bump it. A run-number tag left no way to tell
+          # which build carried which version.
+          installer=$(basename release/EA-POS-Setup-*.exe)
+          version="${installer#EA-POS-Setup-}"
+          version="${version%.exe}"
+          if [[ -z "$version" ]]; then
+            echo "::error::Could not derive the version from $installer."
+            exit 1
+          fi
+          tag="v${version}"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release $tag already exists. Bump the version in package.json — electron-updater compares application versions, not tags."
+            exit 1
+          fi
+
+          checksums=$(cat release/SHA256SUMS.txt)
+          if [[ "$SIGNED" == "true" ]]; then
+            title="EA POS ${version}"
+            prerelease=""
+            notes="Signed Windows installer for version ${version}, built from ${GITHUB_SHA}.
+
+          Code signing: \`${SIGNING_MODE}\`. The Authenticode signature was verified on the runner before publishing.
+
+          Includes \`latest.yml\` and the blockmap metadata electron-updater needs to discover this version, verify the download hash, and resume large downloads.
+
+          ### SHA-256
+
+          \`\`\`
+          ${checksums}
+          \`\`\`
+
+          See docs/windows-install.md for installation and verification steps."
+          else
+            title="EA POS ${version} (unsigned test build)"
+            prerelease="--prerelease"
+            notes="**This installer is UNSIGNED.** Windows SmartScreen will warn that the publisher is unrecognised, and Chrome/Edge may block the download. It is published for internal testing only — do not distribute it to customers.
+
+          Built from ${GITHUB_SHA}. Marked as a pre-release so electron-updater does not offer it to installed terminals.
+
+          Verify the download against its checksum before running it:
+
+          ### SHA-256
+
+          \`\`\`
+          ${checksums}
+          \`\`\`
+
+          To produce a trusted installer, configure code signing — see docs/windows-install.md."
+          fi
+
+          gh release create "$tag" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$title" \
+            $prerelease \
+            --notes "$notes" \
+          || echo "::warning::Release publish skipped (token lacks contents:write). Download the installer from this run's artifacts instead."

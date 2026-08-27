@@ -1,0 +1,1071 @@
+@import 'tailwindcss';
+
+/* ─── Webfonts (self-hosted) ───────────────────────────────────────────────
+   These used to come from fonts.googleapis.com. A POS terminal is offline-first
+   and commonly runs on a café LAN with no internet, so a CDN import meant a
+   render-blocking request that failed on every launch — and it leaked a request
+   to a third party from a payment device. It hurt most in Arabic: 'Cairo' is the
+   only face behind .font-arabic and had no local fallback, so RTL silently lost
+   its typeface offline.
+
+   Variable woff2, latin + latin-ext (+ arabic for Cairo) only — 344 KB total.
+   Inter's italics are deliberately absent: exactly one label in the app is
+   italic, so the browser synthesizes an oblique rather than shipping 221 KB.
+
+   Regenerate with scripts/fetch-fonts.mjs after changing a family or subset. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/fonts/inter-latin-ext-normal.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/fonts/inter-latin-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('./assets/fonts/jetbrains-mono-latin-ext-normal.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('./assets/fonts/jetbrains-mono-latin-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Cairo';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/fonts/cairo-arabic-normal.woff2') format('woff2');
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E,
+    U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB,
+    U+10E60-10E7E, U+10EC2-10EC4, U+10EFC-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22,
+    U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49,
+    U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F,
+    U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E,
+    U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1;
+}
+@font-face {
+  font-family: 'Cairo';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/fonts/cairo-latin-ext-normal.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Cairo';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/fonts/cairo-latin-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+/* ─── Arabic Font ─────────────────────────────────────────────────────────── */
+.font-arabic {
+  font-family: 'Cairo', ui-sans-serif, system-ui, sans-serif !important;
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────────────────────── */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+  background-clip: padding-box;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* ─── CSS Custom Properties ───────────────────────────────────────────────── */
+:root {
+  --color-emerald: #10b981;
+  --color-emerald-dim: rgba(16, 185, 129, 0.15);
+  --color-emerald-glow: rgba(16, 185, 129, 0.3);
+  --color-rose: #f43f5e;
+  --color-rose-dim: rgba(244, 63, 94, 0.15);
+  --color-amber: #f59e0b;
+  --color-amber-dim: rgba(245, 158, 11, 0.15);
+  --color-blue: #3b82f6;
+  --color-blue-dim: rgba(59, 130, 246, 0.15);
+
+  /* Semantic surface/border tokens — light theme (default). One place to
+     tune every elevated panel, input, and hairline in the app. */
+  --surface-1: #ffffff; /* elevated card / panel */
+  --surface-2: #f8fafc; /* inset areas, table headers */
+  --surface-hover: #f1f5f9; /* row/card hover */
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.14);
+  --input-bg: #ffffff;
+  --input-border: rgba(15, 23, 42, 0.12);
+
+  /* Operational canvas + chrome. The register, sidebar, and cart panel used to
+     hardcode near-black values, which pinned those screens to dark whatever the
+     toggle said. They read these instead so the theme actually applies. */
+  --app-bg: #f8fafc; /* full-screen canvas behind a screen */
+  --panel-bg: #ffffff; /* sidebar / cart rail */
+  --panel-border: rgba(15, 23, 42, 0.1);
+  --receipt-bg: #ffffff; /* on-screen thermal receipt card */
+  --text-strong: #0f172a; /* highest-contrast body text */
+  --chip-text: #475569; /* inactive chip / toolbar label */
+
+  /* Layered elevation — soft, close ambient + a longer cast for depth. */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 2px 6px rgba(15, 23, 42, 0.06), 0 8px 24px -8px rgba(15, 23, 42, 0.12);
+  --shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.08), 0 24px 48px -16px rgba(15, 23, 42, 0.22);
+  --shadow-card: var(--shadow-md);
+  --shadow-glow-emerald: 0 0 24px rgba(16, 185, 129, 0.35);
+  --shadow-glow-rose: 0 0 24px rgba(244, 63, 94, 0.35);
+
+  --radius-card: 1rem;
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Dark theme token overrides. Applied whenever the app sits in a dark context —
+   either the user's toggle (.dark on <html>) or the dark-first operational
+   screens that render on a near-black canvas. */
+.dark {
+  --surface-1: #0f172a;
+  --surface-2: rgba(255, 255, 255, 0.03);
+  --surface-hover: rgba(255, 255, 255, 0.05);
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --app-bg: #020617;
+  --panel-bg: rgba(2, 6, 23, 0.95);
+  --panel-border: rgba(30, 41, 59, 0.6);
+  --receipt-bg: #0a0f1e;
+  --text-strong: #e2e8f0;
+  --chip-text: #94a3b8;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+
+/* ─── Number Inputs — remove arrows ──────────────────────────────────────── */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* ─── Selection Color ─────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(16, 185, 129, 0.28);
+  color: #f8fafc;
+}
+
+/* ─── Focus Ring ──────────────────────────────────────────────────────────── */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
+}
+
+/* Keyboard-only focus indicator for every interactive element. :where() keeps
+   specificity at zero so intentional per-component focus styles still win. */
+:where(button, [role='button'], a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
+}
+
+/* ─── Reduced Motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   KEYFRAME ANIMATIONS
+═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-20px) rotate(2deg);
+  }
+  66% {
+    transform: translateY(-10px) rotate(-2deg);
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-28px) scale(1.04);
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 8px 2px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 28px 8px rgba(16, 185, 129, 0.6);
+  }
+}
+
+@keyframes count-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  55% {
+    transform: scale(1.07);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ping-once {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1.65);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.65);
+    opacity: 0;
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes skeleton-wave {
+  0% {
+    background-position: -250px 0;
+  }
+  100% {
+    background-position: calc(250px + 100%) 0;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes aurora {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes orb-drift-1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(40px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-25px, 25px) scale(0.93);
+  }
+}
+
+@keyframes orb-drift-2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  40% {
+    transform: translate(-45px, 35px) scale(1.06);
+  }
+  70% {
+    transform: translate(30px, -25px) scale(0.96);
+  }
+}
+
+@keyframes orb-drift-3 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(25px, -35px) scale(1.08);
+  }
+}
+
+@keyframes number-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes glow-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes progress-fill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: var(--progress, 100%);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATION UTILITY CLASSES
+═══════════════════════════════════════════════════════════════════════════ */
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+.animate-float-slow {
+  animation: float-slow 9s ease-in-out infinite;
+}
+.animate-glow-pulse {
+  animation: glow-pulse 2.5s ease-in-out infinite;
+}
+.animate-count-up {
+  animation: count-up 0.5s ease-out forwards;
+}
+.animate-fade-up {
+  animation: fade-up 0.4s ease-out forwards;
+}
+.animate-fade-in {
+  animation: fade-in 0.35s ease-out forwards;
+}
+.animate-scale-in {
+  animation: scale-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.animate-bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
+.animate-slide-from-right {
+  animation: slide-from-right 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.animate-slide-in-up {
+  animation: slide-in-up 0.35s ease-out forwards;
+}
+.animate-ping-once {
+  animation: ping-once 0.6s ease-out forwards;
+}
+.animate-gradient {
+  animation: gradient-shift 4s ease infinite;
+  background-size: 200% 200%;
+}
+.animate-toast-in {
+  animation: toast-in 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+.animate-number-pop {
+  animation: number-pop 0.22s ease-out;
+}
+.animate-glow-ring {
+  animation: glow-ring 2s ease-in-out infinite;
+}
+.animate-orb-1 {
+  animation: orb-drift-1 14s ease-in-out infinite;
+}
+.animate-orb-2 {
+  animation: orb-drift-2 18s ease-in-out infinite;
+}
+.animate-orb-3 {
+  animation: orb-drift-3 11s ease-in-out infinite;
+}
+.animate-drop-in {
+  animation: drop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SKELETON LOADER
+═══════════════════════════════════════════════════════════════════════════ */
+
+.skeleton {
+  background: linear-gradient(90deg, #0f172a 25%, #1a2740 50%, #0f172a 75%);
+  background-size: 250px 100%;
+  animation: skeleton-wave 1.6s infinite linear;
+  border-radius: 10px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AMBIENT BACKGROUNDS
+═══════════════════════════════════════════════════════════════════════════ */
+
+.aurora-bg {
+  background: linear-gradient(-45deg, #020617, #0a0f1e, #053d2c, #0a0f1e);
+  background-size: 400% 400%;
+  animation: aurora 18s ease infinite;
+}
+
+.mesh-bg {
+  background-color: #f1f5f9;
+  background-image:
+    radial-gradient(at 40% 20%, hsla(167, 98%, 39%, 0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(189, 100%, 56%, 0.09) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(355, 100%, 93%, 0.07) 0px, transparent 50%);
+}
+
+.mesh-bg-dark {
+  background-color: #020617;
+  background-image:
+    radial-gradient(at 40% 20%, hsla(167, 98%, 39%, 0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(220, 100%, 56%, 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(280, 100%, 43%, 0.07) 0px, transparent 50%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SURFACES  (semantic, token-driven — the app's primary card/panel)
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Layered so component-level Tailwind utilities (rounded-*, shadow-*, bg-*)
+   still win — .surface only fills in the background/border/elevation that the
+   components assume but never set themselves. */
+@layer components {
+  .surface {
+    background: var(--surface-1);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Inset/subtle surface for nested areas (table headers, wells). */
+  .surface-2 {
+    background: var(--surface-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-card);
+  }
+}
+
+/* Hide scrollbars but keep scrolling (used in tab strips / rails). */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLASS MORPHISM
+═══════════════════════════════════════════════════════════════════════════ */
+
+.glass {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 4px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.32);
+}
+
+.glass-input {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: inherit;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.glass-input:focus,
+.glass-input:focus-within {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+  outline: none;
+}
+
+.glass-input::placeholder {
+  color: rgba(100, 116, 139, 0.7);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GRADIENT TEXT
+═══════════════════════════════════════════════════════════════════════════ */
+
+.text-gradient-emerald {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-blue {
+  background: linear-gradient(135deg, #3b82f6, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-amber {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-rose {
+  background: linear-gradient(135deg, #f43f5e, #fb7185);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BADGE COMPONENTS
+═══════════════════════════════════════════════════════════════════════════ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.badge-emerald {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.24);
+}
+
+.badge-rose {
+  background: rgba(244, 63, 94, 0.14);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.24);
+}
+
+.badge-amber {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.24);
+}
+
+.badge-blue {
+  background: rgba(59, 130, 246, 0.14);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.24);
+}
+
+.badge-slate {
+  background: rgba(100, 116, 139, 0.14);
+  color: #94a3b8;
+  border: 1px solid rgba(100, 116, 139, 0.24);
+}
+
+.badge-purple {
+  background: rgba(139, 92, 246, 0.14);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.24);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MODAL BACKDROP
+═══════════════════════════════════════════════════════════════════════════ */
+
+.modal-backdrop {
+  background: rgba(2, 6, 23, 0.88);
+  backdrop-filter: blur(10px) saturate(0.8);
+  -webkit-backdrop-filter: blur(10px) saturate(0.8);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SHIMMER
+═══════════════════════════════════════════════════════════════════════════ */
+
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2.2s infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INTERACTIVE HELPERS
+═══════════════════════════════════════════════════════════════════════════ */
+
+.tap-scale {
+  transition: transform 0.12s ease;
+}
+.tap-scale:active {
+  transform: scale(0.95);
+}
+
+.card-hover {
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NEON BORDERS
+═══════════════════════════════════════════════════════════════════════════ */
+
+.border-neon-emerald {
+  border-color: #10b981;
+  box-shadow:
+    0 0 0 1px #10b981,
+    0 0 18px rgba(16, 185, 129, 0.28);
+}
+
+.border-neon-rose {
+  border-color: #f43f5e;
+  box-shadow:
+    0 0 0 1px #f43f5e,
+    0 0 18px rgba(244, 63, 94, 0.28);
+}
+
+.border-neon-amber {
+  border-color: #f59e0b;
+  box-shadow:
+    0 0 0 1px #f59e0b,
+    0 0 18px rgba(245, 158, 11, 0.28);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THERMAL RECEIPT STYLES
+═══════════════════════════════════════════════════════════════════════════ */
+
+.receipt-paper {
+  background: #fafafa;
+  color: #111;
+  font-family: 'Courier New', Courier, monospace;
+  box-shadow:
+    0 0 0 1px #e5e7eb,
+    0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.receipt-tear-top {
+  height: 10px;
+  background: repeating-linear-gradient(
+    90deg,
+    #fafafa 0px,
+    #fafafa 7px,
+    transparent 7px,
+    transparent 11px
+  );
+  border-bottom: 1px dashed #d1d5db;
+}
+
+.receipt-tear-bottom {
+  height: 10px;
+  background: repeating-linear-gradient(
+    90deg,
+    #fafafa 0px,
+    #fafafa 7px,
+    transparent 7px,
+    transparent 11px
+  );
+  border-top: 1px dashed #d1d5db;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIDEBAR ACTIVE INDICATOR
+═══════════════════════════════════════════════════════════════════════════ */
+
+.nav-active-pill {
+  position: relative;
+}
+.nav-active-pill::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: #10b981;
+  border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRODUCT CARD OVERLAY
+═══════════════════════════════════════════════════════════════════════════ */
+
+.product-card-overlay {
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.7) 0%,
+    rgba(0, 0, 0, 0.1) 50%,
+    transparent 100%
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CHART TOOLTIPS (Recharts override)
+═══════════════════════════════════════════════════════════════════════════ */
+
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+
+.recharts-default-tooltip {
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SELECT OVERRIDE
+═══════════════════════════════════════════════════════════════════════════ */
+
+select {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CATEGORY PILL INDICATOR (animated underline)
+═══════════════════════════════════════════════════════════════════════════ */
+
+.cat-pill-active {
+  position: relative;
+  color: white;
+  background: linear-gradient(135deg, #059669, #10b981);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   KPI CARD TREND COLORS
+═══════════════════════════════════════════════════════════════════════════ */
+
+.trend-up {
+  color: #34d399;
+}
+.trend-down {
+  color: #fb7185;
+}
+.trend-flat {
+  color: #94a3b8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Z-REPORT TABLE
+═══════════════════════════════════════════════════════════════════════════ */
+
+.z-report-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.07);
+  font-size: 13px;
+}
+
+.z-report-row:last-child {
+  border-bottom: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DIALOG / MODAL BASE
+═══════════════════════════════════════════════════════════════════════════ */
+
+.modal-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: 24px;
+  box-shadow:
+    var(--shadow-lg),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAYMENT METHOD BUTTON
+═══════════════════════════════════════════════════════════════════════════ */
+
+.pay-method-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms ease;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pay-method-btn:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.07);
+  color: #cbd5e1;
+}
+
+.pay-method-btn.active-cash {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.3);
+}
+
+.pay-method-btn.active-card {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
+}
+
+.pay-method-btn.active-mobile {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.12);
+  color: #a78bfa;
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.3);
+}
+
+.pay-method-btn.active-gift {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.3);
+}
