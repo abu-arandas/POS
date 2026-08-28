@@ -27,7 +27,9 @@ export interface AttemptRecord {
 export type AttemptState = Record<string, AttemptRecord>;
 
 /**
- * Free guesses before the first lockout kicks in.
+ * Wrong guesses an account gets before the throttle engages. The fifth
+ * consecutive failure is the one that opens the first cool-off — `attemptsLeft`
+ * counts down from here and reads 0 at the moment the lockout starts.
  */
 export const FREE_ATTEMPTS = 5;
 

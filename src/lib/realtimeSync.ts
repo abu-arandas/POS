@@ -79,7 +79,12 @@ export async function startRealtimeSync(): Promise<boolean> {
 }
 
 /**
- * Tears down the realtime subscription. Safe to call when none is open.
+ * Unsubscribes the realtime channel, so no further change events arrive. Safe
+ * to call when none is open.
+ *
+ * This does not cancel a pull that startRealtimeSync has already debounced:
+ * those timers belong to that call, so one last refresh can still land in the
+ * local stores shortly after this returns.
  */
 export function stopRealtimeSync(): void {
   if (channel) {
