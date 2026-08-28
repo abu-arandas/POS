@@ -460,6 +460,8 @@ export default function Inventory() {
     cancelled: 'badge badge-rose',
   };
 
+  const productPreviewUrl = safeImageUrl(prodImage);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -1465,9 +1467,9 @@ export default function Inventory() {
                     </label>
                     <div className="flex gap-4">
                       <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                        {safeImageUrl(prodImage) ? (
+                        {productPreviewUrl ? (
                           <img
-                            src={safeImageUrl(prodImage)}
+                            src={productPreviewUrl}
                             alt="Preview"
                             className="w-full h-full object-cover"
                           />

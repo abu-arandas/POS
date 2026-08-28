@@ -26,6 +26,12 @@ describe('safeImageUrl', () => {
     expect(safeImageUrl(thumb)).toBe(thumb);
   });
 
+  it('encodes accepted data URLs before returning them to an image sink', () => {
+    expect(safeImageUrl('data:image/svg+xml,svg thumbnail')).toBe(
+      'data:image/svg+xml,svg%20thumbnail',
+    );
+  });
+
   // SVG is allowed only because every consumer assigns the result to an
   // <img src>, where SVG cannot run script or fetch anything. A payload that
   // is not an image at all stays rejected regardless of how it is dressed up.

@@ -21,11 +21,17 @@ function isImageDataUrl(raw: string): boolean {
   return RASTER_DATA_URL_PATTERN.test(raw) || SVG_DATA_URL_PATTERN.test(raw);
 }
 
+function encodeImageDataUrl(raw: string): string {
+  // Encode raw delimiters and whitespace while preserving valid percent escapes
+  // already present in the app-generated URL-encoded SVG thumbnails.
+  return encodeURI(raw).replace(/%25(?=[0-9a-f]{2})/gi, '%');
+}
+
 export function safeImageUrl(value: unknown): string {
   if (typeof value !== 'string') return '';
   const raw = value.trim();
   if (!raw || raw.length > MAX_IMAGE_URL_LENGTH) return '';
-  if (isImageDataUrl(raw)) return raw;
+  if (isImageDataUrl(raw)) return encodeImageDataUrl(raw);
   if (!/^https?:\/\//i.test(raw) && !(raw.startsWith('/') && !raw.startsWith('//'))) return '';
 
   try {
