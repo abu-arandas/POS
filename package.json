@@ -20,9 +20,9 @@
     "test:e2e": "playwright test",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:build": "npm run build && electron-builder --config electron-builder.config.cjs",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"test/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"scripts/*.mjs\" \"electron/*.cjs\" \"*.{json,md}\" \"docs/*.md\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"test/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"scripts/*.mjs\" \"electron/*.cjs\" \"*.{json,md}\"",
     "portable": "vite build --config vite.portable.config.ts",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"test/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"scripts/*.mjs\" \"electron/*.cjs\" \"*.{json,md}\" \"docs/*.md\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"test/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"scripts/*.mjs\" \"electron/*.cjs\" \"*.{json,md}\""
   },
   "engines": {
     "node": ">=22.22.2"

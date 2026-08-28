@@ -86,10 +86,27 @@ _Troubleshooting: If you get an `EPERM` error during the build, ensure you do no
 > you three things: Chrome and Edge block or flag the download, Windows
 > SmartScreen warns on first run, and the auto-updater refuses to install updates
 > unattended (it stages them for an operator instead). Signing is the only fix —
-> no build setting suppresses those warnings. Note that a `.pfx` file is no
-> longer something a public CA will issue you; see
-> [docs/windows-install.md](docs/windows-install.md) for the two paths that do
-> work, and for how to verify a download in the meantime.
+> no build setting suppresses those warnings.
+>
+> Note that a `.pfx` file is no longer something a public CA will issue: since
+> June 2023 the CA/Browser Forum requires code-signing keys to live on certified
+> hardware. Two paths still work, and the build picks whichever one the
+> environment configures:
+>
+> - **Azure Trusted Signing** — set `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`,
+>   `AZURE_CLIENT_SECRET`, `AZURE_CODE_SIGNING_ENDPOINT`,
+>   `AZURE_CODE_SIGNING_ACCOUNT_NAME`, `AZURE_CERT_PROFILE_NAME` and
+>   `WINDOWS_PUBLISHER_NAME`. No certificate file to hold.
+> - **An existing exportable certificate** — set `CSC_LINK` and
+>   `CSC_KEY_PASSWORD`. `WINDOWS_PUBLISHER_NAME` is optional here: signtool
+>   reads the publisher off the certificate subject, which Azure cannot do.
+>
+> Setting only part of either group fails the build rather than quietly
+> producing an unsigned installer (`electron/windowsSigning.cjs`).
+>
+> Until a release is signed, verify a download by hand: the Windows workflow
+> publishes a `SHA256SUMS.txt` beside the installer, so compare it with
+> `Get-FileHash .\EA-POS-Setup-1.0.0.exe -Algorithm SHA256`.
 
 ### Build for Web
 
@@ -164,8 +181,6 @@ transaction columns (operator, points earned, refund authorizer, split payments,
 partial refunds, shift id) and enables live sync, without touching existing data.
 
 ### Multi-store / super-admin (optional)
-
-See [docs/super-admin-plan.md](docs/super-admin-plan.md) for the full design.
 
 For a fleet of locations, run `scripts/multi-store-schema.sql` after
 `scripts/schema.sql`. It adds the `stores` and `memberships` tables, stamps a
