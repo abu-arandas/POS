@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { shortId } from '../lib/ids';
 
+/**
+ * One queued dialog and the promise resolver waiting on the operator's answer.
+ * The resolver is what lets askConfirmation/askText read as ordinary awaits.
+ */
 export type DialogRequest =
   | {
       id: string;
@@ -23,6 +27,11 @@ interface DialogState {
   resolveCurrent: (value: boolean | string | null) => void;
 }
 
+/**
+ * Queue behind the app's confirm and prompt dialogs. Requests are served one at
+ * a time by DialogCenter, which renders them as in-app, translated, focus-
+ * managed dialogs in place of the browser's native confirm/prompt.
+ */
 export const useDialogStore = create<DialogState>((set, get) => ({
   queue: [],
   requestConfirm: (message) =>

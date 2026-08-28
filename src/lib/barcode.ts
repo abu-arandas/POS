@@ -118,8 +118,10 @@ const PATTERNS = [
 const START_B = 104;
 const STOP = 106;
 
-// Code-set-B symbol values (start, data, checksum, stop) for the payload.
-// Characters outside the printable-ASCII range Code B covers are dropped.
+/**
+ * Code-set-B symbol values (start, data, checksum, stop) for the payload.
+ * Characters outside the printable-ASCII range Code B covers are dropped.
+ */
 export function code128BValues(data: string): number[] {
   const values: number[] = [];
   for (const ch of data) {
@@ -134,7 +136,9 @@ export function code128BValues(data: string): number[] {
   return [START_B, ...values, checksum, STOP];
 }
 
-// Flattened bar/space module-width sequence (alternating, starting with a bar).
+/**
+ * Flattened bar/space module-width sequence (alternating, starting with a bar).
+ */
 export function code128Modules(data: string): number[] {
   const widths: number[] = [];
   for (const sym of code128BValues(data)) {
@@ -143,13 +147,18 @@ export function code128Modules(data: string): number[] {
   return widths;
 }
 
+/**
+ * Bar geometry for renderBarcodeSvg. Both values are in CSS pixels.
+ */
 export interface BarcodeSvgOptions {
   height?: number; // px
   moduleWidth?: number; // px per narrow module
 }
 
-// Renders the payload as a self-contained black-bars SVG string. crispEdges +
-// integer-ish coordinates keep the bars sharp on a thermal roll.
+/**
+ * Renders the payload as a self-contained black-bars SVG string. crispEdges +
+ * integer-ish coordinates keep the bars sharp on a thermal roll.
+ */
 export function code128Svg(data: string, opts: BarcodeSvgOptions = {}): string {
   const height = opts.height ?? 44;
   const mw = opts.moduleWidth ?? 1.6;

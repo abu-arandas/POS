@@ -5,8 +5,10 @@
 
 import { FleetStoreRow } from './fleet';
 
-// One (store, day) bucket from the fleet_daily RPC. `day` is an ISO date
-// ('YYYY-MM-DD') already bucketed in the store's local timezone server-side.
+/**
+ * One (store, day) bucket from the fleet_daily RPC. `day` is an ISO date
+ * ('YYYY-MM-DD') already bucketed in the store's local timezone server-side.
+ */
 export interface FleetDailyRow {
   storeId: string;
   storeName: string;
@@ -15,6 +17,9 @@ export interface FleetDailyRow {
   orders: number;
 }
 
+/**
+ * Org-wide totals over the reporting window.
+ */
 export interface FleetTotals {
   revenue: number;
   orders: number;
@@ -23,6 +28,9 @@ export interface FleetTotals {
   activeCount: number; // stores with at least one order in the window
 }
 
+/**
+ * One store's contribution to the window, with its share of total revenue.
+ */
 export interface RankedStore {
   storeId: string;
   storeName: string;
@@ -31,14 +39,19 @@ export interface RankedStore {
   share: number; // 0..1 fraction of total revenue
 }
 
+/**
+ * One day on the fleet revenue chart.
+ */
 export interface DailyPoint {
   day: string;
   revenue: number;
   orders: number;
 }
 
-// Consolidated totals across the given store rollups. avgOrder is revenue per
-// order (0 when there are no orders), activeCount is stores that transacted.
+/**
+ * Consolidated totals across the given store rollups. avgOrder is revenue per
+ * order (0 when there are no orders), activeCount is stores that transacted.
+ */
 export function fleetTotals(rows: FleetStoreRow[]): FleetTotals {
   const revenue = rows.reduce((sum, r) => sum + r.revenue, 0);
   const orders = rows.reduce((sum, r) => sum + r.orders, 0);
@@ -51,8 +64,10 @@ export function fleetTotals(rows: FleetStoreRow[]): FleetTotals {
   };
 }
 
-// Stores ranked by revenue (desc), each with its share of total revenue.
-// Ties break by name so the order is stable.
+/**
+ * Stores ranked by revenue (desc), each with its share of total revenue.
+ * Ties break by name so the order is stable.
+ */
 export function rankStores(rows: FleetStoreRow[]): RankedStore[] {
   const total = rows.reduce((sum, r) => sum + r.revenue, 0);
   return rows
@@ -66,9 +81,11 @@ export function rankStores(rows: FleetStoreRow[]): RankedStore[] {
     .sort((a, b) => b.revenue - a.revenue || a.storeName.localeCompare(b.storeName));
 }
 
-// Folds daily rows into a single day-keyed series, ascending by day. With a
-// storeId, restricts to that store (drill-in); without one, sums every store
-// that transacted on each day.
+/**
+ * Folds daily rows into a single day-keyed series, ascending by day. With a
+ * storeId, restricts to that store (drill-in); without one, sums every store
+ * that transacted on each day.
+ */
 export function buildDailySeries(rows: FleetDailyRow[], storeId?: string): DailyPoint[] {
   const scoped = storeId ? rows.filter((r) => r.storeId === storeId) : rows;
   const byDay = new Map<string, DailyPoint>();

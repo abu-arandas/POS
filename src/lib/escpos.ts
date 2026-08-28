@@ -142,6 +142,11 @@ function renderDoc(rows: DocRow[], width: number, b: EscPosBuilder): void {
   }
 }
 
+/**
+ * Encodes a sale as an ESC/POS byte stream for a thermal printer: the receipt
+ * document rendered as text, then the feed/cut tail, plus a drawer pulse when
+ * openDrawer is set.
+ */
 export function encodeReceipt(
   tx: SaleTransaction,
   settings: StoreSettings,
@@ -158,9 +163,11 @@ export function encodeReceipt(
   return b.build();
 }
 
-// Kitchen ticket: what the line cooks need and nothing else. Deliberately no
-// prices, no payment info, no drawer kick. An optional stationName titles the
-// ticket for per-station routing (e.g. "BAR", "GRILL").
+/**
+ * Kitchen ticket: what the line cooks need and nothing else. Deliberately no
+ * prices, no payment info, no drawer kick. An optional stationName titles the
+ * ticket for per-station routing (e.g. "BAR", "GRILL").
+ */
 export function encodeKitchenTicket(
   tx: SaleTransaction,
   settings: StoreSettings,

@@ -7,6 +7,9 @@ const toneClasses = {
   error: 'border-rose-500/50 bg-rose-950/90 text-rose-100',
 } as const;
 
+/**
+ * Renders the active toasts. Mounted once at the app root.
+ */
 export default function NotificationCenter() {
   const notifications = useNotificationStore((state) => state.notifications);
   const remove = useNotificationStore((state) => state.remove);

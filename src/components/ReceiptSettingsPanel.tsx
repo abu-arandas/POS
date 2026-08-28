@@ -63,6 +63,10 @@ const TOGGLE_KEYS: Record<'customer' | 'kitchen', (keyof ReceiptToggles)[]> = {
   kitchen: ['storeName', 'receiptNumber', 'date', 'time', 'operator', 'customer'],
 };
 
+/**
+ * Editor for one receipt layout — which fields print and in what order —
+ * shared by the customer-receipt and kitchen-ticket settings.
+ */
 export default function ReceiptSettingsPanel({
   kind,
   layout,

@@ -52,6 +52,10 @@ const DEFAULT_USERS: UserAccount[] =
       ]
     : [];
 
+/**
+ * Staff accounts and who is signed in at this terminal. Persisted to IndexedDB
+ * so a terminal stays usable, and signed in, across a restart.
+ */
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({

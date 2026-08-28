@@ -22,8 +22,10 @@ interface SupplyState {
   deletePurchaseOrder: (id: string) => void;
 }
 
-// Suppliers and the stock-adjustment audit log. Terminal-local operational
-// records (persisted, not cloud-synced) — the product catalog itself syncs.
+/**
+ * Suppliers and the stock-adjustment audit log. Terminal-local operational
+ * records (persisted, not cloud-synced) — the product catalog itself syncs.
+ */
 export const useSupplyStore = create<SupplyState>()(
   persist(
     (set, get) => ({

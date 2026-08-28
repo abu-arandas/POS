@@ -7,15 +7,17 @@ interface LogoProps {
   title?: string;
 }
 
-// The Arandas mark, inlined so it renders without a network/asset fetch (the
-// terminal runs offline) and inherits crisp scaling at any size. Kept in sync
-// with src/assets/logo-mark.svg, which is the source the app/favicon PNGs are
-// generated from — edit that file and re-run scripts/generate-icons.mjs.
-//
-// Gradients use userSpaceOnUse: an objectBoundingBox gradient renders nothing on
-// a shape whose bbox has zero height, which the horizontal crossbar does.
-// Gradient ids are namespaced with useId so several Logos on one page don't
-// collide (a duplicate id would make every instance take the first one's fill).
+/**
+ * The Arandas mark, inlined so it renders without a network/asset fetch (the
+ * terminal runs offline) and inherits crisp scaling at any size. Kept in sync
+ * with src/assets/logo-mark.svg, which is the source the app/favicon PNGs are
+ * generated from — edit that file and re-run scripts/generate-icons.mjs.
+ *
+ * Gradients use userSpaceOnUse: an objectBoundingBox gradient renders nothing on
+ * a shape whose bbox has zero height, which the horizontal crossbar does.
+ * Gradient ids are namespaced with useId so several Logos on one page don't
+ * collide (a duplicate id would make every instance take the first one's fill).
+ */
 export default function Logo({ size = 32, className, title }: LogoProps) {
   const uid = useId();
   return (

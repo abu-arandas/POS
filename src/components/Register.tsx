@@ -41,6 +41,10 @@ import { useTranslation } from 'react-i18next';
 import { notify } from '../lib/notifications';
 import { askConfirmation, askText } from '../lib/dialogs';
 
+/**
+ * The register screen: product grid, cart, discounts, held orders, and the
+ * checkout flow through payment to receipt. The app's primary screen.
+ */
 export default function Register() {
   const { t } = useTranslation();
   const handleUpdateProduct = useProductStore((s) => s.handleUpdateProduct);

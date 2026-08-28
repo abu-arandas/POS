@@ -22,9 +22,11 @@ const PRESENCE_BADGE: Record<StorePresence, string> = {
   offline: 'badge badge-slate',
 };
 
-// Super-admin fleet board: every store in the org with live online/offline
-// state and today's totals. Read-only. Data comes from the fleet_summary RPC;
-// on any backend hiccup it renders an empty state rather than breaking.
+/**
+ * Super-admin fleet board: every store in the org with live online/offline
+ * state and today's totals. Read-only. Data comes from the fleet_summary RPC;
+ * on any backend hiccup it renders an empty state rather than breaking.
+ */
 export default function FleetBoard({ orgId }: FleetBoardProps) {
   const { t } = useTranslation();
   const settings = useSettingsStore((s) => s.settings);

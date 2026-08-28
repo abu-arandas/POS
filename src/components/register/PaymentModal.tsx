@@ -8,6 +8,10 @@ import type { Payment, PaymentMethod } from '../../types';
 // the full PaymentMethod.
 type SinglePaymentMethod = 'cash' | 'card' | 'mobile' | 'gift';
 
+/**
+ * One selectable tender type, with the icon and active styling the payment
+ * modal renders it with.
+ */
 export interface PaymentMethodOption {
   id: SinglePaymentMethod;
   label: string;
@@ -40,10 +44,12 @@ interface PaymentModalProps {
   onClose: () => void;
 }
 
-// The checkout / payment modal: single or split payment, cash tendering with
-// change, and order completion. Extracted from Register, which keeps ownership
-// of the payment state and passes it (plus the derived totals and handlers) as
-// props, so behavior is unchanged.
+/**
+ * The checkout / payment modal: single or split payment, cash tendering with
+ * change, and order completion. Extracted from Register, which keeps ownership
+ * of the payment state and passes it (plus the derived totals and handlers) as
+ * props, so behavior is unchanged.
+ */
 export function PaymentModal({
   open,
   dialogRef,

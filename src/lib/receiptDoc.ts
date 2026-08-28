@@ -10,8 +10,16 @@ import { SaleTransaction, StoreSettings, PrinterConfig, ReceiptLayout } from '..
 import i18n from './i18n';
 import { formatDateTime, resolveCustomerLayout, resolveKitchenLayout } from './receiptFormat';
 
+/**
+ * Visual weight of a receipt row. Each renderer maps these to its own medium —
+ * font weight on canvas, ESC/POS emphasis on a thermal printer.
+ */
 export type RowStyle = 'normal' | 'bold' | 'muted' | 'title' | 'large';
 
+/**
+ * One row of the printer-independent receipt document. The canvas, HTML and
+ * ESC/POS renderers all consume this same shape.
+ */
 export type DocRow =
   // A single run of centered text.
   | { kind: 'center'; text: string; style?: RowStyle }
@@ -35,6 +43,10 @@ function payLabel(method: string): string {
 const money = (cur: string, n: number) => `${cur}${n.toFixed(2)}`;
 
 /** The customer receipt, as rows. Mirrors buildReceiptHtml's block order. */
+/**
+ * Builds the customer receipt as renderer-independent rows, honoring the
+ * layout's field toggles. Pure — no DOM and no printer bytes.
+ */
 export function buildReceiptDoc(
   tx: SaleTransaction,
   settings: StoreSettings,
@@ -230,6 +242,10 @@ export function buildReceiptDoc(
 }
 
 /** The kitchen ticket, as rows. Items in large type, no prices, no payment. */
+/**
+ * Builds a kitchen ticket as renderer-independent rows: order identity and
+ * items only, with no pricing.
+ */
 export function buildKitchenDoc(
   tx: SaleTransaction,
   settings: StoreSettings,
@@ -300,6 +316,10 @@ export function buildKitchenDoc(
 }
 
 /** Every piece of text in a doc, for the needsRaster check. */
+/**
+ * Flattens a document to its visible text runs. Used by tests and by the
+ * translation checks to assert what actually reaches the paper.
+ */
 export function docStrings(rows: DocRow[]): string[] {
   const out: string[] = [];
   for (const r of rows) {

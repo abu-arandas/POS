@@ -1,11 +1,13 @@
-// Runs `fn` over `items` with at most `limit` promises in flight at once,
-// returning results in the original input order. This bounds fan-out so a large
-// list can't dispatch every request simultaneously (which can swamp a backend
-// or trip rate limits, the downside of a bare `Promise.all(items.map(...))`)
-// while still overlapping up to `limit` requests for throughput.
-//
-// A `limit` below 1 is treated as 1 (fully sequential). An empty input resolves
-// to an empty array without invoking `fn`.
+/**
+ * Runs `fn` over `items` with at most `limit` promises in flight at once,
+ * returning results in the original input order. This bounds fan-out so a large
+ * list can't dispatch every request simultaneously (which can swamp a backend
+ * or trip rate limits, the downside of a bare `Promise.all(items.map(...))`)
+ * while still overlapping up to `limit` requests for throughput.
+ *
+ * A `limit` below 1 is treated as 1 (fully sequential). An empty input resolves
+ * to an empty array without invoking `fn`.
+ */
 export async function mapWithLimit<T, R>(
   items: readonly T[],
   limit: number,
