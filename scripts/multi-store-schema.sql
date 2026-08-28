@@ -343,14 +343,51 @@ SECURITY INVOKER
 SET search_path = public
 AS $$
 BEGIN
+  -- categories.id and products.id are globally unique: store_id is a plain
+  -- column, not part of the key. So an upsert keyed on id alone reaches across
+  -- store boundaries — a payload carrying an id that already belongs to another
+  -- store would update that store's row, and writing store_id in the DO UPDATE
+  -- would move it wholesale. Moving a category is the worse half: products left
+  -- behind in the original store keep a category reference that now points into
+  -- a different store.
+  --
+  -- planCatalogPush never produces such a payload (it mints fresh ids and
+  -- otherwise reuses the target store's own), but this is an authenticated RPC
+  -- and the callers are not the only thing that can reach it. So a collision is
+  -- refused outright rather than resolved: raising here aborts the whole push,
+  -- which is the same all-or-nothing guarantee the rest of this function gives.
+  IF EXISTS (
+    SELECT 1
+    FROM jsonb_to_recordset(COALESCE(p_categories, '[]'::jsonb)) AS c(id TEXT)
+    JOIN categories existing ON existing.id = c.id
+    WHERE existing.store_id IS DISTINCT FROM p_store_id
+  ) THEN
+    RAISE EXCEPTION
+      'push_store_catalog: a category id in this payload already belongs to a different store than %',
+      p_store_id;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM jsonb_to_recordset(COALESCE(p_products, '[]'::jsonb)) AS p(id TEXT)
+    JOIN products existing ON existing.id = p.id
+    WHERE existing.store_id IS DISTINCT FROM p_store_id
+  ) THEN
+    RAISE EXCEPTION
+      'push_store_catalog: a product id in this payload already belongs to a different store than %',
+      p_store_id;
+  END IF;
+
+  -- store_id is set on insert but never in the DO UPDATE: past the guard above
+  -- an existing row is already scoped to p_store_id, so re-writing it could only
+  -- ever change a scope, never establish the right one.
   INSERT INTO categories (id, name, color, store_id)
   SELECT c.id, c.name, c.color, p_store_id
   FROM jsonb_to_recordset(COALESCE(p_categories, '[]'::jsonb))
     AS c(id TEXT, name TEXT, color TEXT)
   ON CONFLICT (id) DO UPDATE
-    SET name     = EXCLUDED.name,
-        color    = EXCLUDED.color,
-        store_id = EXCLUDED.store_id;
+    SET name  = EXCLUDED.name,
+        color = EXCLUDED.color;
 
   INSERT INTO products (id, name, price, cost, category, sku, stock, min_stock, image, store_id)
   SELECT p.id, p.name, p.price, p.cost, NULLIF(p.category, ''), p.sku,
@@ -366,8 +403,7 @@ BEGIN
         sku       = EXCLUDED.sku,
         stock     = EXCLUDED.stock,
         min_stock = EXCLUDED.min_stock,
-        image     = EXCLUDED.image,
-        store_id  = EXCLUDED.store_id;
+        image     = EXCLUDED.image;
 END;
 $$;
 REVOKE ALL ON FUNCTION public.push_store_catalog(TEXT, JSONB, JSONB) FROM PUBLIC;
