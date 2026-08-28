@@ -46,16 +46,29 @@ export function getSupabaseClient(url: string, anonKey: string): SupabaseClient 
 
 // Signs the client in with a Supabase Auth "device" account so it operates as an
 // authenticated role (required when RLS is enabled). No-op when no credentials
-// are configured — the client stays anonymous exactly as before. Cached per
-// client instance so we only hit the auth endpoint once.
+// are configured — the client stays anonymous exactly as before.
+//
+// The cached email is a hint, not proof: it records who we signed in as, never
+// whether that session is still good. Nothing clears it when a session expires,
+// the account is signed out, or the password changes, so on its own it would
+// keep reporting success while every RLS-protected request failed. supabase-js
+// refreshes the token on its own and usually makes the cache honest — but this
+// is an offline-first POS, and a terminal offline long enough for refresh to
+// fail is exactly the case that matters. So the session is confirmed with the
+// client before the cache is trusted; getSession() reads local state rather
+// than the network, which keeps this cheap on the hot path.
 export async function signInDevice(
   client: SupabaseClient,
   email: string,
   password: string,
 ): Promise<boolean> {
   if (!email || !password) return true; // anonymous mode
-  if (authedEmail === email) return true; // already signed in on this client
   try {
+    if (authedEmail === email) {
+      const { data } = await client.auth.getSession();
+      if (data?.session) return true; // still signed in on this client
+      authedEmail = ''; // expired or signed out — re-authenticate below
+    }
     const { error } = await client.auth.signInWithPassword({ email, password });
     if (error) {
       console.warn('Supabase device sign-in failed:', error.message);
