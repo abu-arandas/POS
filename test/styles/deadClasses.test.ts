@@ -19,8 +19,26 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (file: string) => readFileSync(join(REPO_ROOT, file), 'utf8');
 const git = (args: string) => execSync(`git ${args}`, { cwd: REPO_ROOT }).toString();
 
+/**
+ * Applies a replacement until the text stops changing.
+ *
+ * One pass is not enough: removing a comment can splice its neighbours into a
+ * fresh delimiter. `<!<!-- x -->-- .ghost -->` collapses to `<!-- .ghost -->`,
+ * a comment that survives — and whose contents would then count as a reference,
+ * which is the very thing stripping comments is meant to prevent. Each pass
+ * either shortens the text or leaves it alone, so this terminates.
+ */
+function stripRepeatedly(text: string, pattern: RegExp): string {
+  let previous: string;
+  do {
+    previous = text;
+    text = text.replace(pattern, '');
+  } while (text !== previous);
+  return text;
+}
+
 /** Strips block comments. They are prose, and prose names classes. */
-const withoutComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+const withoutComments = (css: string) => stripRepeatedly(css, /\/\*[\s\S]*?\*\//g);
 
 /**
  * Class names `src/index.css` defines a rule for.
@@ -70,11 +88,10 @@ function referencedNames(): Set<string> {
 
   const out = new Set<string>();
   for (const file of files) {
-    const source = withoutComments(read(file))
-      // Line comments, but not the `//` in a URL, which carries no class names
-      // and whose line may well carry one.
-      .replace(/(?<!:)\/\/.*$/gm, '')
-      .replace(/<!--[\s\S]*?-->/g, '');
+    // Line comments, but not the `//` in a URL, which carries no class names
+    // and whose line may well carry one.
+    const withoutLineComments = stripRepeatedly(withoutComments(read(file)), /(?<!:)\/\/.*$/gm);
+    const source = stripRepeatedly(withoutLineComments, /<!--[\s\S]*?-->/g);
     for (const m of source.matchAll(/[a-zA-Z][\w-]*/g)) out.add(m[0]);
   }
   return out;
