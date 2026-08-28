@@ -55,8 +55,16 @@ export function getSupabaseClient(url: string, anonKey: string): SupabaseClient 
 // refreshes the token on its own and usually makes the cache honest — but this
 // is an offline-first POS, and a terminal offline long enough for refresh to
 // fail is exactly the case that matters. So the session is confirmed with the
-// client before the cache is trusted; getSession() reads local state rather
-// than the network, which keeps this cheap on the hot path.
+// client before the cache is trusted.
+//
+// getSession() is not purely local: it reads the stored session, and if that
+// session is at or near expiry it awaits a token refresh (auth-js
+// __loadSession -> _callRefreshToken). So the hot path — a live session — costs
+// a storage read and nothing more, and the network only comes into it exactly
+// when the old code would have returned a false success. That refresh is also
+// the cheaper of the two ways out: it succeeds without ever reaching
+// signInWithPassword, and only a failed refresh falls through to a full
+// password sign-in.
 export async function signInDevice(
   client: SupabaseClient,
   email: string,
