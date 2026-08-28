@@ -16,6 +16,21 @@ import { useAuthStore } from '../stores/authStore';
 
 let channel: RealtimeChannel | null = null;
 
+// Teardown state, module-level because stopRealtimeSync has to reach it.
+//
+// The debounce timers used to be a local of startRealtimeSync, so stopping only
+// unsubscribed the channel: a refresh already inside its 400ms window still
+// fired, still pulled through the captured client, and still wrote into the
+// local stores afterwards. Since startRealtimeSync stops first, a restart could
+// also let an old-client pull land on top of the new subscription's data.
+//
+// Clearing the timers alone would not be enough — a callback already past
+// clearTimeout is awaiting its pull and will still write when it resolves — so
+// each subscription carries a generation, and a pull whose generation is stale
+// by the time it resolves is discarded.
+let timers: Record<string, ReturnType<typeof setTimeout>> = {};
+let generation = 0;
+
 const SYNCED_TABLES = ['products', 'categories', 'customers', 'transactions', 'user_accounts'];
 
 // Subscribes to Postgres changes on the synced tables and mirrors them into the
@@ -37,28 +52,38 @@ export async function startRealtimeSync(): Promise<boolean> {
   );
   if (!signedIn) return false;
 
-  const timers: Record<string, ReturnType<typeof setTimeout>> = {};
+  // Captured after the stopRealtimeSync() above, so it is this subscription's
+  // own generation. Another start/stop while the awaits above were pending
+  // leaves it stale, which is exactly what the checks below test for.
+  const myGeneration = generation;
+
   const refresh = (table: string) => {
     clearTimeout(timers[table]);
     timers[table] = setTimeout(async () => {
       // Re-read the store scope each pull so it tracks config changes.
       const storeId = useSettingsStore.getState().storeId;
+      // Each branch resolves its pull into the write it would perform, rather
+      // than performing it, so the staleness check below sits between the
+      // await and the store — the one window clearTimeout cannot close.
+      let apply: (() => void) | null = null;
       if (table === 'products') {
         const d = await pullProducts(client, storeId);
-        if (d) useProductStore.getState().setProducts(d);
+        if (d) apply = () => useProductStore.getState().setProducts(d);
       } else if (table === 'categories') {
         const d = await pullCategories(client, storeId);
-        if (d) useProductStore.getState().setCategories(d);
+        if (d) apply = () => useProductStore.getState().setCategories(d);
       } else if (table === 'customers') {
         const d = await pullCustomers(client, storeId);
-        if (d) useCustomerStore.getState().setCustomers(d);
+        if (d) apply = () => useCustomerStore.getState().setCustomers(d);
       } else if (table === 'transactions') {
         const d = await pullTransactions(client, storeId);
-        if (d) useTransactionStore.getState().setTransactions(d);
+        if (d) apply = () => useTransactionStore.getState().setTransactions(d);
       } else if (table === 'user_accounts') {
         const d = await pullUserAccounts(client, storeId);
-        if (d) useAuthStore.getState().setUsers(d);
+        if (d) apply = () => useAuthStore.getState().setUsers(d);
       }
+      if (myGeneration !== generation) return; // stopped or restarted mid-pull
+      apply?.();
     }, 400);
   };
 
@@ -71,12 +96,23 @@ export async function startRealtimeSync(): Promise<boolean> {
       () => refresh(table),
     );
   }
+  if (myGeneration !== generation) {
+    // A stop or a newer start landed while this one was authenticating. Its
+    // channel would otherwise overwrite the live one and never be torn down.
+    return false;
+  }
   ch.subscribe();
   channel = ch;
   return true;
 }
 
+// Tears down realtime sync: unsubscribes the channel, cancels the debounced
+// pulls that have not fired, and invalidates any already in flight so their
+// results are discarded rather than written. Safe to call when none is open.
 export function stopRealtimeSync(): void {
+  generation++;
+  for (const timer of Object.values(timers)) clearTimeout(timer);
+  timers = {};
   if (channel) {
     channel.unsubscribe();
     channel = null;
