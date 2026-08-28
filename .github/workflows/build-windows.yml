@@ -4,9 +4,8 @@
 # toolchain. The finished installer is uploaded as a workflow artifact and,
 # when it is signed, published as a GitHub Release asset for direct download.
 #
-# Signing is what makes the download trusted — see docs/windows-install.md.
-# Two paths are supported, and electron-builder.config.cjs picks between them
-# from the environment:
+# Signing is what makes the download trusted. Two paths are supported, and
+# electron-builder.config.cjs picks between them from the environment:
 #
 #   Azure Trusted Signing  AZURE_* secrets + WINDOWS_PUBLISHER_NAME. The path
 #                          that works with a certificate bought today.
@@ -69,7 +68,7 @@ jobs:
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
           if [ "$mode" = "none" ]; then
             echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::No code-signing certificate is configured, so this installer is UNSIGNED. Windows SmartScreen and Chrome/Edge will warn users. See docs/windows-install.md."
+            echo "::warning::No code-signing certificate is configured, so this installer is UNSIGNED. Windows SmartScreen and Chrome/Edge will warn users. Set the AZURE_* secrets or CSC_LINK/CSC_KEY_PASSWORD to sign it."
           else
             echo "signed=true" >> "$GITHUB_OUTPUT"
             echo "Signing via: $mode"
@@ -105,7 +104,7 @@ jobs:
           }
           Write-Host "Verified publisher: $($signature.SignerCertificate.Subject)"
 
-      # docs/windows-install.md tells people to compare a SHA-256 checksum before
+      # The release notes below tell people to compare a SHA-256 checksum before
       # running the installer. Publishing one is what makes that possible — and
       # it is the only integrity check available at all on an unsigned build.
       - name: Generate SHA-256 checksums
@@ -178,9 +177,9 @@ jobs:
             exit 1
           fi
           # Tag with the application version, not the run number: that is what
-          # electron-updater compares, and docs/windows-install.md tells the
-          # release engineer to bump it. A run-number tag left no way to tell
-          # which build carried which version.
+          # electron-updater compares, and what the release engineer bumps in
+          # package.json. A run-number tag left no way to tell which build
+          # carried which version.
           installer=$(basename release/EA-POS-Setup-*.exe)
           version="${installer#EA-POS-Setup-}"
           version="${version%.exe}"
@@ -210,7 +209,7 @@ jobs:
           ${checksums}
           \`\`\`
 
-          See docs/windows-install.md for installation and verification steps."
+          Compare that against \`Get-FileHash .\\${installer} -Algorithm SHA256\` before running the installer."
           else
             title="EA POS ${version} (unsigned test build)"
             prerelease="--prerelease"
@@ -226,7 +225,9 @@ jobs:
           ${checksums}
           \`\`\`
 
-          To produce a trusted installer, configure code signing — see docs/windows-install.md."
+          Compare that against \`Get-FileHash .\\${installer} -Algorithm SHA256\` before running the installer.
+
+          To produce a trusted installer, configure code signing: the AZURE_* secrets plus WINDOWS_PUBLISHER_NAME, or CSC_LINK and CSC_KEY_PASSWORD."
           fi
 
           gh release create "$tag" "${assets[@]}" \

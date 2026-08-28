@@ -226,7 +226,7 @@ export interface UserAccount {
   createdAt: string;
 }
 
-// ── Multi-store / super-admin foundations (see docs/super-admin-plan.md) ──
+// ── Multi-store / super-admin foundations (scripts/multi-store-schema.sql) ──
 // These describe the cloud/fleet dimension. They are deliberately separate from
 // the per-store UserAccount above: a super-admin is an org-level MEMBERSHIP, not
 // a terminal login. Nothing in the single-store terminal flow depends on them.

@@ -1,4 +1,4 @@
-// Pure helpers for the super-admin fleet board (see docs/super-admin-plan.md).
+// Pure helpers for the super-admin fleet board (see scripts/multi-store-schema.sql).
 // DOM-free and backend-free so they unit-test like the rest of lib/*. The actual
 // Supabase heartbeat + fleet_summary calls will live alongside these once the
 // multi-store backend is provisioned; these functions shape and fold whatever

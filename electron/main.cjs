@@ -484,8 +484,9 @@ function setupAutoUpdater() {
   if (updatePolicy.reason === 'unverified-no-publisher-name') {
     console.warn(
       'AutoUpdater: no publisherName in app-update.yml, so downloaded updates ' +
-        'are NOT signature-verified. Automatic installation is disabled — see ' +
-        'docs/windows-install.md. Sign the build to restore unattended updates.',
+        'are NOT signature-verified. Automatic installation is disabled, which ' +
+        'is what an unsigned build gets. Sign the build to restore unattended ' +
+        'updates.',
     );
   }
 

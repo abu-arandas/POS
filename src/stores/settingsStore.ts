@@ -28,7 +28,7 @@ interface SettingsState {
   // (desktop only). Off keeps discovery manual for large/locked-down networks.
   autoScanPrinters: boolean;
   // This terminal's store id for multi-store cloud scoping (see
-  // docs/super-admin-plan.md). Empty = single-store mode: sync behaves exactly
+  // scripts/multi-store-schema.sql). Empty = single-store mode: sync behaves exactly
   // as before (no store_id stamped or filtered).
   storeId: string;
   darkMode: boolean;
