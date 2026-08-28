@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname, join, resolve } from 'path';
 
 // src/index.css had accumulated 38 component classes nothing rendered any more —
 // gradient text, neon borders, a skeleton loader, a sidebar pill, a whole
@@ -11,24 +13,48 @@ import { execSync } from 'child_process';
 // So: every class the stylesheet defines has to be named somewhere the app can
 // reach it.
 
-/**
- * The stylesheet with its comments removed. They are prose, and prose names
- * classes: a line reading "Distinct from .badge-*, which forces uppercase"
- * otherwise registers as a rule for a class called `badge-`.
- */
-function stylesheet(): string {
-  return readFileSync('src/index.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-}
+// Anchored to this file rather than to process.cwd(), so the check reads the
+// same tree whichever directory the runner was started from.
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const read = (file: string) => readFileSync(join(REPO_ROOT, file), 'utf8');
+const git = (args: string) => execSync(`git ${args}`, { cwd: REPO_ROOT }).toString();
 
-/** Class names `src/index.css` defines a rule for. */
+/** Strips block comments. They are prose, and prose names classes. */
+const withoutComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+
+/**
+ * Class names `src/index.css` defines a rule for.
+ *
+ * Only selector text is searched — the prelude before each `{`. Scanning the
+ * whole file instead would collect `woff2` out of `url('…-normal.woff2')` in
+ * @font-face, and then demand the app "use" it. Scanning only where a dot is
+ * preceded by a combinator would miss the other half: `is-dragging` in
+ * `.product-card.is-dragging`, and the four `active-*` payment modifiers, none
+ * of which start their selector.
+ */
 function definedClasses(): Set<string> {
+  const css = withoutComments(read('src/index.css'));
   const out = new Set<string>();
-  for (const m of stylesheet().matchAll(/(^|[\s,>+~(])\.([a-zA-Z][\w-]*)/g)) out.add(m[2]);
+  let prelude = '';
+  for (const ch of css) {
+    if (ch === '{') {
+      for (const m of prelude.matchAll(/\.([a-zA-Z][\w-]*)/g)) out.add(m[1]);
+      prelude = '';
+    } else if (ch === '}' || ch === ';') {
+      prelude = '';
+    } else {
+      prelude += ch;
+    }
+  }
   return out;
 }
 
 /**
  * Every identifier appearing in code that renders against this stylesheet.
+ *
+ * Comments are stripped first. A class named only in a comment is not applied
+ * to anything, and counting it would let a rule survive its last real use — the
+ * exact failure this test exists to catch.
  *
  * `electron/menu.html` is deliberately excluded. It is a standalone document
  * served by the QR-menu server with its own inline <style> — it never loads
@@ -37,15 +63,19 @@ function definedClasses(): Set<string> {
  * menu.html's own stylesheet.
  */
 function referencedNames(): Set<string> {
-  const files = execSync('git ls-files src e2e test tools electron scripts index.html')
-    .toString()
+  const files = git('ls-files src e2e test tools electron scripts index.html')
     .trim()
     .split(/\r?\n/)
     .filter((f) => /\.(tsx?|jsx?|html|mjs|cjs)$/.test(f) && f !== 'electron/menu.html');
 
   const out = new Set<string>();
   for (const file of files) {
-    for (const m of readFileSync(file, 'utf8').matchAll(/[a-zA-Z][\w-]*/g)) out.add(m[0]);
+    const source = withoutComments(read(file))
+      // Line comments, but not the `//` in a URL, which carries no class names
+      // and whose line may well carry one.
+      .replace(/(?<!:)\/\/.*$/gm, '')
+      .replace(/<!--[\s\S]*?-->/g, '');
+    for (const m of source.matchAll(/[a-zA-Z][\w-]*/g)) out.add(m[0]);
   }
   return out;
 }
@@ -62,7 +92,7 @@ describe('stylesheet', () => {
   });
 
   it('declares no @keyframes nothing animates', () => {
-    const css = stylesheet();
+    const css = withoutComments(read('src/index.css'));
     const animated = new Set<string>();
     for (const m of css.matchAll(/animation(?:-name)?\s*:\s*([^;]+);/g)) {
       for (const token of m[1].split(/[\s,]+/)) animated.add(token);

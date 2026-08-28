@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname, join, resolve } from 'path';
 import i18n from '../../src/lib/i18n';
 
 // A key referenced in code but absent from the catalogue does not fail loudly —
@@ -35,6 +37,11 @@ const ar = new Set(flatten(resources.ar.translation));
 const declared = (set: Set<string>, key: string) =>
   set.has(key) || set.has(`${key}_one`) || set.has(`${key}_other`);
 
+// Anchored to this file rather than to process.cwd(), so the check reads the
+// same tree whichever directory the runner was started from.
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const read = (file: string) => readFileSync(join(REPO_ROOT, file), 'utf8');
+
 /**
  * Application source, minus the catalogue itself.
  *
@@ -45,7 +52,7 @@ const declared = (set: Set<string>, key: string) =>
  * blind to the root component is exactly the gap this file exists to close.
  */
 function sourceFiles(): string[] {
-  return execSync('git ls-files src')
+  return execSync('git ls-files src', { cwd: REPO_ROOT })
     .toString()
     .trim()
     .split(/\r?\n/)
@@ -56,7 +63,7 @@ function sourceFiles(): string[] {
 function referencedKeys(): Map<string, Set<string>> {
   const out = new Map<string, Set<string>>();
   for (const file of sourceFiles()) {
-    const source = readFileSync(file, 'utf8');
+    const source = read(file);
     for (const m of source.matchAll(/\bt\(\s*(['"])([a-zA-Z0-9_.]+)\1/g)) {
       if (!out.has(m[2])) out.set(m[2], new Set());
       out.get(m[2])!.add(file);
@@ -76,8 +83,7 @@ function referencedKeys(): Map<string, Set<string>> {
 function quotedStrings(): Set<string> {
   const out = new Set<string>();
   for (const file of sourceFiles()) {
-    for (const m of readFileSync(file, 'utf8').matchAll(/(['"`])([a-zA-Z0-9_.]+)\1/g))
-      out.add(m[2]);
+    for (const m of read(file).matchAll(/(['"`])([a-zA-Z0-9_.]+)\1/g)) out.add(m[2]);
   }
   return out;
 }
@@ -90,7 +96,7 @@ function quotedStrings(): Set<string> {
 function dynamicPrefixes(): string[] {
   const out = new Set<string>();
   for (const file of sourceFiles()) {
-    for (const m of readFileSync(file, 'utf8').matchAll(/\bt\(\s*`([^`$]*)\$\{/g)) {
+    for (const m of read(file).matchAll(/\bt\(\s*`([^`$]*)\$\{/g)) {
       if (m[1]) out.add(m[1]);
     }
   }
