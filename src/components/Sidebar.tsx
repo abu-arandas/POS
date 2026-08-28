@@ -80,8 +80,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
   return (
     <aside
       id="sidebar-container"
-      className="flex flex-col w-60 min-h-screen transition-colors duration-300 relative overflow-hidden shrink-0 border-e"
-      style={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}
+      className="app-panel flex flex-col w-60 min-h-screen transition-colors duration-300 relative overflow-hidden shrink-0 border-e"
     >
       {/* Ambient glow orbs — dark canvas only. Over a white panel the large
           blur radius bands into visible concentric rings instead of a glow. */}

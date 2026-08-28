@@ -166,17 +166,78 @@ export async function pushProducts(
   }
 }
 
+// A pull used to be one unbounded request: `.select('*')` with no limit, for
+// every row in the table. Two things go wrong with that. PostgREST caps how
+// many rows a single response may return (Supabase exposes it as `max-rows`),
+// and a cap silently truncates — the client cannot tell a capped response from
+// a complete one, so a terminal would quietly pull a partial catalogue and,
+// because "Pull From Cloud" replaces all local data, overwrite the rest. And a
+// terminal that has been trading for a year has a transaction history that is
+// simply too large to want in one response.
+//
+// So the pulls walk the table in pages, the same way deleteRowsSupabase chunks
+// its ids.
+export const PULL_PAGE_SIZE = 1000;
+
+// Paged by primary key, not by offset.
+//
+// `.range(from, to)` counts rows from the start of the result on each request,
+// so anything inserted or deleted before a later page shifts every offset after
+// it — a sale rung up mid-pull slides one row across the page boundary and it is
+// either fetched twice or missed entirely. Pulls are not short (they walk the
+// whole table) and the register is writing the whole time, so that window is
+// wide open in normal use. Because the result then *replaces* local state, a
+// dropped row is not a stale read, it is data destroyed.
+//
+// Keying each page off the last id seen has no such window: rows before the
+// cursor cannot move it, and inserts land on a page that has not been read yet.
+//
+// Two further details:
+//
+//   * Stop on an empty page, not a short one. A short page is exactly what a
+//     server-side row cap (Supabase's `max-rows`) looks like, and treating it
+//     as the end would silently truncate the pull.
+//   * `id` is the primary key on every synced table, so it is unique and stable
+//     — the two properties a keyset cursor needs.
+async function fetchAllPages<Row extends { id: string }>(
+  page: (
+    afterId: string | null,
+    limit: number,
+  ) => PromiseLike<{ data: Row[] | null; error: unknown }>,
+): Promise<Row[]> {
+  const rows: Row[] = [];
+  let afterId: string | null = null;
+  for (;;) {
+    const { data, error } = await page(afterId, PULL_PAGE_SIZE);
+    if (error) throw error;
+    const batch = data ?? [];
+    if (batch.length === 0) return rows;
+    for (const row of batch) rows.push(row);
+    afterId = batch[batch.length - 1].id;
+  }
+}
+
+// Applies the keyset cursor to a query. Ascending id order is what makes the
+// cursor meaningful; callers that want a different order sort the result.
+function keyset<
+  T extends { order: (c: string) => T; limit: (n: number) => T; gt: (c: string, v: string) => T },
+>(query: T, afterId: string | null, limit: number): T {
+  const ordered = query.order('id').limit(limit);
+  return afterId === null ? ordered : ordered.gt('id', afterId);
+}
+
 // Pull products from Supabase
 export async function pullProducts(
   client: SupabaseClient,
   storeId?: string,
 ): Promise<Product[] | null> {
   try {
-    let query = client.from('products').select('*');
-    if (storeId) query = query.eq('store_id', storeId);
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data || []).map((r) => ({
+    const data = await fetchAllPages((afterId, limit) => {
+      let query = keyset(client.from('products').select('*'), afterId, limit);
+      if (storeId) query = query.eq('store_id', storeId);
+      return query;
+    });
+    return data.map((r) => ({
       id: r.id,
       name: r.name,
       price: Number(r.price),
@@ -216,12 +277,13 @@ export async function pullCategories(
   storeId?: string,
 ): Promise<Category[] | null> {
   try {
-    let query = client.from('categories').select('*');
-    if (storeId) query = query.eq('store_id', storeId);
-    const { data, error } = await query;
-    if (error) throw error;
+    const data = await fetchAllPages((afterId, limit) => {
+      let query = keyset(client.from('categories').select('*'), afterId, limit);
+      if (storeId) query = query.eq('store_id', storeId);
+      return query;
+    });
     // store_id is a sync-only column; strip it so the domain object stays clean.
-    return (data || []).map((r) => ({ id: r.id, name: r.name, color: r.color }));
+    return data.map((r) => ({ id: r.id, name: r.name, color: r.color }));
   } catch (err) {
     console.error('Failed pulling categories:', err);
     return null;
@@ -262,10 +324,11 @@ export async function pullCustomers(
   storeId?: string,
 ): Promise<Customer[] | null> {
   try {
-    let query = client.from('customers').select('*');
-    if (storeId) query = query.eq('store_id', storeId);
-    const { data, error } = await query;
-    if (error) throw error;
+    const data = await fetchAllPages((afterId, limit) => {
+      let query = keyset(client.from('customers').select('*'), afterId, limit);
+      if (storeId) query = query.eq('store_id', storeId);
+      return query;
+    });
     return (data || []).map((r) => ({
       id: r.id,
       name: r.name,
@@ -373,10 +436,17 @@ export async function pullTransactions(
   storeId?: string,
 ): Promise<SaleTransaction[] | null> {
   try {
-    let query = client.from('transactions').select('*').order('date', { ascending: false });
-    if (storeId) query = query.eq('store_id', storeId);
-    const { data, error } = await query;
-    if (error) throw error;
+    // Walked by id so the cursor is stable, then sorted newest-first here.
+    // Ordering by date server-side would need the cursor to be the (date, id)
+    // pair, which PostgREST cannot express as a single filter; sorting the
+    // finished set costs nothing next to the round trips and keeps this
+    // function's contract — newest first — exactly as it was.
+    const data = await fetchAllPages((afterId, limit) => {
+      let query = keyset(client.from('transactions').select('*'), afterId, limit);
+      if (storeId) query = query.eq('store_id', storeId);
+      return query;
+    });
+    data.sort((a, b) => String(b.date).localeCompare(String(a.date)));
     return (data || []).map((r) => ({
       id: r.id,
       date: r.date,
@@ -443,10 +513,11 @@ export async function pullUserAccounts(
   storeId?: string,
 ): Promise<UserAccount[] | null> {
   try {
-    let query = client.from('user_accounts_public').select('*');
-    if (storeId) query = query.eq('store_id', storeId);
-    const { data, error } = await query;
-    if (error) throw error;
+    const data = await fetchAllPages((afterId, limit) => {
+      let query = keyset(client.from('user_accounts_public').select('*'), afterId, limit);
+      if (storeId) query = query.eq('store_id', storeId);
+      return query;
+    });
     // The public projection intentionally has no PIN column. Keep the local
     // secret for matching ids so a cloud pull cannot erase offline login data.
     const localUsers = new Map(useAuthStore.getState().users.map((user) => [user.id, user]));

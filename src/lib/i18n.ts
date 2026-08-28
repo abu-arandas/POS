@@ -407,6 +407,8 @@ const en = {
     qrmenu: {
       title: 'Digital QR Menu',
       subtitle: 'Let customers view your menu directly on their phones',
+      serverDown:
+        'The menu server is not running, so this code will not open anything. Check the Wi-Fi connection and use Refresh.',
       howItWorks: 'How it works',
       step1: "Ensure your POS and your customers' phones are connected to the same Wi-Fi network.",
       step2: 'Print this QR code and place it on tables or at the counter.',
@@ -1274,6 +1276,8 @@ const ar = {
     qrmenu: {
       title: 'قائمة QR الرقمية',
       subtitle: 'دع العملاء يشاهدون قائمتك مباشرة على هواتفهم',
+      serverDown:
+        'خادم القائمة لا يعمل، لذا لن يفتح هذا الرمز أي شيء. تحقق من اتصال Wi-Fi ثم اضغط تحديث.',
       howItWorks: 'كيف يعمل',
       step1: 'تأكد من اتصال نقطة البيع وهواتف العملاء بنفس شبكة Wi-Fi.',
       step2: 'اطبع رمز الاستجابة السريعة هذا وضعه على الطاولات أو عند الكاشير.',

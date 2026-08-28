@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { motion } from 'motion/react';
 import {
   Activity,
@@ -330,8 +330,12 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                         </div>
                         <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-linear-to-r from-emerald-500 to-teal-400"
-                            style={{ width: `${Math.max(s.share * 100, s.revenue > 0 ? 2 : 0)}%` }}
+                            className="bar-fill h-full rounded-full bg-linear-to-r from-emerald-500 to-teal-400"
+                            style={
+                              {
+                                '--bar-width': `${Math.max(s.share * 100, s.revenue > 0 ? 2 : 0)}%`,
+                              } as CSSProperties
+                            }
                           />
                         </div>
                       </button>

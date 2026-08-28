@@ -87,10 +87,7 @@ export function PaymentModal({
             transition={{ type: 'spring', stiffness: 280, damping: 22 }}
             className="modal-card max-w-lg w-full overflow-hidden flex flex-col"
           >
-            <div
-              className="p-5 flex justify-between items-center"
-              style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
-            >
+            <div className="modal-divider-bottom p-5 flex justify-between items-center">
               <div>
                 <h3
                   id="payment-modal-title"
@@ -119,14 +116,9 @@ export function PaymentModal({
               <button
                 id="split-toggle-btn"
                 onClick={onToggleSplit}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all"
-                style={{
-                  background: splitMode ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.04)',
-                  border: splitMode
-                    ? '1px solid rgba(16,185,129,0.35)'
-                    : '1px solid rgba(255,255,255,0.08)',
-                  color: splitMode ? '#34d399' : '#64748b',
-                }}
+                className={`toggle-pill w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold ${
+                  splitMode ? 'is-active' : ''
+                }`}
               >
                 <CreditCard size={14} />
                 {splitMode ? t('register.singlePayment') : t('register.splitPayment')}
@@ -158,21 +150,14 @@ export function PaymentModal({
                 <div className="space-y-2.5">
                   {splitPayments.map((p, idx) => (
                     <div key={idx} className="flex items-center gap-2">
-                      <div
-                        className="flex-1 flex items-center rounded-xl overflow-hidden transition-all"
-                        style={{
-                          background: 'rgba(255,255,255,0.04)',
-                          border: '1px solid rgba(255,255,255,0.09)',
-                        }}
-                      >
+                      <div className="field-shell flex-1 flex items-center rounded-xl overflow-hidden transition-all">
                         <select
                           value={p.method}
                           onChange={(e) =>
                             onUpdateSplit(idx, { method: e.target.value as PaymentMethod })
                           }
                           aria-label={t('register.method')}
-                          className="bg-transparent text-xs font-semibold ps-3 pe-7 py-3 text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
-                          style={{ borderRight: '1px solid rgba(255,255,255,0.08)' }}
+                          className="field-shell-divider bg-transparent text-xs font-semibold ps-3 pe-7 py-3 text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
                         >
                           <option value="cash">{t('register.payCash')}</option>
                           <option value="card">{t('register.payCard')}</option>
@@ -201,11 +186,7 @@ export function PaymentModal({
                         onClick={() => onRemoveSplit(idx)}
                         disabled={splitPayments.length <= 1}
                         aria-label={t('register.removePayment')}
-                        className="p-2.5 text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl disabled:opacity-25 transition-colors"
-                        style={{
-                          border: '1px solid rgba(255,255,255,0.08)',
-                          background: 'rgba(255,255,255,0.04)',
-                        }}
+                        className="field-shell p-2.5 text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl disabled:opacity-25 transition-colors"
                       >
                         <X size={14} />
                       </button>
@@ -214,8 +195,7 @@ export function PaymentModal({
                   <div className="flex items-center justify-between pt-1">
                     <button
                       onClick={onAddSplit}
-                      className="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
-                      style={{ color: '#34d399', border: '1px dashed rgba(16,185,129,0.35)' }}
+                      className="btn-dashed-add text-xs font-bold px-3 py-1.5 rounded-lg"
                     >
                       + {t('register.addPayment')}
                     </button>
@@ -240,8 +220,7 @@ export function PaymentModal({
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="space-y-4 pt-4 overflow-hidden"
-                    style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
+                    className="modal-divider-top space-y-4 pt-4 overflow-hidden"
                   >
                     <div>
                       <label className="text-[10px] font-bold text-slate-600 block mb-2 uppercase tracking-wider">
@@ -253,18 +232,9 @@ export function PaymentModal({
                             key={val}
                             whileTap={{ scale: 0.93 }}
                             onClick={() => onCashPaidChange(val.toFixed(2))}
-                            className="font-mono text-sm font-bold px-3.5 py-2 rounded-xl transition-all"
-                            style={{
-                              background:
-                                cashPaidText === val.toFixed(2)
-                                  ? 'rgba(16,185,129,0.2)'
-                                  : 'rgba(255,255,255,0.05)',
-                              border:
-                                cashPaidText === val.toFixed(2)
-                                  ? '1px solid rgba(16,185,129,0.4)'
-                                  : '1px solid rgba(255,255,255,0.09)',
-                              color: cashPaidText === val.toFixed(2) ? '#34d399' : '#94a3b8',
-                            }}
+                            className={`quick-cash-btn font-mono text-sm font-bold px-3.5 py-2 rounded-xl ${
+                              cashPaidText === val.toFixed(2) ? 'is-active' : ''
+                            }`}
                           >
                             {currency}
                             {val.toFixed(2)}
@@ -281,13 +251,7 @@ export function PaymentModal({
                         >
                           {t('register.cashTendered')}
                         </label>
-                        <div
-                          className="flex items-center rounded-xl overflow-hidden transition-all"
-                          style={{
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                          }}
-                        >
+                        <div className="input-shell flex items-center rounded-xl overflow-hidden transition-all">
                           <span className="font-mono text-slate-500 ps-3 font-bold text-sm">
                             {currency}
                           </span>
@@ -309,14 +273,7 @@ export function PaymentModal({
                         <label className="text-[10px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wider">
                           {t('register.changeDue')}
                         </label>
-                        <div
-                          className="rounded-xl px-4 flex items-center justify-between"
-                          style={{
-                            height: '48px',
-                            background: 'rgba(16,185,129,0.1)',
-                            border: '1px solid rgba(16,185,129,0.25)',
-                          }}
-                        >
+                        <div className="change-due-box rounded-xl px-4 flex items-center justify-between">
                           <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
                             {t('register.returnAmount')}
                           </span>
@@ -332,18 +289,10 @@ export function PaymentModal({
               </AnimatePresence>
             </div>
 
-            <div
-              className="p-4 flex items-center gap-3"
-              style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
-            >
+            <div className="modal-divider-top p-4 flex items-center gap-3">
               <button
                 onClick={() => onClose()}
-                className="px-5 py-3 rounded-xl text-sm font-bold transition-colors"
-                style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.09)',
-                  color: '#64748b',
-                }}
+                className="btn-ghost px-5 py-3 rounded-xl text-sm font-bold"
               >
                 {t('register.cancel')}
               </button>
@@ -357,12 +306,7 @@ export function PaymentModal({
                       totalAmount > 0 &&
                       (parseFloat(cashPaidText) || 0) < totalAmount
                 }
-                className="flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-40"
-                style={{
-                  background: 'linear-gradient(135deg, #059669, #10b981)',
-                  color: 'white',
-                  boxShadow: '0 4px 20px rgba(16,185,129,0.35)',
-                }}
+                className="btn-primary flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40"
               >
                 <Check size={17} strokeWidth={2.5} />
                 <span>{t('register.completeOrder')}</span>

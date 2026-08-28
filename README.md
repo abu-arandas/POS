@@ -194,13 +194,31 @@ printed receipts and the QR menu, the PBKDF2/SHA-256 authentication fallbacks,
 cloud-sync failure modes, printer cleanup, and the major checkout and inventory
 workflows.
 
+They also cover the Electron main process's pure modules — IPC payload
+validation, the auto-update policy, the Windows code-signing configuration, and
+the LAN address selection behind the QR menu. Those live in their own `.cjs`
+files precisely so they can be tested: CI otherwise only reaches `main.cjs`
+through `node --check`, which is a parse and nothing more, and that gap is how a
+`\d` typo once shipped that silently disabled the QR menu, network printing and
+printer discovery in packaged builds.
+
 End-to-end tests (Playwright) drive the real app in a browser — PIN login,
 adding to the cart, card and cash checkout (with change), and role-based
 navigation — to guard the critical checkout path:
 
 ```bash
-npx playwright install chromium   # one-time, downloads the browser
+npx playwright install   # one-time, downloads Chromium, Firefox and WebKit
 npm run test:e2e
+```
+
+`npm run test:e2e` runs the suite against all three browsers, because
+`playwright.config.ts` defines a project for each. Installing only Chromium
+leaves the Firefox and WebKit projects failing with `Executable doesn't exist`,
+which reads like a broken test rather than a missing browser. To iterate quickly
+against one browser instead:
+
+```bash
+npm run test:e2e -- --project=chromium
 ```
 
 The Playwright config boots the Vite dev server automatically; both suites run

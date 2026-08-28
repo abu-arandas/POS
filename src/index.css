@@ -1069,3 +1069,329 @@ select {
   color: #fbbf24;
   box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.3);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYOUT SHELLS, MODAL CHROME & FORM PRIMITIVES
+   ───────────────────────────────────────────────────────────────────────────
+   Every class below replaced an inline `style={{ … }}` object in a component.
+
+   Most of them were not merely untidy — they were a light-mode bug. The modals
+   hard-coded hairlines as `rgba(255,255,255,0.07)`, which is exactly the *dark*
+   value of --border-subtle frozen in place. Under the light theme that draws
+   white on a white panel, so every divider in the payment, customer and receipt
+   modals disappeared. Same story for the `rgba(255,255,255,0.04/0.05/0.09)`
+   fills and borders: all of them are dark-theme values of --surface-2,
+   --input-bg and --input-border. Reading the tokens instead is what makes the
+   theme toggle actually reach these screens.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── App-level shells ────────────────────────────────────────────────────── */
+
+/* Full-screen canvas a screen paints on (Register). */
+.app-canvas {
+  background: var(--app-bg);
+}
+
+/* Sidebar, cart rail, mobile top bar and mobile nav sheet — the persistent
+   chrome around the active screen. */
+.app-panel {
+  background: var(--panel-bg);
+  border-color: var(--panel-border);
+}
+
+/* ─── Modal chrome ────────────────────────────────────────────────────────── */
+
+.modal-divider-top {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.modal-divider-bottom {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* The on-screen thermal receipt card. */
+.receipt-card {
+  background: var(--receipt-bg);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ─── Form primitives ─────────────────────────────────────────────────────── */
+
+/* Wrapper around a control that should read as an inset well: the split-payment
+   row, the icon buttons beside it, the toolbar in ProductGrid. */
+.field-shell {
+  background: var(--surface-2);
+  border: 1px solid var(--input-border);
+}
+
+/* Divider between two controls sharing one shell (the method <select> and the
+   amount <input>). Logical, not `border-right` — the app ships an Arabic RTL
+   layout, where a physical right border lands on the wrong edge. */
+.field-shell-divider {
+  border-inline-end: 1px solid var(--border-strong);
+}
+
+/* A text/number input that carries its own background and border. */
+.input-shell {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text-strong, inherit);
+}
+
+/* The focus treatment used to be two JS handlers per input, assigning
+   `e.target.style.borderColor` on focus and restoring the hard-coded resting
+   colour on blur. That is the same inline styling by another route, and the
+   restored value was the dark-theme border, so a focused-then-blurred input
+   kept a border the light theme never uses. */
+.input-shell:focus,
+.input-shell:focus-within {
+  outline: none;
+  border-color: var(--color-emerald);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+}
+
+/* ─── Buttons ─────────────────────────────────────────────────────────────── */
+
+/* Secondary / dismiss action. */
+.btn-ghost {
+  background: var(--surface-hover);
+  border: 1px solid var(--input-border);
+  color: var(--chip-text);
+  transition: background var(--transition-fast);
+}
+
+.btn-ghost:hover {
+  background: var(--surface-2);
+}
+
+/* Ghost button that warms to emerald on hover (the receipt's print / email /
+   share row). This was a pair of onMouseEnter/onMouseLeave handlers writing
+   `e.currentTarget.style` — which meant the hover state never fired for a
+   keyboard user, since focus is not mouse-enter. As a CSS rule it covers both. */
+.btn-ghost-emerald {
+  background: var(--surface-hover);
+  border: 1px solid var(--border-strong);
+  color: var(--chip-text);
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.btn-ghost-emerald:hover,
+.btn-ghost-emerald:focus-visible {
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* The single confirming action in a modal — complete order, save customer,
+   finish. One definition so all three stay identical. */
+.btn-primary {
+  background: linear-gradient(135deg, #059669, var(--color-emerald));
+  color: #ffffff;
+  box-shadow: 0 4px 20px var(--color-emerald-glow);
+  transition: box-shadow var(--transition-fast);
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: var(--shadow-glow-emerald);
+}
+
+/* "+ Add payment" / "+ Add line" — an outlined, dashed affordance for
+   appending a row to a list. */
+.btn-dashed-add {
+  color: #34d399;
+  border: 1px dashed rgba(16, 185, 129, 0.35);
+  transition: background var(--transition-fast);
+}
+
+.btn-dashed-add:hover {
+  background: var(--color-emerald-dim);
+}
+
+/* ─── Toggles & chips ─────────────────────────────────────────────────────── */
+
+/* A pill that switches between two states (split payment on/off, a category
+   filter, edit mode). Base is the resting state; `.is-active` and `.is-danger`
+   are the engaged ones. */
+.toggle-pill {
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--chip-text);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.toggle-pill.is-active {
+  background: var(--color-emerald-dim);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #34d399;
+}
+
+.toggle-pill.is-selected {
+  background: linear-gradient(135deg, #059669, var(--color-emerald));
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.toggle-pill.is-danger {
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.3);
+  color: #fb7185;
+}
+
+/* Small square icon badge beside a modal title. */
+.chip-emerald {
+  background: var(--color-emerald-dim);
+  color: #34d399;
+}
+
+.chip-blue {
+  background: var(--color-blue-dim);
+  color: #60a5fa;
+}
+
+/* Tinted action buttons in a row (purchase-order "Mark ordered" / "Receive").
+   Distinct from .badge-*, which forces uppercase 10px display type — these
+   carry the surrounding button typography. */
+.btn-chip-emerald {
+  background: var(--color-emerald-dim);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  transition: background var(--transition-fast);
+}
+
+.btn-chip-emerald:hover {
+  background: rgba(16, 185, 129, 0.22);
+}
+
+.btn-chip-blue {
+  background: var(--color-blue-dim);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  transition: background var(--transition-fast);
+}
+
+.btn-chip-blue:hover {
+  background: rgba(59, 130, 246, 0.22);
+}
+
+/* Bordered icon button that sits beside a field-shell row. */
+.btn-icon-outline {
+  border: 1px solid var(--border-strong);
+}
+
+/* ─── Cash tendering ──────────────────────────────────────────────────────── */
+
+.quick-cash-btn {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--chip-text);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.quick-cash-btn.is-active {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+
+/* Change-due readout. Fixed height so it lines up with the tendered input
+   beside it, whose height comes from its own padding. */
+.change-due-box {
+  height: 48px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+/* ─── Data-driven values ──────────────────────────────────────────────────── */
+/* These carry a value that only the component knows — a percentage from a
+   computed total, a per-category colour, a paper width in millimetres. The
+   value still arrives through the `style` attribute, but as a custom property,
+   so the rule that consumes it lives here with everything else rather than
+   being spelled out at each call site. */
+
+/* Product card in the register grid. The lifted stacking order and ghosting
+   while a card is dragged are the app's own decisions, so they live here;
+   only dnd-kit's per-frame transform stays on the element.
+   
+   Deliberately no `opacity: 1` in the base rule. These declarations are
+   unlayered, and unlayered CSS outranks anything in a cascade layer whatever
+   its specificity — so an explicit `opacity: 1` here silently beat Tailwind's
+   `opacity-50` (which lives in @layer utilities) and unavailable products
+   rendered at full strength while still being unclickable. Confirmed in
+   Chromium: computed opacity was 1 with the base rule, 0.5 without it. The
+   resting value is the initial one anyway, so there is nothing to restore. */
+.product-card {
+  z-index: 1;
+}
+
+/* Same reasoning in reverse: this one *should* outrank the utility, because a
+   card being dragged is a stronger state than a card being out of stock. */
+.product-card.is-dragging {
+  z-index: 50;
+  opacity: 0.4;
+}
+
+/* Horizontal proportion bar (Dashboard best-sellers, per-operator revenue,
+   customer spend; Fleet store share). */
+.bar-fill {
+  width: var(--bar-width, 0%);
+}
+
+/* Legend/series swatch tinted by chart data. */
+.swatch {
+  background-color: var(--swatch-color, transparent);
+}
+
+/* Receipt preview iframe, sized to the configured paper width. */
+.preview-frame {
+  width: var(--preview-width, 100%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRINT
+   ───────────────────────────────────────────────────────────────────────────
+   The QR menu card is the only thing that prints the app's own document —
+   the Z-report, product labels and thermal receipts each write their own
+   window, so their styles travel with them and cannot live here.
+
+   Scoped on `body:has(#print-area)` rather than bare `body *`. As an injected
+   <style> inside QRMenu the blanket hide could only ever apply while that
+   screen was mounted; in a global sheet it would apply to *any* print, so a
+   Ctrl+P from another screen would render a blank page. The :has() guard
+   restores that limit — the rule only engages when a print area exists.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media print {
+  body:has(#print-area) * {
+    visibility: hidden;
+  }
+
+  body:has(#print-area) #print-area,
+  body:has(#print-area) #print-area * {
+    visibility: visible;
+  }
+
+  #print-area {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    max-width: 600px;
+    box-shadow: none;
+    border: none;
+    background: #ffffff !important;
+  }
+
+  #print-area h3,
+  #print-area p {
+    color: #000000 !important;
+  }
+}

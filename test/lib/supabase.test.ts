@@ -1,41 +1,81 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { pullProducts, deleteRowsSupabase, DELETE_CHUNK_SIZE } from '../../src/lib/supabase';
+import { describe, it, expect, vi } from 'vitest';
+import {
+  pullProducts,
+  deleteRowsSupabase,
+  DELETE_CHUNK_SIZE,
+  PULL_PAGE_SIZE,
+} from '../../src/lib/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
 
+// A pull walks the table by primary key, not by offset. The builder is
+// chainable and thenable, so the mock has to be too:
+// .select().order().limit()[.gt()][.eq()], with the terminal object awaited.
+// `pages` is consumed one response per page.
+function makeProductClient(pages: Array<{ data: unknown[] | null; error?: unknown }>) {
+  const cursors: Array<string | null> = [];
+  const limits: number[] = [];
+  const orders: unknown[][] = [];
+  const eq = vi.fn();
+  let call = 0;
+
+  // .order() returns the builder; .limit() ends one page and hands back a
+  // terminal object that is both chainable (.gt for the cursor, .eq for the
+  // store filter) and thenable, so `await query` resolves that page.
+  const builder: Record<string, unknown> = {
+    order: vi.fn((...args: unknown[]) => {
+      orders.push(args);
+      return builder;
+    }),
+    limit: vi.fn((n: number) => {
+      limits.push(n);
+      const index = cursors.push(null) - 1; // null until .gt() says otherwise
+      const { data, error } = pages[call++] ?? { data: [] };
+      const settled = Promise.resolve({ data, error: error ?? null });
+
+      const terminal: Record<string, unknown> = {
+        gt: vi.fn((_column: string, value: string) => {
+          cursors[index] = value;
+          return terminal;
+        }),
+        eq: vi.fn((...args: unknown[]) => {
+          eq(...args);
+          return terminal;
+        }),
+        then: settled.then.bind(settled),
+      };
+      return terminal;
+    }),
+  };
+
+  const select = vi.fn(() => builder);
+  const client = { from: vi.fn(() => ({ select })) } as unknown as SupabaseClient;
+  return { client, select, eq, cursors, limits, orders };
+}
+
+const productRow = (id: string) => ({
+  id,
+  name: `Product ${id}`,
+  price: '10',
+  cost: '5',
+  category: 'Cat 1',
+  sku: `SKU${id}`,
+  stock: '100',
+  min_stock: '10',
+  image: 'img.png',
+});
+
 describe('pullProducts', () => {
-  let mockClient: any;
-  let mockSelect: any;
-  let mockEq: any;
+  it('maps rows and asks for a page keyed by primary key', async () => {
+    const { client, select, limits, orders } = makeProductClient([
+      { data: [productRow('1')] },
+      { data: [] },
+    ]);
 
-  beforeEach(() => {
-    mockEq = vi.fn();
-    mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-    mockClient = {
-      from: vi.fn().mockReturnValue({ select: mockSelect }),
-    };
-  });
+    const result = await pullProducts(client);
 
-  it('should return mapped products on success without storeId', async () => {
-    const mockData = [
-      {
-        id: '1',
-        name: 'Product 1',
-        price: '10',
-        cost: '5',
-        category: 'Cat 1',
-        sku: 'SKU1',
-        stock: '100',
-        min_stock: '10',
-        image: 'img1.png',
-      },
-    ];
-    mockSelect.mockResolvedValue({ data: mockData, error: null });
-
-    const result = await pullProducts(mockClient as unknown as SupabaseClient);
-
-    expect(mockClient.from).toHaveBeenCalledWith('products');
-    expect(mockSelect).toHaveBeenCalledWith('*');
-    expect(mockEq).not.toHaveBeenCalled();
+    expect(select).toHaveBeenCalledWith('*');
+    expect(orders[0]).toEqual(['id']);
+    expect(limits[0]).toBe(PULL_PAGE_SIZE);
     expect(result).toEqual([
       {
         id: '1',
@@ -46,42 +86,53 @@ describe('pullProducts', () => {
         sku: 'SKU1',
         stock: 100,
         minStock: 10,
-        image: 'img1.png',
+        image: 'img.png',
       },
     ]);
   });
 
-  it('should filter by storeId if provided', async () => {
-    const mockData: any[] = [];
-    const mockPromise = Promise.resolve({ data: mockData, error: null });
-    mockEq.mockReturnValue(mockPromise);
-    mockSelect.mockReturnValue({ eq: mockEq });
+  it('carries the last id forward as the cursor, so offsets cannot shift', async () => {
+    // Offset paging re-counts from the start of the result on every request, so
+    // a sale rung up mid-pull slides a row across the page boundary and it is
+    // fetched twice or missed. A keyset cursor has no such window.
+    const { client, cursors } = makeProductClient([
+      { data: [productRow('a'), productRow('b')] },
+      { data: [productRow('c')] },
+      { data: [] },
+    ]);
 
-    const result = await pullProducts(mockClient as unknown as SupabaseClient, 'store-123');
+    const result = await pullProducts(client);
 
-    expect(mockClient.from).toHaveBeenCalledWith('products');
-    expect(mockSelect).toHaveBeenCalledWith('*');
-    expect(mockEq).toHaveBeenCalledWith('store_id', 'store-123');
+    expect(result?.map((p) => p.id)).toEqual(['a', 'b', 'c']);
+    expect(cursors).toEqual([null, 'b', 'c']);
+  });
+
+  it('confirms the end with an empty page rather than a short one', async () => {
+    // A short page is exactly what a server-side row cap looks like, so it
+    // cannot be read as "that was the last of them".
+    const { client, cursors } = makeProductClient([{ data: [productRow('only')] }, { data: [] }]);
+    await pullProducts(client);
+    expect(cursors).toHaveLength(2);
+  });
+
+  it('filters by storeId when one is configured', async () => {
+    const { client, eq } = makeProductClient([{ data: [] }]);
+    const result = await pullProducts(client, 'store-123');
+    expect(eq).toHaveBeenCalledWith('store_id', 'store-123');
     expect(result).toEqual([]);
   });
 
-  it('should handle null data', async () => {
-    mockSelect.mockResolvedValue({ data: null, error: null });
-
-    const result = await pullProducts(mockClient as unknown as SupabaseClient);
-
-    expect(result).toEqual([]);
+  it('treats a null page as the end rather than crashing', async () => {
+    const { client } = makeProductClient([{ data: null }]);
+    await expect(pullProducts(client)).resolves.toEqual([]);
   });
 
-  it('should handle errors and return null', async () => {
+  it('returns null and reports when a page errors', async () => {
     const mockError = new Error('Database error');
-    mockSelect.mockResolvedValue({ data: null, error: mockError });
-
+    const { client } = makeProductClient([{ data: null, error: mockError }]);
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const result = await pullProducts(mockClient as unknown as SupabaseClient);
-
-    expect(result).toBeNull();
+    await expect(pullProducts(client)).resolves.toBeNull();
     expect(consoleSpy).toHaveBeenCalledWith('Failed pulling products:', mockError);
 
     consoleSpy.mockRestore();

@@ -96,18 +96,23 @@ const SortableProductCard = memo(function SortableProductCard({
       }}
       whileHover={!isEditMode && !isUnavailable ? { y: -4, scale: 1.02 } : {}}
       whileTap={!isEditMode && !isUnavailable ? { scale: 0.96 } : {}}
-      className={`relative rounded-2xl overflow-hidden flex flex-col transition-all duration-200 select-none group ${
+      className={`product-card relative rounded-2xl overflow-hidden flex flex-col transition-all duration-200 select-none group ${
+        isDragging ? 'is-dragging' : ''
+      } ${
         isEditMode
           ? 'cursor-grab active:cursor-grabbing'
           : isUnavailable
             ? 'cursor-not-allowed opacity-50 grayscale'
             : 'cursor-pointer'
       }`}
+      // dnd-kit rewrites transform (and transition) on every animation frame
+      // while a card is being dragged. That is a per-frame value from the
+      // library, not styling this project owns, so it is the one thing here
+      // that legitimately stays on the element. Everything the app decides —
+      // the lifted z-index and the ghosting — is in .product-card.is-dragging.
       style={{
         transform: style?.transform,
         transition: isEditMode ? style?.transition : undefined,
-        zIndex: isDragging ? 50 : 1,
-        opacity: isDragging ? 0.4 : 1,
       }}
       {...(isEditMode ? attributes : {})}
       {...(isEditMode ? listeners : {})}
@@ -286,10 +291,7 @@ const ProductGrid = ({
     <div id="catalog-section" className="flex-1 flex flex-col min-w-0 overflow-hidden">
       {/* Controls bar */}
       <div id="catalog-controls" className="shrink-0 px-4 pt-4 pb-3">
-        <div
-          className="flex items-center gap-3 p-3 rounded-2xl"
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}
-        >
+        <div className="field-shell flex items-center gap-3 p-3 rounded-2xl">
           {/* Search */}
           <div className="relative shrink-0">
             <Search
@@ -304,21 +306,7 @@ const ProductGrid = ({
               onChange={(e) => setSearch(e.target.value)}
               aria-label={t('register.searchProducts')}
               placeholder={`${t('register.searchProducts')} (Ctrl+K)`}
-              className="w-36 sm:w-48 ps-8 pe-7 py-1.5 rounded-xl text-xs transition-all"
-              style={{
-                background: 'var(--input-bg)',
-                border: '1px solid var(--input-border)',
-                color: 'var(--text-strong, inherit)',
-                outline: 'none',
-              }}
-              onFocus={(e) => {
-                (e.target as HTMLInputElement).style.borderColor = '#10b981';
-                (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(16,185,129,0.12)';
-              }}
-              onBlur={(e) => {
-                (e.target as HTMLInputElement).style.borderColor = 'var(--input-border)';
-                (e.target as HTMLInputElement).style.boxShadow = 'none';
-              }}
+              className="input-shell w-36 sm:w-48 ps-8 pe-7 py-1.5 rounded-xl text-xs transition-all"
             />
             <AnimatePresence>
               {search && (
@@ -358,17 +346,9 @@ const ProductGrid = ({
                   key={catId}
                   onClick={() => setSelectedCategory(catId)}
                   aria-pressed={isActive}
-                  className="px-3.5 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 transition-all duration-200"
-                  style={{
-                    background: isActive
-                      ? 'linear-gradient(135deg, #059669, #10b981)'
-                      : 'var(--surface-2)',
-                    border: isActive
-                      ? '1px solid rgba(16,185,129,0.4)'
-                      : '1px solid var(--border-subtle)',
-                    color: isActive ? '#fff' : 'var(--chip-text)',
-                    boxShadow: isActive ? '0 4px 14px rgba(16,185,129,0.25)' : 'none',
-                  }}
+                  className={`toggle-pill px-3.5 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 duration-200 ${
+                    isActive ? 'is-selected' : ''
+                  }`}
                 >
                   {label}
                 </button>
@@ -382,14 +362,9 @@ const ProductGrid = ({
               onClick={() => setIsEditMode(!isEditMode)}
               aria-pressed={isEditMode}
               aria-label={isEditMode ? t('register.doneEditing') : t('register.editLayout')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 transition-all"
-              style={{
-                background: isEditMode ? 'rgba(244,63,94,0.12)' : 'var(--surface-2)',
-                border: isEditMode
-                  ? '1px solid rgba(244,63,94,0.3)'
-                  : '1px solid var(--border-subtle)',
-                color: isEditMode ? '#fb7185' : 'var(--chip-text)',
-              }}
+              className={`toggle-pill flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 ${
+                isEditMode ? 'is-danger' : ''
+              }`}
             >
               <LayoutGrid size={13} />
               <span className="hidden sm:inline">

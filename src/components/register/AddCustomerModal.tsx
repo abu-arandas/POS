@@ -51,18 +51,12 @@ export function AddCustomerModal({
             transition={{ type: 'spring', stiffness: 280, damping: 22 }}
             className="modal-card max-w-sm w-full p-6 space-y-5"
           >
-            <div
-              className="flex justify-between items-center pb-4"
-              style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
-            >
+            <div className="modal-divider-bottom flex justify-between items-center pb-4">
               <h3
                 id="add-customer-title"
                 className="font-sans font-bold text-slate-900 dark:text-white text-base flex items-center gap-2.5"
               >
-                <div
-                  className="p-1.5 rounded-xl"
-                  style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}
-                >
+                <div className="chip-emerald p-1.5 rounded-xl">
                   <UserPlus size={16} />
                 </div>
                 {t('register.newCustomer')}
@@ -92,46 +86,22 @@ export function AddCustomerModal({
                     placeholder={placeholder}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:outline-none transition-all placeholder:text-slate-600"
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.09)',
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = '#10b981';
-                      e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.12)';
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = 'rgba(255,255,255,0.09)';
-                      e.target.style.boxShadow = 'none';
-                    }}
+                    className="input-shell w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-all placeholder:text-slate-600"
                   />
                 </div>
               ))}
 
-              <div
-                className="flex justify-end gap-2.5 pt-3"
-                style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
-              >
+              <div className="modal-divider-top flex justify-end gap-2.5 pt-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2.5 text-sm font-bold rounded-xl transition-colors"
-                  style={{
-                    color: '#64748b',
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                  }}
+                  className="btn-ghost px-5 py-2.5 text-sm font-bold rounded-xl"
                 >
                   {t('register.cancel')}
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 text-sm font-bold text-slate-900 dark:text-white rounded-xl transition-all active:scale-95"
-                  style={{
-                    background: 'linear-gradient(135deg, #059669, #10b981)',
-                    boxShadow: '0 4px 14px rgba(16,185,129,0.3)',
-                  }}
+                  className="btn-primary px-6 py-2.5 text-sm font-bold rounded-xl active:scale-95"
                 >
                   {t('register.saveLink')}
                 </button>

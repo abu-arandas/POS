@@ -48,6 +48,7 @@ jobs:
           node --check electron/updatePolicy.cjs
           node --check electron/validation.cjs
           node --check electron/windowsSigning.cjs
+          node --check electron/menuServer.cjs
           node --check scripts/seed.mjs
 
       # A broken packaging config only shows up on the Windows runner otherwise,
