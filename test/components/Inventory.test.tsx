@@ -201,6 +201,34 @@ describe('Inventory — receiving a purchase order', () => {
 });
 
 describe('Inventory — editing the catalog', () => {
+  it('renders a validated product image preview while editing', async () => {
+    useProductStore.setState({
+      products: [{ ...PRODUCT, image: 'https://images.example.test/item.png' }],
+      categories: [{ id: 'cat-1', name: 'Drinks', color: '' }],
+    });
+    render(<Inventory />);
+
+    await editProduct('Latte');
+
+    expect(screen.getByRole('img', { name: 'Preview' })).toHaveAttribute(
+      'src',
+      'https://images.example.test/item.png',
+    );
+  });
+
+  it('does not render a dangerous product image URL in the preview', async () => {
+    useProductStore.setState({
+      products: [{ ...PRODUCT, image: 'javascript:alert(1)' }],
+      categories: [{ id: 'cat-1', name: 'Drinks', color: '' }],
+    });
+    render(<Inventory />);
+
+    await editProduct('Latte');
+
+    expect(screen.queryByRole('img', { name: 'Preview' })).not.toBeInTheDocument();
+    expect(document.querySelector('#form-prod-image')).toHaveValue('javascript:alert(1)');
+  });
+
   it('logs a correction when an edit changes the stock level', async () => {
     const user = userEvent.setup();
     render(<Inventory />);
