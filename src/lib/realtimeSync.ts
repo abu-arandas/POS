@@ -40,6 +40,14 @@ const SYNCED_TABLES = ['products', 'categories', 'customers', 'transactions', 'u
 // setters don't trigger a push, so there is no echo loop.
 export async function startRealtimeSync(): Promise<boolean> {
   stopRealtimeSync();
+  // Captured before the first await, not after it. stopRealtimeSync() has just
+  // bumped the counter, so the value read here belongs to this start and no
+  // other. Reading it after awaiting would pick up whatever a concurrent stop
+  // or start had already moved it to, and this start would mistake itself for
+  // the current one — the check below would then always pass, which is the
+  // opposite of its purpose.
+  const myGeneration = generation;
+
   const { supabaseConfig } = useSettingsStore.getState();
   if (!supabaseConfig.enabled || !supabaseConfig.url || !supabaseConfig.anonKey) return false;
 
@@ -51,13 +59,15 @@ export async function startRealtimeSync(): Promise<boolean> {
     supabaseConfig.authPassword || '',
   );
   if (!signedIn) return false;
-
-  // Captured after the stopRealtimeSync() above, so it is this subscription's
-  // own generation. Another start/stop while the awaits above were pending
-  // leaves it stale, which is exactly what the checks below test for.
-  const myGeneration = generation;
+  // Authentication is the only await here, so one check covers everything from
+  // here to the channel assignment below.
+  if (myGeneration !== generation) return false;
 
   const refresh = (table: string) => {
+    // A channel can still deliver after unsubscribe(). Without this, a stale
+    // subscription's handler would reach into the shared timer map and cancel
+    // the live subscription's pending pull.
+    if (myGeneration !== generation) return;
     clearTimeout(timers[table]);
     timers[table] = setTimeout(async () => {
       // Re-read the store scope each pull so it tracks config changes.
@@ -83,6 +93,10 @@ export async function startRealtimeSync(): Promise<boolean> {
         if (d) apply = () => useAuthStore.getState().setUsers(d);
       }
       if (myGeneration !== generation) return; // stopped or restarted mid-pull
+      // The store scope can change without restarting sync — App only restarts
+      // it when the connection changes — so a generation check alone would let
+      // the previous store's rows land in the newly selected store.
+      if (useSettingsStore.getState().storeId !== storeId) return;
       apply?.();
     }, 400);
   };
@@ -95,11 +109,6 @@ export async function startRealtimeSync(): Promise<boolean> {
       { event: '*', schema: 'public', table } as never,
       () => refresh(table),
     );
-  }
-  if (myGeneration !== generation) {
-    // A stop or a newer start landed while this one was authenticating. Its
-    // channel would otherwise overwrite the live one and never be torn down.
-    return false;
   }
   ch.subscribe();
   channel = ch;

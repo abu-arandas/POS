@@ -105,22 +105,42 @@ describe('realtimeSync', () => {
       return release;
     }
 
-    async function start() {
+    let subscribe: ReturnType<typeof vi.fn>;
+
+    function stubClient() {
       handlers = {};
       unsubscribe = vi.fn();
+      subscribe = vi.fn();
       const channel = {
         on: vi.fn((_event: unknown, filter: { table: string }, cb: () => void) => {
           handlers[filter.table] = cb;
           return channel;
         }),
-        subscribe: vi.fn(),
+        subscribe,
         unsubscribe,
       };
       vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue({
         channel: vi.fn().mockReturnValue(channel),
       } as never);
+    }
+
+    async function start() {
+      stubClient();
       vi.mocked(supabaseLib.signInDevice).mockResolvedValue(true);
       return startRealtimeSync();
+    }
+
+    /** Starts with sign-in left pending, so a stop can land mid-authentication. */
+    function startPendingAuth() {
+      stubClient();
+      let finishAuth!: (ok: boolean) => void;
+      vi.mocked(supabaseLib.signInDevice).mockReturnValue(
+        new Promise<boolean>((resolve) => {
+          finishAuth = resolve;
+        }),
+      );
+      const started = startRealtimeSync();
+      return { started, finishAuth, subscribed: () => subscribe };
     }
 
     beforeEach(() => {
@@ -189,6 +209,64 @@ describe('realtimeSync', () => {
       await vi.advanceTimersByTimeAsync(0);
 
       expect(setProducts).toHaveBeenCalledWith([{ id: 'p-1' }]);
+    });
+    it('does not subscribe when sync is stopped while authenticating', async () => {
+      const { started, finishAuth, subscribed } = startPendingAuth();
+      await vi.advanceTimersByTimeAsync(0);
+
+      stopRealtimeSync(); // the operator disconnects mid-sign-in
+      finishAuth(true);
+
+      await expect(started).resolves.toBe(false);
+      expect(subscribed()).not.toHaveBeenCalled();
+    });
+
+    it('lets the newer of two overlapping starts win', async () => {
+      const first = startPendingAuth();
+      await vi.advanceTimersByTimeAsync(0);
+
+      // A second start supersedes the first while its sign-in is still pending.
+      const second = startPendingAuth();
+      await vi.advanceTimersByTimeAsync(0);
+
+      first.finishAuth(true);
+      second.finishAuth(true);
+
+      await expect(first.started).resolves.toBe(false);
+      await expect(second.started).resolves.toBe(true);
+      expect(second.subscribed()).toHaveBeenCalledTimes(1);
+    });
+
+    it('discards a pull whose store scope changed while it was in flight', async () => {
+      await start();
+      const release = deferPull();
+
+      handlers.products();
+      await vi.advanceTimersByTimeAsync(400);
+
+      // The terminal is re-scoped to another store. App does not restart sync
+      // for this, so the generation is unchanged — only the scope check catches it.
+      vi.mocked(useSettingsStore.getState).mockReturnValue({
+        supabaseConfig: { enabled: true, url: 'https://test.supabase.co', anonKey: 'k' },
+        storeId: 'store-2',
+      } as never);
+
+      release([{ id: 'from-store-1' }]);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(setProducts).not.toHaveBeenCalled();
+    });
+
+    it("ignores a stale subscription's change events", async () => {
+      await start();
+      const staleHandlers = handlers;
+
+      await start(); // restart; staleHandlers now belong to the old subscription
+      staleHandlers.products();
+      await vi.advanceTimersByTimeAsync(500);
+
+      // The old handler must not schedule a pull, nor cancel the live one's.
+      expect(supabaseLib.pullProducts).not.toHaveBeenCalled();
     });
   });
 });
