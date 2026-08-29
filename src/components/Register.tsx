@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
 import {
   CreditCard,
   DollarSign,
@@ -14,10 +14,22 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Product, SaleTransaction, HeldOrder, Payment } from '../types';
 import ProductGrid from './ProductGrid';
 import CartPanel from './CartPanel';
-import { HeldOrdersModal } from './register/HeldOrdersModal';
-import { AddCustomerModal } from './register/AddCustomerModal';
-import { ReceiptModal } from './register/ReceiptModal';
-import { PaymentModal } from './register/PaymentModal';
+const HeldOrdersModal = lazy(() =>
+  import('./register/HeldOrdersModal').then(({ HeldOrdersModal }) => ({
+    default: HeldOrdersModal,
+  })),
+);
+const AddCustomerModal = lazy(() =>
+  import('./register/AddCustomerModal').then(({ AddCustomerModal }) => ({
+    default: AddCustomerModal,
+  })),
+);
+const ReceiptModal = lazy(() =>
+  import('./register/ReceiptModal').then(({ ReceiptModal }) => ({ default: ReceiptModal })),
+);
+const PaymentModal = lazy(() =>
+  import('./register/PaymentModal').then(({ PaymentModal }) => ({ default: PaymentModal })),
+);
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -392,7 +404,8 @@ export default function Register() {
 
     const outcome = buildSaleTransaction(req);
     if (!outcome.success) {
-      if (outcome.error === 'split-incomplete') notify(t('register.splitIncomplete'));
+      if (outcome.error === 'invalid-quantity') notify(t('register.invalidQuantity'));
+      else if (outcome.error === 'split-incomplete') notify(t('register.splitIncomplete'));
       else if (outcome.error === 'split-non-cash-overpay')
         notify(t('register.splitNonCashOverpay'));
       else if (outcome.error === 'insufficient-cash') notify(t('register.insufficientCash'));
@@ -664,70 +677,88 @@ export default function Register() {
         )}
       </AnimatePresence>
 
-      <HeldOrdersModal
-        open={heldModalOpen}
-        dialogRef={heldModalRef}
-        heldOrders={heldOrders}
-        currency={settings.currency}
-        onClose={() => setHeldModalOpen(false)}
-        onResume={resumeHeldOrder}
-        onRemove={async (id) => {
-          if (await askConfirmation(t('register.deleteHeldConfirm', 'Delete this held order?'))) {
-            removeHeldOrder(id);
-          }
-        }}
-      />
+      {heldModalOpen && (
+        <Suspense fallback={null}>
+          <HeldOrdersModal
+            open
+            dialogRef={heldModalRef}
+            heldOrders={heldOrders}
+            currency={settings.currency}
+            onClose={() => setHeldModalOpen(false)}
+            onResume={resumeHeldOrder}
+            onRemove={async (id) => {
+              if (
+                await askConfirmation(t('register.deleteHeldConfirm', 'Delete this held order?'))
+              ) {
+                removeHeldOrder(id);
+              }
+            }}
+          />
+        </Suspense>
+      )}
 
-      <PaymentModal
-        open={checkoutModalOpen}
-        dialogRef={checkoutModalRef}
-        currency={settings.currency}
-        totalAmount={totalAmount}
-        paymentMethods={paymentMethodsArray}
-        paymentMethod={paymentMethod}
-        onSelectMethod={setPaymentMethod}
-        splitMode={splitMode}
-        onToggleSplit={() => {
-          setSplitMode((m) => !m);
-          if (!splitMode && splitPayments.length === 0) {
-            setSplitPayments([
-              { method: 'cash', amount: Number(Math.max(0, totalAmount).toFixed(2)) },
-            ]);
-          }
-        }}
-        splitPayments={splitPayments}
-        splitRemaining={splitRemaining}
-        splitPaidTotal={splitPaidTotal}
-        onAddSplit={addSplitPayment}
-        onUpdateSplit={updateSplitPayment}
-        onRemoveSplit={removeSplitPayment}
-        cashSuggestions={cashSuggestions}
-        cashPaidText={cashPaidText}
-        onCashPaidChange={setCashPaidText}
-        cashChangeDue={cashChangeDue}
-        onComplete={handleCompletePayment}
-        onClose={() => setCheckoutModalOpen(false)}
-      />
+      {checkoutModalOpen && (
+        <Suspense fallback={null}>
+          <PaymentModal
+            open
+            dialogRef={checkoutModalRef}
+            currency={settings.currency}
+            totalAmount={totalAmount}
+            paymentMethods={paymentMethodsArray}
+            paymentMethod={paymentMethod}
+            onSelectMethod={setPaymentMethod}
+            splitMode={splitMode}
+            onToggleSplit={() => {
+              setSplitMode((m) => !m);
+              if (!splitMode && splitPayments.length === 0) {
+                setSplitPayments([
+                  { method: 'cash', amount: Number(Math.max(0, totalAmount).toFixed(2)) },
+                ]);
+              }
+            }}
+            splitPayments={splitPayments}
+            splitRemaining={splitRemaining}
+            splitPaidTotal={splitPaidTotal}
+            onAddSplit={addSplitPayment}
+            onUpdateSplit={updateSplitPayment}
+            onRemoveSplit={removeSplitPayment}
+            cashSuggestions={cashSuggestions}
+            cashPaidText={cashPaidText}
+            onCashPaidChange={setCashPaidText}
+            cashChangeDue={cashChangeDue}
+            onComplete={handleCompletePayment}
+            onClose={() => setCheckoutModalOpen(false)}
+          />
+        </Suspense>
+      )}
 
-      <AddCustomerModal
-        open={addCustomerOpen}
-        dialogRef={addCustomerModalRef}
-        fields={addCustomerFieldsArray}
-        onSubmit={handleAddNewCustomer}
-        onClose={() => setAddCustomerOpen(false)}
-      />
+      {addCustomerOpen && (
+        <Suspense fallback={null}>
+          <AddCustomerModal
+            open
+            dialogRef={addCustomerModalRef}
+            fields={addCustomerFieldsArray}
+            onSubmit={handleAddNewCustomer}
+            onClose={() => setAddCustomerOpen(false)}
+          />
+        </Suspense>
+      )}
 
-      <ReceiptModal
-        open={receiptModalOpen}
-        dialogRef={receiptModalRef}
-        receipt={activeReceipt}
-        settings={settings}
-        printerConfig={printerConfig}
-        receiptLayout={receiptLayout}
-        showBarcode={printerConfig.showBarcode}
-        actions={receiptActionsArray}
-        onClose={() => setReceiptModalOpen(false)}
-      />
+      {receiptModalOpen && (
+        <Suspense fallback={null}>
+          <ReceiptModal
+            open
+            dialogRef={receiptModalRef}
+            receipt={activeReceipt}
+            settings={settings}
+            printerConfig={printerConfig}
+            receiptLayout={receiptLayout}
+            showBarcode={printerConfig.showBarcode}
+            actions={receiptActionsArray}
+            onClose={() => setReceiptModalOpen(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

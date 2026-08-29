@@ -171,4 +171,15 @@ describe('buildSaleTransaction', () => {
     if (!res.success) return;
     expect(res.transaction.discountValue).toBe(15);
   });
+
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    'rejects invalid line quantity %s before persisting a sale',
+    (quantity) => {
+      const res = buildSaleTransaction({
+        ...baseReq,
+        cartItems: [{ ...baseReq.cartItems[0], quantity }],
+      });
+      expect(res).toEqual({ success: false, error: 'invalid-quantity' });
+    },
+  );
 });

@@ -81,6 +81,6 @@
     "zustand": "^5.0.14"
   },
   "overrides": {
-    "http-cache-semantics": ">=4.1.1"
+    "http-cache-semantics": "4.2.0"
   }
 }

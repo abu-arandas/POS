@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useMemo } from 'react';
 import {
   ShoppingBag,
   Package,
@@ -113,14 +113,18 @@ export default function App() {
   const categories = useProductStore((state) => state.categories);
   // Match the Sidebar's definition so the mobile and desktop badges agree
   // (low = at/below threshold but still in stock; out-of-stock is shown separately).
-  const lowStockCount = products.filter((p) => p.stock <= p.minStock && p.stock > 0).length;
+  const lowStockCount = useMemo(
+    () => products.filter((p) => p.stock <= p.minStock && p.stock > 0).length,
+    [products],
+  );
 
-  useEffect(() => {
-    // Keep the embedded QR-menu server in sync. No-op outside Electron.
-    // Only public menu fields cross into the LAN-exposed server — never
-    // cost, stock counts, or the rest of the store settings (see /api/menu).
-    window.electronAPI?.updateMenuData({
-      products: products.map((p) => ({
+  // Keep the embedded QR-menu server in sync. Memoizing the public payload means
+  // changes to unrelated settings (printer, scanner, tax, etc.) do not trigger a
+  // redundant IPC update. No private cost, stock counts, or other settings cross
+  // into the LAN-exposed server.
+  const menuProducts = useMemo(
+    () =>
+      products.map((p) => ({
         id: p.id,
         name: p.name,
         price: p.price,
@@ -128,14 +132,28 @@ export default function App() {
         image: p.image,
         inStock: p.stock > 0,
       })),
-      categories: categories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
-      settings: {
-        storeName: settings.storeName,
-        storeLogo: settings.storeLogo,
-        currency: settings.currency,
-      },
+    [products],
+  );
+  const menuCategories = useMemo(
+    () => categories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+    [categories],
+  );
+  const menuSettings = useMemo(
+    () => ({
+      storeName: settings.storeName,
+      storeLogo: settings.storeLogo,
+      currency: settings.currency,
+    }),
+    [settings.currency, settings.storeLogo, settings.storeName],
+  );
+
+  useEffect(() => {
+    window.electronAPI?.updateMenuData({
+      products: menuProducts,
+      categories: menuCategories,
+      settings: menuSettings,
     });
-  }, [products, categories, settings]);
+  }, [menuProducts, menuCategories, menuSettings]);
 
   useEffect(() => {
     if (!window.electronAPI?.onMenuServerError) return;

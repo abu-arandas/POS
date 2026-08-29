@@ -239,7 +239,11 @@ describe('Register — held orders', () => {
 
     await user.click(document.querySelector('#open-held-orders-btn') as HTMLElement);
     // Scoped to the modal — the cart footer has its own "resume held" button.
-    const modal = await waitFor(() => document.querySelector('#held-orders-modal') as HTMLElement);
+    const modal = await waitFor(() => {
+      const element = document.querySelector('#held-orders-modal');
+      expect(element).toBeInTheDocument();
+      return element as HTMLElement;
+    });
     await user.click(within(modal).getByRole('button', { name: /Resume/i }));
 
     // Back in the cart, and off the held list.

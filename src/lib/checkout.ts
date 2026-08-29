@@ -9,6 +9,7 @@ import {
 import { summarizeTenders } from './payments';
 import { shortId } from './ids';
 import { nonNegative } from './money';
+import { isPositiveIntegerQuantity } from './quantity';
 
 /**
  * Everything the register has collected for one sale, with totals already
@@ -43,7 +44,11 @@ export interface CheckoutRequest {
  */
 export type CheckoutOutcome =
   | { success: true; transaction: SaleTransaction; pointsDelta: number }
-  | { success: false; error: 'split-incomplete' | 'split-non-cash-overpay' | 'insufficient-cash' };
+  | {
+      success: false;
+      error:
+        'invalid-quantity' | 'split-incomplete' | 'split-non-cash-overpay' | 'insufficient-cash';
+    };
 
 /**
  * Validates the tender and assembles the SaleTransaction to persist.
@@ -53,6 +58,13 @@ export type CheckoutOutcome =
  * throwing so the register can show the reason inline.
  */
 export function buildSaleTransaction(req: CheckoutRequest): CheckoutOutcome {
+  // Pricing sanitizes hostile numbers for display, but the persisted transaction
+  // must never retain a zero, negative, fractional, non-finite, or unsafe line
+  // quantity. Reject the request before validating tenders or writing money data.
+  if (req.cartItems.some((item) => !isPositiveIntegerQuantity(item.quantity))) {
+    return { success: false, error: 'invalid-quantity' };
+  }
+
   let saleMethod: PaymentMethod;
   let payments: Payment[] | undefined;
   let paidValue: number | undefined;
