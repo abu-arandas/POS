@@ -7,6 +7,10 @@ import type { PrinterConfig, ReceiptLayout, SaleTransaction, StoreSettings } fro
 import { resolveCustomerLayout } from '../../lib/receiptFormat';
 import { safeImageUrl } from '../../lib/imageUrl';
 
+/**
+ * One button in the post-sale receipt modal — print, email, share — as an
+ * icon, label and handler.
+ */
 export interface ReceiptAction {
   icon: ComponentType<{ size?: number }>;
   label: string;
@@ -26,10 +30,12 @@ interface ReceiptModalProps {
   onClose: () => void;
 }
 
-// The post-sale receipt preview: a thermal-style receipt plus the print /
-// kitchen / share / email actions. Extracted from Register; it renders the
-// passed transaction and settings and invokes the passed actions, so behavior
-// is unchanged.
+/**
+ * The post-sale receipt preview: a thermal-style receipt plus the print /
+ * kitchen / share / email actions. Extracted from Register; it renders the
+ * passed transaction and settings and invokes the passed actions, so behavior
+ * is unchanged.
+ */
 export function ReceiptModal({
   open,
   dialogRef,

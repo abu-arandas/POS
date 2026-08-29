@@ -44,6 +44,10 @@ async function rasterBytesIfNeeded(
   return Uint8Array.from(bytes);
 }
 
+/**
+ * Why a hardware print attempt ended the way it did, so the caller can tell an
+ * absent device from a blocked popup and message the operator accordingly.
+ */
 export type HardwarePrintOutcome =
   'printed' | 'popup-blocked' | 'unsupported' | 'no-device' | 'error';
 
@@ -142,12 +146,14 @@ async function printHtmlSilent(
   }
 }
 
-// Dispatches a receipt to the configured transport. 'system' uses the browser
-// print window (synchronous under the hood); the hardware transports encode
-// ESC/POS and stream the bytes.
-//
-// `openDrawer` controls whether the cash drawer kick pulse is appended to the
-// ESC/POS stream. Pass true for new cash sales at checkout; false for reprints.
+/**
+ * Dispatches a receipt to the configured transport. 'system' uses the browser
+ * print window (synchronous under the hood); the hardware transports encode
+ * ESC/POS and stream the bytes.
+ *
+ * `openDrawer` controls whether the cash drawer kick pulse is appended to the
+ * ESC/POS stream. Pass true for new cash sales at checkout; false for reprints.
+ */
 export async function printReceipt(
   tx: SaleTransaction,
   settings: StoreSettings,
@@ -195,10 +201,12 @@ export async function printReceipt(
   return 'unsupported';
 }
 
-// Dispatches a kitchen ticket (big-type items, no prices) to the configured
-// transport. Same routing as printReceipt but never kicks the drawer. An
-// optional stationName titles the ticket and an ipOverride sends it to a
-// station's dedicated network printer instead of the configured transport.
+/**
+ * Dispatches a kitchen ticket (big-type items, no prices) to the configured
+ * transport. Same routing as printReceipt but never kicks the drawer. An
+ * optional stationName titles the ticket and an ipOverride sends it to a
+ * station's dedicated network printer instead of the configured transport.
+ */
 export async function printKitchenTicket(
   tx: SaleTransaction,
   settings: StoreSettings,
@@ -267,11 +275,13 @@ export async function printKitchenTicket(
   return 'unsupported';
 }
 
-// Routes a sale's items to their kitchen stations and prints one ticket per
-// station that has items. `categoryOf` maps a productId to its category id
-// (built from the live catalog). With no stations configured, prints a single
-// combined kitchen ticket. Returns the worst outcome seen so the caller can
-// surface a problem.
+/**
+ * Routes a sale's items to their kitchen stations and prints one ticket per
+ * station that has items. `categoryOf` maps a productId to its category id
+ * (built from the live catalog). With no stations configured, prints a single
+ * combined kitchen ticket. Returns the worst outcome seen so the caller can
+ * surface a problem.
+ */
 export async function printKitchenTickets(
   tx: SaleTransaction,
   settings: StoreSettings,
@@ -302,7 +312,9 @@ export async function printKitchenTickets(
   return worst;
 }
 
-// Sends only the drawer kick command to the configured hardware printer.
+/**
+ * Sends only the drawer kick command to the configured hardware printer.
+ */
 export async function openCashDrawer(printerConfig: PrinterConfig): Promise<void> {
   const bytes = new Uint8Array([0x1b, 0x70, 0x00, 0x19, 0xfa]); // ESC p 0 25 250
   if (printerConfig.type === 'windows') {

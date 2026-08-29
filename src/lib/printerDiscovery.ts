@@ -5,6 +5,10 @@
 // Network ESC/POS printers are address-configured, not discoverable, so they
 // are not listed here.
 
+/**
+ * A printer the app found, whatever the transport. `ipAddress` is set for
+ * network hits so the operator can apply one in a single click.
+ */
 export interface DetectedPrinter {
   id: string;
   name: string;
@@ -30,6 +34,9 @@ function webSerial(): WebSerialLike | undefined {
   return (navigator as unknown as { serial?: WebSerialLike }).serial;
 }
 
+/**
+ * Whether this runtime exposes the Web Serial API.
+ */
 export function serialSupported(): boolean {
   return !!webSerial();
 }
@@ -37,7 +44,9 @@ export function serialSupported(): boolean {
 const hex = (n?: number) =>
   n === undefined ? '????' : n.toString(16).toUpperCase().padStart(4, '0');
 
-// OS printers, desktop app only. Resolves [] in a plain browser.
+/**
+ * OS printers, desktop app only. Resolves [] in a plain browser.
+ */
 export async function listSystemPrinters(): Promise<DetectedPrinter[]> {
   const api = window.electronAPI;
   if (!api?.listPrinters) return [];
@@ -56,8 +65,10 @@ export async function listSystemPrinters(): Promise<DetectedPrinter[]> {
   }
 }
 
-// Serial ports the operator has already granted to this origin. New devices
-// are added with requestSerialPort() (needs a user gesture).
+/**
+ * Serial ports the operator has already granted to this origin. New devices
+ * are added with requestSerialPort() (needs a user gesture).
+ */
 export async function listGrantedSerialPorts(): Promise<DetectedPrinter[]> {
   const serial = webSerial();
   if (!serial) return [];
@@ -82,18 +93,27 @@ export async function listGrantedSerialPorts(): Promise<DetectedPrinter[]> {
   }
 }
 
+/**
+ * All immediately-available printers: OS printers plus serial ports the user
+ * has already granted. Does not prompt.
+ */
 export async function detectPrinters(): Promise<DetectedPrinter[]> {
   const [system, serial] = await Promise.all([listSystemPrinters(), listGrantedSerialPorts()]);
   return [...system, ...serial];
 }
 
+/**
+ * Whether the host can scan the LAN for printers (desktop app only).
+ */
 export function networkScanSupported(): boolean {
   return !!window.electronAPI?.scanNetworkPrinters;
 }
 
-// Scans the LAN for network thermal printers (TCP 9100). Desktop app only —
-// a browser can't open raw sockets, so this resolves []. Each hit maps to a
-// DetectedPrinter carrying the IP so the operator can apply it in one click.
+/**
+ * Scans the LAN for network thermal printers (TCP 9100). Desktop app only —
+ * a browser can't open raw sockets, so this resolves []. Each hit maps to a
+ * DetectedPrinter carrying the IP so the operator can apply it in one click.
+ */
 export async function scanNetworkPrinters(): Promise<DetectedPrinter[]> {
   const api = window.electronAPI;
   if (!api?.scanNetworkPrinters) return [];
@@ -112,8 +132,10 @@ export async function scanNetworkPrinters(): Promise<DetectedPrinter[]> {
   }
 }
 
-// Prompts the operator to grant a new serial device (must run in a user
-// gesture). Returns true when a port was granted; false on cancel/unsupported.
+/**
+ * Prompts the operator to grant a new serial device (must run in a user
+ * gesture). Returns true when a port was granted; false on cancel/unsupported.
+ */
 export async function requestSerialPort(): Promise<boolean> {
   const serial = webSerial();
   if (!serial) return false;

@@ -79,6 +79,10 @@ const CustomTooltip = ({
   return null;
 };
 
+/**
+ * Sales dashboard: revenue and order trends, top products, and stock alerts
+ * for the selected period.
+ */
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
   const transactions = useTransactionStore((s) => s.transactions);

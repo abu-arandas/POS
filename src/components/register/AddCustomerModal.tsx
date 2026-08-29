@@ -3,6 +3,10 @@ import { AnimatePresence, motion } from 'motion/react';
 import { UserPlus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+/**
+ * One field in the add-customer form, so the modal can render its inputs from
+ * a list rather than repeating markup per field.
+ */
 export interface CustomerField {
   label: string;
   type: string;
@@ -21,9 +25,11 @@ interface AddCustomerModalProps {
   onClose: () => void;
 }
 
-// The "new customer" form (name / phone / email → link to the sale). Extracted
-// from Register; the form fields and their state stay owned by Register and are
-// passed in as `fields`, so behavior is unchanged.
+/**
+ * The "new customer" form (name / phone / email → link to the sale). Extracted
+ * from Register; the form fields and their state stay owned by Register and are
+ * passed in as `fields`, so behavior is unchanged.
+ */
 export function AddCustomerModal({
   open,
   dialogRef,

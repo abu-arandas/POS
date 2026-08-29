@@ -1,7 +1,9 @@
 import { SaleTransaction, StoreSettings, ReceiptEmailTemplate } from '../types';
 
-// Plain-text receipt for digital delivery (email body / share / clipboard).
-// Pure and testable — no DOM.
+/**
+ * Plain-text receipt for digital delivery (email body / share / clipboard).
+ * Pure and testable — no DOM.
+ */
 export function receiptPlainText(tx: SaleTransaction, settings: StoreSettings): string {
   const cur = settings.currency;
   const lines: string[] = [];
@@ -33,10 +35,16 @@ export function receiptPlainText(tx: SaleTransaction, settings: StoreSettings): 
   return lines.join('\n');
 }
 
+/**
+ * Which delivery path shareReceipt actually took, so the UI can confirm
+ * accurately rather than always claiming it shared.
+ */
 export type ShareOutcome = 'shared' | 'copied' | 'error';
 
-// Shares the receipt via the Web Share API when available, otherwise copies the
-// text to the clipboard. Returns which happened so the UI can confirm.
+/**
+ * Shares the receipt via the Web Share API when available, otherwise copies the
+ * text to the clipboard. Returns which happened so the UI can confirm.
+ */
 export async function shareReceipt(
   tx: SaleTransaction,
   settings: StoreSettings,
@@ -64,9 +72,11 @@ export async function shareReceipt(
   }
 }
 
-// Fills {placeholder} tokens in an email template string from the sale.
-// Unknown tokens are left as-is so a typo is visible rather than silently
-// swallowed. Supported: {storeName} {receiptId} {date} {total} {customerName}.
+/**
+ * Fills {placeholder} tokens in an email template string from the sale.
+ * Unknown tokens are left as-is so a typo is visible rather than silently
+ * swallowed. Supported: {storeName} {receiptId} {date} {total} {customerName}.
+ */
 export function renderEmailTemplate(
   template: string,
   tx: SaleTransaction,
@@ -82,14 +92,19 @@ export function renderEmailTemplate(
   return template.replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match);
 }
 
+/**
+ * A rendered receipt email, ready to hand to a mail client.
+ */
 export interface ReceiptEmail {
   subject: string;
   body: string;
 }
 
-// Assembles the full email: rendered header, the plain-text receipt, rendered
-// footer. Pure and testable — no DOM. Without a template it falls back to the
-// bare receipt with a generic subject.
+/**
+ * Assembles the full email: rendered header, the plain-text receipt, rendered
+ * footer. Pure and testable — no DOM. Without a template it falls back to the
+ * bare receipt with a generic subject.
+ */
 export function buildReceiptEmail(
   tx: SaleTransaction,
   settings: StoreSettings,
@@ -110,7 +125,9 @@ export function buildReceiptEmail(
   return { subject, body: parts.join('\n\n') };
 }
 
-// Opens the OS mail client with a pre-filled receipt (to the customer if known).
+/**
+ * Opens the OS mail client with a pre-filled receipt (to the customer if known).
+ */
 export function emailReceipt(
   tx: SaleTransaction,
   settings: StoreSettings,

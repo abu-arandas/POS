@@ -27,6 +27,11 @@ function encodeImageDataUrl(raw: string): string {
   return encodeURI(raw).replace(/%25(?=[0-9a-f]{2})/gi, '%');
 }
 
+/**
+ * Reduces an untrusted product image value to a URL that is safe to put in a
+ * `src`, or '' when it isn't one. Only http(s), same-origin absolute paths and
+ * image data URLs survive; `javascript:` and oversized values are rejected.
+ */
 export function safeImageUrl(value: unknown): string {
   if (typeof value !== 'string') return '';
   const raw = value.trim();

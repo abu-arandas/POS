@@ -22,6 +22,10 @@ import { escapeHtml } from '../lib/escapeHtml';
 import { Shift } from '../types';
 import { askConfirmation } from '../lib/dialogs';
 
+/**
+ * Shift screen: open and close a drawer with an opening float, and produce the
+ * Z-report reconciling counted cash against expected.
+ */
 export default function ShiftScreen() {
   const { t } = useTranslation();
   const { shifts, currentShiftId, openShift, closeShift } = useShiftStore();

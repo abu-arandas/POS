@@ -10,9 +10,11 @@ interface HeldOrderState {
   removeHeldOrder: (id: string) => void;
 }
 
-// Parked carts persist locally so a resume survives a reload/crash. They are
-// intentionally NOT cloud-synced — an in-progress cart is terminal-local state,
-// not a committed record.
+/**
+ * Parked carts persist locally so a resume survives a reload/crash. They are
+ * intentionally NOT cloud-synced — an in-progress cart is terminal-local state,
+ * not a committed record.
+ */
 export const useHeldOrderStore = create<HeldOrderState>()(
   persist(
     (set, get) => ({

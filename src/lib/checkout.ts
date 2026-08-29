@@ -10,6 +10,10 @@ import { summarizeTenders } from './payments';
 import { shortId } from './ids';
 import { nonNegative } from './money';
 
+/**
+ * Everything the register has collected for one sale, with totals already
+ * computed by calculateOrderTotals.
+ */
 export interface CheckoutRequest {
   cartItems: Omit<OrderItem, 'total'>[];
   subtotal: number;
@@ -33,10 +37,21 @@ export interface CheckoutRequest {
   settings: StoreSettings;
 }
 
+/**
+ * Either the transaction to persist plus the loyalty-points delta, or the
+ * reason the tender was rejected.
+ */
 export type CheckoutOutcome =
   | { success: true; transaction: SaleTransaction; pointsDelta: number }
   | { success: false; error: 'split-incomplete' | 'split-non-cash-overpay' | 'insufficient-cash' };
 
+/**
+ * Validates the tender and assembles the SaleTransaction to persist.
+ *
+ * Split payments must cover the total exactly, apart from cash, which may
+ * overpay and take change back. Returns a failure outcome rather than
+ * throwing so the register can show the reason inline.
+ */
 export function buildSaleTransaction(req: CheckoutRequest): CheckoutOutcome {
   let saleMethod: PaymentMethod;
   let payments: Payment[] | undefined;

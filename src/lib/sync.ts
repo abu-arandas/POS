@@ -34,6 +34,13 @@ const ensureDeviceSession = async (client: SupabaseClient): Promise<void> => {
   if (!signedIn) throw new Error('Supabase device authentication failed');
 };
 
+/**
+ * Pushes the given changed records to Supabase, if cloud sync is configured.
+ *
+ * Every argument is optional and only non-empty lists are sent, which makes
+ * this an incremental upsert rather than a full push. A failure is logged and
+ * swallowed: sync is best-effort and must never block a sale.
+ */
 export const syncToCloudIfEnabled = async (
   prods?: Product[],
   cats?: Category[],
@@ -61,9 +68,11 @@ export const syncToCloudIfEnabled = async (
   }
 };
 
-// Validates a staff PIN against the cloud (verify_login RPC). Returns the
-// account on success — used by the lockscreen as a fallback when the local PIN
-// check fails, so a PIN changed on another terminal still works here.
+/**
+ * Validates a staff PIN against the cloud (verify_login RPC). Returns the
+ * account on success — used by the lockscreen as a fallback when the local PIN
+ * check fails, so a PIN changed on another terminal still works here.
+ */
 export const cloudLogin = async (name: string, pinHash: string): Promise<UserAccount | null> => {
   const { supabaseConfig } = useSettingsStore.getState();
   if (!supabaseConfig.enabled || !supabaseConfig.url || !supabaseConfig.anonKey) return null;
@@ -81,8 +90,10 @@ export const cloudLogin = async (name: string, pinHash: string): Promise<UserAcc
   }
 };
 
-// Verifies credentials by signing in (if a device account is set) and running a
-// lightweight query.
+/**
+ * Verifies credentials by signing in (if a device account is set) and running a
+ * lightweight query.
+ */
 export const testCloudConnection = async (url: string, anonKey: string): Promise<boolean> => {
   const client = getSupabaseClient(url, anonKey);
   if (!client) return false;
@@ -95,6 +106,10 @@ export const testCloudConnection = async (url: string, anonKey: string): Promise
   }
 };
 
+/**
+ * A full pull of every synced table, as 'Pull From Cloud' replaces local data
+ * with it.
+ */
 export interface CloudSnapshot {
   products: Product[];
   categories: Category[];
@@ -103,8 +118,10 @@ export interface CloudSnapshot {
   transactions: SaleTransaction[];
 }
 
-// Pushes the full local dataset to the cloud (manual "Push All" action).
-// Returns true only if every table upserted successfully.
+/**
+ * Pushes the full local dataset to the cloud (manual "Push All" action).
+ * Returns true only if every table upserted successfully.
+ */
 export const pushAllToCloud = async (
   url: string,
   anonKey: string,
@@ -130,9 +147,11 @@ export const pushAllToCloud = async (
   return results.every(Boolean);
 };
 
-// Pulls the full dataset from the cloud (manual "Pull From Cloud" action).
-// Returns null if the client cannot be created; individual entities are null
-// only if that specific table failed to load.
+/**
+ * Pulls the full dataset from the cloud (manual "Pull From Cloud" action).
+ * Returns null if the client cannot be created; individual entities are null
+ * only if that specific table failed to load.
+ */
 export const pullAllFromCloud = async (
   url: string,
   anonKey: string,
@@ -198,13 +217,28 @@ const deleteFromCloudIfEnabled = async (table: SyncTable, ids: string[]): Promis
   return deleted;
 };
 
+/**
+ * Deletes the given transactions from the cloud, if sync is configured.
+ */
 export const deleteTransactionsCloudIfEnabled = (ids: string[]): Promise<boolean> =>
   deleteFromCloudIfEnabled('transactions', ids);
+/**
+ * Deletes the given products from the cloud, if sync is configured.
+ */
 export const deleteProductsCloudIfEnabled = (ids: string[]): Promise<boolean> =>
   deleteFromCloudIfEnabled('products', ids);
+/**
+ * Deletes the given categories from the cloud, if sync is configured.
+ */
 export const deleteCategoriesCloudIfEnabled = (ids: string[]): Promise<boolean> =>
   deleteFromCloudIfEnabled('categories', ids);
+/**
+ * Deletes the given customers from the cloud, if sync is configured.
+ */
 export const deleteCustomersCloudIfEnabled = (ids: string[]): Promise<boolean> =>
   deleteFromCloudIfEnabled('customers', ids);
+/**
+ * Deletes the given user accounts from the cloud, if sync is configured.
+ */
 export const deleteUsersCloudIfEnabled = (ids: string[]): Promise<boolean> =>
   deleteFromCloudIfEnabled('user_accounts', ids);

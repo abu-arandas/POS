@@ -1,6 +1,9 @@
 import { StoreSettings } from '../types';
 import { nonNegative } from './money';
 
+/**
+ * One cart line as the totals calculation sees it.
+ */
 export interface CheckoutItem {
   productId: string;
   productName: string;
@@ -12,6 +15,13 @@ export interface CheckoutItem {
 const finiteNonNegative = (value: number): number =>
   Number.isFinite(value) && value > 0 ? value : 0;
 
+/**
+ * Computes subtotal, discount, tax and total for a cart.
+ *
+ * Every input is clamped: negative or non-finite prices, quantities and rates
+ * are treated as zero, and a discount can never exceed the order value. A
+ * mistyped '150%' therefore cannot produce a negative total.
+ */
 export function calculateOrderTotals(
   items: CheckoutItem[],
   discountType: 'none' | 'percentage' | 'fixed' | 'loyalty',

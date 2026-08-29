@@ -41,6 +41,10 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
+/**
+ * PIN entry gate for the terminal. Enforces the lockout throttle, so repeated
+ * wrong guesses back off instead of allowing unlimited attempts.
+ */
 export default function Lockscreen() {
   const { users, setUsers, setCurrentUser, handleUpdateUser } = useAuthStore();
   const attempts = usePinAttemptStore((s) => s.attempts);

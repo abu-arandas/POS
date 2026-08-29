@@ -18,11 +18,13 @@ let channel: RealtimeChannel | null = null;
 
 const SYNCED_TABLES = ['products', 'categories', 'customers', 'transactions', 'user_accounts'];
 
-// Subscribes to Postgres changes on the synced tables and mirrors them into the
-// local stores, so a second terminal's writes appear here within a moment. On
-// any change we debounce and re-pull the affected table (uniformly handles
-// inserts, updates, and deletes without duplicating row-mapping logic). Local
-// setters don't trigger a push, so there is no echo loop.
+/**
+ * Subscribes to Postgres changes on the synced tables and mirrors them into the
+ * local stores, so a second terminal's writes appear here within a moment. On
+ * any change we debounce and re-pull the affected table (uniformly handles
+ * inserts, updates, and deletes without duplicating row-mapping logic). Local
+ * setters don't trigger a push, so there is no echo loop.
+ */
 export async function startRealtimeSync(): Promise<boolean> {
   stopRealtimeSync();
   const { supabaseConfig } = useSettingsStore.getState();
@@ -76,6 +78,14 @@ export async function startRealtimeSync(): Promise<boolean> {
   return true;
 }
 
+/**
+ * Unsubscribes the realtime channel, so no further change events arrive. Safe
+ * to call when none is open.
+ *
+ * This does not cancel a pull that startRealtimeSync has already debounced:
+ * those timers belong to that call, so one last refresh can still land in the
+ * local stores shortly after this returns.
+ */
 export function stopRealtimeSync(): void {
   if (channel) {
     channel.unsubscribe();

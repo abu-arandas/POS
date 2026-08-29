@@ -9,10 +9,12 @@ interface PinAttemptState {
   registerSuccess: (key: string) => void;
 }
 
-// Failed-PIN counters, persisted so a lockout survives a reload — otherwise
-// refreshing the page (or restarting the app) resets the throttle and the
-// brute-force protection is decorative. Terminal-local: this is about one
-// physical device, so it is deliberately not cloud-synced.
+/**
+ * Failed-PIN counters, persisted so a lockout survives a reload — otherwise
+ * refreshing the page (or restarting the app) resets the throttle and the
+ * brute-force protection is decorative. Terminal-local: this is about one
+ * physical device, so it is deliberately not cloud-synced.
+ */
 export const usePinAttemptStore = create<PinAttemptState>()(
   persist(
     (set, get) => ({
