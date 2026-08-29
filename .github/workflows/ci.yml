@@ -10,9 +10,20 @@ on:
     branches: [main]
   pull_request:
 
+# Pushing twice to a branch used to leave both runs going, and every superseded
+# run still spent a full e2e cycle before anyone looked at it. Only pull-request
+# runs are cancelled — a run on main is the record for that commit and is left
+# to finish.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   checks:
     runs-on: ubuntu-latest
+    # Comfortably above the ~2 minutes this takes; a job that blows past it is
+    # hung, and without a limit it would sit there for the 6-hour default.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
@@ -67,6 +78,8 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    # Higher than `checks`: this one also downloads three browser engines.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
