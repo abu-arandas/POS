@@ -15,8 +15,10 @@ interface HeldOrdersModalProps {
   onRemove: (id: string) => void;
 }
 
-// The "hold order" list: parked carts an operator can resume or discard.
-// Extracted from Register to keep that screen focused; behavior is unchanged.
+/**
+ * The "hold order" list: parked carts an operator can resume or discard.
+ * Extracted from Register to keep that screen focused; behavior is unchanged.
+ */
 export function HeldOrdersModal({
   open,
   dialogRef,

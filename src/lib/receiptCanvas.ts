@@ -89,6 +89,9 @@ function rowHeight(row: DocRow): number {
   }
 }
 
+/**
+ * A rendered monochrome receipt bitmap, as ESC/POS `GS v 0` raster bands.
+ */
 export interface RasterReceipt {
   data: number[]; // ESC/POS bytes (GS v 0 bands)
   width: number;

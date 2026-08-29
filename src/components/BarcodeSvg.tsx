@@ -6,6 +6,10 @@ interface BarcodeSvgProps {
   options?: BarcodeSvgOptions;
 }
 
+/**
+ * Renders a payload as an inline Code 128 SVG. Inline rather than an <img> so
+ * it prints crisply and needs no network fetch.
+ */
 export function BarcodeSvg({ data, options = {} }: BarcodeSvgProps) {
   const height = options.height ?? 44;
   const mw = options.moduleWidth ?? 1.6;

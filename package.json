@@ -79,5 +79,8 @@
     "vitest": "^4.1.10",
     "wait-on": "^9.0.10",
     "zustand": "^5.0.14"
+  },
+  "overrides": {
+    "http-cache-semantics": ">=4.1.1"
   }
 }

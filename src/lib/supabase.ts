@@ -2,9 +2,11 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Product, Category, Customer, SaleTransaction, UserAccount, OrderItem } from '../types';
 import { useAuthStore } from '../stores/authStore';
 
-// Adds store_id to each outgoing record when a store scope is configured.
-// A no-op in single-store mode (empty storeId), so existing deployments push
-// exactly the same payload as before. Pure and unit-tested.
+/**
+ * Adds store_id to each outgoing record when a store scope is configured.
+ * A no-op in single-store mode (empty storeId), so existing deployments push
+ * exactly the same payload as before. Pure and unit-tested.
+ */
 export function stampStoreId<T extends object>(records: T[], storeId?: string): T[] {
   if (!storeId) return records;
   return records.map((r) => ({ ...r, store_id: storeId }));
@@ -16,7 +18,9 @@ let currentKey = '';
 // Email the current client instance is signed in as ('' = anonymous).
 let authedEmail = '';
 
-// Lazy initialization of Supabase client to avoid crashes on bad keys
+/**
+ * Lazy initialization of Supabase client to avoid crashes on bad keys
+ */
 export function getSupabaseClient(url: string, anonKey: string): SupabaseClient | null {
   if (!url || !anonKey) {
     supabaseInstance = null;
@@ -44,10 +48,12 @@ export function getSupabaseClient(url: string, anonKey: string): SupabaseClient 
   }
 }
 
-// Signs the client in with a Supabase Auth "device" account so it operates as an
-// authenticated role (required when RLS is enabled). No-op when no credentials
-// are configured — the client stays anonymous exactly as before. Cached per
-// client instance so we only hit the auth endpoint once.
+/**
+ * Signs the client in with a Supabase Auth "device" account so it operates as an
+ * authenticated role (required when RLS is enabled). No-op when no credentials
+ * are configured — the client stays anonymous exactly as before. Cached per
+ * client instance so we only hit the auth endpoint once.
+ */
 export async function signInDevice(
   client: SupabaseClient,
   email: string,
@@ -74,10 +80,12 @@ export async function signInDevice(
 // The canonical DDL lives in scripts/schema.sql — run it in the Supabase SQL
 // editor before enabling sync.
 
-// Validates a staff login against the cloud via the SECURITY DEFINER
-// verify_login RPC (see scripts/schema.sql). Returns the account's non-secret
-// fields on success, or null. The PIN hash never leaves the database on the
-// return path — only the caller's versioned PBKDF2-derived candidate is sent.
+/**
+ * Validates a staff login against the cloud via the SECURITY DEFINER
+ * verify_login RPC (see scripts/schema.sql). Returns the account's non-secret
+ * fields on success, or null. The PIN hash never leaves the database on the
+ * return path — only the caller's versioned PBKDF2-derived candidate is sent.
+ */
 export async function verifyLoginCloud(
   client: SupabaseClient,
   name: string,
@@ -109,14 +117,18 @@ export async function verifyLoginCloud(
 }
 
 // Direct sync functions pushing local lists to Supabase and resolving updates
-//
-// The probe targets `categories`, not `user_accounts_public`: schema.sql
-// REVOKEs that view from `anon`, so a terminal running without a device account
-// (the "anonymous mode" signInDevice explicitly allows) got a hard permission
-// error and was told its credentials were wrong. `categories` is only
-// RLS-filtered, so an unauthorised caller gets an empty result rather than an
-// error — which still distinguishes a bad URL/key (network or 401) from a
-// working project.
+
+/**
+ * Probes whether a URL/anon-key pair points at a reachable Supabase project.
+ *
+ * The probe targets `categories`, not `user_accounts_public`: schema.sql
+ * REVOKEs that view from `anon`, so a terminal running without a device account
+ * (the "anonymous mode" signInDevice explicitly allows) got a hard permission
+ * error and was told its credentials were wrong. `categories` is only
+ * RLS-filtered, so an unauthorised caller gets an empty result rather than an
+ * error — which still distinguishes a bad URL/key (network or 401) from a
+ * working project.
+ */
 export async function testSupabaseConnection(url: string, anonKey: string): Promise<boolean> {
   const client = getSupabaseClient(url, anonKey);
   if (!client) return false;
@@ -134,7 +146,9 @@ export async function testSupabaseConnection(url: string, anonKey: string): Prom
   }
 }
 
-// Push local products to Supabase
+/**
+ * Push local products to Supabase
+ */
 export async function pushProducts(
   client: SupabaseClient,
   products: Product[],
@@ -166,17 +180,19 @@ export async function pushProducts(
   }
 }
 
-// A pull used to be one unbounded request: `.select('*')` with no limit, for
-// every row in the table. Two things go wrong with that. PostgREST caps how
-// many rows a single response may return (Supabase exposes it as `max-rows`),
-// and a cap silently truncates — the client cannot tell a capped response from
-// a complete one, so a terminal would quietly pull a partial catalogue and,
-// because "Pull From Cloud" replaces all local data, overwrite the rest. And a
-// terminal that has been trading for a year has a transaction history that is
-// simply too large to want in one response.
-//
-// So the pulls walk the table in pages, the same way deleteRowsSupabase chunks
-// its ids.
+/**
+ * A pull used to be one unbounded request: `.select('*')` with no limit, for
+ * every row in the table. Two things go wrong with that. PostgREST caps how
+ * many rows a single response may return (Supabase exposes it as `max-rows`),
+ * and a cap silently truncates — the client cannot tell a capped response from
+ * a complete one, so a terminal would quietly pull a partial catalogue and,
+ * because "Pull From Cloud" replaces all local data, overwrite the rest. And a
+ * terminal that has been trading for a year has a transaction history that is
+ * simply too large to want in one response.
+ *
+ * So the pulls walk the table in pages, the same way deleteRowsSupabase chunks
+ * its ids.
+ */
 export const PULL_PAGE_SIZE = 1000;
 
 // Paged by primary key, not by offset.
@@ -226,7 +242,9 @@ function keyset<
   return afterId === null ? ordered : ordered.gt('id', afterId);
 }
 
-// Pull products from Supabase
+/**
+ * Pull products from Supabase
+ */
 export async function pullProducts(
   client: SupabaseClient,
   storeId?: string,
@@ -254,7 +272,9 @@ export async function pullProducts(
   }
 }
 
-// Push local categories
+/**
+ * Push local categories
+ */
 export async function pushCategories(
   client: SupabaseClient,
   categories: Category[],
@@ -271,7 +291,9 @@ export async function pushCategories(
   }
 }
 
-// Pull categories
+/**
+ * Pull categories
+ */
 export async function pullCategories(
   client: SupabaseClient,
   storeId?: string,
@@ -290,7 +312,9 @@ export async function pullCategories(
   }
 }
 
-// Push local customers
+/**
+ * Push local customers
+ */
 export async function pushCustomers(
   client: SupabaseClient,
   customers: Customer[],
@@ -318,7 +342,9 @@ export async function pushCustomers(
   }
 }
 
-// Pull customers
+/**
+ * Pull customers
+ */
 export async function pullCustomers(
   client: SupabaseClient,
   storeId?: string,
@@ -343,7 +369,9 @@ export async function pullCustomers(
   }
 }
 
-// Push local transactions
+/**
+ * Push local transactions
+ */
 export async function pushTransactions(
   client: SupabaseClient,
   transactions: SaleTransaction[],
@@ -389,24 +417,30 @@ export async function pushTransactions(
   }
 }
 
-// Delete rows by id from any synced table. Used by the cloud delete-sync
-// wrappers so that local deletions are propagated instead of resurrecting on
-// the next Pull From Cloud.
+/**
+ * Delete rows by id from any synced table. Used by the cloud delete-sync
+ * wrappers so that local deletions are propagated instead of resurrecting on
+ * the next Pull From Cloud.
+ */
 export type SyncTable = 'products' | 'categories' | 'customers' | 'transactions' | 'user_accounts';
 
-// PostgREST puts an `in` filter in the query string, so one request per id-set
-// has a hard ceiling: "Delete All Transactions" on a busy terminal built a URL
-// past what proxies and the server accept, and the whole delete failed after
-// the local rows were already gone. Chunking keeps each request well inside
-// any URL limit.
+/**
+ * PostgREST puts an `in` filter in the query string, so one request per id-set
+ * has a hard ceiling: "Delete All Transactions" on a busy terminal built a URL
+ * past what proxies and the server accept, and the whole delete failed after
+ * the local rows were already gone. Chunking keeps each request well inside
+ * any URL limit.
+ */
 export const DELETE_CHUNK_SIZE = 500;
 
-// A chunked delete is not one transaction, so a failure part-way through leaves
-// the earlier chunks already deleted. Every remaining chunk is still attempted
-// rather than abandoned: the local rows are gone either way, so each chunk that
-// does land is a row that will not resurrect on the next Pull From Cloud.
-// Returns false if any chunk failed — callers must not read that as "nothing
-// was deleted".
+/**
+ * A chunked delete is not one transaction, so a failure part-way through leaves
+ * the earlier chunks already deleted. Every remaining chunk is still attempted
+ * rather than abandoned: the local rows are gone either way, so each chunk that
+ * does land is a row that will not resurrect on the next Pull From Cloud.
+ * Returns false if any chunk failed — callers must not read that as "nothing
+ * was deleted".
+ */
 export async function deleteRowsSupabase(
   client: SupabaseClient,
   table: SyncTable,
@@ -430,7 +464,9 @@ export async function deleteRowsSupabase(
   return failedRows === 0;
 }
 
-// Pull transactions
+/**
+ * Pull transactions
+ */
 export async function pullTransactions(
   client: SupabaseClient,
   storeId?: string,
@@ -479,7 +515,9 @@ export async function pullTransactions(
   }
 }
 
-// Push local user accounts
+/**
+ * Push local user accounts
+ */
 export async function pushUserAccounts(
   client: SupabaseClient,
   accounts: UserAccount[],
@@ -507,7 +545,9 @@ export async function pushUserAccounts(
   }
 }
 
-// Pull user accounts
+/**
+ * Pull user accounts
+ */
 export async function pullUserAccounts(
   client: SupabaseClient,
   storeId?: string,

@@ -74,6 +74,10 @@ function DialogContent({
   );
 }
 
+/**
+ * Renders the head of the dialog queue and resolves its promise with the
+ * operator's answer. Mounted once at the app root.
+ */
 export default function DialogCenter() {
   const dialog = useDialogStore((state) => state.queue[0]);
   const resolveCurrent = useDialogStore((state) => state.resolveCurrent);

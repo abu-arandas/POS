@@ -19,14 +19,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Deliberately input-free: build provenance only holds if the build output
+  # cannot be steered by run parameters. Manually dispatching this workflow is
+  # itself the signal that a human wants the result published — see the
+  # publish-release condition below.
   workflow_dispatch:
-    inputs:
-      publish_unsigned:
-        description: >-
-          Publish an UNSIGNED installer as a pre-release. Windows SmartScreen and
-          Chrome/Edge will warn on it. For internal testing only.
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -145,13 +142,14 @@ jobs:
           if-no-files-found: error
 
   publish-release:
-    # A signed build publishes automatically. An unsigned one publishes only
-    # when a human explicitly asks for it on a manual run, and is marked as a
-    # pre-release so electron-updater does not push it to installed terminals.
+    # A signed build publishes automatically. An unsigned one publishes only on
+    # a manual run — dispatching by hand is how a human asks for it — and is
+    # marked as a pre-release so electron-updater does not push it to installed
+    # terminals. A push to main can therefore never publish an unsigned build.
     if: >-
       github.event_name != 'pull_request' &&
       (needs.build-windows.outputs.signed == 'true' ||
-       inputs.publish_unsigned)
+       github.event_name == 'workflow_dispatch')
     needs: build-windows
     runs-on: ubuntu-latest
     permissions:

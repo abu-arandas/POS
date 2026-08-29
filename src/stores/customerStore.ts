@@ -18,6 +18,10 @@ interface CustomerState {
 const DEFAULT_CUSTOMERS: Customer[] =
   import.meta.env.DEV || import.meta.env.MODE === 'test' ? INITIAL_CUSTOMERS : [];
 
+/**
+ * The customer book and its loyalty balances. Persisted to IndexedDB; mutations
+ * also push to the cloud when sync is configured.
+ */
 export const useCustomerStore = create<CustomerState>()(
   persist(
     (set, get) => ({

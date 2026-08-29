@@ -47,6 +47,10 @@ const categoryColors = [
   { class: 'badge badge-slate', bg: 'bg-slate-500', label: 'Slate' },
 ];
 
+/**
+ * Inventory screen: manage products and categories, adjust stock, print product
+ * labels, and import or export the catalog as CSV.
+ */
 export default function Inventory() {
   const { t } = useTranslation();
   const products = useProductStore((s) => s.products);

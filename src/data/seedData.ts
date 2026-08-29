@@ -1,5 +1,9 @@
 import { Product, Category, Customer, StoreSettings } from '../types';
 
+/**
+ * Demo categories a fresh install starts with, so the register is usable before
+ * anything has been entered.
+ */
 export const INITIAL_CATEGORIES: Category[] = [
   {
     id: 'cat-1',
@@ -184,6 +188,10 @@ function productThumb(category: string, emoji: string): string {
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
+/**
+ * Demo catalog for a fresh install. Replaced as soon as a real catalog is
+ * imported or pulled from the cloud.
+ */
 export const INITIAL_PRODUCTS: Product[] = [
   {
     id: 'prod-1',
@@ -1001,6 +1009,9 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
 ];
 
+/**
+ * Demo customer book for a fresh install, showing the loyalty fields in use.
+ */
 export const INITIAL_CUSTOMERS: Customer[] = [
   {
     id: 'cust-1',
@@ -1036,6 +1047,10 @@ export const INITIAL_CUSTOMERS: Customer[] = [
   },
 ];
 
+/**
+ * Store settings a fresh install starts with — placeholder identity, and the
+ * tax and loyalty rates an operator is expected to replace.
+ */
 export const INITIAL_SETTINGS: StoreSettings = {
   storeName: 'EA POS',
   storeAddress: '123 Tech Boulevard, Suite 400, WA 98101',

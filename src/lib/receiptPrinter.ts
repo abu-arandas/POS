@@ -9,6 +9,10 @@ import {
   safeFontFamily,
 } from './receiptFormat';
 
+/**
+ * How a receipt actually got out: a print window, a blocked popup, or raw
+ * ESC/POS bytes to a connected device.
+ */
 export type PrintOutcome = 'printed' | 'popup-blocked' | 'esc-pos';
 
 // The brand mark, flattened to solid black. Thermal paper is one-colour, so the
@@ -30,8 +34,10 @@ function payMethodLabel(method: string): string {
   return i18n.t(key, method.toUpperCase());
 }
 
-// Builds the escaped HTML for a single receipt. Exported for unit testing; the
-// print path composes these into a print window below.
+/**
+ * Builds the escaped HTML for a single receipt. Exported for unit testing; the
+ * print path composes these into a print window below.
+ */
 export function buildReceiptHtml(
   tx: SaleTransaction,
   settings: StoreSettings,
@@ -176,9 +182,11 @@ export function buildReceiptHtml(
     </div>`;
 }
 
-// Kitchen ticket HTML: order id, time, who rang it, and large-type
-// quantities/items — no prices or payment details. An optional stationName
-// titles the ticket for per-station routing. Exported for unit testing.
+/**
+ * Kitchen ticket HTML: order id, time, who rang it, and large-type
+ * quantities/items — no prices or payment details. An optional stationName
+ * titles the ticket for per-station routing. Exported for unit testing.
+ */
 export function buildKitchenTicketHtml(
   tx: SaleTransaction,
   settings: StoreSettings,
@@ -226,9 +234,11 @@ export function buildKitchenTicketHtml(
     </div>`;
 }
 
-// A standalone receipt document (styles + body). Shared by the print window and
-// the settings live-preview iframe. The per-block sizes are em-relative so the
-// whole receipt scales with the layout's base font size.
+/**
+ * A standalone receipt document (styles + body). Shared by the print window and
+ * the settings live-preview iframe. The per-block sizes are em-relative so the
+ * whole receipt scales with the layout's base font size.
+ */
 export function receiptDocHtml(
   bodyHtml: string,
   rollWidth: string,
@@ -344,8 +354,10 @@ function openPrintWindow(
   return 'printed';
 }
 
-// Full standalone receipt document(s) for silent Electron printing (no window,
-// no dialog). Mirrors what printTransactions writes into the print window.
+/**
+ * Full standalone receipt document(s) for silent Electron printing (no window,
+ * no dialog). Mirrors what printTransactions writes into the print window.
+ */
 export function receiptsPrintDoc(
   txs: SaleTransaction[],
   settings: StoreSettings,
@@ -360,7 +372,9 @@ export function receiptsPrintDoc(
   return receiptDocHtml(body, rollWidth, L.fontFamily, L.fontSizePx, false);
 }
 
-// Full standalone kitchen-ticket document for silent Electron printing.
+/**
+ * Full standalone kitchen-ticket document for silent Electron printing.
+ */
 export function kitchenPrintDoc(
   tx: SaleTransaction,
   settings: StoreSettings,
@@ -379,8 +393,10 @@ export function kitchenPrintDoc(
   );
 }
 
-// Full standalone HTML doc for the settings live preview (rendered in an
-// isolated iframe). `kind` picks the customer receipt or the kitchen ticket.
+/**
+ * Full standalone HTML doc for the settings live preview (rendered in an
+ * isolated iframe). `kind` picks the customer receipt or the kitchen ticket.
+ */
 export function receiptPreviewDoc(
   tx: SaleTransaction,
   settings: StoreSettings,
@@ -396,9 +412,11 @@ export function receiptPreviewDoc(
   return receiptDocHtml(body, rollWidth, layout.fontFamily, layout.fontSizePx, false);
 }
 
-// Opens a print window for one or more receipts on the "system" printer type;
-// non-system types are mocked (ESC/POS handoff message). Returns an outcome the
-// caller can surface to the operator; all dynamic values are HTML-escaped.
+/**
+ * Opens a print window for one or more receipts on the "system" printer type;
+ * non-system types are mocked (ESC/POS handoff message). Returns an outcome the
+ * caller can surface to the operator; all dynamic values are HTML-escaped.
+ */
 export function printTransactions(
   txs: SaleTransaction[],
   settings: StoreSettings,
@@ -416,8 +434,10 @@ export function printTransactions(
   return openPrintWindow(receiptsHtml, rollWidth, L.fontFamily, L.fontSizePx);
 }
 
-// System-print path for the kitchen ticket format. Optionally titled with a
-// station name for per-station routing.
+/**
+ * System-print path for the kitchen ticket format. Optionally titled with a
+ * station name for per-station routing.
+ */
 export function printKitchenTicketSystem(
   tx: SaleTransaction,
   settings: StoreSettings,

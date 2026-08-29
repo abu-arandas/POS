@@ -15,8 +15,10 @@
 // This module is the pure half (threshold, pack, encode) so it unit-tests
 // without a DOM. The drawing lives in receiptCanvas.ts.
 
-// Printable width in dots for the two supported roll sizes. These are the
-// standard head widths: 576 dots for 80mm, 384 for 58mm.
+/**
+ * Printable width in dots for the two supported roll sizes. These are the
+ * standard head widths: 576 dots for 80mm, 384 for 58mm.
+ */
 export const RASTER_WIDTH: Record<'58mm' | '80mm', number> = {
   '58mm': 384,
   '80mm': 576,

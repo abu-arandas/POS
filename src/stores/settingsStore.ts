@@ -48,11 +48,13 @@ interface SettingsState {
   setLanguage: (lang: 'en' | 'ar') => void;
 }
 
-// Exported so Settings' "Reset to defaults" restores exactly what a fresh
-// install of THIS build starts with. It used to reset to INITIAL_SETTINGS
-// directly, which is the demo fixture — a production terminal that reset its
-// settings came back branded "EA POS" with a Seattle address and an 8.5% tax
-// rate, and printed both onto its next receipt.
+/**
+ * Exported so Settings' "Reset to defaults" restores exactly what a fresh
+ * install of THIS build starts with. It used to reset to INITIAL_SETTINGS
+ * directly, which is the demo fixture — a production terminal that reset its
+ * settings came back branded "EA POS" with a Seattle address and an 8.5% tax
+ * rate, and printed both onto its next receipt.
+ */
 export const DEFAULT_SETTINGS: StoreSettings =
   import.meta.env.DEV || import.meta.env.MODE === 'test'
     ? INITIAL_SETTINGS
@@ -67,6 +69,10 @@ export const DEFAULT_SETTINGS: StoreSettings =
         loyaltyPointValue: 0,
       };
 
+/**
+ * Printer settings a store starts with: an 80mm system printer that prints
+ * automatically at checkout.
+ */
 export const DEFAULT_PRINTER: PrinterConfig = {
   type: 'system',
   paperSize: '80mm',
@@ -75,6 +81,9 @@ export const DEFAULT_PRINTER: PrinterConfig = {
   autoPrintOnCheckout: true,
 };
 
+/**
+ * Cloud sync off and unconfigured — the offline-first default.
+ */
 export const DEFAULT_SUPABASE: SupabaseConfig = {
   url: '',
   anonKey: '',
@@ -82,12 +91,19 @@ export const DEFAULT_SUPABASE: SupabaseConfig = {
   status: 'disconnected',
 };
 
+/**
+ * Barcode-scanner defaults. A scanner is distinguished from typing by keystroke
+ * spacing, so maxInterKeyMs is the discriminator.
+ */
 export const DEFAULT_SCANNER: ScannerConfig = {
   enabled: true,
   minLength: 3,
   maxInterKeyMs: 50,
 };
 
+/**
+ * Starting receipt-email copy. The {placeholders} are filled in per receipt.
+ */
 export const DEFAULT_EMAIL_TEMPLATE: ReceiptEmailTemplate = {
   subject: 'Receipt {receiptId} — {storeName}',
   header:
@@ -95,6 +111,12 @@ export const DEFAULT_EMAIL_TEMPLATE: ReceiptEmailTemplate = {
   footer: 'We hope to see you again soon.\n— The {storeName} team',
 };
 
+/**
+ * Every per-terminal setting: store identity, printer and scanner hardware,
+ * receipt and kitchen layouts, cloud sync credentials, and the store scope.
+ * Persisted to IndexedDB — this is the store the rest of the app reads its
+ * configuration from.
+ */
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({

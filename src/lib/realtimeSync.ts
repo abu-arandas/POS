@@ -33,11 +33,13 @@ let generation = 0;
 
 const SYNCED_TABLES = ['products', 'categories', 'customers', 'transactions', 'user_accounts'];
 
-// Subscribes to Postgres changes on the synced tables and mirrors them into the
-// local stores, so a second terminal's writes appear here within a moment. On
-// any change we debounce and re-pull the affected table (uniformly handles
-// inserts, updates, and deletes without duplicating row-mapping logic). Local
-// setters don't trigger a push, so there is no echo loop.
+/**
+ * Subscribes to Postgres changes on the synced tables and mirrors them into the
+ * local stores, so a second terminal's writes appear here within a moment. On
+ * any change we debounce and re-pull the affected table (uniformly handles
+ * inserts, updates, and deletes without duplicating row-mapping logic). Local
+ * setters don't trigger a push, so there is no echo loop.
+ */
 export async function startRealtimeSync(): Promise<boolean> {
   stopRealtimeSync();
   // Captured before the first await, not after it. stopRealtimeSync() has just
@@ -115,9 +117,11 @@ export async function startRealtimeSync(): Promise<boolean> {
   return true;
 }
 
-// Tears down realtime sync: unsubscribes the channel, cancels the debounced
-// pulls that have not fired, and invalidates any already in flight so their
-// results are discarded rather than written. Safe to call when none is open.
+/**
+ * Tears down realtime sync: unsubscribes the channel, cancels the debounced
+ * pulls that have not fired, and invalidates any already in flight so their
+ * results are discarded rather than written. Safe to call when none is open.
+ */
 export function stopRealtimeSync(): void {
   generation++;
   for (const timer of Object.values(timers)) clearTimeout(timer);
