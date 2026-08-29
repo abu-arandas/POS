@@ -67,6 +67,10 @@ import {
 type SettingsTab =
   'profile' | 'printer' | 'kitchen_printer' | 'scanner' | 'supabase' | 'users' | 'danger';
 
+/**
+ * Settings screen: store identity, tax and loyalty rates, printer and scanner
+ * hardware, receipt layouts, cloud sync, and staff accounts.
+ */
 export default function Settings() {
   const {
     settings,

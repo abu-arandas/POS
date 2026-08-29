@@ -1,6 +1,8 @@
 import { SaleTransaction, RefundedItem } from '../types';
 
-// Remaining refundable quantity per product line (original minus already returned).
+/**
+ * Remaining refundable quantity per product line (original minus already returned).
+ */
 export function refundableQuantities(tx: SaleTransaction): Record<string, number> {
   const already: Record<string, number> = {};
   for (const r of tx.refundedItems ?? []) {
@@ -13,6 +15,10 @@ export function refundableQuantities(tx: SaleTransaction): Record<string, number
   return remaining;
 }
 
+/**
+ * The full effect of a refund: what to pay back now, and the cumulative
+ * refund state to persist on the transaction.
+ */
 export interface RefundComputation {
   refundAmount: number; // currency to return (prorated share of the total incl. tax & discount)
   pointsReversal: number; // delta to apply to the customer's points balance
@@ -23,11 +29,13 @@ export interface RefundComputation {
   appliedItems: Record<string, number>; // The exact clamped quantities refunded in this operation
 }
 
-// Computes the effect of returning `selection` (productId -> qty) from a sale.
-// The refund is a proportional share of the *total* so discount and tax are
-// prorated; a full return therefore refunds exactly the total. Earned points
-// are reversed proportionally; redeemed loyalty points are returned only on a
-// full refund (fractional point proration would be arbitrary).
+/**
+ * Computes the effect of returning `selection` (productId -> qty) from a sale.
+ * The refund is a proportional share of the *total* so discount and tax are
+ * prorated; a full return therefore refunds exactly the total. Earned points
+ * are reversed proportionally; redeemed loyalty points are returned only on a
+ * full refund (fractional point proration would be arbitrary).
+ */
 export function computeRefund(
   tx: SaleTransaction,
   selection: Record<string, number>,

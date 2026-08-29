@@ -13,10 +13,12 @@ interface FleetViewProps {
 
 type Tab = 'live' | 'reports' | 'stores' | 'catalog';
 
-// Super-admin surface container: a tab switch between the live "connected
-// stores" board (Phase 1), the consolidated cross-store reporting dashboard
-// (Phase 2), central store & staff management (Phase 3), and central catalog
-// push (Phase 4). Keeps the sidebar to a single Fleet entry.
+/**
+ * Super-admin surface container: a tab switch between the live "connected
+ * stores" board (Phase 1), the consolidated cross-store reporting dashboard
+ * (Phase 2), central store & staff management (Phase 3), and central catalog
+ * push (Phase 4). Keeps the sidebar to a single Fleet entry.
+ */
 export default function FleetView({ orgId }: FleetViewProps) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('live');

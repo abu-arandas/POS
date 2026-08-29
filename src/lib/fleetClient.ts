@@ -28,8 +28,10 @@ async function withSession() {
   return signedIn ? client : null;
 }
 
-// Marks this terminal's store as "seen" via the store_heartbeat RPC. No-op
-// unless sync is on and a storeId is configured.
+/**
+ * Marks this terminal's store as "seen" via the store_heartbeat RPC. No-op
+ * unless sync is on and a storeId is configured.
+ */
 export async function sendStoreHeartbeat(): Promise<void> {
   const storeId = useSettingsStore.getState().storeId;
   if (!storeId) return;
@@ -42,9 +44,11 @@ export async function sendStoreHeartbeat(): Promise<void> {
   }
 }
 
-// Returns the org id this device account is a super-admin for, or null. Used to
-// decide whether to reveal the fleet board. RLS lets a user read only their own
-// memberships, so this can't leak other accounts' rows.
+/**
+ * Returns the org id this device account is a super-admin for, or null. Used to
+ * decide whether to reveal the fleet board. RLS lets a user read only their own
+ * memberships, so this can't leak other accounts' rows.
+ */
 export async function fetchSuperadminOrg(): Promise<string | null> {
   const client = await withSession();
   if (!client) return null;
@@ -66,8 +70,10 @@ export async function fetchSuperadminOrg(): Promise<string | null> {
   }
 }
 
-// Pulls the per-store rollup for the fleet board via the fleet_summary RPC.
-// Returns [] on any failure so the board can render an empty state.
+/**
+ * Pulls the per-store rollup for the fleet board via the fleet_summary RPC.
+ * Returns [] on any failure so the board can render an empty state.
+ */
 export async function fetchFleetSummary(orgId: string, since: Date): Promise<FleetStoreRow[]> {
   const client = await withSession();
   if (!client) return [];
@@ -90,8 +96,10 @@ export async function fetchFleetSummary(orgId: string, since: Date): Promise<Fle
   }
 }
 
-// Pulls per-store, per-day revenue/order buckets for the consolidated reporting
-// dashboard via the fleet_daily RPC. Returns [] on any failure.
+/**
+ * Pulls per-store, per-day revenue/order buckets for the consolidated reporting
+ * dashboard via the fleet_daily RPC. Returns [] on any failure.
+ */
 export async function fetchFleetDaily(orgId: string, since: Date): Promise<FleetDailyRow[]> {
   const client = await withSession();
   if (!client) return [];
@@ -134,6 +142,9 @@ function mapStore(r: Record<string, unknown>): Store {
   };
 }
 
+/**
+ * Lists the org's stores, name-ordered. Resolves [] without a session.
+ */
 export async function listStores(orgId: string): Promise<Store[]> {
   const client = await withSession();
   if (!client) return [];
@@ -151,8 +162,10 @@ export async function listStores(orgId: string): Promise<Store[]> {
   }
 }
 
-// Insert-or-update a store. Returns true on success. RLS restricts this to a
-// super-admin of the store's org.
+/**
+ * Insert-or-update a store. Returns true on success. RLS restricts this to a
+ * super-admin of the store's org.
+ */
 export async function upsertStore(store: Store): Promise<boolean> {
   const client = await withSession();
   if (!client) return false;
@@ -176,6 +189,9 @@ export async function upsertStore(store: Store): Promise<boolean> {
   }
 }
 
+/**
+ * Activates or suspends a store. Returns whether the write succeeded.
+ */
 export async function setStoreStatus(id: string, status: Store['status']): Promise<boolean> {
   const client = await withSession();
   if (!client) return false;
@@ -188,6 +204,9 @@ export async function setStoreStatus(id: string, status: Store['status']): Promi
   }
 }
 
+/**
+ * Lists every membership in the org — org-wide rows (store_id null) included.
+ */
 export async function listMemberships(orgId: string): Promise<Membership[]> {
   const client = await withSession();
   if (!client) return [];
@@ -209,9 +228,11 @@ export async function listMemberships(orgId: string): Promise<Membership[]> {
   }
 }
 
-// Assign (or re-assign) a user's role at a store. The functional uniqueness
-// index and the authorization check are handled in one database transaction by
-// set_membership; a failed request cannot leave a user without a membership.
+/**
+ * Assign (or re-assign) a user's role at a store. The functional uniqueness
+ * index and the authorization check are handled in one database transaction by
+ * set_membership; a failed request cannot leave a user without a membership.
+ */
 export async function setMembership(m: Membership): Promise<boolean> {
   const client = await withSession();
   if (!client) return false;
@@ -229,6 +250,10 @@ export async function setMembership(m: Membership): Promise<boolean> {
   }
 }
 
+/**
+ * Revokes one membership via the remove_membership RPC. Pass a null storeId
+ * to revoke the org-wide row.
+ */
 export async function removeMembership(
   userId: string,
   orgId: string,
@@ -254,6 +279,9 @@ export async function removeMembership(
 // a super-admin. Only additive/price writes flow through here (the diff is
 // computed by lib/catalogPush); never any deletes.
 
+/**
+ * Reads one store's product catalog, for previewing a catalog push.
+ */
 export async function fetchStoreProducts(storeId: string): Promise<Product[]> {
   const client = await withSession();
   if (!client) return [];
@@ -277,6 +305,9 @@ export async function fetchStoreProducts(storeId: string): Promise<Product[]> {
   }
 }
 
+/**
+ * Reads one store's categories, for previewing a catalog push.
+ */
 export async function fetchStoreCategories(storeId: string): Promise<Category[]> {
   const client = await withSession();
   if (!client) return [];
@@ -294,8 +325,16 @@ export async function fetchStoreCategories(storeId: string): Promise<Category[]>
   }
 }
 
-// Writes categories first (so product category FKs resolve), then products, all
-// stamped with the target store_id. Returns true on success.
+/**
+ * Applies a catalog to one store: categories first (so the product category FK
+ * resolves), then products, both stamped with the target store_id.
+ *
+ * Goes through the push_store_catalog RPC (see scripts/multi-store-schema.sql)
+ * rather than two upserts, so the whole push shares one transaction. That is
+ * what makes `false` mean "nothing was written" — as two requests, a product
+ * failure left behind categories the caller was never told about. Requires the
+ * multi-store migration to have been run.
+ */
 export async function pushStoreCatalog(
   storeId: string,
   categories: Category[],
@@ -303,37 +342,26 @@ export async function pushStoreCatalog(
 ): Promise<boolean> {
   const client = await withSession();
   if (!client) return false;
+  if (categories.length === 0 && products.length === 0) return true;
   try {
-    if (categories.length > 0) {
-      const { error: catErr } = await client.from('categories').upsert(
-        categories.map((c) => ({ id: c.id, name: c.name, color: c.color, store_id: storeId })),
-        { onConflict: 'id' },
-      );
-      if (catErr) {
-        console.warn('pushStoreCatalog categories failed:', catErr);
-        return false;
-      }
-    }
-    if (products.length > 0) {
-      const { error: prodErr } = await client.from('products').upsert(
-        products.map((p) => ({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          cost: p.cost,
-          category: p.category || null, // empty → NULL to satisfy the FK
-          sku: p.sku,
-          stock: p.stock,
-          min_stock: p.minStock,
-          image: p.image,
-          store_id: storeId,
-        })),
-        { onConflict: 'id' },
-      );
-      if (prodErr) {
-        console.warn('pushStoreCatalog products failed:', prodErr);
-        return false;
-      }
+    const { error } = await client.rpc('push_store_catalog', {
+      p_store_id: storeId,
+      p_categories: categories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+      p_products: products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        cost: p.cost,
+        category: p.category || null, // empty → NULL to satisfy the FK
+        sku: p.sku,
+        stock: p.stock,
+        min_stock: p.minStock,
+        image: p.image,
+      })),
+    });
+    if (error) {
+      console.warn('pushStoreCatalog failed:', error);
+      return false;
     }
     return true;
   } catch (err) {
@@ -345,13 +373,18 @@ export async function pushStoreCatalog(
 // ── Heartbeat loop ──────────────────────────────────────────────────────────
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
-// Starts a ~60s heartbeat (fires once immediately). Safe to call repeatedly.
+/**
+ * Starts a ~60s heartbeat (fires once immediately). Safe to call repeatedly.
+ */
 export function startFleetHeartbeat(intervalMs = 60_000): void {
   stopFleetHeartbeat();
   void sendStoreHeartbeat();
   heartbeatTimer = setInterval(() => void sendStoreHeartbeat(), intervalMs);
 }
 
+/**
+ * Stops the heartbeat timer. Safe to call when none is running.
+ */
 export function stopFleetHeartbeat(): void {
   if (heartbeatTimer) {
     clearInterval(heartbeatTimer);

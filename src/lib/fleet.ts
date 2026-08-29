@@ -4,14 +4,25 @@
 // multi-store backend is provisioned; these functions shape and fold whatever
 // rows come back.
 
+/**
+ * How recently a store last checked in, derived from its heartbeat by
+ * storeStatus.
+ */
 export type StorePresence = 'online' | 'stale' | 'offline';
 
-// Thresholds for translating a heartbeat timestamp into a presence state.
+/**
+ * Thresholds for translating a heartbeat timestamp into a presence state.
+ */
 export const PRESENCE_ONLINE_MS = 2 * 60 * 1000; // ≤ 2 min → online
+/**
+ * Upper bound for 'stale'. A heartbeat older than this reads as offline.
+ */
 export const PRESENCE_STALE_MS = 15 * 60 * 1000; // ≤ 15 min → stale, else offline
 
-// Classifies a store by how recently it last checked in. A missing/blank
-// timestamp is always offline.
+/**
+ * Classifies a store by how recently it last checked in. A missing/blank
+ * timestamp is always offline.
+ */
 export function storeStatus(
   lastSeenAt: string | null | undefined,
   now: number = Date.now(),
@@ -25,7 +36,9 @@ export function storeStatus(
   return 'offline';
 }
 
-// One row of the fleet board — a per-store rollup (from the fleet_summary RPC).
+/**
+ * One row of the fleet board — a per-store rollup (from the fleet_summary RPC).
+ */
 export interface FleetStoreRow {
   storeId: string;
   storeName: string;
@@ -34,10 +47,16 @@ export interface FleetStoreRow {
   lastSeenAt: string | null;
 }
 
+/**
+ * A store row with its heartbeat resolved to a presence state.
+ */
 export interface FleetStore extends FleetStoreRow {
   presence: StorePresence;
 }
 
+/**
+ * Roll-up across every store in the org, as the fleet board renders it.
+ */
 export interface FleetSummary {
   stores: FleetStore[];
   totalRevenue: number;
@@ -46,9 +65,11 @@ export interface FleetSummary {
   storeCount: number;
 }
 
-// Folds raw fleet rows into board-ready data: attaches presence to each store,
-// sums revenue/orders, counts online stores, and sorts online-first then by
-// revenue desc so the busiest live stores surface at the top.
+/**
+ * Folds raw fleet rows into board-ready data: attaches presence to each store,
+ * sums revenue/orders, counts online stores, and sorts online-first then by
+ * revenue desc so the busiest live stores surface at the top.
+ */
 export function summarizeFleet(rows: FleetStoreRow[], now: number = Date.now()): FleetSummary {
   const stores: FleetStore[] = rows.map((r) => ({
     ...r,

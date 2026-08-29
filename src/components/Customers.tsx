@@ -22,6 +22,10 @@ import { syncToCloudIfEnabled } from '../lib/sync';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
 
+/**
+ * Customer book screen: search, add, edit and delete customers, and review
+ * loyalty balances.
+ */
 export default function Customers() {
   const { t } = useTranslation();
   const { customers, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer } =

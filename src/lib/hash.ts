@@ -78,12 +78,18 @@ function sha256BytesSync(msg: Uint8Array): Uint8Array {
   return digest;
 }
 
+/**
+ * SHA-256 of a UTF-8 string as lowercase hex, computed without WebCrypto.
+ * The fallback used wherever `crypto.subtle` is unavailable.
+ */
 export function sha256HexSync(input: string): string {
   return bytesToHex(sha256BytesSync(new TextEncoder().encode(input)));
 }
 
-// Legacy unsalted SHA-256 helper. It remains available only to verify and
-// migrate hashes created by older releases.
+/**
+ * Legacy unsalted SHA-256 helper. It remains available only to verify and
+ * migrate hashes created by older releases.
+ */
 export async function hashPin(pin: string): Promise<string> {
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) return sha256HexSync(pin);
@@ -91,6 +97,10 @@ export async function hashPin(pin: string): Promise<string> {
   return bytesToHex(new Uint8Array(hashBuffer));
 }
 
+/**
+ * PBKDF2 work factor baked into every v2 hash. Stored inside the hash string
+ * itself, so raising it here leaves existing hashes verifiable.
+ */
 export const PBKDF2_ITERATIONS = 600_000;
 const HASH_VERSION = 'v2';
 const SALT_PREFIX = 'ea-pos-pin-salt:';
@@ -147,20 +157,35 @@ function pbkdf2Sha256Sync(pin: string, salt: Uint8Array): Uint8Array {
   return result;
 }
 
+/**
+ * Verifies v1 hashes (unsalted SHA-256 over `userId:pin`). Retained only to
+ * recognise an old hash so it can be upgraded in place.
+ */
 export function hashPinSaltedLegacySync(userId: string, pin: string): string {
   return sha256HexSync(`${userId}:${pin}`);
 }
 
+/**
+ * Async counterpart of hashPinSaltedLegacySync, for the same migration path.
+ */
 export async function hashPinSaltedLegacy(userId: string, pin: string): Promise<string> {
   return hashPin(`${userId}:${pin}`);
 }
 
+/**
+ * Derives a v2 PIN hash without WebCrypto. Encodes version, iteration count
+ * and salt alongside the digest so it stays verifiable across upgrades.
+ */
 export function hashPinSaltedSync(userId: string, pin: string): string {
   const salt = deriveSalt(userId);
   const derived = pbkdf2Sha256Sync(pin, salt);
   return `${HASH_VERSION}$${PBKDF2_ITERATIONS}$${bytesToHex(salt)}$${bytesToHex(derived)}`;
 }
 
+/**
+ * Derives a v2 PIN hash, preferring WebCrypto and falling back to the
+ * synchronous implementation where `crypto.subtle` is unavailable.
+ */
 export async function hashPinSalted(userId: string, pin: string): Promise<string> {
   const subtle = globalThis.crypto?.subtle;
   const salt = deriveSalt(userId);

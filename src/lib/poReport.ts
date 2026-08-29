@@ -1,6 +1,10 @@
 import { PurchaseOrder, PurchaseOrderStatus } from '../types';
 import { poTotal } from './purchaseOrders';
 
+/**
+ * One supplier's spend split into value already received and value still
+ * committed but outstanding.
+ */
 export interface SupplierSpend {
   supplierId: string | null;
   supplierName: string;
@@ -9,6 +13,10 @@ export interface SupplierSpend {
   orders: number; // count of orders (any status except cancelled)
 }
 
+/**
+ * Purchase-order roll-up: received vs outstanding value, counts by status, and
+ * per-supplier spend sorted by received value.
+ */
 export interface PoReport {
   receivedValue: number; // total spend on received orders
   outstandingValue: number; // committed value still open (draft + ordered)
@@ -32,9 +40,11 @@ function withinWindow(po: PurchaseOrder, days?: number): boolean {
   return !Number.isNaN(activityDate.getTime()) && activityDate >= start;
 }
 
-// Summarizes purchase orders for the Dashboard: total received spend,
-// outstanding committed value, counts per status, and per-supplier spend.
-// Cancelled orders are excluded from money totals but still counted.
+/**
+ * Summarizes purchase orders for the Dashboard: total received spend,
+ * outstanding committed value, counts per status, and per-supplier spend.
+ * Cancelled orders are excluded from money totals but still counted.
+ */
 export function buildPoReport(orders: PurchaseOrder[], days?: number): PoReport {
   const countByStatus: Record<PurchaseOrderStatus, number> = {
     draft: 0,

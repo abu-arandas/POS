@@ -61,6 +61,10 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
+/**
+ * Primary navigation. Shows only the screens the signed-in role may open, and
+ * reveals the fleet board only to a resolved super-admin.
+ */
 export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: SidebarProps) {
   const { currentUser, setCurrentUser } = useAuthStore();
   const { settings, darkMode, setDarkMode } = useSettingsStore();

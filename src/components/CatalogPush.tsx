@@ -41,10 +41,12 @@ const genId = (kind: 'product' | 'category') =>
 // large fleet could swamp the backend or trip rate limits.
 const CATALOG_PUSH_CONCURRENCY = 5;
 
-// Central catalog push (Phase 4). A super-admin picks a source store's catalog
-// and pushes new products / price updates / categories into one or more target
-// stores. Additive only — never deletes, and never touches per-store stock.
-// Preview-first: nothing is written until the operator reviews the diff.
+/**
+ * Central catalog push (Phase 4). A super-admin picks a source store's catalog
+ * and pushes new products / price updates / categories into one or more target
+ * stores. Additive only — never deletes, and never touches per-store stock.
+ * Preview-first: nothing is written until the operator reviews the diff.
+ */
 export default function CatalogPush({ orgId }: CatalogPushProps) {
   const { t } = useTranslation();
   const [stores, setStores] = useState<Store[]>([]);

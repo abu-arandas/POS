@@ -5,10 +5,12 @@
 
 import { PrinterConfig, ReceiptLayout, ReceiptToggles } from '../types';
 
-// Formats a date with a subset of the familiar yyyy/MM/dd HH:mm tokens. Longer
-// tokens are matched first (yyyy before yy, MM before M, …) so patterns like
-// 'yyyy-MM-dd' and 'h:mm a' resolve correctly. Unknown characters pass through
-// as literal separators.
+/**
+ * Formats a date with a subset of the familiar yyyy/MM/dd HH:mm tokens. Longer
+ * tokens are matched first (yyyy before yy, MM before M, …) so patterns like
+ * 'yyyy-MM-dd' and 'h:mm a' resolve correctly. Unknown characters pass through
+ * as literal separators.
+ */
 export function formatDateTime(date: Date, pattern: string): string {
   const h24 = date.getHours();
   const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
@@ -33,21 +35,36 @@ export function formatDateTime(date: Date, pattern: string): string {
   return pattern.replace(/yyyy|yy|MM|M|dd|d|HH|H|hh|h|mm|m|ss|s|a/g, (tok) => map[tok] ?? tok);
 }
 
-// Preset options surfaced in the settings dropdowns (with a live sample).
+/**
+ * Preset options surfaced in the settings dropdowns (with a live sample).
+ */
 export const DATE_FORMATS = ['yyyy-MM-dd', 'dd/MM/yyyy', 'MM/dd/yyyy', 'dd-MM-yyyy'];
+/**
+ * Time patterns offered in the settings dropdown.
+ */
 export const TIME_FORMATS = ['h:mm a', 'HH:mm', 'hh:mm a', 'HH:mm:ss'];
+/**
+ * Fonts offered for the receipt, and the whitelist safeFontFamily validates
+ * against before a stored value reaches a <style> block.
+ */
 export const RECEIPT_FONTS = ['monospace', 'Arial', 'Courier New', 'Tahoma', 'Times New Roman'];
 
-// The receipt document interpolates the font name straight into a <style>
-// block, and one of its render targets is a same-origin window.open() print
-// window. A stored value containing `</style><script>` would therefore execute
-// with the app's origin. The settings UI only ever offers RECEIPT_FONTS, but
-// the value is persisted in IndexedDB and arrives here as plain text, so it is
-// re-checked against the whitelist at render time rather than trusted.
+/**
+ * The receipt document interpolates the font name straight into a <style>
+ * block, and one of its render targets is a same-origin window.open() print
+ * window. A stored value containing `</style><script>` would therefore execute
+ * with the app's origin. The settings UI only ever offers RECEIPT_FONTS, but
+ * the value is persisted in IndexedDB and arrives here as plain text, so it is
+ * re-checked against the whitelist at render time rather than trusted.
+ */
 export function safeFontFamily(fontFamily: string | undefined): string {
   return fontFamily && RECEIPT_FONTS.includes(fontFamily) ? fontFamily : 'monospace';
 }
 
+/**
+ * Every receipt field enabled — the starting point for a new layout and the
+ * fallback for one that predates a newly added toggle.
+ */
 export function allTogglesOn(): ReceiptToggles {
   return {
     logo: true,
@@ -71,9 +88,11 @@ export function allTogglesOn(): ReceiptToggles {
   };
 }
 
-// A sensible starting customer receipt: everything on except the two newly
-// added blocks (branch name, tax number), which stay off until an operator
-// fills those store fields in.
+/**
+ * A sensible starting customer receipt: everything on except the two newly
+ * added blocks (branch name, tax number), which stay off until an operator
+ * fills those store fields in.
+ */
 export function defaultReceiptLayout(): ReceiptLayout {
   return {
     header: '',
@@ -86,8 +105,10 @@ export function defaultReceiptLayout(): ReceiptLayout {
   };
 }
 
-// The kitchen ticket only needs what the line cooks read: items, order id, time,
-// who rang it. Prices, totals, payment, logo, address, tax and barcode are off.
+/**
+ * The kitchen ticket only needs what the line cooks read: items, order id, time,
+ * who rang it. Prices, totals, payment, logo, address, tax and barcode are off.
+ */
 export function defaultKitchenLayout(): ReceiptLayout {
   return {
     header: '',
@@ -115,10 +136,12 @@ export function defaultKitchenLayout(): ReceiptLayout {
   };
 }
 
-// Behavior for a renderer called without an explicit layout: preserve the
-// pre-settings output exactly — everything on, footer/barcode taken from the
-// PrinterConfig, and the two brand-new blocks (branch, tax number) left off
-// since they never printed before.
+/**
+ * Behavior for a renderer called without an explicit layout: preserve the
+ * pre-settings output exactly — everything on, footer/barcode taken from the
+ * PrinterConfig, and the two brand-new blocks (branch, tax number) left off
+ * since they never printed before.
+ */
 export function legacyLayout(printerConfig: PrinterConfig): ReceiptLayout {
   return {
     ...defaultReceiptLayout(),
@@ -132,6 +155,10 @@ export function legacyLayout(printerConfig: PrinterConfig): ReceiptLayout {
   };
 }
 
+/**
+ * The customer layout to print with, falling back to the legacy paper-size
+ * default for a store that has never customised one.
+ */
 export function resolveCustomerLayout(
   layout: ReceiptLayout | undefined,
   printerConfig: PrinterConfig,
@@ -139,6 +166,9 @@ export function resolveCustomerLayout(
   return layout ?? legacyLayout(printerConfig);
 }
 
+/**
+ * The kitchen layout to print with, falling back to the built-in default.
+ */
 export function resolveKitchenLayout(layout: ReceiptLayout | undefined): ReceiptLayout {
   return layout ?? defaultKitchenLayout();
 }

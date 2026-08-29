@@ -1,8 +1,10 @@
-// `crypto.randomUUID` only exists in secure contexts (https / localhost /
-// Electron); on a plain-http LAN deploy it is undefined and would crash every
-// checkout / add-product action. `getRandomValues` is available everywhere,
-// with Math.random as a last resort. Always return a full 128-bit identifier so
-// primary-key collisions remain negligible as the terminal grows.
+/**
+ * `crypto.randomUUID` only exists in secure contexts (https / localhost /
+ * Electron); on a plain-http LAN deploy it is undefined and would crash every
+ * checkout / add-product action. `getRandomValues` is available everywhere,
+ * with Math.random as a last resort. Always return a full 128-bit identifier so
+ * primary-key collisions remain negligible as the terminal grows.
+ */
 export function shortId(): string {
   const c = globalThis.crypto;
   if (c?.randomUUID) return c.randomUUID();

@@ -1,8 +1,10 @@
 import { SaleTransaction } from '../types';
 
-// Net cash a sale contributes to the drawer: cash tendered minus change given.
-// For a single-cash sale that equals the total; for a split sale it's the cash
-// tender line(s) minus change; card/mobile/gift contribute nothing.
+/**
+ * Net cash a sale contributes to the drawer: cash tendered minus change given.
+ * For a single-cash sale that equals the total; for a split sale it's the cash
+ * tender line(s) minus change; card/mobile/gift contribute nothing.
+ */
 export function cashKept(tx: SaleTransaction): number {
   if (tx.payments && tx.payments.length > 1) {
     const cashLine = tx.payments
@@ -17,6 +19,10 @@ export function cashKept(tx: SaleTransaction): number {
   return 0;
 }
 
+/**
+ * Z-report figures for one shift. `expectedCash` closes over the tallies so
+ * the caller supplies only the opening float.
+ */
 export interface ShiftSummary {
   saleCount: number;
   grossSales: number; // sum of sale totals (net of refunds)
@@ -28,9 +34,11 @@ export interface ShiftSummary {
   expectedCash: (openingFloat: number) => number;
 }
 
-// Tallies a set of transactions (already filtered to one shift) into the
-// figures a Z-report needs. Refunds reduce gross sales; cash refunds of
-// cash sales reduce the drawer.
+/**
+ * Tallies a set of transactions (already filtered to one shift) into the
+ * figures a Z-report needs. Refunds reduce gross sales; cash refunds of
+ * cash sales reduce the drawer.
+ */
 export function summarizeShift(transactions: SaleTransaction[]): ShiftSummary {
   let grossSales = 0;
   let cashSales = 0;

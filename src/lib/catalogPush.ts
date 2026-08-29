@@ -16,6 +16,9 @@
 
 import { Product, Category } from '../types';
 
+/**
+ * Which parts of the source catalog a push is allowed to change in the target.
+ */
 export interface CatalogPushOptions {
   addNewProducts: boolean;
   updatePrices: boolean;
@@ -23,6 +26,10 @@ export interface CatalogPushOptions {
   pushCategories: boolean;
 }
 
+/**
+ * The resolved effect of a push: the exact rows to upsert plus a summary the
+ * UI shows for confirmation before anything is written.
+ */
 export interface CatalogPushPlan {
   categoriesToUpsert: Category[]; // new categories for the target (fresh ids)
   productsToUpsert: Product[]; // new products (fresh ids) + price/cost updates (target ids)
@@ -39,19 +46,27 @@ function norm(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-// Business key for cross-store product matching: SKU if present, else name.
+/**
+ * Business key for cross-store product matching: SKU if present, else name.
+ */
 export function productKey(p: Product): string {
   const sku = p.sku?.trim();
   return sku ? `sku:${norm(sku)}` : `name:${norm(p.name)}`;
 }
 
+/**
+ * Normalized key used to match a source category to an existing target one.
+ * Matching is by name, since ids are per-store.
+ */
 export function categoryKey(name: string): string {
   return norm(name);
 }
 
-// Computes exactly what to write into one target store to reconcile it toward
-// the source catalog, honoring the options. `genId` mints target-scoped ids
-// (injected so tests can pass a deterministic generator).
+/**
+ * Computes exactly what to write into one target store to reconcile it toward
+ * the source catalog, honoring the options. `genId` mints target-scoped ids
+ * (injected so tests can pass a deterministic generator).
+ */
 export function planCatalogPush(
   source: { products: Product[]; categories: Category[] },
   target: { products: Product[]; categories: Category[] },
