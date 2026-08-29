@@ -153,14 +153,11 @@ jobs:
           if-no-files-found: error
 
   publish-release:
-    # A signed build publishes automatically. An unsigned one publishes only on
-    # a manual run — dispatching by hand is how a human asks for it — and is
-    # marked as a pre-release so electron-updater does not push it to installed
-    # terminals. A push to main can therefore never publish an unsigned build.
-    if: >-
-      github.event_name != 'pull_request' &&
-      (needs.build-windows.outputs.signed == 'true' ||
-       github.event_name == 'workflow_dispatch')
+    # Every non-PR run publishes the generated installer. Signed builds are
+    # normal releases; unsigned builds are explicitly marked as pre-releases so
+    # electron-updater does not offer them to installed terminals. This keeps a
+    # push to main useful even before the repository's signing secrets exist.
+    if: github.event_name != 'pull_request'
     needs: build-windows
     runs-on: ubuntu-latest
     # Downloads one artifact and calls `gh release create`; minutes, not tens.
