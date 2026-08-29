@@ -10,6 +10,9 @@
 // storage (see stores/pinAttemptStore) and supplies `now` so tests are
 // deterministic.
 
+/**
+ * Failed-PIN state for one throttle key.
+ */
 export interface AttemptRecord {
   failures: number;
   // When the current lockout expires (epoch ms). 0 = not locked.
@@ -18,22 +21,33 @@ export interface AttemptRecord {
   lastFailureAt: number;
 }
 
+/**
+ * Every throttle key's attempt record, keyed by user id.
+ */
 export type AttemptState = Record<string, AttemptRecord>;
 
-// Free guesses before the first lockout kicks in.
+/**
+ * Wrong guesses an account gets before the throttle engages. The fifth
+ * consecutive failure is the one that opens the first cool-off — `attemptsLeft`
+ * counts down from here and reads 0 at the moment the lockout starts.
+ */
 export const FREE_ATTEMPTS = 5;
 
-// Cool-off per lockout step, in ms. Each further failure moves one step down
-// the ladder and then stays at the longest delay.
+/**
+ * Cool-off per lockout step, in ms. Each further failure moves one step down
+ * the ladder and then stays at the longest delay.
+ */
 export const LOCKOUT_LADDER_MS = [30_000, 60_000, 120_000, 300_000, 900_000];
 
-// A failure streak older than this is forgotten, so an honest operator who
-// fat-fingers a PIN today doesn't start tomorrow one mistake from a lockout.
-//
-// Must stay comfortably LONGER than the last rung of the ladder. If it were
-// equal, sitting out the longest lockout would also expire the streak, handing
-// the attacker a fresh set of free attempts and pinning them to the cheapest
-// rung forever — the escalation would never actually bite.
+/**
+ * A failure streak older than this is forgotten, so an honest operator who
+ * fat-fingers a PIN today doesn't start tomorrow one mistake from a lockout.
+ *
+ * Must stay comfortably LONGER than the last rung of the ladder. If it were
+ * equal, sitting out the longest lockout would also expire the streak, handing
+ * the attacker a fresh set of free attempts and pinning them to the cheapest
+ * rung forever — the escalation would never actually bite.
+ */
 export const STREAK_RESET_MS = 30 * 60 * 1000;
 
 const EMPTY: AttemptRecord = { failures: 0, lockedUntil: 0, lastFailureAt: 0 };
@@ -46,12 +60,20 @@ function recordFor(state: AttemptState, key: string, now: number): AttemptRecord
   return rec;
 }
 
+/**
+ * The lockout picture for one key at a point in time, as the lockscreen
+ * renders it.
+ */
 export interface LockoutStatus {
   locked: boolean;
   remainingMs: number; // time left on the current lockout (0 when unlocked)
   attemptsLeft: number; // failures remaining before the next lockout
 }
 
+/**
+ * Resolves whether a key is locked right now, how long is left, and how many
+ * guesses remain before the next lockout. Expires a stale failure streak.
+ */
 export function lockoutStatus(state: AttemptState, key: string, now: number): LockoutStatus {
   const rec = recordFor(state, key, now);
   const locked = rec.lockedUntil > now;
@@ -62,7 +84,9 @@ export function lockoutStatus(state: AttemptState, key: string, now: number): Lo
   };
 }
 
-// Registers a wrong PIN. Returns the next state; the caller persists it.
+/**
+ * Registers a wrong PIN. Returns the next state; the caller persists it.
+ */
 export function recordFailure(state: AttemptState, key: string, now: number): AttemptState {
   const rec = recordFor(state, key, now);
   const failures = rec.failures + 1;
@@ -76,7 +100,9 @@ export function recordFailure(state: AttemptState, key: string, now: number): At
   return { ...state, [key]: { failures, lockedUntil, lastFailureAt: now } };
 }
 
-// Clears an account's streak after a correct PIN.
+/**
+ * Clears an account's streak after a correct PIN.
+ */
 export function clearFailures(state: AttemptState, key: string): AttemptState {
   if (!state[key]) return state;
   const next = { ...state };
@@ -84,7 +110,9 @@ export function clearFailures(state: AttemptState, key: string): AttemptState {
   return next;
 }
 
-// "30s" / "2m 30s" — for the "try again in …" message.
+/**
+ * "30s" / "2m 30s" — for the "try again in …" message.
+ */
 export function formatRemaining(remainingMs: number): string {
   const totalSeconds = Math.ceil(remainingMs / 1000);
   const minutes = Math.floor(totalSeconds / 60);

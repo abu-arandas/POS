@@ -11,8 +11,10 @@ interface ShiftState {
   closeShift: (id: string, countedCash: number, note: string, closedBy: string) => void;
 }
 
-// Register shifts are terminal-local (one physical drawer), so they persist to
-// IndexedDB and are not cloud-synced.
+/**
+ * Register shifts are terminal-local (one physical drawer), so they persist to
+ * IndexedDB and are not cloud-synced.
+ */
 export const useShiftStore = create<ShiftState>()(
   persist(
     (set, get) => ({

@@ -19,6 +19,12 @@ on:
   schedule:
     - cron: '29 16 * * 4'
 
+# The workflow-wide floor. Without it every job would inherit whatever the
+# repository default happens to be, which can be read-write on all scopes.
+# The analyze job below widens this to exactly the scopes CodeQL needs.
+permissions:
+  contents: read
+
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})

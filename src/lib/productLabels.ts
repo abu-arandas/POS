@@ -7,13 +7,18 @@ import { code128Svg } from './barcode';
 // DOM-free (returns HTML strings) so it's unit-testable; the print path opens a
 // window with the sheet.
 
+/**
+ * Sheet layout and which fields each label carries.
+ */
 export interface LabelOptions {
   columns?: number; // labels per row on the sheet
   showPrice?: boolean;
   showBarcode?: boolean;
 }
 
-// One label cell.
+/**
+ * One label cell.
+ */
 export function buildLabelHtml(
   product: Product,
   settings: StoreSettings,
@@ -39,7 +44,9 @@ export function buildLabelHtml(
     </div>`;
 }
 
-// Full printable sheet for a set of products.
+/**
+ * Full printable sheet for a set of products.
+ */
 export function buildLabelSheetHtml(
   products: Product[],
   settings: StoreSettings,
@@ -88,10 +95,15 @@ export function buildLabelSheetHtml(
 </html>`;
 }
 
+/**
+ * Whether the label sheet reached a print window, and if not, why.
+ */
 export type LabelPrintOutcome = 'printed' | 'popup-blocked' | 'empty';
 
-// Opens a print window with the label sheet. Returns an outcome the caller can
-// surface. DOM-touching, so it's excluded from the pure unit tests above.
+/**
+ * Opens a print window with the label sheet. Returns an outcome the caller can
+ * surface. DOM-touching, so it's excluded from the pure unit tests above.
+ */
 export function printProductLabels(
   products: Product[],
   settings: StoreSettings,

@@ -11,6 +11,11 @@ interface State {
   error: Error | null;
 }
 
+/**
+ * Catches render errors below it and shows a recoverable fallback instead of a
+ * blank screen — on a POS terminal, a white screen mid-sale is the worst
+ * possible failure mode.
+ */
 export class ErrorBoundary extends Component<Props, State> {
   public override state: State = {
     hasError: false,

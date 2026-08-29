@@ -46,6 +46,10 @@ import { safeImageUrl } from '../lib/imageUrl';
 // account — any manager/admin PIN authorizes, so the guesser names no user).
 const OVERRIDE_THROTTLE_KEY = '__manager_override__';
 
+/**
+ * Sale history screen: search past transactions, reprint receipts, and issue
+ * full or partial refunds.
+ */
 export default function History() {
   const { t } = useTranslation();
   const { transactions, applyRefund, deleteTransactions } = useTransactionStore();

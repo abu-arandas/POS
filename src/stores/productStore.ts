@@ -28,6 +28,10 @@ const DEFAULT_PRODUCTS: Product[] =
 const DEFAULT_CATEGORIES: Category[] =
   import.meta.env.DEV || import.meta.env.MODE === 'test' ? INITIAL_CATEGORIES : [];
 
+/**
+ * The product catalog and its categories, including stock levels. Persisted to
+ * IndexedDB so the terminal keeps trading fully offline.
+ */
 export const useProductStore = create<ProductState>()(
   persist(
     (set, get) => ({

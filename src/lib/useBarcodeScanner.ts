@@ -8,11 +8,13 @@ interface BarcodeScannerOptions {
   maxInterKeyMs?: number;
 }
 
-// Detects hardware barcode scanners, which act as keyboard wedges: they "type"
-// the code far faster than a person and finish with Enter. We buffer only
-// fast-arriving characters and, on Enter, treat a sufficiently long burst as a
-// scan. Manual typing (slow keystrokes) never accumulates into a burst, and we
-// ignore input while an editable field is focused so search/PIN entry is safe.
+/**
+ * Detects hardware barcode scanners, which act as keyboard wedges: they "type"
+ * the code far faster than a person and finish with Enter. We buffer only
+ * fast-arriving characters and, on Enter, treat a sufficiently long burst as a
+ * scan. Manual typing (slow keystrokes) never accumulates into a burst, and we
+ * ignore input while an editable field is focused so search/PIN entry is safe.
+ */
 export function useBarcodeScanner({
   onScan,
   enabled = true,

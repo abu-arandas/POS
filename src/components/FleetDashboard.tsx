@@ -69,10 +69,12 @@ function TrendTooltip({
   );
 }
 
-// Consolidated cross-store reporting (Phase 2). Aggregates the fleet_summary /
-// fleet_daily RPCs across every store in the org, with a period selector and a
-// per-store drill-in filter. Reuses the recharts language of the single-store
-// Dashboard. Read-only; renders an empty state on any backend hiccup.
+/**
+ * Consolidated cross-store reporting (Phase 2). Aggregates the fleet_summary /
+ * fleet_daily RPCs across every store in the org, with a period selector and a
+ * per-store drill-in filter. Reuses the recharts language of the single-store
+ * Dashboard. Read-only; renders an empty state on any backend hiccup.
+ */
 export default function FleetDashboard({ orgId }: FleetDashboardProps) {
   const { t } = useTranslation();
   const cur = useSettingsStore((s) => s.settings.currency);

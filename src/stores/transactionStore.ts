@@ -4,6 +4,10 @@ import { SaleTransaction, RefundedItem } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { deleteTransactionsCloudIfEnabled } from '../lib/sync';
 
+/**
+ * The fields a refund writes back onto the original transaction. Computed by
+ * computeRefund so the store only persists the result.
+ */
 export interface RefundPatch {
   refundedItems: RefundedItem[];
   refundedAmount: number;
@@ -20,6 +24,10 @@ interface TransactionState {
   deleteTransactions: (ids: string[]) => void;
 }
 
+/**
+ * Sale history for this terminal, and the refunds applied to it. Persisted to
+ * IndexedDB; this is the record a Z-report and the dashboard read from.
+ */
 export const useTransactionStore = create<TransactionState>()(
   persist(
     (set, get) => ({

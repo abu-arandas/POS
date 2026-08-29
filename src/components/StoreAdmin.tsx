@@ -49,10 +49,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 const FLD =
   'w-full bg-[var(--surface-1)] border border-slate-200 dark:border-white/10 focus:border-emerald-500/40 text-slate-700 dark:text-slate-200 text-sm px-3 py-2 rounded-lg focus:outline-none placeholder:text-slate-600';
 
-// Central store & staff management (Phase 3). A super-admin can create, rename,
-// and suspend/activate stores, and manage each store's cloud memberships
-// (role per Supabase user). Every write is RLS-gated to a super-admin on the
-// backend; this screen is the convenience surface.
+/**
+ * Central store & staff management (Phase 3). A super-admin can create, rename,
+ * and suspend/activate stores, and manage each store's cloud memberships
+ * (role per Supabase user). Every write is RLS-gated to a super-admin on the
+ * backend; this screen is the convenience surface.
+ */
 export default function StoreAdmin({ orgId }: StoreAdminProps) {
   const { t } = useTranslation();
   const [stores, setStores] = useState<Store[]>([]);

@@ -4,6 +4,9 @@
 
 import { Role } from '../types';
 
+/**
+ * The store fields an operator fills in when creating or editing a store.
+ */
 export interface StoreFormInput {
   name: string;
   address?: string;
@@ -11,21 +14,32 @@ export interface StoreFormInput {
   currency: string;
 }
 
+/**
+ * Per-field validation messages. An empty object means the form is valid.
+ */
 export interface StoreFormErrors {
   name?: string;
   timezone?: string;
   currency?: string;
 }
 
-// Roles a super-admin can assign to a per-store membership. `superadmin` is an
-// org-wide tier (store_id is null) and is never handed out per store here.
+/**
+ * Roles a super-admin can assign to a per-store membership. `superadmin` is an
+ * org-wide tier (store_id is null) and is never handed out per store here.
+ */
 export const ASSIGNABLE_ROLES: Role[] = ['admin', 'manager', 'cashier'];
 
+/**
+ * Whether a string is a role a super-admin may assign to a per-store
+ * membership.
+ */
 export function isAssignableRole(role: string): role is Role {
   return (ASSIGNABLE_ROLES as string[]).includes(role);
 }
 
-// Field-level validation. Returns an errors object; empty means valid.
+/**
+ * Field-level validation. Returns an errors object; empty means valid.
+ */
 export function validateStoreForm(input: StoreFormInput): StoreFormErrors {
   const errors: StoreFormErrors = {};
   if (!input.name.trim()) errors.name = 'required';
@@ -36,13 +50,18 @@ export function validateStoreForm(input: StoreFormInput): StoreFormErrors {
   return errors;
 }
 
+/**
+ * Whether the form passes every field-level rule.
+ */
 export function isStoreFormValid(input: StoreFormInput): boolean {
   return Object.keys(validateStoreForm(input)).length === 0;
 }
 
-// Derives a URL-safe, collision-free store id from a name. Falls back to
-// 'store' when the name has no usable characters, and appends -2, -3, … when an
-// id is already taken.
+/**
+ * Derives a URL-safe, collision-free store id from a name. Falls back to
+ * 'store' when the name has no usable characters, and appends -2, -3, … when an
+ * id is already taken.
+ */
 export function slugifyStoreId(name: string, existingIds: string[] = []): string {
   const base =
     name
@@ -58,8 +77,10 @@ export function slugifyStoreId(name: string, existingIds: string[] = []): string
   return `${base}-${n}`;
 }
 
-// Normalizes raw form input into a persistable shape (trimmed, empty address
-// dropped). The caller supplies id/orgId/status/createdAt.
+/**
+ * Normalizes raw form input into a persistable shape (trimmed, empty address
+ * dropped). The caller supplies id/orgId/status/createdAt.
+ */
 export function normalizeStoreForm(input: StoreFormInput): StoreFormInput {
   const address = input.address?.trim();
   return {
