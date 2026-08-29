@@ -326,8 +326,14 @@ export async function fetchStoreCategories(storeId: string): Promise<Category[]>
 }
 
 /**
- * Writes categories first (so product category FKs resolve), then products, all
- * stamped with the target store_id. Returns true on success.
+ * Applies a catalog to one store: categories first (so the product category FK
+ * resolves), then products, both stamped with the target store_id.
+ *
+ * Goes through the push_store_catalog RPC (see scripts/multi-store-schema.sql)
+ * rather than two upserts, so the whole push shares one transaction. That is
+ * what makes `false` mean "nothing was written" — as two requests, a product
+ * failure left behind categories the caller was never told about. Requires the
+ * multi-store migration to have been run.
  */
 export async function pushStoreCatalog(
   storeId: string,
@@ -336,37 +342,26 @@ export async function pushStoreCatalog(
 ): Promise<boolean> {
   const client = await withSession();
   if (!client) return false;
+  if (categories.length === 0 && products.length === 0) return true;
   try {
-    if (categories.length > 0) {
-      const { error: catErr } = await client.from('categories').upsert(
-        categories.map((c) => ({ id: c.id, name: c.name, color: c.color, store_id: storeId })),
-        { onConflict: 'id' },
-      );
-      if (catErr) {
-        console.warn('pushStoreCatalog categories failed:', catErr);
-        return false;
-      }
-    }
-    if (products.length > 0) {
-      const { error: prodErr } = await client.from('products').upsert(
-        products.map((p) => ({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          cost: p.cost,
-          category: p.category || null, // empty → NULL to satisfy the FK
-          sku: p.sku,
-          stock: p.stock,
-          min_stock: p.minStock,
-          image: p.image,
-          store_id: storeId,
-        })),
-        { onConflict: 'id' },
-      );
-      if (prodErr) {
-        console.warn('pushStoreCatalog products failed:', prodErr);
-        return false;
-      }
+    const { error } = await client.rpc('push_store_catalog', {
+      p_store_id: storeId,
+      p_categories: categories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+      p_products: products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        cost: p.cost,
+        category: p.category || null, // empty → NULL to satisfy the FK
+        sku: p.sku,
+        stock: p.stock,
+        min_stock: p.minStock,
+        image: p.image,
+      })),
+    });
+    if (error) {
+      console.warn('pushStoreCatalog failed:', error);
+      return false;
     }
     return true;
   } catch (err) {

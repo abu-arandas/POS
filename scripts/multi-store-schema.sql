@@ -315,6 +315,100 @@ $$;
 REVOKE ALL ON FUNCTION public.remove_membership(UUID, TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.remove_membership(UUID, TEXT, TEXT) TO authenticated;
 
+-- 7b. Atomic catalog push ------------------------------------------------
+-- Same reasoning as section 7, one level up: the fleet console pushed a
+-- catalog as two HTTP requests, categories then products. A category upsert
+-- that succeeded followed by a product upsert that failed left the target
+-- store holding categories whose products never arrived, and the caller saw
+-- only `false` — no way to tell "nothing was written" from "half of it was".
+--
+-- A plpgsql body runs in the caller's transaction, so both statements commit
+-- or roll back together. Categories still go first: products.category is a FK
+-- to categories(id), and by the second statement the new rows exist in the
+-- transaction.
+--
+-- SECURITY INVOKER, like set_membership above: the per-table policies from
+-- multi-store-rls-enforce.sql (has_store_access(store_id)) remain the
+-- authorization gate. This deliberately neither widens nor narrows who may
+-- write a catalog — it is exactly the authorization the two direct upserts
+-- already had, and re-implementing it here would be one more thing to drift.
+CREATE OR REPLACE FUNCTION public.push_store_catalog(
+  p_store_id TEXT,
+  p_categories JSONB,
+  p_products JSONB
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+  -- categories.id and products.id are globally unique: store_id is a plain
+  -- column, not part of the key. So an upsert keyed on id alone reaches across
+  -- store boundaries — a payload carrying an id that already belongs to another
+  -- store would update that store's row, and writing store_id in the DO UPDATE
+  -- would move it wholesale. Moving a category is the worse half: products left
+  -- behind in the original store keep a category reference that now points into
+  -- a different store.
+  --
+  -- planCatalogPush never produces such a payload (it mints fresh ids and
+  -- otherwise reuses the target store's own), but this is an authenticated RPC
+  -- and the callers are not the only thing that can reach it. So a collision is
+  -- refused outright rather than resolved: raising here aborts the whole push,
+  -- which is the same all-or-nothing guarantee the rest of this function gives.
+  IF EXISTS (
+    SELECT 1
+    FROM jsonb_to_recordset(COALESCE(p_categories, '[]'::jsonb)) AS c(id TEXT)
+    JOIN categories existing ON existing.id = c.id
+    WHERE existing.store_id IS DISTINCT FROM p_store_id
+  ) THEN
+    RAISE EXCEPTION
+      'push_store_catalog: a category id in this payload already belongs to a different store than %',
+      p_store_id;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM jsonb_to_recordset(COALESCE(p_products, '[]'::jsonb)) AS p(id TEXT)
+    JOIN products existing ON existing.id = p.id
+    WHERE existing.store_id IS DISTINCT FROM p_store_id
+  ) THEN
+    RAISE EXCEPTION
+      'push_store_catalog: a product id in this payload already belongs to a different store than %',
+      p_store_id;
+  END IF;
+
+  -- store_id is set on insert but never in the DO UPDATE: past the guard above
+  -- an existing row is already scoped to p_store_id, so re-writing it could only
+  -- ever change a scope, never establish the right one.
+  INSERT INTO categories (id, name, color, store_id)
+  SELECT c.id, c.name, c.color, p_store_id
+  FROM jsonb_to_recordset(COALESCE(p_categories, '[]'::jsonb))
+    AS c(id TEXT, name TEXT, color TEXT)
+  ON CONFLICT (id) DO UPDATE
+    SET name  = EXCLUDED.name,
+        color = EXCLUDED.color;
+
+  INSERT INTO products (id, name, price, cost, category, sku, stock, min_stock, image, store_id)
+  SELECT p.id, p.name, p.price, p.cost, NULLIF(p.category, ''), p.sku,
+         p.stock, p.min_stock, p.image, p_store_id
+  FROM jsonb_to_recordset(COALESCE(p_products, '[]'::jsonb))
+    AS p(id TEXT, name TEXT, price NUMERIC, cost NUMERIC, category TEXT,
+         sku TEXT, stock INTEGER, min_stock INTEGER, image TEXT)
+  ON CONFLICT (id) DO UPDATE
+    SET name      = EXCLUDED.name,
+        price     = EXCLUDED.price,
+        cost      = EXCLUDED.cost,
+        category  = EXCLUDED.category,
+        sku       = EXCLUDED.sku,
+        stock     = EXCLUDED.stock,
+        min_stock = EXCLUDED.min_stock,
+        image     = EXCLUDED.image;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.push_store_catalog(TEXT, JSONB, JSONB) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.push_store_catalog(TEXT, JSONB, JSONB) TO authenticated;
+
 -- 8. Heartbeat: a terminal marks its store "seen". Only its own store, and
 --    only if it has access to it (RLS-checked inside the function body).
 CREATE OR REPLACE FUNCTION store_heartbeat(p_store TEXT)
