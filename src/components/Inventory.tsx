@@ -36,6 +36,7 @@ import { useTranslation } from 'react-i18next';
 import { notify } from '../lib/notifications';
 import { askConfirmation } from '../lib/dialogs';
 import { safeImageUrl } from '../lib/imageUrl';
+import { shortId } from '../lib/ids';
 
 // Colors available for categories
 const categoryColors = [
@@ -303,7 +304,7 @@ export default function Inventory() {
   const handleOpenAddProduct = useCallback(() => {
     setEditingProduct(null);
     setProdName('');
-    setProdSku(`SKU-${Math.floor(100000 + Math.random() * 900000)}`);
+    setProdSku(`SKU-${shortId().replaceAll('-', '').slice(0, 6).toUpperCase()}`);
     setProdCategory(categories[0]?.id || '');
     setProdPrice('');
     setProdCost('');

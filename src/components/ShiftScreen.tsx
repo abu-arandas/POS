@@ -19,6 +19,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { summarizeShift } from '../lib/shiftReport';
 import { escapeHtml } from '../lib/escapeHtml';
+import { openDetachedPrintWindow } from '../lib/printWindow';
 import { Shift } from '../types';
 import { askConfirmation } from '../lib/dialogs';
 
@@ -75,7 +76,7 @@ export default function ShiftScreen() {
     const s = summarizeShift(txns);
     const expected = s.expectedCash(shift.openingFloat);
     const counted = shift.countedCash ?? 0;
-    const w = window.open('', '_blank');
+    const w = openDetachedPrintWindow();
     if (!w) return;
     const esc = escapeHtml;
     // row() escapes both of its arguments, so callers pass RAW values. Passing

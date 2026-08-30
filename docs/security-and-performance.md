@@ -10,7 +10,15 @@ A scanner report is still useful as a prompt to verify the authoritative boundar
 
 The report identified `cacheable-request@7.0.4` through the development-only `electron-builder → app-builder-lib → @electron/get → got` chain. The existing override resolved its transitive `http-cache-semantics` dependency to `4.2.0`; it is now pinned explicitly to that verified patched version in `package.json`. The upstream GitHub advisory marks GHSA-8x6c-cv3v-vp6g as **withdrawn** while listing versions before `10.2.7` as affected, and the upstream Got discussion explains that upgrading the older CommonJS chain is not a simple dependency-only backport.[^1] [^2]
 
-The project should not force a major toolchain rewrite solely to replace a withdrawn advisory. Re-run the dependency audit when the Electron builder chain is intentionally upgraded. The lockfile and audit result must remain part of that review.
+The project should not force a major toolchain rewrite solely to replace a withdrawn advisory. Re-run the dependency audit when the Electron builder chain is intentionally upgraded. The lockfile and audit result must remain part of that review. CI now runs `npm audit --audit-level=high` after installation so a future high-severity regression blocks the main branch.
+
+## Updated report hardening
+
+The updated report repeated several scanner patterns that were verified as false positives: fixed callback functions were mistaken for dynamic code execution, i18n and receipt values were mistaken for CSP construction, exact category-ID membership was mistaken for URL allowlist validation, and PIN-length checks were mistaken for skipped authentication. Those paths remain unchanged because source review and existing tests show no matching vulnerability.
+
+Two low-risk hardening recommendations were implemented. Identifier generation no longer uses `Math.random()`; Web Crypto remains preferred, and an explicitly non-security-sensitive per-runtime compatibility fallback preserves operation in unusual plain-HTTP runtimes. Generated label, receipt, kitchen-ticket, and shift-report print windows now use a shared helper that detaches `window.opener` after opening while preserving the writable handle required by `document.write()` and browser printing. New tests cover both the compatibility identifier path and opener detachment.
+
+The report’s quantity warnings are covered by the earlier `buildSaleTransaction` positive-safe-integer boundary. Negative inventory adjustments remain valid and intentionally are not rejected by the sale quantity predicate. The 55 docstring entries and eight duplicate-code groups contain report-artifact paths or no occurrence paths, so they were not treated as reliable instructions for a broad comment or abstraction rewrite; focused documentation remains the safer maintainability action.
 
 ## React/Vite performance changes
 
@@ -36,12 +44,13 @@ npm run lint
 npm test
 npm run build
 npm audit --omit=dev
+npm audit --audit-level=high
 ```
 
 The focused security tests are:
 
 ```bash
-npm test -- --run test/lib/quantity.test.ts test/lib/checkout.test.ts
+npm test -- --run test/lib/quantity.test.ts test/lib/checkout.test.ts test/lib/ids.test.ts test/lib/printWindow.test.ts
 ```
 
 The end-to-end suite additionally exercises the browser checkout and role-navigation flows. Electron packaging and physical printer/network hardware should be verified in the supported desktop and device environment before release.

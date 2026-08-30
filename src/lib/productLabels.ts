@@ -1,5 +1,6 @@
 import { Product, StoreSettings } from '../types';
 import { escapeHtml as esc } from './escapeHtml';
+import { openDetachedPrintWindow } from './printWindow';
 import { code128Svg } from './barcode';
 
 // Printable product labels / shelf price tags. Each label shows the product
@@ -110,7 +111,7 @@ export function printProductLabels(
   opts: LabelOptions = {},
 ): LabelPrintOutcome {
   if (products.length === 0) return 'empty';
-  const win = window.open('', '_blank');
+  const win = openDetachedPrintWindow();
   if (!win) return 'popup-blocked';
   win.document.write(buildLabelSheetHtml(products, settings, opts));
   win.document.close();

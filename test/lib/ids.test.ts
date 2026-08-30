@@ -25,4 +25,15 @@ describe('shortId', () => {
 
     expect(shortId()).toBe('abababababababababababababababab');
   });
+
+  it('uses a unique compatibility fallback when Web Crypto is unavailable', () => {
+    vi.stubGlobal('crypto', undefined);
+
+    const first = shortId();
+    const second = shortId();
+
+    expect(first).toMatch(/^[0-9a-f]{32}$/);
+    expect(second).toMatch(/^[0-9a-f]{32}$/);
+    expect(second).not.toBe(first);
+  });
 });

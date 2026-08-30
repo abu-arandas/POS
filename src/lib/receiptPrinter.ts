@@ -1,6 +1,7 @@
 import { SaleTransaction, StoreSettings, PrinterConfig, ReceiptLayout } from '../types';
 import i18n from './i18n';
 import { escapeHtml as esc } from './escapeHtml';
+import { openDetachedPrintWindow } from './printWindow';
 import { code128Svg } from './barcode';
 import {
   formatDateTime,
@@ -346,7 +347,7 @@ function openPrintWindow(
   fontFamily = 'monospace',
   fontSizePx = 12,
 ): PrintOutcome {
-  const printWindow = window.open('', '_blank');
+  const printWindow = openDetachedPrintWindow();
   if (!printWindow) return 'popup-blocked';
 
   printWindow.document.write(receiptDocHtml(bodyHtml, rollWidth, fontFamily, fontSizePx, true));
