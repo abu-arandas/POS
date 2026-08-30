@@ -45,18 +45,22 @@ const read = (file: string) => readFileSync(join(REPO_ROOT, file), 'utf8');
 /**
  * Application source, minus the catalogue itself.
  *
- * Listed with a plain `git ls-files src` and filtered here rather than with a
+ * Listed from tracked and untracked source files and filtered here rather than with a
  * `src/**\/*.tsx` pathspec: that glob requires at least one directory, so it
  * silently skipped the four files sitting directly in src/ — App.tsx among
  * them, which is where a good share of the app's t() calls live. A checker
  * blind to the root component is exactly the gap this file exists to close.
  */
 function sourceFiles(): string[] {
-  return execSync('git ls-files src', { cwd: REPO_ROOT })
+  return execSync('git ls-files src && git ls-files --others --exclude-standard src', {
+    cwd: REPO_ROOT,
+  })
     .toString()
     .trim()
     .split(/\r?\n/)
-    .filter((f) => /\.tsx?$/.test(f) && !f.endsWith('src/lib/i18n.ts'));
+    .filter(
+      (f) => /\.tsx?$/.test(f) && !f.endsWith('src/lib/i18n.ts') && !f.startsWith('src/locales/'),
+    );
 }
 
 /** Every t('a.b') / t('a.b', 'default') referenced in application source. */

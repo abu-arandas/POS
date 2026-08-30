@@ -33,10 +33,10 @@ import { useAuthStore } from '../stores/authStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
-import { notify } from '../lib/notifications';
-import { askConfirmation } from '../lib/dialogs';
+import { notify } from '../lib/utils/ui';
+import { askConfirmation } from '../lib/utils/ui';
 import { safeImageUrl } from '../lib/imageUrl';
-import { shortId } from '../lib/ids';
+import { shortId } from '../lib/utils/ids';
 
 // Colors available for categories
 const categoryColors = [

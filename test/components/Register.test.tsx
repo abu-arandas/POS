@@ -10,9 +10,9 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { useHeldOrderStore } from '../../src/stores/heldOrderStore';
 import { useShiftStore } from '../../src/stores/shiftStore';
 import { Product, Customer, StoreSettings, PrinterConfig } from '../../src/types';
-import { askText } from '../../src/lib/dialogs';
+import { askText } from '../../src/lib/utils/ui';
 
-vi.mock('../../src/lib/dialogs', () => ({
+vi.mock('../../src/lib/utils/ui', () => ({
   askText: vi.fn(),
   askConfirmation: vi.fn(),
 }));

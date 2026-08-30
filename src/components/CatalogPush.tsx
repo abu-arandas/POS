@@ -11,7 +11,7 @@ import {
 } from '../lib/fleetClient';
 import { planCatalogPush, CatalogPushOptions } from '../lib/catalogPush';
 import { mapWithLimit } from '../lib/concurrency';
-import { shortId } from '../lib/ids';
+import { shortId } from '../lib/utils/ids';
 
 interface CatalogPushProps {
   orgId: string;

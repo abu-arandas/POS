@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { cloudLogin, deleteTransactionsCloudIfEnabled } from '../../src/lib/sync';
 import { useSettingsStore } from '../../src/stores/settingsStore';
 import * as supabaseLib from '../../src/lib/supabase';
-import { notify } from '../../src/lib/notifications';
+import { notify } from '../../src/lib/utils/ui';
 
 vi.mock('../../src/stores/settingsStore', () => ({
   useSettingsStore: {
@@ -17,7 +17,7 @@ vi.mock('../../src/lib/supabase', () => ({
   deleteRowsSupabase: vi.fn(),
 }));
 
-vi.mock('../../src/lib/notifications', () => ({
+vi.mock('../../src/lib/utils/ui', () => ({
   notify: vi.fn(),
 }));
 

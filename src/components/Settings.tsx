@@ -52,10 +52,10 @@ import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { hashPinSalted } from '../lib/hash';
-import { shortId } from '../lib/ids';
+import { shortId } from '../lib/utils/ids';
 import { safeImageUrl } from '../lib/imageUrl';
-import { notify } from '../lib/notifications';
-import { askConfirmation } from '../lib/dialogs';
+import { notify } from '../lib/utils/ui';
+import { askConfirmation } from '../lib/utils/ui';
 import {
   testCloudConnection,
   pushAllToCloud,

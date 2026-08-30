@@ -1,5 +1,5 @@
 import { StoreSettings } from '../types';
-import { nonNegative } from './money';
+import { nonNegative } from './utils/validation';
 
 /**
  * One cart line as the totals calculation sees it.

@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { Customer } from '../types';
 import { INITIAL_CUSTOMERS } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
-import { shortId } from '../lib/ids';
+import { shortId } from '../lib/utils/ids';
 import { deleteCustomersCloudIfEnabled } from '../lib/sync';
 
 interface CustomerState {

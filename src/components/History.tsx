@@ -33,7 +33,7 @@ import { syncToCloudIfEnabled } from '../lib/sync';
 import { printTransactions } from '../lib/receiptPrinter';
 import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { computeRefund, refundableQuantities } from '../lib/refunds';
-import { notify } from '../lib/notifications';
+import { notify } from '../lib/utils/ui';
 import { useModalA11y } from '../lib/useModalA11y';
 import { usePinAttemptStore } from '../stores/pinAttemptStore';
 import { lockoutStatus, formatRemaining } from '../lib/pinThrottle';

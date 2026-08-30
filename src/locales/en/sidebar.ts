@@ -1,0 +1,16 @@
+export const sidebar = {
+  register: 'Register',
+  dashboard: 'Dashboard',
+  inventory: 'Inventory',
+  transactions: 'Transactions',
+  customers: 'Customers',
+  shift: 'Shift',
+  qrmenu: 'QR Menu',
+  fleet: 'Fleet',
+  settings: 'Settings',
+  lightMode: 'Light Mode',
+  darkMode: 'Dark Mode',
+  lockTerminal: 'Lock Terminal',
+  mainNavigation: 'Main navigation',
+  menu: 'Menu',
+};

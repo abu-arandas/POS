@@ -36,7 +36,7 @@ import { startRealtimeSync, stopRealtimeSync } from './lib/realtimeSync';
 import { startFleetHeartbeat, stopFleetHeartbeat, fetchSuperadminOrg } from './lib/fleetClient';
 import NotificationCenter from './components/NotificationCenter';
 import DialogCenter from './components/DialogCenter';
-import { notify } from './lib/notifications';
+import { notify } from './lib/utils/ui';
 
 function ScreenLoader() {
   return (

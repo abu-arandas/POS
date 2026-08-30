@@ -1,0 +1,17 @@
+export const fleetReport = {
+  title: 'Consolidated Reporting',
+  subtitle: 'Sales across every store, with per-store drill-in.',
+  storeFilter: 'Filter by store',
+  allStores: 'All stores',
+  period_today: 'Today',
+  period_7d: '7 days',
+  period_30d: '30 days',
+  totalRevenue: 'Total Revenue',
+  orders: 'Orders',
+  avgOrder: 'Avg Order',
+  activeStores: 'Active Stores',
+  revenueTrend: 'Revenue Trend',
+  revenueByStore: 'Revenue by Store',
+  clickToDrill: 'Click a store to drill in',
+  noData: 'No sales in this period.',
+};

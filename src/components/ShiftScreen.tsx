@@ -18,10 +18,10 @@ import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { summarizeShift } from '../lib/shiftReport';
-import { escapeHtml } from '../lib/escapeHtml';
-import { openDetachedPrintWindow } from '../lib/printWindow';
+import { escapeHtml } from '../lib/utils/formatting';
+import { openDetachedPrintWindow } from '../lib/utils/dom';
 import { Shift } from '../types';
-import { askConfirmation } from '../lib/dialogs';
+import { askConfirmation } from '../lib/utils/ui';
 
 /**
  * Shift screen: open and close a drawer with an opening float, and produce the

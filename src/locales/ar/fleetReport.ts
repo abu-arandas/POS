@@ -1,0 +1,17 @@
+export const fleetReport = {
+  title: 'التقارير المُوحّدة',
+  subtitle: 'المبيعات عبر كل متجر، مع تفصيل لكل متجر.',
+  storeFilter: 'تصفية حسب المتجر',
+  allStores: 'جميع المتاجر',
+  period_today: 'اليوم',
+  period_7d: '٧ أيام',
+  period_30d: '٣٠ يومًا',
+  totalRevenue: 'إجمالي الإيرادات',
+  orders: 'الطلبات',
+  avgOrder: 'متوسط الطلب',
+  activeStores: 'المتاجر النشطة',
+  revenueTrend: 'اتجاه الإيرادات',
+  revenueByStore: 'الإيرادات حسب المتجر',
+  clickToDrill: 'انقر على متجر للتفصيل',
+  noData: 'لا مبيعات في هذه الفترة.',
+};

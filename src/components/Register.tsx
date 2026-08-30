@@ -50,8 +50,8 @@ import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
-import { notify } from '../lib/notifications';
-import { askConfirmation, askText } from '../lib/dialogs';
+import { notify } from '../lib/utils/ui';
+import { askConfirmation, askText } from '../lib/utils/ui';
 
 /**
  * The register screen: product grid, cart, discounts, held orders, and the

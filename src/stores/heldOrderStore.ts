@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { HeldOrder } from '../types';
 import { idbStorage } from '../lib/idbStorage';
-import { shortId } from '../lib/ids';
+import { shortId } from '../lib/utils/ids';
 
 interface HeldOrderState {
   heldOrders: HeldOrder[];
