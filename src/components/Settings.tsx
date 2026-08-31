@@ -25,7 +25,7 @@ import {
   SupabasePanel,
   UserModal,
   UsersPanel,
-} from './settings';
+} from './settings/index';
 import { serialSupported, networkScanSupported } from '../lib/printerDiscovery';
 import { usePrinterDiscovery } from './settings/usePrinterDiscovery';
 import { useTranslation } from 'react-i18next';
