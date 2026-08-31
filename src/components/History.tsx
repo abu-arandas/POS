@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   Search,
   History as HistoryIcon,
@@ -41,6 +41,7 @@ import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
 import type { RefundPatch } from '../stores/transactionStore';
 import { useTranslation } from 'react-i18next';
 import { safeImageUrl } from '../lib/imageUrl';
+import { useHistoryFilters } from './history/useHistoryFilters';
 
 // Single throttle bucket for the manager-override PIN (it is not tied to one
 // account — any manager/admin PIN authorizes, so the guesser names no user).
@@ -61,13 +62,6 @@ export default function History() {
   const registerPinFailure = usePinAttemptStore((s) => s.registerFailure);
   const registerPinSuccess = usePinAttemptStore((s) => s.registerSuccess);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'refunded'>('all');
-  const [paymentFilter, setPaymentFilter] = useState<string[]>([]);
-
-  const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
-
   const [selectedTxIds, setSelectedTxIds] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -82,72 +76,21 @@ export default function History() {
   const deleteModalRef = useModalA11y(showDeleteModal, () => setShowDeleteModal(false));
   const refundModalRef = useModalA11y(!!refundModalTx, () => setRefundModalTx(null));
 
-  const activeTransaction = useMemo(() => {
-    return transactions.find((tx) => tx.id === selectedTxId) || null;
-  }, [transactions, selectedTxId]);
-
-  const filteredTransactions = useMemo(() => {
-    return transactions
-      .filter((tx) => {
-        const matchesSearch =
-          tx.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (tx.customerName && tx.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          tx.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase());
-
-        const matchesStatus =
-          statusFilter === 'all' ||
-          (statusFilter === 'refunded' ? tx.status !== 'completed' : tx.status === 'completed');
-
-        const matchesPayment =
-          paymentFilter.length === 0 || paymentFilter.includes(tx.paymentMethod);
-
-        let matchesDate = true;
-        const txDate = new Date(tx.date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        if (dateFilter === 'today') {
-          matchesDate = txDate >= today;
-        } else if (dateFilter === 'yesterday') {
-          const yesterday = new Date(today);
-          yesterday.setDate(today.getDate() - 1);
-          matchesDate = txDate >= yesterday && txDate < today;
-        } else if (dateFilter === '7days') {
-          const sevenDaysAgo = new Date(today);
-          sevenDaysAgo.setDate(today.getDate() - 7);
-          matchesDate = txDate >= sevenDaysAgo;
-        }
-
-        return matchesSearch && matchesStatus && matchesDate && matchesPayment;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, searchQuery, dateFilter, statusFilter, paymentFilter]);
-
-  // Group by date
-  const groupedTransactions = useMemo(() => {
-    const groups: Record<string, SaleTransaction[]> = {};
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    filteredTransactions.forEach((tx) => {
-      const d = new Date(tx.date);
-      d.setHours(0, 0, 0, 0);
-      let label = d.toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-
-      if (d.getTime() === today.getTime()) label = t('history.today', 'Today');
-      else if (d.getTime() === yesterday.getTime()) label = t('history.yesterday', 'Yesterday');
-
-      if (!groups[label]) groups[label] = [];
-      groups[label].push(tx);
-    });
-    return groups;
-  }, [filteredTransactions, t]);
+  const {
+    searchQuery,
+    setSearchQuery,
+    dateFilter,
+    setDateFilter,
+    statusFilter,
+    setStatusFilter,
+    paymentFilter,
+    setPaymentFilter,
+    selectedTxId,
+    setSelectedTxId,
+    activeTransaction,
+    filteredTransactions,
+    groupedTransactions,
+  } = useHistoryFilters(transactions, t);
 
   const openRefundModal = (tx: SaleTransaction) => {
     setRefundSelection({ ...refundableQuantities(tx) });

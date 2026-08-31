@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Product, SaleTransaction, HeldOrder, Payment } from '../types';
 import ProductGrid from './ProductGrid';
 import CartPanel from './CartPanel';
+import { useRegisterCart } from './register/useRegisterCart';
 const HeldOrdersModal = lazy(() =>
   import('./register/HeldOrdersModal').then(({ HeldOrdersModal }) => ({
     default: HeldOrdersModal,
@@ -37,7 +38,6 @@ import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { useHeldOrderStore } from '../stores/heldOrderStore';
 import { useShiftStore } from '../stores/shiftStore';
-import { calculateOrderTotals } from '../lib/pricing';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { buildSaleTransaction, CheckoutRequest } from '../lib/checkout';
 import {
@@ -79,16 +79,32 @@ export default function Register() {
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  const [cart, setCart] = useState<Array<{ product: Product; quantity: number }>>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-
-  const [discountType, setDiscountType] = useState<'none' | 'percentage' | 'fixed' | 'loyalty'>(
-    'none',
-  );
-  const [discountInput, setDiscountInput] = useState<string>('');
-  const [loyaltyPointsToUse, setLoyaltyPointsToUse] = useState<number>(0);
-  const [showPromoInput, setShowPromoInput] = useState<boolean>(false);
-
+  const {
+    cart,
+    setCart,
+    selectedCustomerId,
+    setSelectedCustomerId,
+    discountType,
+    setDiscountType,
+    discountInput,
+    setDiscountInput,
+    loyaltyPointsToUse,
+    setLoyaltyPointsToUse,
+    showPromoInput,
+    setShowPromoInput,
+    cartItems,
+    discountValue,
+    subtotal,
+    discountAmount,
+    taxAmount,
+    totalAmount,
+    cashSuggestions,
+    cashChangeDue: calculateCashChangeDue,
+    addToCart,
+    updateCartQty,
+    removeFromCart,
+    clearCart,
+  } = useRegisterCart(settings);
   const [checkoutModalOpen, setCheckoutModalOpen] = useState<boolean>(false);
   const [addCustomerOpen, setAddCustomerOpen] = useState<boolean>(false);
   const [receiptModalOpen, setReceiptModalOpen] = useState<boolean>(false);
@@ -122,103 +138,11 @@ export default function Register() {
   const receiptModalRef = useModalA11y(receiptModalOpen, () => setReceiptModalOpen(false));
 
   const activeCustomer = useMemo(
-    () => customers.find((c) => c.id === selectedCustomerId) || null,
+    () => customers.find((customer) => customer.id === selectedCustomerId) || null,
     [customers, selectedCustomerId],
   );
 
-  const cartItems = useMemo(
-    () =>
-      cart.map((item) => ({
-        productId: item.product.id,
-        productName: item.product.name,
-        price: item.product.price,
-        cost: item.product.cost,
-        quantity: item.quantity,
-      })),
-    [cart],
-  );
-
-  const discountValue =
-    discountType === 'loyalty' ? loyaltyPointsToUse : parseFloat(discountInput) || 0;
-
-  const { subtotal, discountAmount, taxAmount, totalAmount } = useMemo(
-    () => calculateOrderTotals(cartItems, discountType, discountValue, settings),
-    [cartItems, discountType, discountValue, settings],
-  );
-
-  const cashSuggestions = useMemo(() => {
-    if (totalAmount <= 0) return [];
-    const exact = totalAmount;
-    const next5 = Math.ceil(exact / 5) * 5;
-    const next10 = Math.ceil(exact / 10) * 10;
-    const next20 = Math.ceil(exact / 20) * 20;
-    const next50 = Math.ceil(exact / 50) * 50;
-
-    const options = new Set<number>();
-    options.add(Number(exact.toFixed(2)));
-    if (next5 > exact) options.add(next5);
-    if (next10 > exact && next10 !== next5) options.add(next10);
-    if (next20 > exact && next20 !== next10) options.add(next20);
-    if (next50 > exact && next50 !== next20) options.add(next50);
-    options.add(100);
-
-    return Array.from(options)
-      .filter((o) => o >= exact)
-      .slice(0, 5);
-  }, [totalAmount]);
-
-  const cashChangeDue = useMemo(() => {
-    const paid = parseFloat(cashPaidText) || 0;
-    if (paid < totalAmount) return 0;
-    return Number((paid - totalAmount).toFixed(2));
-  }, [cashPaidText, totalAmount]);
-
-  // Functional updates so rapid clicks / scans never race on a stale cart.
-  const addToCart = useCallback((product: Product) => {
-    if (product.stock <= 0) return;
-    setCart((prev) => {
-      const existingIndex = prev.findIndex((item) => item.product.id === product.id);
-      if (existingIndex >= 0) {
-        const existing = prev[existingIndex];
-        if (existing.quantity >= product.stock) return prev;
-        const newCart = [...prev];
-        newCart[existingIndex] = { ...existing, quantity: existing.quantity + 1 };
-        return newCart;
-      }
-      return [...prev, { product, quantity: 1 }];
-    });
-  }, []);
-
-  const updateCartQty = useCallback((productId: string, delta: number) => {
-    setCart(
-      (prev) =>
-        prev
-          .map((item) => {
-            if (item.product.id === productId) {
-              const newQty = item.quantity + delta;
-              if (newQty <= 0) return null;
-              if (newQty > item.product.stock) return item;
-              return { ...item, quantity: newQty };
-            }
-            return item;
-          })
-          .filter(Boolean) as Array<{ product: Product; quantity: number }>,
-    );
-  }, []);
-
-  const removeFromCart = useCallback(
-    (productId: string) => setCart((prev) => prev.filter((item) => item.product.id !== productId)),
-    [],
-  );
-
-  const clearCart = useCallback(() => {
-    setCart([]);
-    setSelectedCustomerId(null);
-    setDiscountType('none');
-    setDiscountInput('');
-    setLoyaltyPointsToUse(0);
-    setShowPromoInput(false);
-  }, []);
+  const cashChangeDue = calculateCashChangeDue(cashPaidText);
 
   // Barcode scan: match a product by exact SKU and add it, with brief feedback.
   const handleScan = useCallback(
