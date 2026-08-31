@@ -27,7 +27,7 @@ import {
   PurchaseOrderFormModal,
   ReceiveStockModal,
   SupplierFormModal,
-} from './inventory';
+} from './inventory/index';
 
 // Colors available for categories
 const categoryColors = [
