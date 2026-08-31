@@ -58,7 +58,7 @@ export function PurchaseOrderFormModal({
           <ClipboardList size={24} className="text-emerald-500" /> {t('inventory.newPurchaseOrder')}
         </h3>
         <button
-          onClick={() => onClose}
+          onClick={onClose}
           aria-label={t('inventory.cancel')}
           className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
         >
@@ -69,10 +69,14 @@ export function PurchaseOrderFormModal({
       <div className="p-8 space-y-6 overflow-y-auto flex-1">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+            <label
+              htmlFor="po-supplier-select"
+              className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+            >
               {t('inventory.poSupplier')}
             </label>
             <select
+              id="po-supplier-select"
               value={poSupplierId}
               onChange={(e) => onSupplierIdChange(e.target.value)}
               className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
@@ -86,10 +90,14 @@ export function PurchaseOrderFormModal({
             </select>
           </div>
           <div>
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+            <label
+              htmlFor="po-note-input"
+              className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+            >
               {t('inventory.poNote')}
             </label>
             <input
+              id="po-note-input"
               type="text"
               value={poNote}
               onChange={(e) => onNoteChange(e.target.value)}
@@ -172,7 +180,7 @@ export function PurchaseOrderFormModal({
 
       <div className="px-8 py-5 border-t border-slate-200 dark:border-white/10 bg-white/90 dark:bg-slate-900/80 flex justify-end gap-3">
         <button
-          onClick={() => onClose}
+          onClick={onClose}
           className="px-6 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
         >
           {t('inventory.cancel')}

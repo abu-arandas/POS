@@ -46,7 +46,7 @@ export function SupplierFormModal({
           <Truck size={24} className="text-emerald-500" /> {t('inventory.addSupplier')}
         </h3>
         <button
-          onClick={() => onClose}
+          onClick={onClose}
           aria-label={t('inventory.cancel')}
           className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
         >
@@ -55,10 +55,14 @@ export function SupplierFormModal({
       </div>
       <form onSubmit={onSubmit} className="p-8 space-y-5">
         <div>
-          <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+          <label
+            htmlFor="supplier-name"
+            className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+          >
             {t('inventory.supplierCompany')} *
           </label>
           <input
+            id="supplier-name"
             type="text"
             required
             value={supName}
@@ -68,10 +72,14 @@ export function SupplierFormModal({
           />
         </div>
         <div>
-          <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+          <label
+            htmlFor="supplier-contact"
+            className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+          >
             {t('inventory.supplierContactPerson')}
           </label>
           <input
+            id="supplier-contact"
             type="text"
             value={supContact}
             onChange={(e) => onContactChange(e.target.value)}
@@ -81,10 +89,14 @@ export function SupplierFormModal({
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+            <label
+              htmlFor="supplier-phone"
+              className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+            >
               {t('inventory.supplierPhone')}
             </label>
             <input
+              id="supplier-phone"
               type="tel"
               value={supPhone}
               onChange={(e) => onPhoneChange(e.target.value)}
@@ -93,10 +105,14 @@ export function SupplierFormModal({
             />
           </div>
           <div>
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+            <label
+              htmlFor="supplier-email"
+              className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+            >
               {t('inventory.supplierEmail')}
             </label>
             <input
+              id="supplier-email"
               type="email"
               value={supEmail}
               onChange={(e) => onEmailChange(e.target.value)}
@@ -108,7 +124,7 @@ export function SupplierFormModal({
         <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-white/5 mt-6">
           <button
             type="button"
-            onClick={() => onClose}
+            onClick={onClose}
             className="px-6 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
           >
             {t('inventory.cancel')}

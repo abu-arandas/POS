@@ -55,6 +55,9 @@ jobs:
       - name: Production build (Vite)
         run: npm run build
 
+      - name: Initial bundle performance budget
+        run: npm run perf:check
+
       - name: Electron/seed script syntax
         run: |
           node --check electron/main.cjs

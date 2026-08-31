@@ -248,7 +248,17 @@ export default function Register() {
       removeHeldOrder(order.id);
       setHeldModalOpen(false);
     },
-    [cart, removeHeldOrder, t],
+    [
+      cart,
+      removeHeldOrder,
+      t,
+      setCart,
+      setSelectedCustomerId,
+      setDiscountType,
+      setDiscountInput,
+      setLoyaltyPointsToUse,
+      setShowPromoInput,
+    ],
   );
 
   const handleAddNewCustomer = useCallback(
@@ -262,7 +272,7 @@ export default function Register() {
       setCustEmail('');
       setAddCustomerOpen(false);
     },
-    [custName, custPhone, custEmail, handleAddCustomer],
+    [custName, custPhone, custEmail, handleAddCustomer, setSelectedCustomerId],
   );
 
   const handleCheckoutClick = useCallback(() => {

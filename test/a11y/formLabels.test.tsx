@@ -167,6 +167,19 @@ describe('controls revealed by a click are named too', () => {
     expect({ receiveForm: unnamedControls() }).toEqual({ receiveForm: [] });
   });
 
+  it.each(['Categories', 'Suppliers', 'Orders'])('Inventory › %s editor', async (tabName) => {
+    const user = userEvent.setup();
+    render(<Inventory />);
+    await user.click(
+      screen
+        .getAllByRole('tab')
+        .find((tab) => new RegExp(tabName, 'i').test(tab.textContent ?? ''))!,
+    );
+    await user.click(document.querySelector('#add-item-trigger-btn') as HTMLElement);
+    await screen.findByRole('dialog');
+    expect({ [tabName]: unnamedControls() }).toEqual({ [tabName]: [] });
+  });
+
   it('Customers › customer editor', async () => {
     const user = userEvent.setup();
     render(<Customers />);
