@@ -1,16 +1,33 @@
-let fallbackCounter = 0;
+type CompatibilityState = {
+  counter: bigint;
+};
+
+type RuntimeWithShortIdState = typeof globalThis & {
+  __eaPosShortIdState?: CompatibilityState;
+};
+
+/**
+ * Keep the fallback counter on the runtime rather than only in this module.
+ * Bundlers, test runners, and mixed ESM/CJS consumers can load two copies of a
+ * module; a module-local counter in each copy would then be able to repeat IDs.
+ */
+const runtime = globalThis as RuntimeWithShortIdState;
+const fallbackState: CompatibilityState =
+  runtime.__eaPosShortIdState ?? (runtime.__eaPosShortIdState = { counter: 0n });
 
 /**
  * Fills an identifier with a deterministic per-runtime fallback when Web Crypto
  * is unavailable. POS identifiers are database keys, not authentication tokens.
+ * The timestamp and 64-bit monotonic counter provide distinct values for calls
+ * made in the same millisecond and remain unique well beyond 32-bit counters.
  */
 function fillCompatibilityBytes(bytes: Uint8Array): void {
-  const timestamp = Date.now();
-  const counter = fallbackCounter++;
-  for (let i = 0; i < bytes.length; i++) {
-    const timestampByte = (timestamp >>> ((i % 4) * 8)) & 0xff;
-    const counterByte = (counter >>> ((i % 4) * 8)) & 0xff;
-    bytes[i] = timestampByte ^ counterByte ^ ((i * 0x9d) & 0xff);
+  const timestamp = BigInt(Date.now());
+  const counter = fallbackState.counter++;
+
+  for (let i = 0; i < 8; i++) {
+    bytes[i] = Number((timestamp >> BigInt(i * 8)) & 0xffn);
+    bytes[i + 8] = Number((counter >> BigInt(i * 8)) & 0xffn);
   }
 }
 

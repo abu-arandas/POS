@@ -29,11 +29,9 @@ describe('shortId', () => {
   it('uses a unique compatibility fallback when Web Crypto is unavailable', () => {
     vi.stubGlobal('crypto', undefined);
 
-    const first = shortId();
-    const second = shortId();
+    const ids = Array.from({ length: 64 }, () => shortId());
 
-    expect(first).toMatch(/^[0-9a-f]{32}$/);
-    expect(second).toMatch(/^[0-9a-f]{32}$/);
-    expect(second).not.toBe(first);
+    expect(ids.every((id) => /^[0-9a-f]{32}$/.test(id))).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
