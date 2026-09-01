@@ -1,0 +1,16 @@
+export const sidebar = {
+  register: 'نقطة البيع',
+  dashboard: 'لوحة القيادة',
+  inventory: 'المخزون',
+  transactions: 'المعاملات',
+  customers: 'العملاء',
+  shift: 'الوردية',
+  qrmenu: 'قائمة QR',
+  fleet: 'الأسطول',
+  settings: 'الإعدادات',
+  lightMode: 'الوضع الفاتح',
+  darkMode: 'الوضع الداكن',
+  lockTerminal: 'قفل الجهاز',
+  mainNavigation: 'التنقل الرئيسي',
+  menu: 'القائمة',
+};

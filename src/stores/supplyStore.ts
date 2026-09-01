@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { Supplier, StockAdjustment, PurchaseOrder, PurchaseOrderStatus } from '../types';
 import { canTransition } from '../lib/purchaseOrders';
 import { idbStorage } from '../lib/idbStorage';
-import { shortId } from '../lib/ids';
+import { shortId } from '../lib/utils/ids';
 
 interface SupplyState {
   suppliers: Supplier[];

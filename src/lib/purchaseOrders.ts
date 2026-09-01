@@ -1,5 +1,5 @@
 import { PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus } from '../types';
-import { nonNegative } from './money';
+import { nonNegative } from './utils/validation';
 
 /**
  * The only legal status moves. Received and cancelled are terminal — a

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { shortId } from '../lib/ids';
+import { shortId } from '../lib/utils/ids';
 
 /**
  * Severity of a toast, which picks its colour.

@@ -13,8 +13,8 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { askConfirmation } from '../lib/dialogs';
-import { notify } from '../lib/notifications';
+import { askConfirmation } from '../lib/utils/ui';
+import { notify } from '../lib/utils/ui';
 import { Store, Membership, Role } from '../types';
 import {
   listStores,

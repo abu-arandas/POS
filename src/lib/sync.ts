@@ -18,7 +18,7 @@ import {
 } from './supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useSettingsStore } from '../stores/settingsStore';
-import { notify } from './notifications';
+import { notify } from './utils/ui';
 import i18n from './i18n';
 import { Product, Category, Customer, SaleTransaction, UserAccount } from '../types';
 

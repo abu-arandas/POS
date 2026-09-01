@@ -1,6 +1,6 @@
 import { Product, StoreSettings } from '../types';
-import { escapeHtml as esc } from './escapeHtml';
-import { openDetachedPrintWindow } from './printWindow';
+import { escapeHtml as esc } from './utils/formatting';
+import { openDetachedPrintWindow } from './utils/dom';
 import { code128Svg } from './barcode';
 
 // Printable product labels / shelf price tags. Each label shows the product

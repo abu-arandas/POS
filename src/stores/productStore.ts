@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { Product, Category } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_CATEGORIES } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
-import { shortId } from '../lib/ids';
+import { shortId } from '../lib/utils/ids';
 import { deleteProductsCloudIfEnabled, deleteCategoriesCloudIfEnabled } from '../lib/sync';
 
 interface ProductState {

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { shortId } from '../lib/ids';
+import { shortId } from '../lib/utils/ids';
 
 /**
  * One queued dialog and the promise resolver waiting on the operator's answer.

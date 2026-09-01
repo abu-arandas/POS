@@ -6,7 +6,7 @@ import { hashPinSalted, hashPinSaltedLegacy } from '../lib/hash';
 import { cloudLogin } from '../lib/sync';
 import Logo from './Logo';
 import { useAuthStore } from '../stores/authStore';
-import { shortId } from '../lib/ids';
+import { shortId } from '../lib/utils/ids';
 import { usePinAttemptStore } from '../stores/pinAttemptStore';
 import { lockoutStatus, formatRemaining, FREE_ATTEMPTS } from '../lib/pinThrottle';
 import { useTranslation } from 'react-i18next';

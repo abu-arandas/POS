@@ -7,11 +7,13 @@ import { useSettingsStore } from '../../src/stores/settingsStore';
 import { useSupplyStore } from '../../src/stores/supplyStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { Product, StoreSettings, PurchaseOrder } from '../../src/types';
-import { notify } from '../../src/lib/notifications';
-import { askConfirmation } from '../../src/lib/dialogs';
+import { notify } from '../../src/lib/utils/ui';
+import { askConfirmation } from '../../src/lib/utils/ui';
 
-vi.mock('../../src/lib/notifications', () => ({ notify: vi.fn() }));
-vi.mock('../../src/lib/dialogs', () => ({ askConfirmation: vi.fn() }));
+vi.mock('../../src/lib/utils/ui', () => ({
+  notify: vi.fn(),
+  askConfirmation: vi.fn(),
+}));
 
 // Inventory is the other place stock moves, and the place a receive can be
 // applied twice. The store-level guard has its own test; these exercise the
