@@ -17,6 +17,7 @@ import { Customer } from '../types';
 
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
+import { customerStats, filterAndSortCustomers } from '../lib/customerStats';
 import { useSettingsStore } from '../stores/settingsStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
 import { useModalA11y } from '../lib/useModalA11y';
@@ -54,51 +55,26 @@ export default function Customers() {
     setCustomerToDelete(null);
   });
 
-  const activeCustomer = useMemo(() => {
-    return customers.find((c) => c.id === selectedCustomerId) || null;
-  }, [customers, selectedCustomerId]);
+  const activeCustomer = useMemo(
+    () => customers.find((c) => c.id === selectedCustomerId) || null,
+    [customers, selectedCustomerId],
+  );
 
-  const activeCustomerTransactions = useMemo(() => {
-    if (!selectedCustomerId) return [];
-    return transactions.filter((tx) => tx.customerId === selectedCustomerId);
-  }, [transactions, selectedCustomerId]);
+  const activeCustomerTransactions = useMemo(
+    () =>
+      selectedCustomerId ? transactions.filter((tx) => tx.customerId === selectedCustomerId) : [],
+    [transactions, selectedCustomerId],
+  );
 
-  const activeCustomerStats = useMemo(() => {
-    if (activeCustomerTransactions.length === 0) {
-      return { totalSpent: 0, averageSpent: 0, totalVisits: 0 };
-    }
-    const validTx = activeCustomerTransactions.filter(
-      (t) => t.status === 'completed' || t.status === 'partial',
-    );
-    const totalSpent = validTx.reduce((sum, tx) => sum + tx.total - (tx.refundedAmount ?? 0), 0);
-    const totalVisits = validTx.length;
-    const averageSpent = totalVisits > 0 ? totalSpent / totalVisits : 0;
+  const activeCustomerStats = useMemo(
+    () => customerStats(activeCustomerTransactions),
+    [activeCustomerTransactions],
+  );
 
-    return {
-      totalSpent: Number(totalSpent.toFixed(2)),
-      averageSpent: Number(averageSpent.toFixed(2)),
-      totalVisits,
-    };
-  }, [activeCustomerTransactions]);
-
-  const sortedAndFilteredCustomers = useMemo(() => {
-    const list = customers.filter((c) => {
-      return (
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.phone.includes(searchQuery)
-      );
-    });
-
-    list.sort((a, b) => {
-      if (sortBy === 'points') return b.points - a.points;
-      if (sortBy === 'date')
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      return a.name.localeCompare(b.name);
-    });
-
-    return list;
-  }, [customers, searchQuery, sortBy]);
+  const sortedAndFilteredCustomers = useMemo(
+    () => filterAndSortCustomers(customers, searchQuery, sortBy),
+    [customers, searchQuery, sortBy],
+  );
 
   const handleOpenAddCustomer = () => {
     setEditingCustomer(null);

@@ -1,17 +1,16 @@
-export {
-  InventoryCategoriesTab,
-  InventoryProductsTab,
-  InventoryPurchaseOrdersTab,
-  InventoryStockLogTab,
-  InventorySuppliersTab,
-} from './Tabs';
-export type {
-  InventoryCategoriesTabProps,
-  InventoryProductsTabProps,
-  InventoryPurchaseOrdersTabProps,
-  InventoryStockLogTabProps,
-  InventorySuppliersTabProps,
-} from './Tabs';
+// One file per tab. They shared a single 807-line module only because they were
+// extracted together in phase 2; nothing is shared between them but the import
+// header, so the module was five unrelated screens in a trench coat.
+export { InventoryProductsTab } from './ProductsTab';
+export type { InventoryProductsTabProps } from './ProductsTab';
+export { InventoryCategoriesTab } from './CategoriesTab';
+export type { InventoryCategoriesTabProps } from './CategoriesTab';
+export { InventorySuppliersTab } from './SuppliersTab';
+export type { InventorySuppliersTabProps } from './SuppliersTab';
+export { InventoryPurchaseOrdersTab } from './PurchaseOrdersTab';
+export type { InventoryPurchaseOrdersTabProps } from './PurchaseOrdersTab';
+export { InventoryStockLogTab } from './StockLogTab';
+export type { InventoryStockLogTabProps } from './StockLogTab';
 export { CategoryFormModal } from './CategoryFormModal';
 export type { CategoryColorOption, CategoryFormModalProps } from './CategoryFormModal';
 export { ProductFormModal } from './ProductFormModal';

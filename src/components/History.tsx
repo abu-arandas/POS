@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { SaleTransaction } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { hashPinSalted, hashPinSaltedLegacy } from '../lib/hash';
+import { authorizeOverride, authorizerLabel } from '../lib/managerOverride';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
@@ -125,11 +125,7 @@ export default function History() {
         // Needs pin verification inline
         handleAuthorizeOverride();
       } else {
-        applyRefundWithSelection(
-          refundModalTx,
-          refundSelection,
-          `${currentUser.name} (${currentUser.role})`,
-        );
+        applyRefundWithSelection(refundModalTx, refundSelection, authorizerLabel(currentUser));
         setRefundModalTx(null);
       }
     }
@@ -146,26 +142,10 @@ export default function History() {
       return;
     }
 
-    const eligible = users.filter((u) => u.active && (u.role === 'manager' || u.role === 'admin'));
-    const [saltedHashes, legacyHashes] = await Promise.all([
-      Promise.all(eligible.map((u) => hashPinSalted(u.id, overridePin))),
-      Promise.all(eligible.map((u) => hashPinSaltedLegacy(u.id, overridePin))),
-    ]);
-    let authorizedUser: (typeof eligible)[number] | undefined;
-    for (let i = 0; i < eligible.length; i++) {
-      const u = eligible[i];
-      if (u.pin === saltedHashes[i] || u.pin === legacyHashes[i]) {
-        authorizedUser = u;
-        break;
-      }
-    }
+    const authorizedUser = await authorizeOverride(users, overridePin);
     if (authorizedUser && refundModalTx) {
       registerPinSuccess(OVERRIDE_THROTTLE_KEY);
-      applyRefundWithSelection(
-        refundModalTx,
-        refundSelection,
-        `${authorizedUser.name} (${authorizedUser.role})`,
-      );
+      applyRefundWithSelection(refundModalTx, refundSelection, authorizerLabel(authorizedUser));
       setRefundModalTx(null);
     } else {
       registerPinFailure(OVERRIDE_THROTTLE_KEY);

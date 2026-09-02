@@ -1499,7 +1499,7 @@ path taken, so an unsigned build is never mistaken for a signed one in CI output
 
 ### Unit and component — Vitest
 
-67 files under `test/`, mirroring `src/`. Environment `jsdom`; `test/setup.ts` loads
+69 files under `test/`, mirroring `src/`. Environment `jsdom`; `test/setup.ts` loads
 `fake-indexeddb/auto` (stores persist through idb-keyval), `@testing-library/jest-dom`,
 real i18n so `t()` returns English strings, an explicit `cleanup()` (auto-cleanup only
 registers itself with vitest globals enabled, which they are not), and stubs
@@ -1612,10 +1612,10 @@ CI immediately after the production build.
 | Initial JavaScript entry | 200,000 bytes |
 | Initial CSS entry        |  50,000 bytes |
 
-`PERF.md` records the current baseline: 67 test files / 638 tests passing, zero ESLint
-warnings, a 5–7 second production build, 436,330 raw / 136,537 gzip initial JS, 113,788 raw /
-17,511 gzip initial CSS, and instrumented coverage of 56.82 % statements, 47.40 % branches,
-47.03 % functions, 58.19 % lines. Coverage is recorded as a baseline rather than raised to an
+`PERF.md` records the current baseline: 69 test files / 664 tests passing, zero ESLint
+warnings, a 5–7 second production build, 436,340 raw / 136,540 gzip initial JS, 113,788 raw /
+17,511 gzip initial CSS, and instrumented coverage of 59.07 % statements, 50.01 % branches,
+50.80 % functions, 60.60 % lines. Coverage is recorded as a baseline rather than raised to an
 artificial threshold, because the suite includes broad component coverage alongside many
 hardware, cloud and administrative branches that are intentionally integration-oriented.
 
@@ -1645,6 +1645,10 @@ A budget failure should trigger a fresh bundle analysis, not an arbitrary limit 
   prints — that half stays on the screen.
 - **Prop-driven subcomponents.** Extracted panels and tabs do not subscribe to Zustand; the
   screen owns store access and business actions.
+- **Screen arithmetic belongs in `lib/`.** A figure a screen displays — a KPI, a customer's
+  lifetime spend, a refund authorisation — is business logic that happens to be rendered.
+  Computing it inside a `useMemo` makes it reachable only by rendering the screen, which is
+  why `dashboardMetrics`, `customerStats` and `managerOverride` exist.
 
 ### Gotchas
 
@@ -1734,7 +1738,7 @@ Screens: `App` (in `src/`), `Register`, `Inventory`, `History`, `Customers`, `Da
 Shell: `Sidebar`, `ErrorBoundary`, `NotificationCenter`, `DialogCenter`, `Logo`,
 `BarcodeSvg`, `ProductGrid`, `CartPanel`, `ReceiptSettingsPanel`, `shared/ModalShell`.
 
-Subdirectories: `register/` (4 modals + `useRegisterCart`), `inventory/` (5 modals + `Tabs` +
+Subdirectories: `register/` (4 modals + `useRegisterCart`), `inventory/` (5 modals + 5 tab files +
 barrel), `settings/` (7 panels + `UserModal` + `usePrinterDiscovery` + barrel), `history/`
 (`useHistoryFilters`).
 
