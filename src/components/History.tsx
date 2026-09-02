@@ -30,7 +30,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
-import { printTransactions } from '../lib/receiptPrinter';
+import { printTransactions } from '../lib/print';
 import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { computeRefund, refundableQuantities } from '../lib/refunds';
 import { notify } from '../lib/utils/ui';

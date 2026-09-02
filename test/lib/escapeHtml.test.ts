@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { escapeHtml } from '../../src/lib/escapeHtml';
+import { escapeHtml } from '../../src/lib/utils/formatting';
 
 describe('escapeHtml', () => {
   it('escapes markup-significant characters', () => {

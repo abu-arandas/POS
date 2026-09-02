@@ -6,12 +6,8 @@ import {
   ReceiptLayout,
 } from '../types';
 import { encodeReceipt, encodeKitchenTicket } from './escpos';
-import {
-  printTransactions,
-  printKitchenTicketSystem,
-  receiptsPrintDoc,
-  kitchenPrintDoc,
-} from './receiptPrinter';
+import { printTransactions, printKitchenTicketSystem } from './print';
+import { receiptsPrintDoc, kitchenPrintDoc } from './receipt';
 import { routeKitchenTickets } from './kitchenRouting';
 import i18n from './i18n';
 import { buildReceiptDoc, buildKitchenDoc, docStrings } from './receiptDoc';

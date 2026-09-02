@@ -1,12 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import {
-  buildReceiptHtml,
-  buildKitchenTicketHtml,
-  receiptDocHtml,
-} from '../../src/lib/receiptPrinter';
-import { defaultReceiptLayout, allTogglesOn } from '../../src/lib/receiptFormat';
-import i18n from '../../src/lib/i18n';
-import { SaleTransaction, StoreSettings, PrinterConfig } from '../../src/types';
+import { buildReceiptHtml, buildKitchenTicketHtml, receiptDocHtml } from '../../../src/lib/receipt';
+import { defaultReceiptLayout, allTogglesOn } from '../../../src/lib/receiptFormat';
+import i18n from '../../../src/lib/i18n';
+import { SaleTransaction, StoreSettings, PrinterConfig } from '../../../src/types';
 
 const settings: StoreSettings = {
   storeName: 'Test Store',

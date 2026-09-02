@@ -4,7 +4,7 @@ import { Eye } from 'lucide-react';
 import { ReceiptLayout, ReceiptToggles, SaleTransaction } from '../types';
 import { useSettingsStore } from '../stores/settingsStore';
 import { DATE_FORMATS, TIME_FORMATS, RECEIPT_FONTS, formatDateTime } from '../lib/receiptFormat';
-import { receiptPreviewDoc } from '../lib/receiptPrinter';
+import { receiptPreviewDoc } from '../lib/receipt';
 
 interface ReceiptSettingsPanelProps {
   kind: 'customer' | 'kitchen';
