@@ -19,6 +19,7 @@ code.
 3. [Repository layout](#3-repository-layout)
 4. [Domain model (`src/types.ts`)](#4-domain-model-srctypests)
 5. [State layer — Zustand stores](#5-state-layer--zustand-stores)
+   - [5b. Services — cross-store operations](#5b-services--cross-store-operations-srcservices)
 6. [Core library (`src/lib`)](#6-core-library-srclib)
 7. [Printing subsystem](#7-printing-subsystem)
 8. [Cloud sync (Supabase)](#8-cloud-sync-supabase)
@@ -152,7 +153,8 @@ POS/
 │   ├── assets/                  logo-mark.svg + 7 self-hosted woff2 faces
 │   ├── data/seedData.ts         demo catalog (74 products, 31 categories, 4 customers)
 │   ├── stores/                  11 Zustand stores
-│   ├── lib/                     domain logic + I/O adapters (~60 modules)
+│   ├── services/                cross-store operations (sale, refund, stock)
+│   ├── lib/                     domain logic + I/O adapters (~55 modules)
 │   ├── locales/{en,ar}/         20 translation namespaces each
 │   └── components/              screens + register/ inventory/ settings/ history/ shared/
 ├── electron/                    main, preload, and 4 pure decision modules + menu.html
@@ -281,6 +283,36 @@ renders translated, focus-managed, in-app dialogs in place of the browser's nati
 
 ---
 
+## 5b. Services — cross-store operations (`src/services`)
+
+A sale, a refund and a stock receipt each touch several stores at once and then push the
+result to the cloud. That orchestration used to sit inline in `Register`, `History` and
+`Inventory`, which meant the money paths could only be exercised by rendering a screen and
+clicking through a modal, and three screens each carried their own copy of the ordering
+rules.
+
+| Function                                                         | Does                                                                                                                                                                       |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `commitSale(request)`                                            | Validates the tender, decrements stock on the **live** product records, moves loyalty points, persists the transaction, pushes. Returns the transaction plus `isCashSale`. |
+| `commitRefund(txId, selection, authorizedBy, rate, pointValue?)` | Re-reads the transaction from the store, computes the refund, restocks, reverses points proportionally, patches the sale, pushes.                                          |
+| `adjustStock(request)`                                           | One signed stock movement plus its audit entry. Refuses `negative-stock`, `zero-delta`, `unknown-product`.                                                                 |
+| `receivePurchaseOrder(poId, operator?)`                          | Claims the status transition **first**, then credits every line and logs it.                                                                                               |
+
+Two rules define the boundary:
+
+- **Everything that changes persisted state lives here; everything the operator sees stays
+  in the component.** A service never raises a toast and never prints.
+- **Services read and write stores through `getState()`**, exactly as the screens did, so
+  they are ordinary functions callable from a test with no DOM.
+
+`commitSale` reads quantities off the transaction it just built rather than taking the cart
+as a second argument: both describe the same lines, but two arguments can disagree and one
+cannot. `receivePurchaseOrder` claims the transition before touching stock because the
+stock movement is not idempotent — crediting first and asking afterwards let a double-click
+add the same shipment twice while the refused status change was discarded.
+
+---
+
 ## 6. Core library (`src/lib`)
 
 ### 6.1 Pricing and checkout
@@ -387,16 +419,19 @@ the extra gate were bypassed.
 
 ### 6.3 Utilities
 
-`src/lib/utils/` holds the semantic utility modules, with the former one-function modules
-kept as **deprecated re-export facades** so existing imports do not break:
+`src/lib/utils/` holds the semantic utility modules. The one-function modules that used to
+re-export them (`money.ts`, `quantity.ts`, `ids.ts`, `escapeHtml.ts`, `dialogs.ts`,
+`notifications.ts`, `printWindow.ts`, plus `receiptPrinter.ts` and `supabase.ts`) were
+migration shims from refactor phases 1–3 and have been deleted; every import now names the
+focused module directly.
 
-| Module                | Exports                                    | Deprecated facade                |
-| --------------------- | ------------------------------------------ | -------------------------------- |
-| `utils/validation.ts` | `nonNegative`, `isPositiveIntegerQuantity` | `money.ts`, `quantity.ts`        |
-| `utils/formatting.ts` | `escapeHtml`                               | `escapeHtml.ts`                  |
-| `utils/ids.ts`        | `shortId`                                  | `ids.ts`                         |
-| `utils/ui.ts`         | `notify`, `askConfirmation`, `askText`     | `notifications.ts`, `dialogs.ts` |
-| `utils/dom.ts`        | `openDetachedPrintWindow`                  | `printWindow.ts`                 |
+| Module                | Exports                                    |
+| --------------------- | ------------------------------------------ |
+| `utils/validation.ts` | `nonNegative`, `isPositiveIntegerQuantity` |
+| `utils/formatting.ts` | `escapeHtml`                               |
+| `utils/ids.ts`        | `shortId`                                  |
+| `utils/ui.ts`         | `notify`, `askConfirmation`, `askText`     |
+| `utils/dom.ts`        | `openDetachedPrintWindow`                  |
 
 **`utils/ids.ts`** prefers `crypto.randomUUID`, then `crypto.getRandomValues`, and only
 then a compatibility fallback of timestamp + 64-bit monotonic counter. That counter is
@@ -559,6 +594,24 @@ orders a mixed Arabic/Latin line, and the printer just prints dots. It works on 
 ESC/POS printer regardless of codepage support, and every other command — including the
 drawer pulse — stays available.
 
+**The store logo.** `DocRow` carries a `logo` row, and three things had to be true for the
+`show.logo` toggle to work on a thermal printer — it previously worked on none of them, so
+the setting appeared to work and did nothing:
+
+1. the row has to exist, so the raster renderer has something to draw (the ESC/POS **text**
+   renderer skips it: that path emits codepage characters and has no image command at all);
+2. the raster path has to be **chosen**. It is selected for non-ASCII text _or_ when a logo
+   image is present — otherwise an English receipt keeps the text path and drops the logo;
+3. the decode has to be **bounded** (`LOGO_DECODE_TIMEOUT_MS`, 2s). It is awaited on the way
+   to the printer, and `onload`/`onerror` do not cover an image that reports neither — that
+   promise would stay pending forever and the receipt would never be sent.
+
+`test/lib/receipt/rendererConsistency.test.ts` walks all eighteen toggles and asserts the
+HTML and DocRow descriptions agree on whether each block is present. The renderers may
+differ in _how_ they draw a block — one has CSS, the other has dots — but never in
+_whether_. `htmlCharacterization.test.ts` snapshots the exact markup, including the 46
+`.ltr` spans that keep numerals from reordering on an Arabic receipt.
+
 `escposRaster.ts` is the pure half:
 
 - `RASTER_WIDTH` — 384 dots (58 mm) / 576 dots (80 mm), the standard head widths.
@@ -641,7 +694,8 @@ copy). Only tickets with at least one item are returned, in the given station or
 `print/transport/system.ts` opens the detached window and writes the document;
 `print/system.ts` composes receipts (joined by `<div class="page-break">`) or a kitchen
 ticket; `print/types.ts` defines `PrintOutcome = 'printed' | 'popup-blocked' | 'esc-pos'`.
-`receiptPrinter.ts` remains as a deprecated facade preserving the original import path.
+The former `receiptPrinter.ts` facade has been deleted; callers import from `receipt/` or
+`print/` directly.
 
 ### 7.9 Printer discovery — `printerDiscovery.ts`
 
@@ -672,7 +726,7 @@ lib/supabase/
 ├── transactions.ts  pushTransactions / pullTransactions
 ├── accounts.ts      verifyLoginCloud / pushUserAccounts / pullUserAccounts
 ├── sync-utils.ts    stampStoreId, fetchAllPages, keyset, deleteRowsSupabase
-└── index.ts         aggregate facade (lib/supabase.ts re-exports it)
+└── index.ts         aggregate facade (imported as './supabase')
 ```
 
 ### 8.2 Client lifecycle — `client.ts`
@@ -1445,7 +1499,7 @@ path taken, so an unsigned build is never mistaken for a signed one in CI output
 
 ### Unit and component — Vitest
 
-63 files under `test/`, mirroring `src/`. Environment `jsdom`; `test/setup.ts` loads
+67 files under `test/`, mirroring `src/`. Environment `jsdom`; `test/setup.ts` loads
 `fake-indexeddb/auto` (stores persist through idb-keyval), `@testing-library/jest-dom`,
 real i18n so `t()` returns English strings, an explicit `cleanup()` (auto-cleanup only
 registers itself with vitest globals enabled, which they are not), and stubs
@@ -1558,8 +1612,8 @@ CI immediately after the production build.
 | Initial JavaScript entry | 200,000 bytes |
 | Initial CSS entry        |  50,000 bytes |
 
-`PERF.md` records the Phase 4 baseline: 61 test files / 527 tests passing, zero ESLint
-warnings, a 6–7 second production build, 433,690 raw / 135,819 gzip initial JS, 113,788 raw /
+`PERF.md` records the current baseline: 67 test files / 638 tests passing, zero ESLint
+warnings, a 5–7 second production build, 436,330 raw / 136,537 gzip initial JS, 113,788 raw /
 17,511 gzip initial CSS, and instrumented coverage of 56.82 % statements, 47.40 % branches,
 47.03 % functions, 58.19 % lines. Coverage is recorded as a baseline rather than raised to an
 artificial threshold, because the suite includes broad component coverage alongside many
@@ -1584,10 +1638,11 @@ A budget failure should trigger a fresh bundle analysis, not an arbitrary limit 
 - **Comments explain _why_, not _what_.** The codebase is unusually heavily commented, and
   the comments carry real history — a bug that shipped, a race that was closed, a trade-off
   that was accepted. Preserve them when refactoring.
-- **Deprecated facades** (`money.ts`, `quantity.ts`, `ids.ts`, `escapeHtml.ts`,
-  `dialogs.ts`, `notifications.ts`, `printWindow.ts`, `receiptPrinter.ts`, `supabase.ts`)
-  contain exports only and must not acquire business logic. New code imports the focused
-  module.
+- **No re-export shims.** The nine compatibility facades left by phases 1–3 have been
+  deleted. Import the focused module directly; do not reintroduce a passthrough file.
+- **Services own cross-store writes.** An operation touching several stores plus cloud sync
+  belongs in `src/services/`, not in a component. A service never notifies and never
+  prints — that half stays on the screen.
 - **Prop-driven subcomponents.** Extracted panels and tabs do not subscribe to Zustand; the
   screen owns store access and business actions.
 
