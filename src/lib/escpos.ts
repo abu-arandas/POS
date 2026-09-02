@@ -138,6 +138,12 @@ function renderDoc(rows: DocRow[], width: number, b: EscPosBuilder): void {
       case 'barcode':
         b.feed(1).align('center').barcode128(row.value).feed(1);
         break;
+      case 'logo':
+        // The text path emits characters from the printer's codepage and has no
+        // way to send an image. A receipt whose logo matters goes out through
+        // the raster path instead (see escposRaster.needsRaster /
+        // receiptCanvas.renderReceiptRaster), which draws it as dots.
+        break;
     }
   }
 }

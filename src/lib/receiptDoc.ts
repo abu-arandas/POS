@@ -31,7 +31,13 @@ export type DocRow =
   // Free text on the leading edge.
   | { kind: 'line'; text: string; style?: RowStyle }
   | { kind: 'divider' }
-  | { kind: 'barcode'; value: string };
+  | { kind: 'barcode'; value: string }
+  // The store logo. `src` is the operator's uploaded image when there is one;
+  // absent means "draw the built-in mark". Carried as a row rather than left to
+  // each renderer because it is toggleable (show.logo), and a block that only
+  // one renderer knows about is a setting that silently does nothing on the
+  // others — which is exactly what happened before this row existed.
+  | { kind: 'logo'; src?: string };
 
 // Tender labels, translated. The receipt used to print the raw enum ('cash'),
 // which reads as a stray English word on an Arabic receipt.
@@ -60,6 +66,7 @@ export function buildReceiptDoc(
   const rows: DocRow[] = [];
 
   if (L.header) rows.push({ kind: 'center', text: L.header, style: 'bold' });
+  if (S.logo) rows.push({ kind: 'logo', src: settings.storeLogo || undefined });
   if (S.storeName) rows.push({ kind: 'center', text: settings.storeName, style: 'title' });
   if (S.branchName && settings.branchName)
     rows.push({ kind: 'center', text: settings.branchName, style: 'muted' });
