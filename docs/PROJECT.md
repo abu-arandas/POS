@@ -4,7 +4,7 @@ A full technical description of the EA POS codebase: what it is, how it is built
 every module does, and the reasoning behind the decisions that are not obvious from the
 code.
 
-- **Package:** `ea-pos` v1.0.1 (private)
+- **Package:** `ea-pos` v1.0.2 (private)
 - **Repository:** [abu-arandas/POS](https://github.com/abu-arandas/POS)
 - **Runtime:** Node ≥ 22.22.2, React 19, Vite 6, Electron 43
 - **Scale:** ~289 files, ~34,000 lines of TS/TSX/CJS/MJS

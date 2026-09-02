@@ -1,7 +1,7 @@
 {
   "name": "ea-pos",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "description": "EA POS — offline-first point-of-sale for retail and café: inventory, checkout, QR digital menu server, and network thermal-printer support.",
   "author": {
@@ -82,6 +82,7 @@
     "zustand": "^5.0.14"
   },
   "overrides": {
-    "http-cache-semantics": "4.2.0"
+    "http-cache-semantics": "4.2.0",
+    "fast-uri": "3.1.7"
   }
 }
