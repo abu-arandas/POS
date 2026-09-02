@@ -10,6 +10,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useSupplyStore } from '../stores/supplyStore';
 import { useAuthStore } from '../stores/authStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
+import { adjustStock, receivePurchaseOrder } from '../services';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
 import { notify } from '../lib/utils/ui';
@@ -153,90 +154,44 @@ export default function Inventory() {
     setPoModalOpen(false);
   }, [poLines, poSupplierId, poNote, products, suppliers, currentUser, createPurchaseOrder, t]);
 
-  // Receiving locks the PO as received FIRST, then applies stock to the LIVE
-  // catalog and writes one audit-log entry per line, exactly like a manual
-  // receive.
-  //
-  // Order matters: setPurchaseOrderStatus is the authoritative guard (it
-  // refuses anything PO_TRANSITIONS disallows) and the stock movement below is
-  // not idempotent. Crediting first and asking afterwards meant a second call —
-  // a double-click, or the button rendered from a stale snapshot — added the
-  // same shipment to inventory twice while the refused status change was
-  // silently discarded. Claiming the transition up front makes the second call
-  // a no-op. Lines come from the returned record, not the caller's snapshot.
+  // The status transition, the per-line stock application, the audit entries and
+  // the cloud push all belong to receivePurchaseOrder; this screen only asks
+  // the operator to confirm.
   const handleReceivePo = useCallback(
     async (po: PurchaseOrder) => {
       if (!(await askConfirmation(t('inventory.poReceiveConfirm')))) return;
-      const received = setPurchaseOrderStatus(po.id, 'received');
-      if (!received) return; // already received/cancelled — nothing to apply
-      const liveProducts = useProductStore.getState().products;
-      const updatedProducts: Product[] = [];
-      for (const line of received.lines) {
-        const prod = liveProducts.find((p) => p.id === line.productId);
-        if (!prod) continue; // product deleted since ordering — skip its line
-        const updated = { ...prod, stock: prod.stock + line.quantity };
-        handleUpdateProduct(updated);
-        updatedProducts.push(updated);
-        logAdjustment({
-          productId: updated.id,
-          productName: updated.name,
-          delta: line.quantity,
-          newStock: updated.stock,
-          reason: 'received',
-          note: `PO ${received.id}`,
-          supplierId: received.supplierId,
-          supplierName: received.supplierName,
-          operatorName: currentUser?.name ?? null,
-        });
-      }
-      if (updatedProducts.length > 0) syncToCloudIfEnabled(updatedProducts);
+      receivePurchaseOrder(po.id, currentUser?.name ?? null);
     },
-    [handleUpdateProduct, logAdjustment, setPurchaseOrderStatus, currentUser, t],
+    [currentUser, t],
   );
 
   const handleReceiveStock = useCallback(() => {
-    const product = products.find((p) => p.id === recvProductId);
     const qty = parseInt(recvQty, 10);
-    if (!product || !qty) return; // allows negative if reason is waste
-    const newStock = product.stock + qty;
-    if (newStock < 0) {
-      notify(t('inventory.stockCannotBeNegative'));
-      return;
-    }
-    const updated = { ...product, stock: newStock };
-    handleUpdateProduct(updated);
-    syncToCloudIfEnabled([updated]);
     const supplier = suppliers.find((s) => s.id === recvSupplierId);
-    logAdjustment({
-      productId: product.id,
-      productName: product.name,
+    // A negative delta is legitimate here — waste and corrections both use one —
+    // so the service, not this screen, decides what is refusable.
+    const result = adjustStock({
+      productId: recvProductId,
       delta: qty,
-      newStock: updated.stock,
       reason: recvReason,
       note: recvNote || null,
       supplierId: supplier?.id ?? null,
       supplierName: supplier?.name ?? null,
       operatorName: currentUser?.name ?? null,
     });
+    if (!result.success) {
+      if (result.error === 'negative-stock') notify(t('inventory.stockCannotBeNegative'));
+      // 'zero-delta' and 'unknown-product' mean the form is incomplete, which
+      // the disabled submit already communicates; nothing to say twice.
+      return;
+    }
     setReceiveOpen(false);
     setRecvProductId('');
     setRecvQty('');
     setRecvSupplierId('');
     setRecvNote('');
     setRecvReason('received');
-  }, [
-    products,
-    recvProductId,
-    recvQty,
-    suppliers,
-    recvSupplierId,
-    recvReason,
-    recvNote,
-    currentUser,
-    handleUpdateProduct,
-    logAdjustment,
-    t,
-  ]);
+  }, [recvProductId, recvQty, suppliers, recvSupplierId, recvReason, recvNote, currentUser, t]);
 
   const handleAddSupplier = useCallback(
     (e: React.FormEvent) => {

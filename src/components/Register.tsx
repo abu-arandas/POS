@@ -34,12 +34,11 @@ const PaymentModal = lazy(() =>
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { useHeldOrderStore } from '../stores/heldOrderStore';
 import { useShiftStore } from '../stores/shiftStore';
-import { syncToCloudIfEnabled } from '../lib/sync';
-import { buildSaleTransaction, CheckoutRequest } from '../lib/checkout';
+import type { CheckoutRequest } from '../lib/checkout';
+import { commitSale } from '../services';
 import {
   printReceipt,
   printKitchenTickets,
@@ -59,10 +58,8 @@ import { askConfirmation, askText } from '../lib/utils/ui';
  */
 export default function Register() {
   const { t } = useTranslation();
-  const handleUpdateProduct = useProductStore((s) => s.handleUpdateProduct);
   const customers = useCustomerStore((s) => s.customers);
   const handleAddCustomer = useCustomerStore((s) => s.handleAddCustomer);
-  const updateCustomerPoints = useCustomerStore((s) => s.updateCustomerPoints);
   const settings = useSettingsStore((s) => s.settings);
   const printerConfig = useSettingsStore((s) => s.printerConfig);
   const scannerConfig = useSettingsStore((s) => s.scannerConfig);
@@ -70,7 +67,6 @@ export default function Register() {
   const kitchenStations = useSettingsStore((s) => s.kitchenStations);
   const receiptLayout = useSettingsStore((s) => s.receiptLayout);
   const kitchenLayout = useSettingsStore((s) => s.kitchenLayout);
-  const addTransaction = useTransactionStore((s) => s.addTransaction);
   const currentUser = useAuthStore((s) => s.currentUser);
   const heldOrders = useHeldOrderStore((s) => s.heldOrders);
   const holdOrder = useHeldOrderStore((s) => s.holdOrder);
@@ -336,59 +332,24 @@ export default function Register() {
       settings,
     };
 
-    const outcome = buildSaleTransaction(req);
-    if (!outcome.success) {
-      if (outcome.error === 'invalid-quantity') notify(t('register.invalidQuantity'));
-      else if (outcome.error === 'split-incomplete') notify(t('register.splitIncomplete'));
-      else if (outcome.error === 'split-non-cash-overpay')
-        notify(t('register.splitNonCashOverpay'));
-      else if (outcome.error === 'insufficient-cash') notify(t('register.insufficientCash'));
+    // Every store write for the sale happens here. The screen keeps only what
+    // the operator sees: the receipt, the drawer, and the printer.
+    const result = commitSale(req);
+    if (!result.success) {
+      if (result.error === 'invalid-quantity') notify(t('register.invalidQuantity'));
+      else if (result.error === 'split-incomplete') notify(t('register.splitIncomplete'));
+      else if (result.error === 'split-non-cash-overpay') notify(t('register.splitNonCashOverpay'));
+      else if (result.error === 'insufficient-cash') notify(t('register.insufficientCash'));
       return;
     }
 
-    const { transaction, pointsDelta } = outcome;
-    const saleMethod = transaction.paymentMethod;
-    const payments = transaction.payments;
-
-    // Decrement stock on the LIVE product records. The cart holds snapshots
-    // from add-to-cart time; writing those back would silently revert any
-    // price/name/stock edit made while the sale was open.
-    const liveProducts = useProductStore.getState().products;
-    const liveMap = new Map(liveProducts.map((p) => [p.id, p]));
-    const updatedProducts: Product[] = [];
-    cart.forEach((item) => {
-      const live = liveMap.get(item.product.id);
-      if (!live) return; // product deleted mid-sale; nothing to decrement
-      const updated = { ...live, stock: Math.max(0, live.stock - item.quantity) };
-      handleUpdateProduct(updated);
-      updatedProducts.push(updated);
-    });
-
-    // Update customer points
-    let updatedCustomer = null;
-    if (selectedCustomerId) {
-      updateCustomerPoints(selectedCustomerId, pointsDelta);
-      const customerState = useCustomerStore.getState().customers;
-      const custMap = new Map(customerState.map((c) => [c.id, c]));
-      updatedCustomer = custMap.get(selectedCustomerId) || null;
-    }
-
-    addTransaction(transaction);
-    syncToCloudIfEnabled(
-      updatedProducts,
-      undefined,
-      updatedCustomer ? [updatedCustomer] : undefined,
-      [transaction],
-    );
+    const { transaction, isCashSale } = result.sale;
 
     setActiveReceipt(transaction);
     setReceiptPrinted(false);
     setCheckoutModalOpen(false);
     setReceiptModalOpen(true);
     clearCart();
-
-    const isCashSale =
-      saleMethod === 'cash' || (payments?.some((p) => p.method === 'cash') ?? false);
 
     if (printerConfig.autoPrintOnCheckout) {
       printReceipt(transaction, settings, printerConfig, isCashSale, receiptLayout).then(
@@ -435,10 +396,6 @@ export default function Register() {
     currentUser,
     currentShiftId,
     settings,
-    cart,
-    handleUpdateProduct,
-    updateCustomerPoints,
-    addTransaction,
     printerConfig,
     kitchenStations,
     receiptLayout,
