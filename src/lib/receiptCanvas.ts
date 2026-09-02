@@ -11,7 +11,7 @@
 // they can be tested; this module only measures and paints.
 
 import { DocRow } from './receiptDoc';
-import { code128Modules } from './barcode';
+import { code128Modules, code128ModuleWidth } from './barcode';
 import { packRaster, rasterCommands, RASTER_WIDTH } from './escposRaster';
 
 // Type sizes in dots, at 203dpi (the near-universal thermal head density).
@@ -129,34 +129,24 @@ function rowHeight(row: DocRow): number {
 /**
  * Where the Code 128 bars land on the roll, or null when they cannot fit.
  *
- * A module is the narrowest bar, and it can only be a whole number of dots —
- * the print head has no finer unit. So the widest module that fits is
- * floor(printable / total), and when that floor is 0 the barcode does not fit
- * on this paper at any size.
+ * The fit rule itself lives in barcode.ts, because the ESC/POS text path has to
+ * answer the same question about the same symbol and the two must not disagree
+ * — a receipt that refuses the barcode on one path and clips it on the other is
+ * the bug this replaced, wearing a different hat.
  *
- * Returning null for that case is the point. The previous code clamped the
- * module to a minimum of 1 dot, which does not make the barcode fit — it makes
- * it overrun. A `TX-` prefix plus an uppercased UUID is 39 characters, or 464
- * modules, against 360 printable dots on a 58mm roll: the bars ran 40 dots off
- * each edge and the head clipped them. What it clips is the start and stop
- * patterns, which is precisely what a scanner needs, so the receipt carried
- * something that looked like a barcode and could never be read.
- *
- * The caller prints the human-readable id either way, so a receipt that cannot
- * carry scannable bars still carries a value someone can type.
+ * The raster path draws its own bars, so it can use a one-dot module and has no
+ * upper bound to respect. Quiet zones are measured against the full head width
+ * rather than the padded area: white paper beside the symbol is quiet zone
+ * whether or not the layout calls it a margin.
  */
 export function barcodeBox(
-  moduleWidths: number[],
+  value: string,
   paperWidth: number,
 ): { x: number; module: number; width: number } | null {
-  const total = moduleWidths.reduce((sum, w) => sum + w, 0);
-  const printable = paperWidth - PAD * 2;
-  if (total <= 0 || printable <= 0) return null;
+  const module = code128ModuleWidth(value, paperWidth, 1);
+  if (module === null) return null;
 
-  const module = Math.floor(printable / total);
-  if (module < 1) return null;
-
-  const width = total * module;
+  const width = code128Modules(value).reduce((sum, w) => sum + w, 0) * module;
   return { x: (paperWidth - width) / 2, module, width };
 }
 
@@ -259,11 +249,19 @@ export function renderReceiptRaster(
     } else if (row.kind === 'barcode') {
       // Resolved here and reused when drawing, so the height reserved and the
       // height used cannot drift apart — the same reason wrapping is cached.
-      const box = barcodeBox(code128Modules(row.value), width);
+      const box = barcodeBox(row.value, width);
       barcodes.set(row, box);
-      // Without bars only the human-readable line prints, so reserving the full
+      // The readable id is wrapped like any other text. It is the only carrier
+      // of the value when the bars are refused, so letting it run off the edge
+      // would leave the receipt with no legible id at all — which is worse than
+      // the clipped barcode this all replaced.
+      ctx.font = fontFor('muted', family);
+      const lines = wrapText(ctx, row.value, inner);
+      wrapped.set(row, lines);
+      const readable = SIZE.muted * lines.length + LINE_GAP * 2;
+      // Without bars only the readable line prints, so reserving the full
       // barcode height would leave a band of blank paper above it.
-      height += box ? rowHeight(row) : SIZE.muted + LINE_GAP * 2;
+      height += box ? rowHeight(row) + SIZE.muted * (lines.length - 1) : readable;
     } else if (row.kind === 'logo') {
       // A logo row with nothing decoded takes no space at all, so a store that
       // has not uploaded one does not print a blank band.
@@ -364,7 +362,9 @@ export function renderReceiptRaster(
         ctx.textAlign = 'center';
         // The human-readable line is always LTR — it is a receipt id.
         ctx.direction = 'ltr';
-        ctx.fillText(row.value, width / 2, top + (box ? BARCODE_HEIGHT + LINE_GAP : SIZE.muted));
+        const lines = wrapped.get(row) ?? [row.value];
+        const firstLine = top + (box ? BARCODE_HEIGHT + LINE_GAP : SIZE.muted);
+        lines.forEach((ln, i) => ctx.fillText(ln, width / 2, firstLine + i * SIZE.muted));
         ctx.direction = rtl ? 'rtl' : 'ltr';
         break;
       }
@@ -375,7 +375,10 @@ export function renderReceiptRaster(
     }
     if (row.kind === 'barcode') {
       // Mirrors pass 1 exactly, off the same resolved box.
-      y += barcodes.get(row) ? rowHeight(row) : SIZE.muted + LINE_GAP * 2;
+      const extraLines = (wrapped.get(row)?.length ?? 1) - 1;
+      y += barcodes.get(row)
+        ? rowHeight(row) + SIZE.muted * extraLines
+        : SIZE.muted * (extraLines + 1) + LINE_GAP * 2;
       continue;
     }
     const extra = (wrapped.get(row)?.length ?? 1) - 1;

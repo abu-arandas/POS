@@ -148,6 +148,46 @@ export function code128Modules(data: string): number[] {
 }
 
 /**
+ * Quiet zone either side of a Code 128 symbol, in modules.
+ *
+ * The spec requires at least 10, and a scanner uses it to find where the symbol
+ * begins. Bars that fit the paper with no quiet zone still fail to read, which
+ * is the same failure this whole module is trying to stop, so the fit test
+ * below counts it as part of the symbol rather than as optional margin.
+ */
+export const CODE128_QUIET_MODULES = 10;
+
+/**
+ * The widest whole-dot module width that fits `availableDots`, or null when the
+ * symbol cannot be printed on that paper at all.
+ *
+ * A module is the narrowest bar and can only be a whole number of dots — no
+ * print head has a finer unit — so this floors, and a floor below `minModule`
+ * means there is no width that works. Returning null for that is the point: the
+ * alternative is to clamp to the minimum, which does not make an oversized
+ * barcode fit, it makes it overrun the paper and get clipped at both ends.
+ * What a head clips is the start and stop patterns, which is exactly what a
+ * scanner needs, so a clamped barcode looks right and never reads.
+ *
+ * Both renderers ask this same question. The raster path can draw a one-dot
+ * module and has no upper bound; the printer's native engine takes `GS w n`,
+ * which is documented for n of 2 to 6. Hence the bounds are the caller's.
+ */
+export function code128ModuleWidth(
+  value: string,
+  availableDots: number,
+  minModule = 1,
+  maxModule?: number,
+): number | null {
+  const symbol = code128Modules(value).reduce((sum, w) => sum + w, 0);
+  if (symbol <= 0 || availableDots <= 0) return null;
+
+  const module = Math.floor(availableDots / (symbol + CODE128_QUIET_MODULES * 2));
+  if (module < minModule) return null;
+  return maxModule === undefined ? module : Math.min(module, maxModule);
+}
+
+/**
  * Bar geometry for renderBarcodeSvg. Both values are in CSS pixels.
  */
 export interface BarcodeSvgOptions {

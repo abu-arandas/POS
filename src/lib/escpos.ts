@@ -1,5 +1,7 @@
 import { SaleTransaction, StoreSettings, PrinterConfig, ReceiptLayout } from '../types';
 import { DocRow, buildReceiptDoc, buildKitchenDoc } from './receiptDoc';
+import { code128ModuleWidth } from './barcode';
+import { RASTER_WIDTH } from './escposRaster';
 
 // Minimal ESC/POS command encoder. Produces the raw byte stream a thermal
 // printer understands, independent of transport (Web Serial, network socket,
@@ -60,17 +62,31 @@ class EscPosBuilder {
     return this.raw(ESC, 0x70, 0x00, 0x19, 0xfa);
   } // pulse pin 2
   // Native Code128 (code set B) barcode with the human-readable value printed
-  // below it. Uses the printer's built-in barcode engine, so it's always sharp
-  // and scannable regardless of paper width.
-  barcode128(value: string) {
+  // below it, using the printer's built-in barcode engine.
+  //
+  // The module width is chosen to fit the roll rather than fixed at 2 dots. It
+  // was fixed, and the comment here used to claim the result was "always sharp
+  // and scannable regardless of paper width" — it was not. A `TX-` prefix plus
+  // an uppercased UUID is 464 modules, which at 2 dots is 928 dots of bars
+  // against a 384-dot 58mm head. The printer has nowhere to put them.
+  //
+  // Returns false when no width in the GS w range fits, so the caller can print
+  // the value as plain text instead. A receipt that carries a typeable id beats
+  // one carrying bars that cannot be read.
+  barcode128(value: string, availableDots: number): boolean {
+    // GS w accepts 2..6. The engine cannot draw a one-dot module, which is the
+    // one place this differs from the raster path.
+    const module = code128ModuleWidth(value, availableDots, 2, 6);
+    if (module === null) return false;
+
     this.raw(GS, 0x68, 0x50); // GS h 80  — barcode height (dots)
-    this.raw(GS, 0x77, 0x02); // GS w 2   — narrow module width
+    this.raw(GS, 0x77, module); // GS w n   — narrow module width
     this.raw(GS, 0x48, 0x02); // GS H 2   — print HRI text below the bars
     // GS k 73 n d1..dn — Code128; data is prefixed with "{B" to select code set B.
     const payload = `{B${value}`;
     this.raw(GS, 0x6b, 73, payload.length);
     for (const ch of payload) this.chunks.push(ch.charCodeAt(0) & 0x7f);
-    return this;
+    return true;
   }
   build(): Uint8Array {
     // Merge accumulated codepoints; text() already pushed byte values.
@@ -96,7 +112,7 @@ function twoCol(left: string, right: string, width: number): string {
 // carry other scripts go out as a bitmap instead; see escposRaster.ts. Both
 // paths now describe the receipt from the same DocRow list, so a layout toggle
 // or a label change lands on both without being written twice.
-function renderDoc(rows: DocRow[], width: number, b: EscPosBuilder): void {
+function renderDoc(rows: DocRow[], width: number, b: EscPosBuilder, availableDots: number): void {
   for (const row of rows) {
     switch (row.kind) {
       case 'divider':
@@ -136,7 +152,14 @@ function renderDoc(rows: DocRow[], width: number, b: EscPosBuilder): void {
         break;
       }
       case 'barcode':
-        b.feed(1).align('center').barcode128(row.value).feed(1);
+        {
+          b.feed(1).align('center');
+          // Bars when they fit, the readable id alone when they do not — never
+          // bars the head would clip.
+          if (!b.barcode128(row.value, availableDots)) b.line(row.value);
+          b.feed(1);
+          break;
+        }
         break;
       case 'logo':
         // The text path emits characters from the printer's codepage and has no
@@ -163,7 +186,12 @@ export function encodeReceipt(
   const width = printerConfig.paperSize === '58mm' ? 32 : 48;
   const b = new EscPosBuilder();
   b.init();
-  renderDoc(buildReceiptDoc(tx, settings, printerConfig, layout), width, b);
+  renderDoc(
+    buildReceiptDoc(tx, settings, printerConfig, layout),
+    width,
+    b,
+    RASTER_WIDTH[printerConfig.paperSize],
+  );
   b.feed(3).cut();
   if (openDrawer) b.drawerKick();
   return b.build();
@@ -184,7 +212,12 @@ export function encodeKitchenTicket(
   const width = printerConfig.paperSize === '58mm' ? 32 : 48;
   const b = new EscPosBuilder();
   b.init();
-  renderDoc(buildKitchenDoc(tx, settings, stationName, layout), width, b);
+  renderDoc(
+    buildKitchenDoc(tx, settings, stationName, layout),
+    width,
+    b,
+    RASTER_WIDTH[printerConfig.paperSize],
+  );
   b.feed(3).cut();
   return b.build();
 }
