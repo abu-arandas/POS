@@ -32,6 +32,39 @@ const BARCODE_HEIGHT = 70;
 // across a counter, small enough not to push the first item off the visible top
 // of the roll.
 const LOGO_HEIGHT = 96;
+
+/**
+ * Where the store logo lands on the roll, in dots.
+ *
+ * Split out from the draw pass because it is the one part of the raster
+ * renderer that can be checked without a canvas: jsdom implements no 2D
+ * context, so a test that goes through renderReceiptRaster asserts on the
+ * ESC/POS text path instead and proves nothing about the bitmap. The rules it
+ * encodes are the ones a real printer enforces in hardware — overrun the head
+ * width and the roll clips the overhang, silently — so they are worth stating
+ * where they can be asserted.
+ *
+ * The logo fills the band height, and shrinks below it when that would overrun
+ * the paper. Both dimensions scale together: the aspect ratio is the
+ * operator's, not ours to change, and a squashed logo is the kind of thing
+ * nobody reports and everybody notices.
+ */
+export function logoBox(
+  natural: { width: number; height: number },
+  paperWidth: number,
+): { x: number; width: number; height: number } {
+  const inner = paperWidth - PAD * 2;
+  // A zero or malformed intrinsic size would make the ratio NaN or Infinity and
+  // put NaN into drawImage, which paints nothing at all. Square is the neutral
+  // assumption: it prints something recognisable rather than nothing.
+  const ratio = natural.width > 0 && natural.height > 0 ? natural.width / natural.height : 1;
+  const width = Math.min(LOGO_HEIGHT * ratio, inner);
+  return {
+    x: (paperWidth - width) / 2,
+    width,
+    height: Math.min(LOGO_HEIGHT, width / ratio),
+  };
+}
 // The total gets a ruled box. On thermal paper a box survives poor contrast
 // and fading far better than weight alone.
 const BOX_PAD = 8;
@@ -91,6 +124,40 @@ function rowHeight(row: DocRow): number {
       return (SIZE[style] ?? SIZE.normal) + LINE_GAP + (boxed ? BOX_PAD * 2 + 4 : 0);
     }
   }
+}
+
+/**
+ * Where the Code 128 bars land on the roll, or null when they cannot fit.
+ *
+ * A module is the narrowest bar, and it can only be a whole number of dots —
+ * the print head has no finer unit. So the widest module that fits is
+ * floor(printable / total), and when that floor is 0 the barcode does not fit
+ * on this paper at any size.
+ *
+ * Returning null for that case is the point. The previous code clamped the
+ * module to a minimum of 1 dot, which does not make the barcode fit — it makes
+ * it overrun. A `TX-` prefix plus an uppercased UUID is 39 characters, or 464
+ * modules, against 360 printable dots on a 58mm roll: the bars ran 40 dots off
+ * each edge and the head clipped them. What it clips is the start and stop
+ * patterns, which is precisely what a scanner needs, so the receipt carried
+ * something that looked like a barcode and could never be read.
+ *
+ * The caller prints the human-readable id either way, so a receipt that cannot
+ * carry scannable bars still carries a value someone can type.
+ */
+export function barcodeBox(
+  moduleWidths: number[],
+  paperWidth: number,
+): { x: number; module: number; width: number } | null {
+  const total = moduleWidths.reduce((sum, w) => sum + w, 0);
+  const printable = paperWidth - PAD * 2;
+  if (total <= 0 || printable <= 0) return null;
+
+  const module = Math.floor(printable / total);
+  if (module < 1) return null;
+
+  const width = total * module;
+  return { x: (paperWidth - width) / 2, module, width };
 }
 
 /**
@@ -174,6 +241,7 @@ export function renderReceiptRaster(
   // is why this cannot be folded into the drawing pass.
   const inner = width - PAD * 2;
   const wrapped = new Map<DocRow, string[]>();
+  const barcodes = new Map<DocRow, ReturnType<typeof barcodeBox>>();
   let height = PAD * 2;
   for (const row of rows) {
     if (row.kind === 'center' || row.kind === 'line') {
@@ -188,6 +256,14 @@ export function renderReceiptRaster(
       const lines = wrapText(ctx, row.label, avail);
       wrapped.set(row, lines);
       height += rowHeight(row) + (lines.length - 1) * (SIZE[row.style ?? 'normal'] ?? SIZE.normal);
+    } else if (row.kind === 'barcode') {
+      // Resolved here and reused when drawing, so the height reserved and the
+      // height used cannot drift apart — the same reason wrapping is cached.
+      const box = barcodeBox(code128Modules(row.value), width);
+      barcodes.set(row, box);
+      // Without bars only the human-readable line prints, so reserving the full
+      // barcode height would leave a band of blank paper above it.
+      height += box ? rowHeight(row) : SIZE.muted + LINE_GAP * 2;
     } else if (row.kind === 'logo') {
       // A logo row with nothing decoded takes no space at all, so a store that
       // has not uploaded one does not print a blank band.
@@ -266,46 +342,40 @@ export function renderReceiptRaster(
       }
       case 'logo': {
         if (!opts.logo) break;
-        // Scale to the logo band's height, and down again if that would overrun
-        // the roll — the aspect ratio is the operator's, not ours to change.
-        const natural = opts.logo.width / opts.logo.height || 1;
-        const drawHeight = LOGO_HEIGHT;
-        const drawWidth = Math.min(drawHeight * natural, width - PAD * 2);
-        ctx.drawImage(
-          opts.logo,
-          (width - drawWidth) / 2,
-          y,
-          drawWidth,
-          Math.min(drawHeight, drawWidth / natural),
-        );
+        const box = logoBox(opts.logo, width);
+        ctx.drawImage(opts.logo, box.x, y, box.width, box.height);
         break;
       }
       case 'barcode': {
-        const widths = code128Modules(row.value);
-        const total = widths.reduce((a, b) => a + b, 0);
-        // Largest whole-dot module width that still fits the roll, so the bars
-        // land on exact dot boundaries and stay scannable.
-        const module = Math.max(1, Math.floor((width - PAD * 2) / total));
-        const barsWidth = total * module;
-        let x = (width - barsWidth) / 2;
-        let bar = true;
+        // Decided in pass 1 against this same roll width; null means the bars
+        // cannot fit at one dot per module, so only the readable id prints.
+        const box = barcodes.get(row) ?? null;
         const top = y + LINE_GAP;
-        for (const w of widths) {
-          if (bar) ctx.fillRect(Math.round(x), top, w * module, BARCODE_HEIGHT);
-          x += w * module;
-          bar = !bar;
+        if (box) {
+          let x = box.x;
+          let bar = true;
+          for (const w of code128Modules(row.value)) {
+            if (bar) ctx.fillRect(Math.round(x), top, w * box.module, BARCODE_HEIGHT);
+            x += w * box.module;
+            bar = !bar;
+          }
         }
         ctx.font = fontFor('muted', family);
         ctx.textAlign = 'center';
         // The human-readable line is always LTR — it is a receipt id.
         ctx.direction = 'ltr';
-        ctx.fillText(row.value, width / 2, top + BARCODE_HEIGHT + LINE_GAP);
+        ctx.fillText(row.value, width / 2, top + (box ? BARCODE_HEIGHT + LINE_GAP : SIZE.muted));
         ctx.direction = rtl ? 'rtl' : 'ltr';
         break;
       }
     }
     if (row.kind === 'logo') {
       if (opts.logo) y += LOGO_HEIGHT + LINE_GAP;
+      continue;
+    }
+    if (row.kind === 'barcode') {
+      // Mirrors pass 1 exactly, off the same resolved box.
+      y += barcodes.get(row) ? rowHeight(row) : SIZE.muted + LINE_GAP * 2;
       continue;
     }
     const extra = (wrapped.get(row)?.length ?? 1) - 1;
