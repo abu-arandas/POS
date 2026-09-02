@@ -21,16 +21,14 @@ import {
   Minus,
   Plus,
 } from 'lucide-react';
-import { SaleTransaction, Product, Customer } from '../types';
+import { SaleTransaction } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { hashPinSalted, hashPinSaltedLegacy } from '../lib/hash';
+import { authorizeOverride, authorizerLabel } from '../lib/managerOverride';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
-import { useProductStore } from '../stores/productStore';
-import { useCustomerStore } from '../stores/customerStore';
-import { syncToCloudIfEnabled } from '../lib/sync';
-import { printTransactions } from '../lib/receiptPrinter';
+import { commitRefund } from '../services';
+import { printTransactions } from '../lib/print';
 import { printReceipt, HardwarePrintOutcome } from '../lib/hardwarePrint';
 import { computeRefund, refundableQuantities } from '../lib/refunds';
 import { notify } from '../lib/utils/ui';
@@ -38,7 +36,6 @@ import { useModalA11y } from '../lib/useModalA11y';
 import { usePinAttemptStore } from '../stores/pinAttemptStore';
 import { lockoutStatus, formatRemaining } from '../lib/pinThrottle';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
-import type { RefundPatch } from '../stores/transactionStore';
 import { useTranslation } from 'react-i18next';
 import { safeImageUrl } from '../lib/imageUrl';
 import { useHistoryFilters } from './history/useHistoryFilters';
@@ -53,11 +50,9 @@ const OVERRIDE_THROTTLE_KEY = '__manager_override__';
  */
 export default function History() {
   const { t } = useTranslation();
-  const { transactions, applyRefund, deleteTransactions } = useTransactionStore();
+  const { transactions, deleteTransactions } = useTransactionStore();
   const { settings, printerConfig, receiptLayout } = useSettingsStore();
   const { currentUser, users } = useAuthStore();
-  const { handleUpdateProduct } = useProductStore();
-  const { updateCustomerPoints } = useCustomerStore();
   const pinAttempts = usePinAttemptStore((s) => s.attempts);
   const registerPinFailure = usePinAttemptStore((s) => s.registerFailure);
   const registerPinSuccess = usePinAttemptStore((s) => s.registerSuccess);
@@ -100,67 +95,21 @@ export default function History() {
     setOverrideError('');
   };
 
+  // Restocking, the loyalty reversal, the refund patch and the cloud push all
+  // live in commitRefund. It re-reads the transaction from the store first, so
+  // a modal left open while another terminal's refund arrives cannot refund
+  // against pre-refund quantities.
   const applyRefundWithSelection = (
     staleTx: SaleTransaction,
     selection: Record<string, number>,
     authorizedBy: string,
   ) => {
-    const tx =
-      useTransactionStore.getState().transactions.find((t) => t.id === staleTx.id) || staleTx;
-    const result = computeRefund(
-      tx,
+    commitRefund(
+      staleTx.id,
       selection,
+      authorizedBy,
       settings.loyaltyPointsRate,
       settings.loyaltyPointValue,
-    );
-    if (!result) return;
-
-    const updatedProducts: Product[] = [];
-    const productState = useProductStore.getState().products;
-    const prodMap = new Map(productState.map((p) => [p.id, p]));
-
-    for (const [productId, qty] of Object.entries(result.appliedItems)) {
-      if (qty <= 0) continue;
-      const prod = prodMap.get(productId);
-      if (prod) {
-        const updated = { ...prod, stock: prod.stock + qty };
-        handleUpdateProduct(updated);
-        updatedProducts.push(updated);
-      }
-    }
-
-    let updatedCustomer: Customer | undefined;
-    if (tx.customerId && result.pointsReversal !== 0) {
-      updateCustomerPoints(tx.customerId, result.pointsReversal);
-      const customerState = useCustomerStore.getState().customers;
-      const custMap = new Map(customerState.map((c) => [c.id, c]));
-      updatedCustomer = custMap.get(tx.customerId);
-    }
-
-    const refundDate = new Date().toISOString();
-    const patch: RefundPatch = {
-      refundedItems: result.refundedItems,
-      refundedAmount: result.refundedAmount,
-      status: result.status,
-      refundDate,
-      authorizedBy,
-    };
-    applyRefund(tx.id, patch);
-
-    syncToCloudIfEnabled(
-      updatedProducts.length > 0 ? updatedProducts : undefined,
-      undefined,
-      updatedCustomer ? [updatedCustomer] : undefined,
-      [
-        {
-          ...tx,
-          status: result.status,
-          refundedItems: result.refundedItems,
-          refundedAmount: result.refundedAmount,
-          refundDate,
-          refundAuthorizedBy: authorizedBy,
-        },
-      ],
     );
   };
 
@@ -176,11 +125,7 @@ export default function History() {
         // Needs pin verification inline
         handleAuthorizeOverride();
       } else {
-        applyRefundWithSelection(
-          refundModalTx,
-          refundSelection,
-          `${currentUser.name} (${currentUser.role})`,
-        );
+        applyRefundWithSelection(refundModalTx, refundSelection, authorizerLabel(currentUser));
         setRefundModalTx(null);
       }
     }
@@ -197,26 +142,10 @@ export default function History() {
       return;
     }
 
-    const eligible = users.filter((u) => u.active && (u.role === 'manager' || u.role === 'admin'));
-    const [saltedHashes, legacyHashes] = await Promise.all([
-      Promise.all(eligible.map((u) => hashPinSalted(u.id, overridePin))),
-      Promise.all(eligible.map((u) => hashPinSaltedLegacy(u.id, overridePin))),
-    ]);
-    let authorizedUser: (typeof eligible)[number] | undefined;
-    for (let i = 0; i < eligible.length; i++) {
-      const u = eligible[i];
-      if (u.pin === saltedHashes[i] || u.pin === legacyHashes[i]) {
-        authorizedUser = u;
-        break;
-      }
-    }
+    const authorizedUser = await authorizeOverride(users, overridePin);
     if (authorizedUser && refundModalTx) {
       registerPinSuccess(OVERRIDE_THROTTLE_KEY);
-      applyRefundWithSelection(
-        refundModalTx,
-        refundSelection,
-        `${authorizedUser.name} (${authorizedUser.role})`,
-      );
+      applyRefundWithSelection(refundModalTx, refundSelection, authorizerLabel(authorizedUser));
       setRefundModalTx(null);
     } else {
       registerPinFailure(OVERRIDE_THROTTLE_KEY);

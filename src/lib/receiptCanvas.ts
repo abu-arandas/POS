@@ -28,6 +28,10 @@ const PAD = 12; // side margin in dots
 const LINE_GAP = 9; // extra leading between rows
 const DIVIDER_GAP = 12;
 const BARCODE_HEIGHT = 70;
+// Printed height of the store logo in dots. ~10mm at 203dpi: big enough to read
+// across a counter, small enough not to push the first item off the visible top
+// of the roll.
+const LOGO_HEIGHT = 96;
 // The total gets a ruled box. On thermal paper a box survives poor contrast
 // and fading far better than weight alone.
 const BOX_PAD = 8;
@@ -99,6 +103,49 @@ export interface RasterReceipt {
 }
 
 /**
+ * How long a logo decode may hold up a receipt. A data: URL decodes in
+ * microseconds, so anything approaching this is already pathological.
+ */
+export const LOGO_DECODE_TIMEOUT_MS = 2_000;
+
+/**
+ * Decodes the store logo so it can be drawn onto the receipt canvas.
+ *
+ * Resolves null rather than rejecting on any failure — a missing, malformed or
+ * unreachable logo must cost the customer a picture, never the receipt.
+ *
+ * The timeout is the load-bearing part. onload and onerror between them cover
+ * the cases a browser reports, but not the one that matters most here: an image
+ * that reports NEITHER. A remote logo behind a stalled connection, or a decoder
+ * that simply never comes back, leaves the promise pending forever — and this
+ * is awaited on the path to the printer, so the receipt is never sent and the
+ * operator is left holding a sale that appears to have vanished. Losing the
+ * picture is recoverable; losing the receipt is not.
+ */
+export async function loadReceiptLogo(src: string | undefined): Promise<HTMLImageElement | null> {
+  if (!src) return null;
+  if (typeof Image === 'undefined') return null;
+  try {
+    return await new Promise<HTMLImageElement | null>((resolve) => {
+      let settled = false;
+      const finish = (value: HTMLImageElement | null) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      };
+      const timer = setTimeout(() => finish(null), LOGO_DECODE_TIMEOUT_MS);
+      const image = new Image();
+      image.onload = () => finish(image);
+      image.onerror = () => finish(null);
+      image.src = src;
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Renders the rows to a monochrome raster sized for the roll.
  *
  * `rtl` flips the leading/trailing edges so labels sit on the right and values
@@ -107,7 +154,7 @@ export interface RasterReceipt {
 export function renderReceiptRaster(
   rows: DocRow[],
   paperSize: '58mm' | '80mm',
-  opts: { rtl?: boolean; fontFamily?: string } = {},
+  opts: { rtl?: boolean; fontFamily?: string; logo?: HTMLImageElement | null } = {},
 ): RasterReceipt | null {
   const width = RASTER_WIDTH[paperSize];
   const rtl = opts.rtl ?? false;
@@ -141,6 +188,10 @@ export function renderReceiptRaster(
       const lines = wrapText(ctx, row.label, avail);
       wrapped.set(row, lines);
       height += rowHeight(row) + (lines.length - 1) * (SIZE[row.style ?? 'normal'] ?? SIZE.normal);
+    } else if (row.kind === 'logo') {
+      // A logo row with nothing decoded takes no space at all, so a store that
+      // has not uploaded one does not print a blank band.
+      if (opts.logo) height += LOGO_HEIGHT + LINE_GAP;
     } else {
       height += rowHeight(row);
     }
@@ -213,6 +264,22 @@ export function renderReceiptRaster(
         });
         break;
       }
+      case 'logo': {
+        if (!opts.logo) break;
+        // Scale to the logo band's height, and down again if that would overrun
+        // the roll — the aspect ratio is the operator's, not ours to change.
+        const natural = opts.logo.width / opts.logo.height || 1;
+        const drawHeight = LOGO_HEIGHT;
+        const drawWidth = Math.min(drawHeight * natural, width - PAD * 2);
+        ctx.drawImage(
+          opts.logo,
+          (width - drawWidth) / 2,
+          y,
+          drawWidth,
+          Math.min(drawHeight, drawWidth / natural),
+        );
+        break;
+      }
       case 'barcode': {
         const widths = code128Modules(row.value);
         const total = widths.reduce((a, b) => a + b, 0);
@@ -236,6 +303,10 @@ export function renderReceiptRaster(
         ctx.direction = rtl ? 'rtl' : 'ltr';
         break;
       }
+    }
+    if (row.kind === 'logo') {
+      if (opts.logo) y += LOGO_HEIGHT + LINE_GAP;
+      continue;
     }
     const extra = (wrapped.get(row)?.length ?? 1) - 1;
     const style = ('style' in row && row.style) || 'normal';

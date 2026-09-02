@@ -251,6 +251,18 @@ in CI on every push and pull request.
 - **Desktop Packaging:** Electron & electron-builder
 - **Charting:** Recharts
 
+## 📚 Documentation
+
+- **[docs/PROJECT.md](docs/PROJECT.md)** — the complete technical reference: architecture,
+  every module, the domain model, the printing subsystem, cloud sync, the fleet console,
+  the SQL schema, the security model, build/release, testing and CI.
+- [PERF.md](PERF.md) — performance baseline and the enforced bundle budgets.
+- [docs/security-and-performance.md](docs/security-and-performance.md) — security-report
+  disposition and the dependency advisory notes.
+- [docs/refactor-phase-1-structure.md](docs/refactor-phase-1-structure.md),
+  [phase 2](docs/refactor-phase-2-structure.md),
+  [phase 3](docs/refactor-phase-3-structure.md) — module and component boundaries.
+
 ## 📄 License
 
 This project is for demonstration purposes. Use, modify, and distribute freely.

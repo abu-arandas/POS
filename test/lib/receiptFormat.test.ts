@@ -10,7 +10,7 @@ import {
   safeFontFamily,
   RECEIPT_FONTS,
 } from '../../src/lib/receiptFormat';
-import { receiptDocHtml } from '../../src/lib/receiptPrinter';
+import { receiptDocHtml } from '../../src/lib/receipt';
 import { PrinterConfig } from '../../src/types';
 
 // A fixed local date: 2026-03-07, 14:05:09.

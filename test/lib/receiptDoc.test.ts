@@ -47,7 +47,12 @@ const label = (rows: DocRow[], needle: string) => pairs(rows).find((r) => r.labe
 describe('buildReceiptDoc', () => {
   it('opens with the store identity and closes with the barcode', () => {
     const rows = buildReceiptDoc(tx, settings, printer, full);
-    expect(rows[0]).toMatchObject({ kind: 'center', text: 'Test Store', style: 'title' });
+    // Logo then name, the same order the HTML receipt prints them in. The logo
+    // row is what lets the thermal raster path honor show.logo at all; before it
+    // existed the setting worked on a system print and did nothing on a thermal
+    // printer (see receipt/rendererConsistency.test.ts).
+    expect(rows[0]).toMatchObject({ kind: 'logo' });
+    expect(rows[1]).toMatchObject({ kind: 'center', text: 'Test Store', style: 'title' });
     expect(rows.at(-1)).toMatchObject({ kind: 'barcode', value: 'TX-ABCD1234' });
   });
 

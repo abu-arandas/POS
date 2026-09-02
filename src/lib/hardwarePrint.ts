@@ -6,16 +6,12 @@ import {
   ReceiptLayout,
 } from '../types';
 import { encodeReceipt, encodeKitchenTicket } from './escpos';
-import {
-  printTransactions,
-  printKitchenTicketSystem,
-  receiptsPrintDoc,
-  kitchenPrintDoc,
-} from './receiptPrinter';
+import { printTransactions, printKitchenTicketSystem } from './print';
+import { receiptsPrintDoc, kitchenPrintDoc } from './receipt';
 import { routeKitchenTickets } from './kitchenRouting';
 import i18n from './i18n';
 import { buildReceiptDoc, buildKitchenDoc, docStrings } from './receiptDoc';
-import { renderReceiptRaster, ensureReceiptFont } from './receiptCanvas';
+import { renderReceiptRaster, ensureReceiptFont, loadReceiptLogo } from './receiptCanvas';
 import { needsRaster } from './escposRaster';
 
 // Chooses between the two ESC/POS encodings.
@@ -25,6 +21,12 @@ import { needsRaster } from './escposRaster';
 // carries Arabic (or an accented name, or a £), it has to go out as a bitmap
 // instead. Pure-ASCII receipts are unaffected and keep the text path.
 //
+// A store logo forces the same choice for the same underlying reason. The text
+// path has no image command at all, so a receipt carrying a logo the operator
+// switched on can only honor it as a bitmap. Only an actual uploaded image
+// counts: with no src there is nothing to draw, and rastering a receipt to add
+// nothing would cost every English till the larger, slower path for free.
+//
 // Returns null when the text path is fine, or when the raster cannot be
 // produced (no DOM/canvas), so callers fall back cleanly.
 async function rasterBytesIfNeeded(
@@ -32,10 +34,16 @@ async function rasterBytesIfNeeded(
   paperSize: PrinterConfig['paperSize'],
   openDrawer: boolean,
 ): Promise<Uint8Array | null> {
-  if (!needsRaster(docStrings(rows))) return null;
+  const logoRow = rows.find((row) => row.kind === 'logo');
+  const hasLogoImage = Boolean(logoRow?.src);
+  if (!hasLogoImage && !needsRaster(docStrings(rows))) return null;
   if (typeof document === 'undefined') return null;
   await ensureReceiptFont();
-  const raster = renderReceiptRaster(rows, paperSize, { rtl: i18n.language === 'ar' });
+  // The logo travels on the row, so nothing extra has to be threaded through
+  // from settings. Decoding resolves null on failure and the row then occupies
+  // no space, so a broken logo costs a picture rather than the receipt.
+  const logo = logoRow ? await loadReceiptLogo(logoRow.src) : null;
+  const raster = renderReceiptRaster(rows, paperSize, { rtl: i18n.language === 'ar', logo });
   if (!raster) return null;
   // ESC @ reset, the bitmap, then the same feed/cut/drawer tail the text path
   // emits — the drawer pulse still rides along on a cash sale.

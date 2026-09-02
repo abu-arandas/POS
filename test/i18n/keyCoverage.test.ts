@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
@@ -52,15 +52,22 @@ const read = (file: string) => readFileSync(join(REPO_ROOT, file), 'utf8');
  * blind to the root component is exactly the gap this file exists to close.
  */
 function sourceFiles(): string[] {
-  return execSync('git ls-files src && git ls-files --others --exclude-standard src', {
-    cwd: REPO_ROOT,
-  })
-    .toString()
-    .trim()
-    .split(/\r?\n/)
-    .filter(
-      (f) => /\.tsx?$/.test(f) && !f.endsWith('src/lib/i18n.ts') && !f.startsWith('src/locales/'),
-    );
+  return (
+    execSync('git ls-files src && git ls-files --others --exclude-standard src', {
+      cwd: REPO_ROOT,
+    })
+      .toString()
+      .trim()
+      .split(/\r?\n/)
+      .filter(
+        (f) => /\.tsx?$/.test(f) && !f.endsWith('src/lib/i18n.ts') && !f.startsWith('src/locales/'),
+      )
+      // `git ls-files` reports the index, so a tracked file deleted in the working
+      // tree but not yet staged is still listed. Reading it throws ENOENT and the
+      // whole check dies on a mid-refactor tree — a failure that says nothing
+      // about translation coverage. Skip what is no longer on disk.
+      .filter((f) => existsSync(join(REPO_ROOT, f)))
+  );
 }
 
 /** Every t('a.b') / t('a.b', 'default') referenced in application source. */

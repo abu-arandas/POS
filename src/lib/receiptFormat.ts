@@ -1,7 +1,7 @@
 // Pure helpers for configurable receipts: a small token date/time formatter, the
 // preset option lists the Receipt Settings UI offers, and the default / legacy
 // layouts. DOM-free and deterministic so it unit-tests like the other lib/*
-// helpers. The renderers (escpos.ts, receiptPrinter.ts) consume these.
+// helpers. The renderers (escpos.ts, receipt/, print/) consume these.
 
 import { PrinterConfig, ReceiptLayout, ReceiptToggles } from '../types';
 

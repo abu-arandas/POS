@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
@@ -81,10 +81,21 @@ function definedClasses(): Set<string> {
  * menu.html's own stylesheet.
  */
 function referencedNames(): Set<string> {
-  const files = git('ls-files src e2e test tools electron scripts index.html')
-    .trim()
-    .split(/\r?\n/)
-    .filter((f) => /\.(tsx?|jsx?|html|mjs|cjs)$/.test(f) && f !== 'electron/menu.html');
+  const roots = 'src e2e test tools electron scripts index.html';
+  // Tracked AND untracked, matching keyCoverage.test.ts. Listing only tracked
+  // files means a component added but not yet committed contributes no
+  // references, so every class only IT uses reads as dead — the check then
+  // fails hardest exactly when someone is adding a screen, which is when it is
+  // least likely to be telling the truth.
+  const files = [
+    ...git(`ls-files ${roots}`).trim().split(/\r?\n/),
+    ...git(`ls-files --others --exclude-standard ${roots}`).trim().split(/\r?\n/),
+  ]
+    .filter((f) => /\.(tsx?|jsx?|html|mjs|cjs)$/.test(f) && f !== 'electron/menu.html')
+    // `git ls-files` lists the index, so a tracked file deleted but not yet
+    // staged would throw ENOENT here and fail this check for a reason that has
+    // nothing to do with the stylesheet.
+    .filter((f) => existsSync(join(REPO_ROOT, f)));
 
   const out = new Set<string>();
   for (const file of files) {

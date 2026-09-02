@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { openDetachedPrintWindow } from '../../src/lib/printWindow';
+import { openDetachedPrintWindow } from '../../src/lib/utils/dom';
 
 afterEach(() => {
   vi.restoreAllMocks();

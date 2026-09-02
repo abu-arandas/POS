@@ -35,6 +35,16 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useSupplyStore } from '../stores/supplyStore';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
 import { buildPoReport } from '../lib/poReport';
+import {
+  buildTrendBuckets,
+  categoryRevenue,
+  computeKpis,
+  operatorBreakdown,
+  paymentTotals,
+  reportableTransactions,
+  topProducts,
+  withinLastDays,
+} from '../lib/dashboardMetrics';
 import { useTranslation } from 'react-i18next';
 
 interface TooltipEntry {
@@ -93,9 +103,7 @@ export default function Dashboard() {
   const purchaseOrders = useSupplyStore((s) => s.purchaseOrders);
   const cloudLive = supabaseConfig.enabled && supabaseConfig.status === 'connected';
 
-  const completedTransactions = useMemo(() => {
-    return transactions.filter((t) => t.status === 'completed' || t.status === 'partial');
-  }, [transactions]);
+  const completedTransactions = useMemo(() => reportableTransactions(transactions), [transactions]);
 
   // A POS terminal is routinely left running past midnight, so "today" cannot be
   // captured once at mount — that pins every KPI to the day the screen was
@@ -128,192 +136,65 @@ export default function Dashboard() {
   // 'all' is handled separately (rangeTxns returns everything), so 30d/all both map to 30.
   const rangeDays = range === 'today' ? 1 : range === '7d' ? 7 : 30;
 
-  const rangeTxns = useMemo(() => {
-    if (range === 'all') return completedTransactions;
-    const start = new Date(todayStart);
-    start.setDate(start.getDate() - (rangeDays - 1));
-    return completedTransactions.filter((tx) => new Date(tx.date) >= start);
-  }, [completedTransactions, range, rangeDays, todayStart]);
+  const rangeTxns = useMemo(
+    () =>
+      range === 'all'
+        ? completedTransactions
+        : withinLastDays(completedTransactions, todayStart, rangeDays),
+    [completedTransactions, range, rangeDays, todayStart],
+  );
 
-  const kpis = useMemo(() => {
-    const revenueToday = todayTransactions.reduce(
-      (sum, t) => sum + t.total - (t.refundedAmount ?? 0),
-      0,
-    );
-    const ordersToday = todayTransactions.length;
-    const aovToday = ordersToday > 0 ? revenueToday / ordersToday : 0;
-
-    const profitToday = todayTransactions.reduce((sum, tx) => {
-      const refundProportion = tx.total > 0 ? (tx.refundedAmount ?? 0) / tx.total : 0;
-      const transactionCost = tx.items.reduce((cSum, item) => cSum + item.cost * item.quantity, 0);
-      const transactionRevenue = tx.subtotal - tx.discount;
-      return sum + (transactionRevenue - transactionCost) * (1 - refundProportion);
-    }, 0);
-
-    const uniqueDays = new Set(completedTransactions.map((tx) => new Date(tx.date).toDateString()));
-    const daysCount = Math.max(1, uniqueDays.size);
-    const totalHistoricalRevenue = completedTransactions.reduce(
-      (sum, t) => sum + t.total - (t.refundedAmount ?? 0),
-      0,
-    );
-    const avgDailyRevenue = totalHistoricalRevenue / daysCount;
-
-    const lowStockItems = products.filter((p) => p.stock <= p.minStock && p.stock > 0).length;
-
-    return {
-      revenueToday: Number(revenueToday.toFixed(2)),
-      ordersToday,
-      aovToday: Number(aovToday.toFixed(2)),
-      profitToday: Number(profitToday.toFixed(2)),
-      avgDailyRevenue: Number(avgDailyRevenue.toFixed(2)),
-      lowStockItems,
-    };
-  }, [todayTransactions, completedTransactions, products]);
+  const kpis = useMemo(
+    () => computeKpis(todayTransactions, completedTransactions, products),
+    [todayTransactions, completedTransactions, products],
+  );
 
   const salesTrendData = useMemo(() => {
-    const datesMap = new Map<string, { label: string; revenue: number; profit: number }>();
-    const today = new Date(todayStart);
     const buckets = Math.min(range === 'all' ? 30 : rangeDays, 31);
-
-    for (let i = buckets - 1; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const key = d.toDateString();
-      const label = d.toLocaleDateString(i18n.language === 'ar' ? 'ar' : 'en', {
+    // The figures come from the metrics module; the label is the screen's,
+    // because it is the only part that depends on the active locale.
+    return buildTrendBuckets(rangeTxns, todayStart, buckets).map((bucket) => ({
+      label: new Date(bucket.key).toLocaleDateString(i18n.language === 'ar' ? 'ar' : 'en', {
         weekday: buckets <= 7 ? 'short' : undefined,
         month: 'numeric',
         day: 'numeric',
-      });
-      datesMap.set(key, { label, revenue: 0, profit: 0 });
-    }
-
-    rangeTxns.forEach((tx) => {
-      const txKey = new Date(tx.date).toDateString();
-      if (datesMap.has(txKey)) {
-        const entry = datesMap.get(txKey)!;
-        const netRevenue = tx.total - (tx.refundedAmount ?? 0);
-        entry.revenue += netRevenue;
-
-        const refundProportion = tx.total > 0 ? (tx.refundedAmount ?? 0) / tx.total : 0;
-        const cost = tx.items.reduce((sum, item) => sum + item.cost * item.quantity, 0);
-        entry.profit += (tx.subtotal - tx.discount - cost) * (1 - refundProportion);
-
-        datesMap.set(txKey, entry);
-      }
-    });
-
-    return Array.from(datesMap.values()).map((v) => ({
-      ...v,
-      revenue: Number(v.revenue.toFixed(2)),
-      profit: Number(v.profit.toFixed(2)),
+      }),
+      revenue: bucket.revenue,
+      profit: bucket.profit,
     }));
   }, [rangeTxns, range, rangeDays, i18n.language, todayStart]);
 
-  const topProductsData = useMemo(() => {
-    const productSalesMap = new Map<string, { name: string; quantity: number; revenue: number }>();
-
-    rangeTxns.forEach((tx) => {
-      const refundedQtys: Record<string, number> = {};
-      for (const r of tx.refundedItems ?? []) {
-        refundedQtys[r.productId] = (refundedQtys[r.productId] ?? 0) + r.quantity;
-      }
-      tx.items.forEach((item) => {
-        const current = productSalesMap.get(item.productId) || {
-          name: item.productName,
-          quantity: 0,
-          revenue: 0,
-        };
-        const netQty = item.quantity - (refundedQtys[item.productId] ?? 0);
-        current.quantity += netQty;
-        current.revenue += item.price * netQty;
-        productSalesMap.set(item.productId, current);
-      });
-    });
-
-    return Array.from(productSalesMap.values())
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 5)
-      .map((v) => ({
-        ...v,
-        revenue: Number(v.revenue.toFixed(2)),
-      }));
-  }, [rangeTxns]);
+  const topProductsData = useMemo(() => topProducts(rangeTxns), [rangeTxns]);
 
   const categoryShareData = useMemo(() => {
-    // Pre-compute maps for O(1) lookups during iteration
-    const productsMap = new Map(products.map((p) => [p.id, p]));
-    const categoriesMap = new Map(categories.map((c) => [c.id, c]));
-
-    const catSalesMap = new Map<string, number>();
-
-    rangeTxns.forEach((tx) => {
-      tx.items.forEach((item) => {
-        const prod = productsMap.get(item.productId);
-        const catId = prod?.category || 'general';
-        const current = catSalesMap.get(catId) || 0;
-        catSalesMap.set(catId, current + item.total);
-      });
-    });
-
     const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#64748b'];
-
-    return Array.from(catSalesMap.entries())
-      .map(([catId, revenue], idx) => {
-        const catObj = categoriesMap.get(catId);
-        const catName = catObj
-          ? t(`categories.${catObj.name.toLowerCase()}`, { defaultValue: catObj.name })
-          : 'General';
-        return {
-          name: catName,
-          value: Number(revenue.toFixed(2)),
-          color: colors[idx % colors.length],
-        };
-      })
-      .sort((a, b) => b.value - a.value);
+    const byId = new Map(categories.map((category) => [category.id, category]));
+    return categoryRevenue(rangeTxns, products).map((entry, index) => {
+      const category = byId.get(entry.categoryId);
+      return {
+        name: category
+          ? t(`categories.${category.name.toLowerCase()}`, { defaultValue: category.name })
+          : 'General',
+        value: entry.revenue,
+        color: colors[index % colors.length],
+      };
+    });
   }, [rangeTxns, products, categories, t]);
 
   const paymentMethodsData = useMemo(() => {
-    const counts: Record<'cash' | 'card' | 'mobile' | 'gift', number> = {
-      cash: 0,
-      card: 0,
-      mobile: 0,
-      gift: 0,
-    };
-    rangeTxns.forEach((tx) => {
-      const net = tx.total - (tx.refundedAmount ?? 0);
-      if (tx.paymentMethod in counts) {
-        counts[tx.paymentMethod as keyof typeof counts] += net;
-      }
-    });
-
     const colors = { card: '#3b82f6', cash: '#10b981', mobile: '#8b5cf6', gift: '#f59e0b' };
-
-    return Object.entries(counts)
-      .map(([method, val]) => ({
-        name: method.toUpperCase(),
-        value: Number(val.toFixed(2)),
-        color: colors[method as keyof typeof colors],
-      }))
-      .filter((item) => item.value > 0);
+    return paymentTotals(rangeTxns).map(({ method, value }) => ({
+      name: method.toUpperCase(),
+      value,
+      color: colors[method],
+    }));
   }, [rangeTxns]);
 
   const totalSalesVolume = useMemo(() => {
     return paymentMethodsData.reduce((sum, d) => sum + d.value, 0);
   }, [paymentMethodsData]);
 
-  const operatorBreakdown = useMemo(() => {
-    const map = new Map<string, { name: string; orders: number; revenue: number }>();
-    rangeTxns.forEach((tx) => {
-      const key = tx.operatorId ?? tx.operatorName ?? 'unknown';
-      const current = map.get(key) || { name: tx.operatorName ?? '—', orders: 0, revenue: 0 };
-      current.orders += 1;
-      current.revenue += tx.total - (tx.refundedAmount ?? 0);
-      map.set(key, current);
-    });
-    return Array.from(map.values())
-      .map((v) => ({ ...v, revenue: Number(v.revenue.toFixed(2)) }))
-      .sort((a, b) => b.revenue - a.revenue);
-  }, [rangeTxns]);
+  const operatorRows = useMemo(() => operatorBreakdown(rangeTxns), [rangeTxns]);
 
   const poReport = useMemo(
     () => buildPoReport(purchaseOrders, range === 'all' ? undefined : rangeDays),
@@ -815,14 +696,14 @@ export default function Dashboard() {
                 <Users size={20} className="text-emerald-500" /> {t('dashboard.byOperator')}
               </h3>
             </div>
-            {operatorBreakdown.length === 0 ? (
+            {operatorRows.length === 0 ? (
               <div className="w-full py-12 flex items-center justify-center text-slate-500 bg-[var(--surface-1)] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
                 {t('dashboard.noSales')}
               </div>
             ) : (
               <div className="space-y-4">
-                {operatorBreakdown.map((op, idx) => {
-                  const max = operatorBreakdown[0].revenue || 1;
+                {operatorRows.map((op, idx) => {
+                  const max = operatorRows[0].revenue || 1;
                   return (
                     <div key={idx} className="flex items-center gap-4">
                       <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs shrink-0">

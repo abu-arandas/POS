@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildReceiptHtml } from '../../src/lib/receiptPrinter';
+import { buildReceiptHtml } from '../../src/lib/receipt';
 import { encodeReceipt } from '../../src/lib/escpos';
 import { defaultReceiptLayout } from '../../src/lib/receiptFormat';
 import { SaleTransaction, StoreSettings, PrinterConfig, ReceiptLayout } from '../../src/types';
