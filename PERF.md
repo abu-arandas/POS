@@ -13,10 +13,10 @@ This ledger records the Phase 4 baseline and the guards that should be run befor
 | Production build        |                                 6–7 seconds locally | `npm run build`                        |
 | Initial JavaScript      |              436,330 raw bytes / 136,537 gzip bytes | `npm run build` + `npm run perf:check` |
 | Initial CSS             |               113,788 raw bytes / 17,511 gzip bytes | `npm run build` + `npm run perf:check` |
-| Instrumented statements |                                              56.82% | `npm run test:coverage`                |
-| Instrumented branches   |                                              47.40% | `npm run test:coverage`                |
-| Instrumented functions  |                                              47.03% | `npm run test:coverage`                |
-| Instrumented lines      |                                              58.19% | `npm run test:coverage`                |
+| `npm run test:coverage` |
+| Instrumented branches   |                                              49.57% | `npm run test:coverage`                |
+| Instrumented functions  |                                              50.34% | `npm run test:coverage`                |
+| Instrumented lines      |                                              60.32% | `npm run test:coverage`                |
 
 The initial JavaScript figure grew by 712 gzip bytes against the earlier
 433,690/135,819 baseline. That is the services layer (`src/services/`) plus the
