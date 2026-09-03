@@ -724,9 +724,18 @@ export default function Dashboard() {
                       {val.toFixed(2)}
                     </span>
                     <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mb-2">
+                      {/* The method's own colour, not a hardcoded blue. Every
+                          bar being blue meant the four methods were told apart
+                          by their label alone, and the colour computed for them
+                          was never drawn. */}
                       <div
-                        className="bar-fill bg-blue-500 h-1.5 rounded-full"
-                        style={{ '--bar-width': `${pct}%` } as CSSProperties}
+                        className="bar-fill h-1.5 rounded-full"
+                        style={
+                          {
+                            '--bar-width': `${pct}%`,
+                            backgroundColor: data ? data.color : NEUTRAL[chartMode],
+                          } as CSSProperties
+                        }
                       />
                     </div>
                     <span className="text-xs text-slate-500 font-mono">

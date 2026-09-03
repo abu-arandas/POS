@@ -56,17 +56,45 @@ describe('assignSeriesColors', () => {
     expect(colors.get('g')).not.toBe(colors.get('a'));
   });
 
-  it('keeps an entity on its colour when other entities disappear', () => {
-    // The bug this replaces: colour came from the index of a revenue-sorted,
-    // range-filtered list, so narrowing the date range repainted the survivors
-    // and two ranges could not be compared by eye.
-    const full = assignSeriesColors(['coffee', 'pastry', 'retail'], 'light');
-    const alsoFull = assignSeriesColors(['coffee', 'pastry', 'retail'], 'light');
-    expect(alsoFull.get('retail')).toBe(full.get('retail'));
+  it('is independent of the order the domain is handed in', () => {
+    // The caller's array order is incidental — catalogue order, sync order,
+    // whatever the last UI sort left behind. Letting it choose the colours
+    // means a category changes colour because a list moved somewhere else.
+    const asStored = assignSeriesColors(['coffee', 'pastry', 'retail'], 'light');
+    const reordered = assignSeriesColors(['retail', 'coffee', 'pastry'], 'light');
+    for (const key of ['coffee', 'pastry', 'retail']) {
+      expect(reordered.get(key)).toBe(asStored.get(key));
+    }
   });
 
-  it('is independent of the order values happen to rank in', () => {
-    // The domain is the catalogue, so it does not move when revenue moves.
+  it('keeps survivors on their colour when a LATER entity disappears', () => {
+    // The real test of the property the module claims. The previous version of
+    // this test passed the identical domain twice, so it proved only that the
+    // function is deterministic — a rank-based implementation would have
+    // passed it too.
+    const before = assignSeriesColors(['coffee', 'pastry', 'retail'], 'light');
+    const after = assignSeriesColors(['coffee', 'pastry'], 'light'); // retail gone
+    expect(after.get('coffee')).toBe(before.get('coffee'));
+    expect(after.get('pastry')).toBe(before.get('pastry'));
+  });
+
+  it('does shift later entities when an EARLIER one is removed — a known limit', () => {
+    // Stated as a test rather than buried in a comment, because it is the
+    // boundary of what this module promises. Six slots and an unbounded
+    // catalogue cannot give both stability and no collisions; hashing ids to
+    // slots would survive deletion but put two live categories on one hue,
+    // which is the bug this module exists to prevent. A colour persisted on
+    // the category record is the only real fix.
+    const before = assignSeriesColors(['a-coffee', 'b-pastry', 'c-retail'], 'light');
+    const after = assignSeriesColors(['b-pastry', 'c-retail'], 'light'); // a removed
+    expect(after.get('b-pastry')).not.toBe(before.get('b-pastry'));
+  });
+
+  it('does not move when revenue moves', () => {
+    // The bug this replaces: colour came from the index of a revenue-sorted,
+    // range-filtered list, so narrowing the date range repainted the survivors
+    // and two ranges could not be compared by eye. The domain is the
+    // catalogue, which revenue cannot reorder.
     const colors = assignSeriesColors(['coffee', 'pastry'], 'light');
     expect(colors.get('coffee')).toBe(SERIES.light[0]);
     expect(colors.get('pastry')).toBe(SERIES.light[1]);
@@ -117,6 +145,38 @@ describe('foldToCap', () => {
     const folded = foldToCap(rows, colors, 'light', 2);
     expect(folded[2].color).toBe(NEUTRAL.light);
     expect(SERIES.light).not.toContain(folded[2].color);
+  });
+
+  it('folds an entity that never got its own colour, however big it is', () => {
+    // A catalogue past the palette assigns NEUTRAL to the overflow. If such an
+    // entity ranked inside the cap it would be KEPT while wearing the same
+    // neutral the Other row uses — two different things drawn in one colour,
+    // which is the collision this module exists to prevent. So "has no colour
+    // of its own" and "belongs in Other" have to be the same condition.
+    const big = [
+      { key: 'a', name: 'A', value: 1 },
+      { key: 'b', name: 'B', value: 1 },
+      { key: 'c', name: 'C', value: 1 },
+      { key: 'd', name: 'D', value: 1 },
+      { key: 'e', name: 'E', value: 1 },
+      { key: 'f', name: 'F', value: 1 },
+      { key: 'g', name: 'G', value: 999 }, // ranks first, but sorts past the palette
+    ];
+    const seven = assignSeriesColors(
+      big.map((r) => r.key),
+      'light',
+    );
+    expect(seven.get('g')).toBe(NEUTRAL.light);
+
+    const folded = foldToCap(big, seven, 'light', SERIES_CAP.adjacent);
+    const other = folded.find((r) => r.isOther);
+    expect(other).toBeDefined();
+    expect(other!.value).toBe(999);
+    // No kept row wears the neutral.
+    for (const row of folded.filter((r) => !r.isOther)) {
+      expect(row.color).not.toBe(NEUTRAL.light);
+      expect(SERIES.light).toContain(row.color);
+    }
   });
 
   it('adds no Other row when everything fits', () => {

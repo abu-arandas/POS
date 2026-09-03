@@ -68,8 +68,17 @@ export const SERIES_CAP = { adjacent: 6, all: 3 } as const;
  * in one range and amber in another, and two ranges could not be compared by
  * eye at all.
  *
- * Entities past the cap share the neutral, which is what makes folding them
- * into a single "Other" row honest rather than a collision.
+ * Entities past the cap share the neutral. `foldToCap` folds exactly those into
+ * a single "Other" row, so the shared neutral is never two things at once.
+ *
+ * The guarantee is bounded, and worth stating plainly rather than overselling:
+ * a colour depends only on WHICH ids exist, so it survives reordering, a
+ * re-sync, a filter, and a change in revenue. It does NOT survive adding or
+ * removing a category — that shifts every id sorted after it. Fully fixing that
+ * needs a colour persisted on the category record; with six slots and an
+ * unbounded catalogue the only alternative, hashing an id to a slot, trades
+ * shifting for collisions, and two live categories sharing one hue is the bug
+ * this module exists to prevent.
  */
 export function assignSeriesColors(
   domain: readonly string[],
@@ -78,14 +87,18 @@ export function assignSeriesColors(
 ): Map<string, string> {
   const slots = SERIES[mode];
   const limit = Math.min(cap, slots.length);
-  const assigned = new Map<string, string>();
 
-  let slot = 0;
-  for (const key of domain) {
-    if (assigned.has(key)) continue; // a repeated id must not consume two slots
-    assigned.set(key, slot < limit ? slots[slot] : NEUTRAL[mode]);
-    slot += 1;
-  }
+  // Sorted by key, not taken in the order handed in. The caller's array order
+  // is incidental — it is catalogue order, or sync order, or whatever the last
+  // UI sort left behind — and letting it pick the colours means a category
+  // changes colour because a list got reordered somewhere else entirely.
+  // Sorting by id makes the assignment depend only on WHICH ids exist.
+  const unique = [...new Set(domain)].sort();
+
+  const assigned = new Map<string, string>();
+  unique.forEach((key, index) => {
+    assigned.set(key, index < limit ? slots[index] : NEUTRAL[mode]);
+  });
   return assigned;
 }
 
@@ -115,14 +128,27 @@ export function foldToCap(
   cap: number,
   otherLabel = 'Other',
 ): FoldedSlice[] {
+  const categorical = new Set(SERIES[mode]);
   const ranked = [...rows].sort((a, b) => b.value - a.value);
-  const kept = ranked.slice(0, cap).map((row) => ({
-    ...row,
-    color: colors.get(row.key) ?? NEUTRAL[mode],
-    isOther: false,
-  }));
 
-  const rest = ranked.slice(cap);
+  const kept: FoldedSlice[] = [];
+  const rest: { value: number }[] = [];
+
+  for (const row of ranked) {
+    const color = colors.get(row.key) ?? NEUTRAL[mode];
+    // Two reasons to fold. The obvious one is the cap. The other is that this
+    // entity never got a colour of its own — it sorted past the palette — and
+    // keeping it would draw it in the same neutral the "Other" row uses, so the
+    // chart would show two different things in one colour. That is exactly the
+    // collision this module exists to stop, so "has no colour of its own" and
+    // "belongs in Other" have to be the same condition.
+    if (kept.length < cap && categorical.has(color)) {
+      kept.push({ ...row, color, isOther: false });
+    } else {
+      rest.push(row);
+    }
+  }
+
   if (rest.length === 0) return kept;
 
   return [
