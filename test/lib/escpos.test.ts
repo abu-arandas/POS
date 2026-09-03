@@ -113,6 +113,54 @@ describe('encodeReceipt', () => {
     const off = encodeReceipt(tx, settings, { ...printer, showBarcode: false });
     expect(findSeq(off, [0x1d, 0x6b, 73])).toBe(false);
   });
+
+  describe('a barcode too wide for the roll', () => {
+    // What the app actually generates: `TX-` plus an uppercased UUID. 39
+    // characters is 464 modules, and the module width used to be a fixed
+    // `GS w 2` — 928 dots of bars against a 384-dot 58mm head. The printer has
+    // nowhere to put them, so it clips, and what it clips is the start and stop
+    // patterns a scanner needs.
+    const longId = `TX-${'0f9a1b2c-3d4e-5f60-8192-a3b4c5d6e7f8'.toUpperCase()}`;
+    const longTx = { ...tx, id: longId };
+    const narrow: PrinterConfig = { ...printer, paperSize: '58mm' };
+
+    it('is not emitted at all on a 58mm roll', () => {
+      const out = encodeReceipt(longTx, settings, narrow);
+      expect(findSeq(out, [0x1d, 0x6b, 73])).toBe(false);
+    });
+
+    it('still carries the id as readable text, so it can be typed', () => {
+      // The whole justification for dropping the bars: the receipt must not
+      // lose the value, only the unscannable picture of it.
+      expect(asciiOf(encodeReceipt(longTx, settings, narrow))).toContain(longId);
+    });
+
+    it('is not emitted on an 80mm roll either, because GS w bottoms out at 2 dots', () => {
+      // The native engine has no one-dot module, so this id needs 968 dots of
+      // bars against a 576-dot head. Only the raster path can print it, and
+      // only on 80mm. Worth stating plainly: on the ESC/POS text path the real
+      // receipt id gets no barcode on ANY supported roll.
+      const out = encodeReceipt(longTx, settings, printer); // 80mm
+      expect(findSeq(out, [0x1d, 0x6b, 73])).toBe(false);
+      expect(asciiOf(out)).toContain(longId);
+    });
+
+    it('picks a module width that fits rather than a fixed 2 dots', () => {
+      // GS w n is chosen per roll now, so a short id on a wide roll gets wider,
+      // more scannable bars than the old fixed 2 ever gave it.
+      const moduleOf = (u: Uint8Array) => {
+        const arr = Array.from(u);
+        const i = arr.findIndex((b, j) => b === 0x1d && arr[j + 1] === 0x77);
+        return i === -1 ? null : arr[i + 2];
+      };
+      const wide = moduleOf(encodeReceipt(tx, settings, printer)); // 80mm
+      const narrowRoll = moduleOf(encodeReceipt(tx, settings, narrow)); // 58mm
+      expect(wide).toBeGreaterThan(2);
+      expect(narrowRoll).toBeGreaterThan(2);
+      // The same id gets more dots per module on the wider roll.
+      expect(wide!).toBeGreaterThan(narrowRoll!);
+    });
+  });
 });
 
 const asciiOf = (u: Uint8Array) =>
