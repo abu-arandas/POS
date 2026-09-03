@@ -1,0 +1,102 @@
+# SonarCloud analysis, and a no-op until someone configures it.
+#
+# This started as GitHub's starter template committed unchanged, which meant it
+# failed on every push and pull request for four reasons at once: the scanner
+# arguments were literally empty (`-Dsonar.projectKey=` with nothing after it),
+# no SONAR_TOKEN secret existed, the job never checked the repository out — so
+# even a fully configured run would have scanned an empty directory — and the
+# permissions block granted `pull-requests: read` but not the `contents: read`
+# that a checkout needs.
+#
+# To turn it on:
+#   1. Import the repository at https://sonarcloud.io and copy its Project Key
+#      and Organization Key from the Information panel (bottom-left).
+#   2. Add them as repository *variables* (Settings > Secrets and variables >
+#      Actions > Variables): SONAR_PROJECT_KEY and SONAR_ORGANIZATION. They are
+#      identifiers, not credentials, so variables rather than secrets.
+#   3. Generate a token at https://sonarcloud.io/account/security/ and add it as
+#      the repository *secret* SONAR_TOKEN.
+#
+# Until all three exist the job reports a notice and succeeds, rather than
+# reddening every pull request with a failure nobody can act on from the diff.
+#
+# No coverage is reported to SonarCloud: vitest.config.ts declares only the
+# 'text' reporters, so there is no lcov file to point at. To wire it up, add
+# 'lcov' to that reporter list and run `npm run test:coverage` here before the
+# scan, then pass -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info.
+#
+# SonarCloud can also analyse JS/TS automatically with no Actions workflow at
+# all (Administration > Analysis Method). If you enable that, delete this file.
+
+name: SonarCloud analysis
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
+  workflow_dispatch:
+
+permissions:
+  contents: read # required for actions/checkout
+  pull-requests: read # lets SonarCloud decorate PRs with analysis results
+
+# A newer commit makes an in-flight analysis of the older one pointless. Only
+# pull-request runs are cancelled: a run on main feeds the project's history and
+# is left to finish.
+concurrency:
+  group: sonarcloud-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  Analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # Resolved in a step rather than a job-level `if`: the secrets context is
+      # not available there, so the check has to happen inside the job.
+      - name: Resolve SonarCloud configuration
+        id: config
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+        run: |
+          missing=()
+          [ -n "$SONAR_TOKEN" ]        || missing+=("SONAR_TOKEN (secret)")
+          [ -n "$SONAR_PROJECT_KEY" ]  || missing+=("SONAR_PROJECT_KEY (variable)")
+          [ -n "$SONAR_ORGANIZATION" ] || missing+=("SONAR_ORGANIZATION (variable)")
+
+          if [ ${#missing[@]} -eq 0 ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::SonarCloud analysis skipped — not configured. Missing: ${missing[*]}. See the header of .github/workflows/sonarcloud.yml."
+          fi
+
+      # fetch-depth: 0 so the scanner can read history. With a shallow clone it
+      # cannot attribute issues to authors or tell new code from old, which is
+      # what the quality gate on a pull request is measured against.
+      - name: Checkout repository
+        if: steps.config.outputs.configured == 'true'
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # Pinned to a commit rather than a tag, so the action cannot change under
+      # us. Note SonarSource have since superseded this action with
+      # SonarSource/sonarqube-scan-action; worth migrating when this is next
+      # touched, but not while it is unverifiable from here.
+      - name: Analyze with SonarCloud
+        if: steps.config.outputs.configured == 'true'
+        uses: SonarSource/sonarcloud-github-action@4006f663ecaf1f8093e8e4abb9227f6041f52216
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.sources=src,electron,scripts
+            -Dsonar.tests=test,e2e

@@ -1,0 +1,655 @@
+import React, { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
+import {
+  CreditCard,
+  DollarSign,
+  Smartphone,
+  Gift,
+  Printer,
+  ScanLine,
+  Share2,
+  Mail,
+  ChefHat,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Product, SaleTransaction, HeldOrder, Payment } from '../types';
+import ProductGrid from './ProductGrid';
+import CartPanel from './CartPanel';
+import { useRegisterCart } from './register/useRegisterCart';
+const HeldOrdersModal = lazy(() =>
+  import('./register/HeldOrdersModal').then(({ HeldOrdersModal }) => ({
+    default: HeldOrdersModal,
+  })),
+);
+const AddCustomerModal = lazy(() =>
+  import('./register/AddCustomerModal').then(({ AddCustomerModal }) => ({
+    default: AddCustomerModal,
+  })),
+);
+const ReceiptModal = lazy(() =>
+  import('./register/ReceiptModal').then(({ ReceiptModal }) => ({ default: ReceiptModal })),
+);
+const PaymentModal = lazy(() =>
+  import('./register/PaymentModal').then(({ PaymentModal }) => ({ default: PaymentModal })),
+);
+import { useProductStore } from '../stores/productStore';
+import { useCustomerStore } from '../stores/customerStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { useAuthStore } from '../stores/authStore';
+import { useHeldOrderStore } from '../stores/heldOrderStore';
+import { useShiftStore } from '../stores/shiftStore';
+import type { CheckoutRequest } from '../lib/checkout';
+import { commitSale } from '../services';
+import {
+  printReceipt,
+  printKitchenTickets,
+  openCashDrawer,
+  HardwarePrintOutcome,
+} from '../lib/hardwarePrint';
+import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
+import { useBarcodeScanner } from '../lib/useBarcodeScanner';
+import { useModalA11y } from '../lib/useModalA11y';
+import { useTranslation } from 'react-i18next';
+import { notify } from '../lib/utils/ui';
+import { askConfirmation, askText } from '../lib/utils/ui';
+
+/**
+ * The register screen: product grid, cart, discounts, held orders, and the
+ * checkout flow through payment to receipt. The app's primary screen.
+ */
+export default function Register() {
+  const { t } = useTranslation();
+  const customers = useCustomerStore((s) => s.customers);
+  const handleAddCustomer = useCustomerStore((s) => s.handleAddCustomer);
+  const settings = useSettingsStore((s) => s.settings);
+  const printerConfig = useSettingsStore((s) => s.printerConfig);
+  const scannerConfig = useSettingsStore((s) => s.scannerConfig);
+  const emailTemplate = useSettingsStore((s) => s.emailTemplate);
+  const kitchenStations = useSettingsStore((s) => s.kitchenStations);
+  const receiptLayout = useSettingsStore((s) => s.receiptLayout);
+  const kitchenLayout = useSettingsStore((s) => s.kitchenLayout);
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const heldOrders = useHeldOrderStore((s) => s.heldOrders);
+  const holdOrder = useHeldOrderStore((s) => s.holdOrder);
+  const removeHeldOrder = useHeldOrderStore((s) => s.removeHeldOrder);
+  const currentShiftId = useShiftStore((s) => s.currentShiftId);
+
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  const {
+    cart,
+    setCart,
+    selectedCustomerId,
+    setSelectedCustomerId,
+    discountType,
+    setDiscountType,
+    discountInput,
+    setDiscountInput,
+    loyaltyPointsToUse,
+    setLoyaltyPointsToUse,
+    showPromoInput,
+    setShowPromoInput,
+    cartItems,
+    discountValue,
+    subtotal,
+    discountAmount,
+    taxAmount,
+    totalAmount,
+    cashSuggestions,
+    cashChangeDue: calculateCashChangeDue,
+    addToCart,
+    updateCartQty,
+    removeFromCart,
+    clearCart,
+  } = useRegisterCart(settings);
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState<boolean>(false);
+  const [addCustomerOpen, setAddCustomerOpen] = useState<boolean>(false);
+  const [receiptModalOpen, setReceiptModalOpen] = useState<boolean>(false);
+  const [activeReceipt, setActiveReceipt] = useState<SaleTransaction | null>(null);
+  const [receiptPrinted, setReceiptPrinted] = useState(false);
+
+  // Auto-close only after the hardware transport confirms success. A failed
+  // print keeps the receipt visible so the operator can retry or use a backup.
+  useEffect(() => {
+    if (!receiptModalOpen || !receiptPrinted) return;
+    const timer = setTimeout(() => setReceiptModalOpen(false), 3000);
+    return () => clearTimeout(timer);
+  }, [receiptModalOpen, receiptPrinted]);
+
+  const [custName, setCustName] = useState('');
+  const [custPhone, setCustPhone] = useState('');
+  const [custEmail, setCustEmail] = useState('');
+
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'mobile' | 'gift'>('card');
+  const [cashPaidText, setCashPaidText] = useState<string>('');
+
+  const [splitMode, setSplitMode] = useState(false);
+  const [splitPayments, setSplitPayments] = useState<Payment[]>([]);
+
+  const [heldModalOpen, setHeldModalOpen] = useState(false);
+  const [scanFeedback, setScanFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const heldModalRef = useModalA11y(heldModalOpen, () => setHeldModalOpen(false));
+  const checkoutModalRef = useModalA11y(checkoutModalOpen, () => setCheckoutModalOpen(false));
+  const addCustomerModalRef = useModalA11y(addCustomerOpen, () => setAddCustomerOpen(false));
+  const receiptModalRef = useModalA11y(receiptModalOpen, () => setReceiptModalOpen(false));
+
+  const activeCustomer = useMemo(
+    () => customers.find((customer) => customer.id === selectedCustomerId) || null,
+    [customers, selectedCustomerId],
+  );
+
+  const cashChangeDue = calculateCashChangeDue(cashPaidText);
+
+  // Barcode scan: match a product by exact SKU and add it, with brief feedback.
+  const handleScan = useCallback(
+    (code: string) => {
+      const norm = code.trim().toLowerCase();
+      const product = useProductStore.getState().products.find((p) => p.sku.toLowerCase() === norm);
+      if (!product) {
+        setScanFeedback({ ok: false, text: t('register.scanNotFound', { code }) });
+      } else if (product.stock <= 0) {
+        setScanFeedback({ ok: false, text: `${product.name} — ${t('register.outOfStock')}` });
+      } else {
+        addToCart(product);
+        setScanFeedback({ ok: true, text: product.name });
+      }
+    },
+    [addToCart, t],
+  );
+
+  useBarcodeScanner({
+    onScan: handleScan,
+    enabled:
+      scannerConfig.enabled &&
+      !checkoutModalOpen &&
+      !addCustomerOpen &&
+      !receiptModalOpen &&
+      !heldModalOpen,
+    minLength: scannerConfig.minLength,
+    maxInterKeyMs: scannerConfig.maxInterKeyMs,
+  });
+
+  useEffect(() => {
+    if (!scanFeedback) return;
+    const timer = setTimeout(() => setScanFeedback(null), 1800);
+    return () => clearTimeout(timer);
+  }, [scanFeedback]);
+
+  const handleHoldOrder = useCallback(async () => {
+    if (cart.length === 0) return;
+    const label = (
+      await askText(t('register.holdLabelPrompt'), new Date().toLocaleTimeString())
+    )?.trim();
+    if (label === undefined || label === null) return; // cancelled
+    holdOrder({
+      label: label || new Date().toLocaleTimeString(),
+      items: cart.map((i) => ({
+        productId: i.product.id,
+        productName: i.product.name,
+        price: i.product.price,
+        cost: i.product.cost,
+        quantity: i.quantity,
+      })),
+      customerId: selectedCustomerId,
+      discountType,
+      discountInput,
+      loyaltyPointsToUse,
+      operatorName: currentUser?.name ?? null,
+    });
+    clearCart();
+  }, [
+    cart,
+    selectedCustomerId,
+    discountType,
+    discountInput,
+    loyaltyPointsToUse,
+    currentUser,
+    holdOrder,
+    clearCart,
+    t,
+  ]);
+
+  const resumeHeldOrder = useCallback(
+    async (order: HeldOrder) => {
+      if (cart.length > 0 && !(await askConfirmation(t('register.resumeReplaceWarning')))) return;
+      // Rebuild the cart from the current catalog so prices/stock are live; drop
+      // any line whose product no longer exists.
+      const liveProducts = useProductStore.getState().products;
+      const liveMap = new Map(liveProducts.map((p) => [p.id, p]));
+      const adjustedItems: string[] = [];
+      const rebuilt = order.items
+        .map((i) => {
+          const product = liveMap.get(i.productId);
+          if (!product) {
+            adjustedItems.push(i.productName);
+            return null;
+          }
+          const quantity = Math.min(i.quantity, product.stock);
+          if (quantity !== i.quantity) adjustedItems.push(product.name);
+          return { product, quantity };
+        })
+        .filter((x): x is { product: Product; quantity: number } => x !== null && x.quantity > 0);
+      if (adjustedItems.length > 0) {
+        setScanFeedback({
+          ok: false,
+          text: t('register.heldOrderAdjusted', { items: adjustedItems.join(', ') }),
+        });
+      }
+      setCart(rebuilt);
+      setSelectedCustomerId(order.customerId);
+      setDiscountType(order.discountType);
+      setDiscountInput(order.discountInput);
+      setLoyaltyPointsToUse(order.loyaltyPointsToUse);
+      setShowPromoInput(false);
+      removeHeldOrder(order.id);
+      setHeldModalOpen(false);
+    },
+    [
+      cart,
+      removeHeldOrder,
+      t,
+      setCart,
+      setSelectedCustomerId,
+      setDiscountType,
+      setDiscountInput,
+      setLoyaltyPointsToUse,
+      setShowPromoInput,
+    ],
+  );
+
+  const handleAddNewCustomer = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!custName.trim()) return;
+      const newCust = handleAddCustomer(custName, custPhone, custEmail);
+      setSelectedCustomerId(newCust.id);
+      setCustName('');
+      setCustPhone('');
+      setCustEmail('');
+      setAddCustomerOpen(false);
+    },
+    [custName, custPhone, custEmail, handleAddCustomer, setSelectedCustomerId],
+  );
+
+  const handleCheckoutClick = useCallback(() => {
+    if (cart.length === 0) return;
+    setPaymentMethod('card');
+    setCashPaidText('');
+    setSplitMode(false);
+    setSplitPayments([]);
+    setCheckoutModalOpen(true);
+  }, [cart]);
+
+  const splitPaidTotal = useMemo(
+    () => splitPayments.reduce((s, p) => s + (p.amount || 0), 0),
+    [splitPayments],
+  );
+  const splitRemaining = Number((totalAmount - splitPaidTotal).toFixed(2));
+
+  const addSplitPayment = useCallback(() => {
+    const remaining = Math.max(0, splitRemaining);
+    setSplitPayments((prev) => [...prev, { method: 'cash', amount: Number(remaining.toFixed(2)) }]);
+  }, [splitRemaining]);
+  const updateSplitPayment = useCallback(
+    (idx: number, patch: Partial<Payment>) =>
+      setSplitPayments((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p))),
+    [],
+  );
+  const removeSplitPayment = useCallback(
+    (idx: number) => setSplitPayments((prev) => prev.filter((_, i) => i !== idx)),
+    [],
+  );
+
+  const notifyPrint = useCallback(
+    (outcome: HardwarePrintOutcome) => {
+      if (outcome === 'popup-blocked') notify(t('history.standardPrintBlocked'));
+      else if (outcome === 'unsupported')
+        notify(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
+      else if (outcome === 'no-device') notify(t('print.noDevice'));
+      else if (outcome === 'error') notify(t('print.error'));
+    },
+    [t, printerConfig],
+  );
+
+  const handleCompletePayment = useCallback(() => {
+    const req: CheckoutRequest = {
+      cartItems,
+      subtotal,
+      discountType,
+      discountValue,
+      discountAmount,
+      taxAmount,
+      totalAmount,
+      paymentMethod,
+      splitMode,
+      splitPayments,
+      cashPaidText,
+      cashChangeDue,
+      selectedCustomerId,
+      activeCustomerName: activeCustomer?.name || null,
+      currentUser,
+      currentShiftId,
+      settings,
+    };
+
+    // Every store write for the sale happens here. The screen keeps only what
+    // the operator sees: the receipt, the drawer, and the printer.
+    const result = commitSale(req);
+    if (!result.success) {
+      if (result.error === 'invalid-quantity') notify(t('register.invalidQuantity'));
+      else if (result.error === 'split-incomplete') notify(t('register.splitIncomplete'));
+      else if (result.error === 'split-non-cash-overpay') notify(t('register.splitNonCashOverpay'));
+      else if (result.error === 'insufficient-cash') notify(t('register.insufficientCash'));
+      return;
+    }
+
+    const { transaction, isCashSale } = result.sale;
+
+    setActiveReceipt(transaction);
+    setReceiptPrinted(false);
+    setCheckoutModalOpen(false);
+    setReceiptModalOpen(true);
+    clearCart();
+
+    if (printerConfig.autoPrintOnCheckout) {
+      printReceipt(transaction, settings, printerConfig, isCashSale, receiptLayout).then(
+        (outcome) => {
+          notifyPrint(outcome);
+          if (outcome === 'printed') setReceiptPrinted(true);
+        },
+      );
+    } else if (isCashSale) {
+      openCashDrawer(printerConfig);
+    }
+    if (printerConfig.kitchenTicketOnCheckout) {
+      /*
+        Pre-computed product map to change O(N^2) category lookups in the kitchen
+        ticket loop into O(N) map build + O(1) loop lookups.
+      */
+      const products = useProductStore.getState().products;
+      const prodMap = new Map(products.map((p) => [p.id, p]));
+      const catOf = (productId: string) => prodMap.get(productId)?.category;
+      printKitchenTickets(
+        transaction,
+        settings,
+        printerConfig,
+        kitchenStations,
+        catOf,
+        kitchenLayout,
+      ).then(notifyPrint);
+    }
+  }, [
+    cartItems,
+    subtotal,
+    discountType,
+    discountValue,
+    discountAmount,
+    taxAmount,
+    totalAmount,
+    paymentMethod,
+    splitMode,
+    splitPayments,
+    cashPaidText,
+    cashChangeDue,
+    selectedCustomerId,
+    activeCustomer,
+    currentUser,
+    currentShiftId,
+    settings,
+    printerConfig,
+    kitchenStations,
+    receiptLayout,
+    kitchenLayout,
+    clearCart,
+    t,
+    notifyPrint,
+  ]);
+
+  const handlePrintActiveReceipt = useCallback(async () => {
+    if (!activeReceipt) return;
+    notifyPrint(await printReceipt(activeReceipt, settings, printerConfig, false, receiptLayout));
+  }, [activeReceipt, settings, printerConfig, receiptLayout, notifyPrint]);
+
+  const handlePrintKitchenTicket = useCallback(async () => {
+    if (!activeReceipt) return;
+    /*
+      Pre-computed product map to change O(N^2) category lookups in the kitchen
+      ticket loop into O(N) map build + O(1) loop lookups.
+    */
+    const products = useProductStore.getState().products;
+    const prodMap = new Map(products.map((p) => [p.id, p]));
+    const catOf = (productId: string) => prodMap.get(productId)?.category;
+    notifyPrint(
+      await printKitchenTickets(
+        activeReceipt,
+        settings,
+        printerConfig,
+        kitchenStations,
+        catOf,
+        kitchenLayout,
+      ),
+    );
+  }, [activeReceipt, settings, printerConfig, kitchenStations, kitchenLayout, notifyPrint]);
+
+  const paymentMethodsArray = useMemo(
+    () =>
+      [
+        { id: 'card', label: t('register.payCard'), icon: CreditCard, activeClass: 'active-card' },
+        { id: 'cash', label: t('register.payCash'), icon: DollarSign, activeClass: 'active-cash' },
+        {
+          id: 'mobile',
+          label: t('register.payMobile'),
+          icon: Smartphone,
+          activeClass: 'active-mobile',
+        },
+        { id: 'gift', label: t('register.payGift'), icon: Gift, activeClass: 'active-gift' },
+      ] as const,
+    [t],
+  );
+
+  const addCustomerFieldsArray = useMemo(
+    () => [
+      {
+        label: t('register.fullName'),
+        type: 'text',
+        value: custName,
+        onChange: setCustName,
+        placeholder: 'e.g. John Doe',
+        required: true,
+      },
+      {
+        label: t('register.phoneNumber'),
+        type: 'tel',
+        value: custPhone,
+        onChange: setCustPhone,
+        placeholder: 'e.g. 555-0100',
+        required: false,
+      },
+      {
+        label: t('register.emailAddress'),
+        type: 'email',
+        value: custEmail,
+        onChange: setCustEmail,
+        placeholder: 'e.g. john@example.com',
+        required: false,
+      },
+    ],
+    [t, custName, custPhone, custEmail],
+  );
+
+  const receiptActionsArray = useMemo(
+    () => [
+      { icon: Printer, label: t('register.print'), onClick: handlePrintActiveReceipt },
+      { icon: ChefHat, label: t('register.kitchen'), onClick: handlePrintKitchenTicket },
+      {
+        icon: Share2,
+        label: t('register.share'),
+        onClick: async () => {
+          if (!activeReceipt) return;
+          const r = await shareReceipt(activeReceipt, settings);
+          if (r === 'copied') setScanFeedback({ ok: true, text: t('register.copied') });
+        },
+      },
+      {
+        icon: Mail,
+        label: t('register.email'),
+        onClick: () => {
+          if (!activeReceipt) return;
+          const email = activeReceipt.customerId
+            ? customers.find((c) => c.id === activeReceipt.customerId)?.email
+            : undefined;
+          emailReceipt(activeReceipt, settings, email || undefined, emailTemplate);
+        },
+      },
+    ],
+    [
+      t,
+      handlePrintActiveReceipt,
+      handlePrintKitchenTicket,
+      activeReceipt,
+      settings,
+      customers,
+      emailTemplate,
+    ],
+  );
+
+  return (
+    <div id="register-root" className="app-canvas flex flex-1 h-full overflow-hidden">
+      <ProductGrid
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        cart={cart}
+        addToCart={addToCart}
+      />
+      <CartPanel
+        cart={cart}
+        updateCartQty={updateCartQty}
+        removeFromCart={removeFromCart}
+        clearCart={clearCart}
+        activeCustomer={activeCustomer}
+        selectedCustomerId={selectedCustomerId}
+        setSelectedCustomerId={setSelectedCustomerId}
+        setAddCustomerOpen={setAddCustomerOpen}
+        discountType={discountType}
+        setDiscountType={setDiscountType}
+        discountInput={discountInput}
+        setDiscountInput={setDiscountInput}
+        loyaltyPointsToUse={loyaltyPointsToUse}
+        setLoyaltyPointsToUse={setLoyaltyPointsToUse}
+        showPromoInput={showPromoInput}
+        setShowPromoInput={setShowPromoInput}
+        subtotal={subtotal}
+        discountAmount={discountAmount}
+        taxAmount={taxAmount}
+        totalAmount={totalAmount}
+        handleCheckoutClick={handleCheckoutClick}
+        onHoldOrder={handleHoldOrder}
+        heldCount={heldOrders.length}
+        onOpenHeldOrders={() => setHeldModalOpen(true)}
+      />
+
+      {/* Barcode scan feedback toast */}
+      <AnimatePresence>
+        {scanFeedback && (
+          <motion.div
+            role="status"
+            aria-live="polite"
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] ring-1 ring-black/5 text-sm font-semibold tracking-wide ${
+              scanFeedback.ok ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+            }`}
+          >
+            <ScanLine size={18} className="opacity-90" />
+            <span>{scanFeedback.text}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {heldModalOpen && (
+        <Suspense fallback={null}>
+          <HeldOrdersModal
+            open
+            dialogRef={heldModalRef}
+            heldOrders={heldOrders}
+            currency={settings.currency}
+            onClose={() => setHeldModalOpen(false)}
+            onResume={resumeHeldOrder}
+            onRemove={async (id) => {
+              if (
+                await askConfirmation(t('register.deleteHeldConfirm', 'Delete this held order?'))
+              ) {
+                removeHeldOrder(id);
+              }
+            }}
+          />
+        </Suspense>
+      )}
+
+      {checkoutModalOpen && (
+        <Suspense fallback={null}>
+          <PaymentModal
+            open
+            dialogRef={checkoutModalRef}
+            currency={settings.currency}
+            totalAmount={totalAmount}
+            paymentMethods={paymentMethodsArray}
+            paymentMethod={paymentMethod}
+            onSelectMethod={setPaymentMethod}
+            splitMode={splitMode}
+            onToggleSplit={() => {
+              setSplitMode((m) => !m);
+              if (!splitMode && splitPayments.length === 0) {
+                setSplitPayments([
+                  { method: 'cash', amount: Number(Math.max(0, totalAmount).toFixed(2)) },
+                ]);
+              }
+            }}
+            splitPayments={splitPayments}
+            splitRemaining={splitRemaining}
+            splitPaidTotal={splitPaidTotal}
+            onAddSplit={addSplitPayment}
+            onUpdateSplit={updateSplitPayment}
+            onRemoveSplit={removeSplitPayment}
+            cashSuggestions={cashSuggestions}
+            cashPaidText={cashPaidText}
+            onCashPaidChange={setCashPaidText}
+            cashChangeDue={cashChangeDue}
+            onComplete={handleCompletePayment}
+            onClose={() => setCheckoutModalOpen(false)}
+          />
+        </Suspense>
+      )}
+
+      {addCustomerOpen && (
+        <Suspense fallback={null}>
+          <AddCustomerModal
+            open
+            dialogRef={addCustomerModalRef}
+            fields={addCustomerFieldsArray}
+            onSubmit={handleAddNewCustomer}
+            onClose={() => setAddCustomerOpen(false)}
+          />
+        </Suspense>
+      )}
+
+      {receiptModalOpen && (
+        <Suspense fallback={null}>
+          <ReceiptModal
+            open
+            dialogRef={receiptModalRef}
+            receipt={activeReceipt}
+            settings={settings}
+            printerConfig={printerConfig}
+            receiptLayout={receiptLayout}
+            showBarcode={printerConfig.showBarcode}
+            actions={receiptActionsArray}
+            onClose={() => setReceiptModalOpen(false)}
+          />
+        </Suspense>
+      )}
+    </div>
+  );
+}

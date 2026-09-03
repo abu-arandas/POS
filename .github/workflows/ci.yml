@@ -1,0 +1,112 @@
+name: CI
+
+# Least-privilege default for GITHUB_TOKEN: CI only reads the repo to run
+# checks. Any job needing more can opt in with its own permissions block.
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Pushing twice to a branch used to leave both runs going, and every superseded
+# run still spent a full e2e cycle before anyone looked at it. Only pull-request
+# runs are cancelled — a run on main is the record for that commit and is left
+# to finish.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    # Comfortably above the ~2 minutes this takes; a job that blows past it is
+    # hung, and without a limit it would sit there for the 6-hour default.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+
+      - name: Typecheck (tsc --noEmit, strict)
+        run: npm run lint
+
+      - name: ESLint
+        run: npx eslint . --max-warnings 0
+
+      # The repo has always carried a .prettierrc, but nothing checked it, so
+      # 52 files had drifted from the project's own declared style.
+      - name: Formatting (Prettier)
+        run: npm run format:check
+
+      - name: Unit tests (Vitest)
+        run: npm test
+
+      - name: Production build (Vite)
+        run: npm run build
+
+      - name: Initial bundle performance budget
+        run: npm run perf:check
+
+      - name: Electron/seed script syntax
+        run: |
+          node --check electron/main.cjs
+          node --check electron/preload.cjs
+          node --check electron/updatePolicy.cjs
+          node --check electron/validation.cjs
+          node --check electron/windowsSigning.cjs
+          node --check electron/menuServer.cjs
+          node --check scripts/seed.mjs
+
+      # A broken packaging config only shows up on the Windows runner otherwise,
+      # after a full Electron toolchain download. Loading it here catches a
+      # syntax or resolution error in seconds. The unsigned path is the one a
+      # pull request builds, so that is the one asserted.
+      - name: electron-builder config loads
+        run: |
+          node -e "
+            const config = require('./electron-builder.config.cjs');
+            if (config.win.publisherName || config.win.azureSignOptions) {
+              throw new Error('Unsigned build must not claim a publisher — see electron/windowsSigning.cjs');
+            }
+            if (config.appId !== 'com.eapos.app') throw new Error('appId changed unexpectedly');
+          "
+
+  e2e:
+    runs-on: ubuntu-latest
+    # Higher than `checks`: this one also downloads three browser engines.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: End-to-end tests (Playwright)
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

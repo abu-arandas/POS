@@ -1,0 +1,941 @@
+@import 'tailwindcss';
+
+/* ─── Webfonts (self-hosted) ───────────────────────────────────────────────
+   These used to come from fonts.googleapis.com. A POS terminal is offline-first
+   and commonly runs on a café LAN with no internet, so a CDN import meant a
+   render-blocking request that failed on every launch — and it leaked a request
+   to a third party from a payment device. It hurt most in Arabic: 'Cairo' is the
+   only face behind .font-arabic and had no local fallback, so RTL silently lost
+   its typeface offline.
+
+   Variable woff2, latin + latin-ext (+ arabic for Cairo) only — 344 KB total.
+   Inter's italics are deliberately absent: exactly one label in the app is
+   italic, so the browser synthesizes an oblique rather than shipping 221 KB.
+
+   Regenerate with scripts/fetch-fonts.mjs after changing a family or subset. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/fonts/inter-latin-ext-normal.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/fonts/inter-latin-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('./assets/fonts/jetbrains-mono-latin-ext-normal.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('./assets/fonts/jetbrains-mono-latin-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Cairo';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/fonts/cairo-arabic-normal.woff2') format('woff2');
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E,
+    U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB,
+    U+10E60-10E7E, U+10EC2-10EC4, U+10EFC-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22,
+    U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49,
+    U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F,
+    U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E,
+    U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1;
+}
+@font-face {
+  font-family: 'Cairo';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/fonts/cairo-latin-ext-normal.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Cairo';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/fonts/cairo-latin-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+/* ─── Arabic Font ─────────────────────────────────────────────────────────── */
+.font-arabic {
+  font-family: 'Cairo', ui-sans-serif, system-ui, sans-serif !important;
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────────────────────── */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+  background-clip: padding-box;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* ─── CSS Custom Properties ───────────────────────────────────────────────── */
+:root {
+  --color-emerald: #10b981;
+  --color-emerald-dim: rgba(16, 185, 129, 0.15);
+  --color-emerald-glow: rgba(16, 185, 129, 0.3);
+  --color-rose: #f43f5e;
+  --color-rose-dim: rgba(244, 63, 94, 0.15);
+  --color-amber: #f59e0b;
+  --color-amber-dim: rgba(245, 158, 11, 0.15);
+  --color-blue: #3b82f6;
+  --color-blue-dim: rgba(59, 130, 246, 0.15);
+
+  /* Semantic surface/border tokens — light theme (default). One place to
+     tune every elevated panel, input, and hairline in the app. */
+  --surface-1: #ffffff; /* elevated card / panel */
+  --surface-2: #f8fafc; /* inset areas, table headers */
+  --surface-hover: #f1f5f9; /* row/card hover */
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.14);
+  --input-bg: #ffffff;
+  --input-border: rgba(15, 23, 42, 0.12);
+
+  /* Operational canvas + chrome. The register, sidebar, and cart panel used to
+     hardcode near-black values, which pinned those screens to dark whatever the
+     toggle said. They read these instead so the theme actually applies. */
+  --app-bg: #f8fafc; /* full-screen canvas behind a screen */
+  --panel-bg: #ffffff; /* sidebar / cart rail */
+  --panel-border: rgba(15, 23, 42, 0.1);
+  --receipt-bg: #ffffff; /* on-screen thermal receipt card */
+  --text-strong: #0f172a; /* highest-contrast body text */
+  --chip-text: #475569; /* inactive chip / toolbar label */
+
+  /* Layered elevation — soft, close ambient + a longer cast for depth. */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 2px 6px rgba(15, 23, 42, 0.06), 0 8px 24px -8px rgba(15, 23, 42, 0.12);
+  --shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.08), 0 24px 48px -16px rgba(15, 23, 42, 0.22);
+  --shadow-card: var(--shadow-md);
+  --shadow-glow-emerald: 0 0 24px rgba(16, 185, 129, 0.35);
+  --shadow-glow-rose: 0 0 24px rgba(244, 63, 94, 0.35);
+
+  --radius-card: 1rem;
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Dark theme token overrides. Applied whenever the app sits in a dark context —
+   either the user's toggle (.dark on <html>) or the dark-first operational
+   screens that render on a near-black canvas. */
+.dark {
+  --surface-1: #0f172a;
+  --surface-2: rgba(255, 255, 255, 0.03);
+  --surface-hover: rgba(255, 255, 255, 0.05);
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --app-bg: #020617;
+  --panel-bg: rgba(2, 6, 23, 0.95);
+  --panel-border: rgba(30, 41, 59, 0.6);
+  --receipt-bg: #0a0f1e;
+  --text-strong: #e2e8f0;
+  --chip-text: #94a3b8;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+
+/* ─── Number Inputs — remove arrows ──────────────────────────────────────── */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* ─── Selection Color ─────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(16, 185, 129, 0.28);
+  color: #f8fafc;
+}
+
+/* ─── Focus Ring ──────────────────────────────────────────────────────────── */
+
+/* Keyboard-only focus indicator for every interactive element. :where() keeps
+   specificity at zero so intentional per-component focus styles still win. */
+:where(button, [role='button'], a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
+}
+
+/* ─── Reduced Motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   KEYFRAME ANIMATIONS
+═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-28px) scale(1.04);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  55% {
+    transform: scale(1.07);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes orb-drift-1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(40px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-25px, 25px) scale(0.93);
+  }
+}
+
+@keyframes orb-drift-2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  40% {
+    transform: translate(-45px, 35px) scale(1.06);
+  }
+  70% {
+    transform: translate(30px, -25px) scale(0.96);
+  }
+}
+
+@keyframes orb-drift-3 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(25px, -35px) scale(1.08);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATION UTILITY CLASSES
+═══════════════════════════════════════════════════════════════════════════ */
+
+.animate-float-slow {
+  animation: float-slow 9s ease-in-out infinite;
+}
+.animate-fade-up {
+  animation: fade-up 0.4s ease-out forwards;
+}
+.animate-bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.animate-orb-1 {
+  animation: orb-drift-1 14s ease-in-out infinite;
+}
+.animate-orb-2 {
+  animation: orb-drift-2 18s ease-in-out infinite;
+}
+.animate-orb-3 {
+  animation: orb-drift-3 11s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AMBIENT BACKGROUNDS
+═══════════════════════════════════════════════════════════════════════════ */
+
+.mesh-bg {
+  background-color: #f1f5f9;
+  background-image:
+    radial-gradient(at 40% 20%, hsla(167, 98%, 39%, 0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(189, 100%, 56%, 0.09) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(355, 100%, 93%, 0.07) 0px, transparent 50%);
+}
+
+.mesh-bg-dark {
+  background-color: #020617;
+  background-image:
+    radial-gradient(at 40% 20%, hsla(167, 98%, 39%, 0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(220, 100%, 56%, 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(280, 100%, 43%, 0.07) 0px, transparent 50%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SURFACES  (semantic, token-driven — the app's primary card/panel)
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Layered so component-level Tailwind utilities (rounded-*, shadow-*, bg-*)
+   still win — .surface only fills in the background/border/elevation that the
+   components assume but never set themselves. */
+@layer components {
+  .surface {
+    background: var(--surface-1);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Inset/subtle surface for nested areas (table headers, wells). */
+  .surface-2 {
+    background: var(--surface-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-card);
+  }
+}
+
+/* Hide scrollbars but keep scrolling (used in tab strips / rails). */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLASS MORPHISM
+═══════════════════════════════════════════════════════════════════════════ */
+
+.glass {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 4px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.glass-input {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: inherit;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.glass-input:focus,
+.glass-input:focus-within {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+  outline: none;
+}
+
+.glass-input::placeholder {
+  color: rgba(100, 116, 139, 0.7);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BADGE COMPONENTS
+═══════════════════════════════════════════════════════════════════════════ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.badge-emerald {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.24);
+}
+
+.badge-rose {
+  background: rgba(244, 63, 94, 0.14);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.24);
+}
+
+.badge-amber {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.24);
+}
+
+.badge-blue {
+  background: rgba(59, 130, 246, 0.14);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.24);
+}
+
+.badge-slate {
+  background: rgba(100, 116, 139, 0.14);
+  color: #94a3b8;
+  border: 1px solid rgba(100, 116, 139, 0.24);
+}
+
+.badge-purple {
+  background: rgba(139, 92, 246, 0.14);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.24);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MODAL BACKDROP
+═══════════════════════════════════════════════════════════════════════════ */
+
+.modal-backdrop {
+  background: rgba(2, 6, 23, 0.88);
+  backdrop-filter: blur(10px) saturate(0.8);
+  -webkit-backdrop-filter: blur(10px) saturate(0.8);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INTERACTIVE HELPERS
+═══════════════════════════════════════════════════════════════════════════ */
+
+.card-hover {
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THERMAL RECEIPT STYLES
+═══════════════════════════════════════════════════════════════════════════ */
+
+.receipt-paper {
+  background: #fafafa;
+  color: #111;
+  font-family: 'Courier New', Courier, monospace;
+  box-shadow:
+    0 0 0 1px #e5e7eb,
+    0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CHART TOOLTIPS (Recharts override)
+═══════════════════════════════════════════════════════════════════════════ */
+
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+
+.recharts-default-tooltip {
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SELECT OVERRIDE
+═══════════════════════════════════════════════════════════════════════════ */
+
+select {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DIALOG / MODAL BASE
+═══════════════════════════════════════════════════════════════════════════ */
+
+.modal-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: 24px;
+  box-shadow:
+    var(--shadow-lg),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAYMENT METHOD BUTTON
+═══════════════════════════════════════════════════════════════════════════ */
+
+.pay-method-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms ease;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pay-method-btn:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.07);
+  color: #cbd5e1;
+}
+
+.pay-method-btn.active-cash {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.3);
+}
+
+.pay-method-btn.active-card {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
+}
+
+.pay-method-btn.active-mobile {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.12);
+  color: #a78bfa;
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.3);
+}
+
+.pay-method-btn.active-gift {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYOUT SHELLS, MODAL CHROME & FORM PRIMITIVES
+   ───────────────────────────────────────────────────────────────────────────
+   Every class below replaced an inline `style={{ … }}` object in a component.
+
+   Most of them were not merely untidy — they were a light-mode bug. The modals
+   hard-coded hairlines as `rgba(255,255,255,0.07)`, which is exactly the *dark*
+   value of --border-subtle frozen in place. Under the light theme that draws
+   white on a white panel, so every divider in the payment, customer and receipt
+   modals disappeared. Same story for the `rgba(255,255,255,0.04/0.05/0.09)`
+   fills and borders: all of them are dark-theme values of --surface-2,
+   --input-bg and --input-border. Reading the tokens instead is what makes the
+   theme toggle actually reach these screens.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── App-level shells ────────────────────────────────────────────────────── */
+
+/* Full-screen canvas a screen paints on (Register). */
+.app-canvas {
+  background: var(--app-bg);
+}
+
+/* Sidebar, cart rail, mobile top bar and mobile nav sheet — the persistent
+   chrome around the active screen. */
+.app-panel {
+  background: var(--panel-bg);
+  border-color: var(--panel-border);
+}
+
+/* ─── Modal chrome ────────────────────────────────────────────────────────── */
+
+.modal-divider-top {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.modal-divider-bottom {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* The on-screen thermal receipt card. */
+.receipt-card {
+  background: var(--receipt-bg);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ─── Form primitives ─────────────────────────────────────────────────────── */
+
+/* Wrapper around a control that should read as an inset well: the split-payment
+   row, the icon buttons beside it, the toolbar in ProductGrid. */
+.field-shell {
+  background: var(--surface-2);
+  border: 1px solid var(--input-border);
+}
+
+/* Divider between two controls sharing one shell (the method <select> and the
+   amount <input>). Logical, not `border-right` — the app ships an Arabic RTL
+   layout, where a physical right border lands on the wrong edge. */
+.field-shell-divider {
+  border-inline-end: 1px solid var(--border-strong);
+}
+
+/* A text/number input that carries its own background and border. */
+.input-shell {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text-strong, inherit);
+}
+
+/* The focus treatment used to be two JS handlers per input, assigning
+   `e.target.style.borderColor` on focus and restoring the hard-coded resting
+   colour on blur. That is the same inline styling by another route, and the
+   restored value was the dark-theme border, so a focused-then-blurred input
+   kept a border the light theme never uses. */
+.input-shell:focus,
+.input-shell:focus-within {
+  outline: none;
+  border-color: var(--color-emerald);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+}
+
+/* ─── Buttons ─────────────────────────────────────────────────────────────── */
+
+/* Secondary / dismiss action. */
+.btn-ghost {
+  background: var(--surface-hover);
+  border: 1px solid var(--input-border);
+  color: var(--chip-text);
+  transition: background var(--transition-fast);
+}
+
+.btn-ghost:hover {
+  background: var(--surface-2);
+}
+
+/* Ghost button that warms to emerald on hover (the receipt's print / email /
+   share row). This was a pair of onMouseEnter/onMouseLeave handlers writing
+   `e.currentTarget.style` — which meant the hover state never fired for a
+   keyboard user, since focus is not mouse-enter. As a CSS rule it covers both. */
+.btn-ghost-emerald {
+  background: var(--surface-hover);
+  border: 1px solid var(--border-strong);
+  color: var(--chip-text);
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.btn-ghost-emerald:hover,
+.btn-ghost-emerald:focus-visible {
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* The single confirming action in a modal — complete order, save customer,
+   finish. One definition so all three stay identical. */
+.btn-primary {
+  background: linear-gradient(135deg, #059669, var(--color-emerald));
+  color: #ffffff;
+  box-shadow: 0 4px 20px var(--color-emerald-glow);
+  transition: box-shadow var(--transition-fast);
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: var(--shadow-glow-emerald);
+}
+
+/* "+ Add payment" / "+ Add line" — an outlined, dashed affordance for
+   appending a row to a list. */
+.btn-dashed-add {
+  color: #34d399;
+  border: 1px dashed rgba(16, 185, 129, 0.35);
+  transition: background var(--transition-fast);
+}
+
+.btn-dashed-add:hover {
+  background: var(--color-emerald-dim);
+}
+
+/* ─── Toggles & chips ─────────────────────────────────────────────────────── */
+
+/* A pill that switches between two states (split payment on/off, a category
+   filter, edit mode). Base is the resting state; `.is-active` and `.is-danger`
+   are the engaged ones. */
+.toggle-pill {
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--chip-text);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.toggle-pill.is-active {
+  background: var(--color-emerald-dim);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #34d399;
+}
+
+.toggle-pill.is-selected {
+  background: linear-gradient(135deg, #059669, var(--color-emerald));
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.toggle-pill.is-danger {
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.3);
+  color: #fb7185;
+}
+
+/* Small square icon badge beside a modal title. */
+.chip-emerald {
+  background: var(--color-emerald-dim);
+  color: #34d399;
+}
+
+/* Tinted action buttons in a row (purchase-order "Mark ordered" / "Receive").
+   Distinct from .badge-*, which forces uppercase 10px display type — these
+   carry the surrounding button typography. */
+.btn-chip-emerald {
+  background: var(--color-emerald-dim);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  transition: background var(--transition-fast);
+}
+
+.btn-chip-emerald:hover {
+  background: rgba(16, 185, 129, 0.22);
+}
+
+.btn-chip-blue {
+  background: var(--color-blue-dim);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  transition: background var(--transition-fast);
+}
+
+.btn-chip-blue:hover {
+  background: rgba(59, 130, 246, 0.22);
+}
+
+/* Bordered icon button that sits beside a field-shell row. */
+.btn-icon-outline {
+  border: 1px solid var(--border-strong);
+}
+
+/* ─── Cash tendering ──────────────────────────────────────────────────────── */
+
+.quick-cash-btn {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--chip-text);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.quick-cash-btn.is-active {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+
+/* Change-due readout. Fixed height so it lines up with the tendered input
+   beside it, whose height comes from its own padding. */
+.change-due-box {
+  height: 48px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+/* ─── Data-driven values ──────────────────────────────────────────────────── */
+/* These carry a value that only the component knows — a percentage from a
+   computed total, a per-category colour, a paper width in millimetres. The
+   value still arrives through the `style` attribute, but as a custom property,
+   so the rule that consumes it lives here with everything else rather than
+   being spelled out at each call site. */
+
+/* Product card in the register grid. The lifted stacking order and ghosting
+   while a card is dragged are the app's own decisions, so they live here;
+   only dnd-kit's per-frame transform stays on the element.
+   
+   Deliberately no `opacity: 1` in the base rule. These declarations are
+   unlayered, and unlayered CSS outranks anything in a cascade layer whatever
+   its specificity — so an explicit `opacity: 1` here silently beat Tailwind's
+   `opacity-50` (which lives in @layer utilities) and unavailable products
+   rendered at full strength while still being unclickable. Confirmed in
+   Chromium: computed opacity was 1 with the base rule, 0.5 without it. The
+   resting value is the initial one anyway, so there is nothing to restore. */
+.product-card {
+  z-index: 1;
+}
+
+/* Same reasoning in reverse: this one *should* outrank the utility, because a
+   card being dragged is a stronger state than a card being out of stock. */
+.product-card.is-dragging {
+  z-index: 50;
+  opacity: 0.4;
+}
+
+/* Horizontal proportion bar (Dashboard best-sellers, per-operator revenue,
+   customer spend; Fleet store share). */
+.bar-fill {
+  width: var(--bar-width, 0%);
+}
+
+/* Legend/series swatch tinted by chart data. */
+.swatch {
+  background-color: var(--swatch-color, transparent);
+}
+
+/* Receipt preview iframe, sized to the configured paper width. */
+.preview-frame {
+  width: var(--preview-width, 100%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRINT
+   ───────────────────────────────────────────────────────────────────────────
+   The QR menu card is the only thing that prints the app's own document —
+   the Z-report, product labels and thermal receipts each write their own
+   window, so their styles travel with them and cannot live here.
+
+   Scoped on `body:has(#print-area)` rather than bare `body *`. As an injected
+   <style> inside QRMenu the blanket hide could only ever apply while that
+   screen was mounted; in a global sheet it would apply to *any* print, so a
+   Ctrl+P from another screen would render a blank page. The :has() guard
+   restores that limit — the rule only engages when a print area exists.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media print {
+  body:has(#print-area) * {
+    visibility: hidden;
+  }
+
+  body:has(#print-area) #print-area,
+  body:has(#print-area) #print-area * {
+    visibility: visible;
+  }
+
+  #print-area {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    max-width: 600px;
+    box-shadow: none;
+    border: none;
+    background: #ffffff !important;
+  }
+
+  #print-area h3,
+  #print-area p {
+    color: #000000 !important;
+  }
+}
