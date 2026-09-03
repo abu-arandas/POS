@@ -41,6 +41,7 @@ export const dashboard = {
   salesByCategory: 'Sales by Category',
   revenueShare: 'Revenue share across departments',
   noCategoryStats: 'NO CATEGORY STATS',
+  otherCategories: 'Other',
   paymentMethods: 'Payment Methods',
   preferredModes: 'Preferred checkout modes by volume',
   ofSales: '% of sales',

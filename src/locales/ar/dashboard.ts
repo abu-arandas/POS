@@ -41,6 +41,7 @@ export const dashboard = {
   salesByCategory: 'المبيعات حسب الفئة',
   revenueShare: 'حصة الإيرادات عبر الأقسام',
   noCategoryStats: 'لا توجد إحصاءات للفئات',
+  otherCategories: 'أخرى',
   paymentMethods: 'طرق الدفع',
   preferredModes: 'أوضاع الدفع المفضلة حسب الحجم',
   ofSales: '% من المبيعات',

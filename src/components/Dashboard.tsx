@@ -25,10 +25,15 @@ import {
   BarChart,
   Bar,
   Cell,
-  PieChart,
-  Pie,
 } from 'recharts';
 import { motion } from 'motion/react';
+import {
+  assignSeriesColors,
+  foldToCap,
+  NEUTRAL,
+  SERIES_CAP,
+  type ChartMode,
+} from '../lib/chartPalette';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -93,6 +98,10 @@ const CustomTooltip = ({
  * Sales dashboard: revenue and order trends, top products, and stock alerts
  * for the selected period.
  */
+// Every payment method the app supports, in a fixed order. The colour a
+// method gets must not depend on whether it took money in the selected range.
+const PAYMENT_METHOD_ORDER = ['card', 'cash', 'mobile', 'gift'] as const;
+
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
   const transactions = useTransactionStore((s) => s.transactions);
@@ -100,6 +109,9 @@ export default function Dashboard() {
   const categories = useProductStore((s) => s.categories);
   const settings = useSettingsStore((s) => s.settings);
   const supabaseConfig = useSettingsStore((s) => s.supabaseConfig);
+  // Charts carry their own light/dark steps, so they need the theme itself
+  // rather than a CSS class the canvas cannot read.
+  const darkMode = useSettingsStore((s) => s.darkMode);
   const purchaseOrders = useSupplyStore((s) => s.purchaseOrders);
   const cloudLive = supabaseConfig.enabled && supabaseConfig.status === 'connected';
 
@@ -166,29 +178,48 @@ export default function Dashboard() {
 
   const topProductsData = useMemo(() => topProducts(rangeTxns), [rangeTxns]);
 
+  const chartMode: ChartMode = darkMode ? 'dark' : 'light';
+
   const categoryShareData = useMemo(() => {
-    const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#64748b'];
+    // Colour is keyed on the CATALOGUE, not on this range's revenue ranking.
+    // Keying it on the ranking meant narrowing the date range repainted whichever
+    // categories survived — the same category green in one range and amber in
+    // the next — so two ranges could not be compared by eye.
+    const colors = assignSeriesColors(
+      categories.map((category) => category.id),
+      chartMode,
+    );
     const byId = new Map(categories.map((category) => [category.id, category]));
-    return categoryRevenue(rangeTxns, products).map((entry, index) => {
+    const rows = categoryRevenue(rangeTxns, products).map((entry) => {
       const category = byId.get(entry.categoryId);
       return {
+        key: entry.categoryId,
         name: category
           ? t(`categories.${category.name.toLowerCase()}`, { defaultValue: category.name })
           : 'General',
         value: entry.revenue,
-        color: colors[index % colors.length],
       };
     });
-  }, [rangeTxns, products, categories, t]);
+    // Bars compare against their neighbour, so the adjacent cap applies.
+    return foldToCap(
+      rows,
+      colors,
+      chartMode,
+      SERIES_CAP.adjacent,
+      t('dashboard.otherCategories', { defaultValue: 'Other' }),
+    );
+  }, [rangeTxns, products, categories, t, chartMode]);
 
   const paymentMethodsData = useMemo(() => {
-    const colors = { card: '#3b82f6', cash: '#10b981', mobile: '#8b5cf6', gift: '#f59e0b' };
+    // A fixed domain: every method keeps its colour whether or not it took any
+    // money in the selected range.
+    const colors = assignSeriesColors(PAYMENT_METHOD_ORDER, chartMode);
     return paymentTotals(rangeTxns).map(({ method, value }) => ({
       name: method.toUpperCase(),
       value,
-      color: colors[method],
+      color: colors.get(method) ?? NEUTRAL[chartMode],
     }));
-  }, [rangeTxns]);
+  }, [rangeTxns, chartMode]);
 
   const totalSalesVolume = useMemo(() => {
     return paymentMethodsData.reduce((sum, d) => sum + d.value, 0);
@@ -597,29 +628,51 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={categoryShareData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={65}
-                      outerRadius={95}
-                      paddingAngle={5}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {categoryShareData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
+                  {/* Bars, not a donut. A pie compares every slice against every
+                      other at once, and this palette only clears the colour-vision
+                      floors for three simultaneous classes; bars are compared
+                      against their neighbour, which six clear. Bars also carry the
+                      category name in the axis, so identity never rests on colour
+                      alone — and that doubles as the visible label the light
+                      surface requires, where three of the steps sit under 3:1. */}
+                  <BarChart
+                    data={categoryShareData}
+                    layout="vertical"
+                    margin={{ top: 0, right: 20, left: 20, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="4 4" horizontal={false} stroke="#1e293b" />
+                    <XAxis
+                      type="number"
+                      stroke="#475569"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      stroke="#94a3b8"
+                      fontSize={12}
+                      width={110}
+                      tickLine={false}
+                      axisLine={false}
+                    />
                     <Tooltip content={<CustomTooltip currency={settings.currency} />} />
-                  </PieChart>
+                    <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={22}>
+                      {categoryShareData.map((entry) => (
+                        <Cell key={entry.key} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
+            {/* Every row, with its value — the old grid showed the first four of
+                however many there were, so anything past the fourth was
+                identified by its colour and nothing else. */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 mt-6">
-              {categoryShareData.slice(0, 4).map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2">
+              {categoryShareData.map((item) => (
+                <div key={item.key} className="flex items-center gap-2">
                   <span
                     className="swatch w-3 h-3 rounded-full shrink-0"
                     style={{ '--swatch-color': item.color } as CSSProperties}
