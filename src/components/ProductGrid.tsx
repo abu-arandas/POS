@@ -376,7 +376,7 @@ const ProductGrid = ({
       </div>
 
       {/* Products Grid */}
-      <div id="products-grid-container" className="flex-1 overflow-y-auto px-4 pb-4">
+      <div id="products-grid-container" className="flex-1 overflow-y-auto px-4 pb-24 lg:pb-4">
         <AnimatePresence mode="wait">
           {filteredProducts.length === 0 ? (
             <motion.div

@@ -418,7 +418,7 @@ export default function Inventory() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       id="inventory-root"
-      className="flex-1 flex flex-col h-screen overflow-hidden bg-transparent p-6 text-slate-800 dark:text-slate-100"
+      className="flex-1 flex flex-col h-screen overflow-hidden bg-transparent p-4 sm:p-6 text-slate-800 dark:text-slate-100"
     >
       {/* Header Panel */}
       <div
@@ -493,7 +493,7 @@ export default function Inventory() {
       <div
         role="tablist"
         aria-label={t('inventory.catalogInventory')}
-        className="flex space-x-6 border-b border-slate-200 dark:border-white/10 mb-6 relative"
+        className="flex space-x-4 sm:space-x-6 border-b border-slate-200 dark:border-white/10 mb-6 relative overflow-x-auto scrollbar-none"
       >
         {tabs.map((tab) => (
           <button
@@ -501,7 +501,7 @@ export default function Inventory() {
             role="tab"
             aria-selected={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`pb-3 text-sm font-semibold transition-colors relative z-10 ${
+            className={`pb-3 text-sm font-semibold transition-colors relative z-10 shrink-0 whitespace-nowrap ${
               activeTab === tab.id
                 ? 'text-emerald-500'
                 : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'

@@ -1,5 +1,6 @@
 export const register = {
   allProducts: 'All Products',
+  viewCart: 'View cart',
   searchProducts: 'Search products…',
   clearSearch: 'Clear search',
   editLayout: 'Edit Layout',

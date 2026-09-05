@@ -1,5 +1,6 @@
 export const register = {
   allProducts: 'جميع المنتجات',
+  viewCart: 'عرض السلة',
   searchProducts: 'ابحث عن المنتجات…',
   clearSearch: 'مسح البحث',
   editLayout: 'تعديل التخطيط',

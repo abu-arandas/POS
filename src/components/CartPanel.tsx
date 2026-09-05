@@ -48,6 +48,10 @@ interface CartPanelProps {
   onHoldOrder: () => void;
   heldCount: number;
   onOpenHeldOrders: () => void;
+  /** On small screens the cart is a slide-in drawer; controls its open state. */
+  mobileOpen?: boolean;
+  /** Closes the mobile drawer (no-op on desktop where the cart is a column). */
+  onCloseMobile?: () => void;
 }
 
 const CartPanel = ({
@@ -75,6 +79,8 @@ const CartPanel = ({
   onHoldOrder,
   heldCount,
   onOpenHeldOrders,
+  mobileOpen = false,
+  onCloseMobile,
 }: CartPanelProps) => {
   const customers = useCustomerStore((s) => s.customers);
   const settings = useSettingsStore((s) => s.settings);
@@ -125,8 +131,25 @@ const CartPanel = ({
     <aside
       id="cart-section"
       aria-label={t('register.checkout')}
-      className="app-panel flex flex-col h-full shrink-0 relative z-10 w-[300px] border-s"
+      className={`app-panel flex flex-col h-full shrink-0 border-s fixed inset-y-0 end-0 z-50 w-[min(88vw,340px)] max-w-sm transform shadow-2xl transition-transform duration-300 lg:static lg:z-10 lg:w-[300px] lg:max-w-none lg:transform-none lg:shadow-none ${
+        mobileOpen ? 'translate-x-0' : 'translate-x-full rtl:-translate-x-full'
+      } lg:translate-x-0`}
     >
+      {/* ── Mobile drawer header (small screens only) ── */}
+      <div className="lg:hidden flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-800/60 shrink-0">
+        <span className="text-sm font-bold text-slate-900 dark:text-white">
+          {t('register.checkout')}
+        </span>
+        <button
+          type="button"
+          onClick={onCloseMobile}
+          aria-label={t('register.close')}
+          className="p-2 -me-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
       {/* ── Customer Header ── */}
       <div
         id="cart-customer-header"

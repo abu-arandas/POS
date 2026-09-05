@@ -150,8 +150,11 @@ export function InventoryProductsTab({
         id="inventory-table-container"
         className="flex-1 surface rounded-2xl shadow-lg overflow-hidden flex flex-col"
       >
-        <div className="flex-1 overflow-y-auto">
-          <table id="inventory-table" className="w-full text-start border-collapse table-fixed">
+        <div className="flex-1 overflow-auto">
+          <table
+            id="inventory-table"
+            className="w-full min-w-[880px] text-start border-collapse table-fixed"
+          >
             <thead>
               <tr className="bg-white/90 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 sticky top-0 z-10 backdrop-blur-md">
                 <th className="py-4 px-6 w-1/4">{t('inventory.productDetails')}</th>

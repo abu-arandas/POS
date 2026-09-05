@@ -9,6 +9,7 @@ import {
   Share2,
   Mail,
   ChefHat,
+  ShoppingCart,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, SaleTransaction, HeldOrder, Payment } from '../types';
@@ -58,6 +59,8 @@ import { askConfirmation, askText } from '../lib/utils/ui';
  */
 export default function Register() {
   const { t } = useTranslation();
+  // On phones the cart is a slide-in drawer instead of a permanent column.
+  const [cartOpen, setCartOpen] = useState(false);
   const customers = useCustomerStore((s) => s.customers);
   const handleAddCustomer = useCustomerStore((s) => s.handleAddCustomer);
   const settings = useSettingsStore((s) => s.settings);
@@ -101,6 +104,7 @@ export default function Register() {
     removeFromCart,
     clearCart,
   } = useRegisterCart(settings);
+  const cartCount = useMemo(() => cart.reduce((n, item) => n + item.quantity, 0), [cart]);
   const [checkoutModalOpen, setCheckoutModalOpen] = useState<boolean>(false);
   const [addCustomerOpen, setAddCustomerOpen] = useState<boolean>(false);
   const [receiptModalOpen, setReceiptModalOpen] = useState<boolean>(false);
@@ -546,7 +550,49 @@ export default function Register() {
         onHoldOrder={handleHoldOrder}
         heldCount={heldOrders.length}
         onOpenHeldOrders={() => setHeldModalOpen(true)}
+        mobileOpen={cartOpen}
+        onCloseMobile={() => setCartOpen(false)}
       />
+
+      {/* Mobile-only backdrop behind the cart drawer */}
+      <AnimatePresence>
+        {cartOpen && (
+          <motion.button
+            type="button"
+            aria-label={t('register.close')}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setCartOpen(false)}
+            className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Mobile-only floating bar that opens the cart drawer */}
+      {!cartOpen && (
+        <button
+          type="button"
+          onClick={() => setCartOpen(true)}
+          className="lg:hidden fixed bottom-4 inset-x-4 z-30 flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-xl shadow-emerald-500/30"
+        >
+          <span className="flex items-center gap-2 font-semibold text-sm">
+            <span className="relative">
+              <ShoppingCart size={20} />
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -end-2 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-white text-emerald-700 text-[10px] font-mono font-bold">
+                  {cartCount}
+                </span>
+              )}
+            </span>
+            {t('register.viewCart', 'View cart')}
+          </span>
+          <span className="font-mono font-bold text-base">
+            {settings.currency}
+            {totalAmount.toFixed(2)}
+          </span>
+        </button>
+      )}
 
       {/* Barcode scan feedback toast */}
       <AnimatePresence>
