@@ -38,14 +38,18 @@ const baseTx: SaleTransaction = {
   status: 'completed',
 };
 
-// Tag-stripped text, as the customer reads it off the paper. Lets an assertion
-// about what the receipt SAYS survive a change to how the markup carries it.
-const visibleText = (html: string): string =>
-  html
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+// The words as the customer reads them off the paper, so an assertion about
+// what the receipt SAYS survives a change to how the markup carries it.
+//
+// Parsed, not regex-stripped. A `replace(/<[^>]*>/g, '')` is a single pass, so
+// nested angle brackets can reassemble into a tag behind it — CodeQL flags that
+// shape as incomplete multi-character sanitization, and it is right to: the
+// same helper copied somewhere that matters would be a real hole. A parser has
+// no such edge, and it decodes entities on the way through.
+const visibleText = (html: string): string => {
+  const parsed = new DOMParser().parseFromString(html, 'text/html');
+  return (parsed.body.textContent ?? '').replace(/\s+/g, ' ').trim();
+};
 
 describe('buildReceiptHtml', () => {
   it('renders the core receipt fields', () => {
