@@ -62,6 +62,29 @@ export function safeFontFamily(fontFamily: string | undefined): string {
 }
 
 /**
+ * Physical width of each supported roll, in millimetres.
+ */
+export const ROLL_MM: Record<'58mm' | '80mm', number> = { '58mm': 58, '80mm': 80 };
+
+/**
+ * Side margin the receipt document leaves inside the roll, in millimetres.
+ *
+ * Shared rather than restated per file because the barcode fit is calculated
+ * against it: if the margin here and the padding in the stylesheet drifted
+ * apart, the symbol would be sized for a width the page does not actually give
+ * it, and CSS would quietly scale it back down — which is the failure the fit
+ * exists to prevent.
+ */
+export const RECEIPT_MARGIN_MM = 3;
+
+/**
+ * Width available to receipt content on a roll, in millimetres.
+ */
+export function printableWidthMm(paperSize: '58mm' | '80mm'): number {
+  return ROLL_MM[paperSize] - RECEIPT_MARGIN_MM * 2;
+}
+
+/**
  * Every receipt field enabled — the starting point for a new layout and the
  * fallback for one that predates a newly added toggle.
  */

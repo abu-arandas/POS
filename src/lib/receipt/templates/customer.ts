@@ -1,7 +1,8 @@
 import i18n from '../../i18n';
-import { code128Svg } from '../../barcode';
+import { code128SvgMm } from '../../barcode';
 import { escapeHtml as esc } from '../../utils/formatting';
-import { formatDateTime, resolveCustomerLayout } from '../../receiptFormat';
+import { formatDateTime, printableWidthMm, resolveCustomerLayout } from '../../receiptFormat';
+import { safeImageUrl } from '../../imageUrl';
 import { PrinterConfig, ReceiptLayout, SaleTransaction, StoreSettings } from '../../../types';
 
 const FALLBACK_LOGO_SVG =
@@ -21,6 +22,53 @@ function payMethodLabel(method: string): string {
 }
 
 /**
+ * A label/value line.
+ *
+ * `stack` drops the value onto its own line when the two cannot sit side by
+ * side. The flex row alone would squeeze the label into a sliver and wrap it a
+ * character at a time — which is exactly what the thermal renderer used to do
+ * with the 39-character receipt id (see layoutPair in receiptCanvas.ts). The
+ * threshold is deliberately generous: a value longer than about half the line
+ * has already left too little for a readable label.
+ */
+function pairRow(
+  label: string,
+  value: string,
+  opts: { bold?: boolean; muted?: boolean; ltr?: boolean; cls?: string } = {},
+): string {
+  const stack = value.length > 22;
+  const cls = [
+    'flex-row',
+    stack ? 'stack' : '',
+    opts.bold ? 'bold' : '',
+    opts.muted ? 'muted' : '',
+    opts.cls ?? '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const valueCls = ['num', opts.ltr ? 'ltr' : ''].filter(Boolean).join(' ');
+  return `<div class="${cls}"><span>${esc(label)}</span><span class="${valueCls}">${esc(value)}</span></div>`;
+}
+
+/**
+ * The Code 128 block, or just the readable id when the symbol cannot be printed
+ * legibly on this roll.
+ *
+ * The bars used to be emitted at a fixed 1.5px module and left to CSS
+ * `max-width` to shrink. That is not a fit — it scaled a 39-character id down
+ * to 0.83 of a printer dot per module on 58mm, so the bars merged into a smear
+ * that no scanner could read, while the ESC/POS and raster paths refused the
+ * very same symbol on the very same roll. All three now ask the same question
+ * and give the same answer; the readable id prints either way, so a refused
+ * barcode still leaves a receipt you can look up.
+ */
+function barcodeBlock(value: string, paperSize: PrinterConfig['paperSize']): string {
+  const fitted = code128SvgMm(value, printableWidthMm(paperSize), { heightMm: 13 });
+  const readable = `<div class="center barcode-label ltr">${esc(value)}</div>`;
+  return fitted ? `<div class="center barcode">${fitted.svg}</div>${readable}` : readable;
+}
+
+/**
  * Builds the escaped HTML for a single receipt. Exported for unit testing; the
  * print path composes these into a print window below.
  */
@@ -30,7 +78,7 @@ export function buildReceiptHtml(
   printerConfig: PrinterConfig,
   layout?: ReceiptLayout,
 ): string {
-  const cur = esc(settings.currency);
+  const cur = settings.currency;
   const d = new Date(tx.date);
   const itemCount = tx.items.reduce((s, i) => s + i.quantity, 0);
   const isCash =
@@ -39,131 +87,136 @@ export function buildReceiptHtml(
   const taxLabel = settings.taxRate > 0 ? `${taxStr} (${settings.taxRate}%)` : taxStr;
   const L = resolveCustomerLayout(layout, printerConfig);
   const S = L.show;
+  const money = (n: number) => `${cur}${n.toFixed(2)}`;
+  // The store logo is operator-supplied and lands in an <img src> inside a
+  // same-origin print window, so it goes through the same allowlist as every
+  // other image in the app rather than being trusted because it was escaped.
+  const logo = safeImageUrl(settings.storeLogo);
+
+  const meta = [
+    S.date
+      ? pairRow(i18n.t('history.date', 'DATE:'), formatDateTime(d, L.dateFormat), { ltr: true })
+      : '',
+    S.time
+      ? pairRow(
+          `${i18n.t('receiptCfg.tg_time', 'Time').toUpperCase()}:`,
+          formatDateTime(d, L.timeFormat),
+          { ltr: true },
+        )
+      : '',
+    S.receiptNumber
+      ? pairRow(i18n.t('history.receipt', 'RECEIPT:'), tx.id, { bold: true, ltr: true })
+      : '',
+    S.operator && tx.operatorName
+      ? pairRow(i18n.t('history.operator', 'OPERATOR:'), tx.operatorName)
+      : '',
+    S.customer && tx.customerName
+      ? pairRow(i18n.t('history.member', 'MEMBER:'), tx.customerName, { bold: true })
+      : '',
+  ].join('');
+
+  const items = tx.items
+    .map((item) => {
+      const name = `${item.quantity}x ${esc(item.productName)}`;
+      const line = S.priceColumn
+        ? `<div class="flex-row item"><span>${name}</span><span class="num ltr">${esc(money(item.total))}</span></div>`
+        : `<div class="item">${name}</div>`;
+      const unit =
+        S.priceColumn && S.itemUnitPrice && item.quantity > 1
+          ? `<div class="item-unit ltr">@ ${esc(money(item.price))} ${esc(i18n.t('register.each', 'ea'))}</div>`
+          : '';
+      return line + unit;
+    })
+    .join('');
+
+  const totals = S.totals
+    ? `<div class="totals">
+      ${pairRow(i18n.t('history.itemsUpper', 'ITEMS:'), String(itemCount), { muted: true, ltr: true })}
+      ${pairRow(i18n.t('history.subtotal', 'SUBTOTAL:'), money(tx.subtotal), { ltr: true })}
+      ${tx.discount > 0 ? pairRow(i18n.t('history.discount', 'DISCOUNT:'), `-${money(tx.discount)}`, { ltr: true }) : ''}
+      ${pairRow(`${taxLabel}:`, money(tx.tax), { ltr: true })}
+      <div class="flex-row total-row"><span>${esc(i18n.t('history.totalPaid', 'TOTAL PAID:'))}</span><span class="num ltr">${esc(money(tx.total))}</span></div>
+      ${tx.discount > 0 ? `<div class="center savings">${esc(i18n.t('history.savings', 'YOU SAVED'))} <span class="num ltr">${esc(money(tx.discount))}</span></div>` : ''}
+    </div>`
+    : '';
+
+  const payment = S.paymentDetails
+    ? pairRow(i18n.t('history.payMethod', 'METHOD:'), payMethodLabel(tx.paymentMethod), {
+        bold: true,
+      }) +
+      (tx.payments && tx.payments.length > 1
+        ? tx.payments
+            .map((p) =>
+              // Indented via a class, not leading spaces: HTML collapses runs of
+              // whitespace, so a literal indent silently disappears (the markup
+              // used two &nbsp; for exactly this reason). A logical padding also
+              // mirrors correctly on an Arabic receipt, which &nbsp; would not.
+              pairRow(payMethodLabel(p.method), money(p.amount), { ltr: true, cls: 'tender' }),
+            )
+            .join('')
+        : '')
+    : '';
+
+  const change =
+    S.changeDue && isCash
+      ? pairRow(i18n.t('history.cashPaid', 'CASH PAID:'), money(tx.cashPaid ?? 0), { ltr: true }) +
+        pairRow(i18n.t('history.cashChange', 'CHANGE:'), money(tx.cashChange ?? 0), {
+          bold: true,
+          ltr: true,
+        })
+      : '';
+
+  const loyalty =
+    S.loyalty && tx.customerName && (tx.pointsEarned ?? 0) > 0
+      ? pairRow(i18n.t('history.pointsEarned', 'POINTS EARNED:'), String(tx.pointsEarned), {
+          bold: true,
+          ltr: true,
+        })
+      : '';
 
   return `
     <div class="receipt">
-      ${L.header ? `<div class="center bold receipt-header">${esc(L.header)}</div>` : ''}
+      ${L.header ? `<div class="center receipt-header">${esc(L.header)}</div>` : ''}
       ${
         S.logo
           ? `<div class="logo">${
-              settings.storeLogo
-                ? `<img src="${esc(settings.storeLogo)}" style="max-height: 40px; width: auto;" />`
-                : FALLBACK_LOGO_SVG
+              logo ? `<img src="${esc(logo)}" alt="" />` : FALLBACK_LOGO_SVG
             }</div>`
           : ''
       }
-      ${S.storeName ? `<div class="center bold store-name">${esc(settings.storeName)}</div>` : ''}
-      ${S.branchName && settings.branchName ? `<div class="center muted">${esc(settings.branchName)}</div>` : ''}
-      ${S.address && settings.storeAddress ? `<div class="center muted">${esc(settings.storeAddress)}</div>` : ''}
-      ${S.phone && settings.storePhone ? `<div class="center muted">${esc(i18n.t('receipt.phone', 'Phone'))}: ${esc(settings.storePhone)}</div>` : ''}
-      ${S.taxNumber && settings.taxNumber ? `<div class="center muted">${esc(i18n.t('receipt.vat', 'VAT'))}: ${esc(settings.taxNumber)}</div>` : ''}
+      ${S.storeName ? `<div class="center store-name">${esc(settings.storeName)}</div>` : ''}
+      <div class="center store-meta">
+        ${S.branchName && settings.branchName ? `<div>${esc(settings.branchName)}</div>` : ''}
+        ${S.address && settings.storeAddress ? `<div>${esc(settings.storeAddress)}</div>` : ''}
+        ${S.phone && settings.storePhone ? `<div class="ltr">${esc(i18n.t('receipt.phone', 'Phone'))}: ${esc(settings.storePhone)}</div>` : ''}
+        ${S.taxNumber && settings.taxNumber ? `<div class="ltr">${esc(i18n.t('receipt.vat', 'VAT'))}: ${esc(settings.taxNumber)}</div>` : ''}
+      </div>
+
+      <div class="divider"></div>
+      <div class="meta-row">${meta}</div>
       <div class="divider"></div>
 
-      ${S.date ? `<div class="flex-row"><span>${esc(i18n.t('history.date', 'DATE:'))}</span><span class="ltr">${esc(formatDateTime(d, L.dateFormat))}</span></div>` : ''}
-      ${S.time ? `<div class="flex-row"><span>${esc(i18n.t('receiptCfg.tg_time', 'Time').toUpperCase())}:</span><span class="ltr">${esc(formatDateTime(d, L.timeFormat))}</span></div>` : ''}
-      ${S.receiptNumber ? `<div class="flex-row"><span>${esc(i18n.t('history.receipt', 'RECEIPT:'))}</span><span class="bold ltr">${esc(tx.id)}</span></div>` : ''}
-      ${
-        S.operator && tx.operatorName
-          ? `<div class="flex-row"><span>${esc(i18n.t('history.operator', 'OPERATOR:'))}</span><span>${esc(tx.operatorName)}</span></div>`
-          : ''
-      }
-      ${
-        S.customer && tx.customerName
-          ? `<div class="flex-row bold"><span>${esc(i18n.t('history.member', 'MEMBER:'))}</span><span>${esc(tx.customerName)}</span></div>`
-          : ''
-      }
+      ${items}
+
+      <div class="divider"></div>
+      ${totals}
+      ${payment}${change}${loyalty}
 
       <div class="divider"></div>
 
-      ${tx.items
-        .map(
-          (item) => `
-        <div class="flex-row">
-          <span>${item.quantity}x ${esc(item.productName)}</span>
-          ${S.priceColumn ? `<span class="ltr">${cur}${item.total.toFixed(2)}</span>` : ''}
-        </div>${
-          S.priceColumn && S.itemUnitPrice && item.quantity > 1
-            ? `<div class="flex-row muted item-unit"><span>@ ${cur}${item.price.toFixed(2)} ${esc(i18n.t('register.each', 'ea'))}</span><span></span></div>`
-            : ''
-        }`,
-        )
-        .join('')}
-
-      <div class="divider"></div>
-
-      ${
-        S.totals
-          ? `
-      <div class="flex-row muted"><span>${esc(i18n.t('history.itemsUpper', 'ITEMS:'))}</span><span class="ltr">${itemCount}</span></div>
-      <div class="flex-row"><span>${esc(i18n.t('history.subtotal', 'SUBTOTAL:'))}</span><span class="ltr">${cur}${tx.subtotal.toFixed(2)}</span></div>
-      ${
-        tx.discount > 0
-          ? `<div class="flex-row"><span>${esc(i18n.t('history.discount', 'DISCOUNT:'))}</span><span class="ltr">-${cur}${tx.discount.toFixed(2)}</span></div>`
-          : ''
-      }
-      <div class="flex-row"><span>${esc(taxLabel)}:</span><span class="ltr">${cur}${tx.tax.toFixed(2)}</span></div>
-      <div class="flex-row text-lg total-row"><span>${esc(i18n.t('history.totalPaid', 'TOTAL PAID:'))}</span><span class="ltr">${cur}${tx.total.toFixed(2)}</span></div>
-      ${
-        tx.discount > 0
-          ? `<div class="center bold savings">${esc(i18n.t('history.savings', 'YOU SAVED'))} ${cur}${tx.discount.toFixed(2)}</div>`
-          : ''
-      }`
-          : ''
-      }
-
-      <div class="divider"></div>
-
-      ${
-        S.paymentDetails
-          ? `<div class="flex-row"><span>${esc(i18n.t('history.payMethod', 'METHOD:'))}</span><span class="bold">${esc(payMethodLabel(tx.paymentMethod))}</span></div>
-      ${
-        tx.payments && tx.payments.length > 1
-          ? tx.payments
-              .map(
-                (p) =>
-                  `<div class="flex-row"><span>&nbsp;&nbsp;${esc(payMethodLabel(p.method))}</span><span class="ltr">${cur}${p.amount.toFixed(2)}</span></div>`,
-              )
-              .join('')
-          : ''
-      }`
-          : ''
-      }
-      ${
-        S.changeDue && isCash
-          ? `
-      <div class="flex-row"><span>${esc(i18n.t('history.cashPaid', 'CASH PAID:'))}</span><span class="ltr">${cur}${(tx.cashPaid ?? 0).toFixed(2)}</span></div>
-      <div class="flex-row bold"><span>${esc(i18n.t('history.cashChange', 'CHANGE:'))}</span><span class="ltr">${cur}${(tx.cashChange ?? 0).toFixed(2)}</span></div>`
-          : ''
-      }
-      ${
-        S.loyalty && tx.customerName && (tx.pointsEarned ?? 0) > 0
-          ? `<div class="flex-row"><span>${esc(i18n.t('history.pointsEarned', 'POINTS EARNED:'))}</span><span class="bold ltr">${tx.pointsEarned}</span></div>`
-          : ''
-      }
-
-      <div class="divider"></div>
-
-      <div class="center bold uppercase status-line status-${esc(tx.status)}">${esc(i18n.t(`receipt.status_${tx.status}`, tx.status))}</div>
+      <div class="center uppercase status-line status-${esc(tx.status)}">${esc(i18n.t(`receipt.status_${tx.status}`, tx.status))}</div>
       ${
         tx.refundDate
-          ? `<div class="center">${esc(i18n.t('history.refund', 'REFUND:'))} ${esc(formatDateTime(new Date(tx.refundDate), L.dateFormat))}</div>`
+          ? `<div class="center muted">${esc(i18n.t('history.refund', 'REFUND:'))} <span class="ltr">${esc(formatDateTime(new Date(tx.refundDate), L.dateFormat))}</span></div>`
           : ''
       }
       ${
         tx.refundAuthorizedBy
-          ? `<div class="center">${esc(i18n.t('history.refundAuthBy', 'REFUND AUTH:'))} ${esc(tx.refundAuthorizedBy)}</div>`
+          ? `<div class="center muted">${esc(i18n.t('history.refundAuthBy', 'REFUND AUTH:'))} ${esc(tx.refundAuthorizedBy)}</div>`
           : ''
       }
-
-      <div class="divider"></div>
 
       ${L.footer ? `<div class="center footer-msg">${esc(L.footer)}</div>` : ''}
-      ${
-        S.barcode
-          ? `
-      <div class="center barcode">${code128Svg(tx.id, { height: 42, moduleWidth: 1.5 })}</div>
-      <div class="center barcode-label">${esc(tx.id)}</div>`
-          : ''
-      }
+      ${S.barcode ? barcodeBlock(tx.id, printerConfig.paperSize) : ''}
     </div>`;
 }

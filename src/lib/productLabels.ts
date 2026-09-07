@@ -1,7 +1,7 @@
 import { Product, StoreSettings } from '../types';
 import { escapeHtml as esc } from './utils/formatting';
 import { openDetachedPrintWindow } from './utils/dom';
-import { code128Svg } from './barcode';
+import { code128SvgMm } from './barcode';
 
 // Printable product labels / shelf price tags. Each label shows the product
 // name, price, SKU, and a real scannable Code128 barcode of the SKU. Pure and
@@ -17,6 +17,30 @@ export interface LabelOptions {
   showBarcode?: boolean;
 }
 
+// A4 is what a label sheet is printed on, and the grid below divides it. The
+// barcode has to be sized against the cell it actually lands in, so the two
+// share these numbers rather than each guessing.
+const SHEET_WIDTH_MM = 210;
+const SHEET_PAD_MM = 2.6; // body padding: 10px
+const CELL_GAP_MM = 2.1; // grid gap: 8px
+const CELL_PAD_MM = 1.6; // .label padding: 6px
+
+/**
+ * Columns actually rendered, bounded the same way the sheet bounds them.
+ */
+function clampColumns(columns: number | undefined): number {
+  return Math.max(1, Math.min(6, columns ?? 3));
+}
+
+/**
+ * Width available to a barcode inside one label cell, in millimetres.
+ */
+export function labelBarcodeWidthMm(columns: number): number {
+  const cols = clampColumns(columns);
+  const usable = SHEET_WIDTH_MM - SHEET_PAD_MM * 2 - CELL_GAP_MM * (cols - 1);
+  return Math.max(0, usable / cols - CELL_PAD_MM * 2);
+}
+
 /**
  * One label cell.
  */
@@ -27,6 +51,7 @@ export function buildLabelHtml(
 ): string {
   const showPrice = opts.showPrice ?? true;
   const showBarcode = opts.showBarcode ?? true;
+  const columns = clampColumns(opts.columns);
   return `
     <div class="label">
       <div class="label-store">${esc(settings.storeName)}</div>
@@ -38,7 +63,17 @@ export function buildLabelHtml(
       }
       ${
         showBarcode
-          ? `<div class="label-barcode">${code128Svg(product.sku, { height: 34, moduleWidth: 1.3 })}</div>`
+          ? (() => {
+              // Sized to the cell in millimetres instead of a fixed module width
+              // that CSS then shrank to fit. A long SKU used to scale down until
+              // the bars merged; now it either prints at a readable module or
+              // the label carries the SKU text alone (which it prints anyway).
+              const fitted = code128SvgMm(product.sku, labelBarcodeWidthMm(columns), {
+                heightMm: 9,
+                maxModuleMm: 0.4,
+              });
+              return fitted ? `<div class="label-barcode">${fitted.svg}</div>` : '';
+            })()
           : ''
       }
       <div class="label-sku">${esc(product.sku)}</div>
@@ -53,7 +88,7 @@ export function buildLabelSheetHtml(
   settings: StoreSettings,
   opts: LabelOptions = {},
 ): string {
-  const columns = Math.max(1, Math.min(6, opts.columns ?? 3));
+  const columns = clampColumns(opts.columns);
   const labels = products.map((p) => buildLabelHtml(p, settings, opts)).join('');
 
   return `<!doctype html>
@@ -84,7 +119,9 @@ export function buildLabelSheetHtml(
       .label-name { font-size: 12px; font-weight: 700; line-height: 1.15; min-height: 2.3em; width: 100%; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; word-break: break-word; }
       .label-price { font-size: 18px; font-weight: 800; margin: 2px 0; }
       .label-barcode { margin-top: 2px; }
-      .label-barcode svg { max-width: 100%; height: auto; }
+      /* Sized in mm by code128SvgMm and already carrying its quiet zone —
+         scaling it here would put the module back under one printed dot. */
+      .label-barcode svg { display: block; }
       .label-sku { font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 1px; color: #374151; }
       @media print { body { padding: 0; } .label { border-color: #e5e7eb; } }
     </style>

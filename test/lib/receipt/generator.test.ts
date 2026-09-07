@@ -38,6 +38,15 @@ const baseTx: SaleTransaction = {
   status: 'completed',
 };
 
+// Tag-stripped text, as the customer reads it off the paper. Lets an assertion
+// about what the receipt SAYS survive a change to how the markup carries it.
+const visibleText = (html: string): string =>
+  html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 describe('buildReceiptHtml', () => {
   it('renders the core receipt fields', () => {
     const html = buildReceiptHtml(baseTx, settings, printer);
@@ -114,7 +123,10 @@ describe('buildReceiptHtml', () => {
       pointsEarned: 12,
     };
     const html = buildReceiptHtml(tx, settings, printer);
-    expect(html).toContain('YOU SAVED $2.00');
+    // Asserted on the visible text rather than the raw markup: the amount is
+    // wrapped in its own LTR/tabular span so the figure survives an Arabic
+    // receipt, which splits the string in the HTML but not on the paper.
+    expect(visibleText(html)).toContain('YOU SAVED $2.00');
     expect(html).toContain('POINTS EARNED:');
     expect(html).toContain('>12<');
   });

@@ -188,6 +188,44 @@ export function code128ModuleWidth(
 }
 
 /**
+ * One dot on a 203dpi thermal head, in millimetres. The narrowest bar a printer
+ * can lay down: ask for less and neighbouring bars land on the same dot and
+ * merge, which is a symbol no scanner will read.
+ */
+export const THERMAL_DOT_MM = 25.4 / 203;
+
+/**
+ * The module width, in millimetres, that fits the symbol plus both quiet zones
+ * into `printableMm` — or null when even the narrowest printable module is too
+ * wide, meaning this value cannot be carried on this paper.
+ *
+ * This is the millimetre twin of code128ModuleWidth, for the renderers that
+ * work in physical units rather than printer dots (the HTML receipt, the label
+ * sheet). It exists because those two used to emit a FIXED module width and
+ * lean on CSS `max-width` to shrink whatever came out. That is not a fit: it
+ * scales the whole symbol down uniformly, so a long value silently lands at a
+ * fraction of a dot per module and prints as a solid smear. Refusing is the
+ * honest answer, and it matches what the ESC/POS and raster paths already do
+ * with the same value on the same roll.
+ *
+ * `maxModuleMm` keeps a short value from ballooning into a barcode that eats
+ * the whole receipt just because there is room for it.
+ */
+export function code128ModuleMm(
+  value: string,
+  printableMm: number,
+  minModuleMm = THERMAL_DOT_MM,
+  maxModuleMm?: number,
+): number | null {
+  const symbol = code128Modules(value).reduce((sum, w) => sum + w, 0);
+  if (symbol <= 0 || printableMm <= 0) return null;
+
+  const module = printableMm / (symbol + CODE128_QUIET_MODULES * 2);
+  if (module < minModuleMm) return null;
+  return maxModuleMm === undefined ? module : Math.min(module, maxModuleMm);
+}
+
+/**
  * Bar geometry for renderBarcodeSvg. Both values are in CSS pixels.
  */
 export interface BarcodeSvgOptions {
@@ -220,4 +258,48 @@ export function code128Svg(data: string, opts: BarcodeSvgOptions = {}): string {
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w.toFixed(1)}" height="${height}" viewBox="0 0 ${w.toFixed(1)} ${height}" fill="#000" shape-rendering="crispEdges">${rects.join('')}</svg>`;
+}
+
+/**
+ * A Code 128 symbol sized in millimetres so it prints at its true physical
+ * width, or null when it cannot fit `printableMm` at a printable module size.
+ *
+ * Sizing in mm rather than px is the point. A px-sized SVG constrained by CSS
+ * is at the mercy of whatever width the page happens to give it; an mm-sized
+ * one occupies exactly the width the fit was calculated for, on any printer.
+ * The quiet zone is baked into the element's own width, so the symbol keeps its
+ * margin even when the surrounding layout puts something right beside it.
+ */
+export function code128SvgMm(
+  value: string,
+  printableMm: number,
+  opts: { heightMm?: number; minModuleMm?: number; maxModuleMm?: number } = {},
+): { svg: string; widthMm: number } | null {
+  const module = code128ModuleMm(value, printableMm, opts.minModuleMm, opts.maxModuleMm);
+  if (module === null) return null;
+
+  const heightMm = opts.heightMm ?? 12;
+  const widths = code128Modules(value);
+  const symbolModules = widths.reduce((a, b) => a + b, 0);
+  const totalModules = symbolModules + CODE128_QUIET_MODULES * 2;
+  const widthMm = totalModules * module;
+
+  // Drawn in module units and mapped to millimetres by the viewBox, so the bar
+  // edges stay exact instead of accumulating rounding at every rect.
+  const rects: string[] = [];
+  let x = CODE128_QUIET_MODULES;
+  let bar = true;
+  for (const w of widths) {
+    if (bar) rects.push(`<rect x="${x}" y="0" width="${w}" height="10"/>`);
+    x += w;
+    bar = !bar;
+  }
+
+  return {
+    widthMm,
+    svg:
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${widthMm.toFixed(2)}mm" ` +
+      `height="${heightMm.toFixed(2)}mm" viewBox="0 0 ${totalModules} 10" ` +
+      `preserveAspectRatio="none" fill="#000" shape-rendering="crispEdges">${rects.join('')}</svg>`,
+  };
 }

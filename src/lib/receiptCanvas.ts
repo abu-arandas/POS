@@ -68,6 +68,89 @@ export function logoBox(
 // The total gets a ruled box. On thermal paper a box survives poor contrast
 // and fading far better than weight alone.
 const BOX_PAD = 8;
+// Gap kept between a pair's label and its value when they share a line.
+const PAIR_GAP = 12;
+
+/**
+ * When a pair's value claims more than this share of the line, the label moves
+ * to its own line above it instead of being squeezed beside it.
+ *
+ * The old code took `Math.max(1, inner - valueWidth - 12)` and wrapped the
+ * label into whatever came out. For the receipt id — 39 characters, and the
+ * widest value on the receipt — that left 1.1 dot of room on an 80mm roll
+ * against a 17.3 dot character, so wrapText broke "RECEIPT:" one letter per
+ * line into a vertical column, and its first letter collided with the id drawn
+ * across it. The clamp is the bug: a width of one dot is not a width, it is the
+ * function refusing to admit the two do not fit. (barcode.ts makes the same
+ * point about clamping a module width.)
+ */
+const PAIR_STACK_RATIO = 0.55;
+
+/**
+ * How one pair row resolves: its wrapped label, its wrapped value, whether the
+ * two stack, and the extra lines that costs. Computed once in the measure pass
+ * and reused when drawing, so the height reserved and the height used cannot
+ * drift apart.
+ */
+interface PairLayout {
+  labelLines: string[];
+  valueLines: string[];
+  stacked: boolean;
+  extraLines: number;
+}
+
+/**
+ * Resolves one pair row against the available width. Exported so the rule can
+ * be asserted without a canvas — jsdom has no 2D context, so a test that went
+ * through renderReceiptRaster would prove nothing about it.
+ */
+export function layoutPair(
+  measure: (text: string) => number,
+  wrap: (text: string, maxWidth: number) => string[],
+  label: string,
+  value: string,
+  available: number,
+): PairLayout {
+  const stacked = measure(value) > available * PAIR_STACK_RATIO;
+  const labelLines = wrap(
+    label,
+    stacked ? available : Math.max(1, available - measure(value) - PAIR_GAP),
+  );
+  // A stacked value gets the full width and wraps like any other text: on a
+  // 58mm roll the receipt id is wider than the paper on its own, so leaving it
+  // unwrapped would simply run it off the edge.
+  const valueLines = stacked ? wrap(value, available) : [value];
+  return {
+    labelLines,
+    valueLines,
+    stacked,
+    extraLines: labelLines.length - 1 + (stacked ? valueLines.length : 0),
+  };
+}
+
+// Any strong right-to-left character: Hebrew, Arabic and their supplements and
+// presentation forms.
+const RTL_CHAR =
+  /[\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0750-\u077F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
+
+/**
+ * The base direction a run of text should be laid out with, taken from the text
+ * itself rather than from the receipt.
+ *
+ * The receipt's own direction is the wrong answer for operator free text. An
+ * English footer on an Arabic receipt inherited RTL and had its trailing
+ * punctuation dragged to the front — "Thank you for shopping with us!" printed
+ * as "!Thank you for shopping with us". This mirrors `unicode-bidi: plaintext`,
+ * which the HTML receipt uses for the same rows.
+ */
+export function textDirection(text: string, fallback: CanvasDirection): CanvasDirection {
+  for (const ch of text) {
+    if (RTL_CHAR.test(ch)) return 'rtl';
+    // A strong LTR character settles it the other way.
+    if (/[A-Za-z\u00C0-\u024F]/.test(ch)) return 'ltr';
+  }
+  return fallback;
+}
 
 function fontFor(style: string, family: string): string {
   const weight = style === 'bold' || style === 'title' || style === 'large' ? '700' : '400';
@@ -231,6 +314,7 @@ export function renderReceiptRaster(
   // is why this cannot be folded into the drawing pass.
   const inner = width - PAD * 2;
   const wrapped = new Map<DocRow, string[]>();
+  const pairs = new Map<DocRow, PairLayout>();
   const barcodes = new Map<DocRow, ReturnType<typeof barcodeBox>>();
   let height = PAD * 2;
   for (const row of rows) {
@@ -242,10 +326,15 @@ export function renderReceiptRaster(
     } else if (row.kind === 'pair') {
       ctx.font = fontFor(row.style ?? 'normal', family);
       const boxInset = row.boxed ? (PAD + BOX_PAD) * 2 : 0;
-      const avail = Math.max(1, inner - ctx.measureText(row.value).width - 12 - boxInset);
-      const lines = wrapText(ctx, row.label, avail);
-      wrapped.set(row, lines);
-      height += rowHeight(row) + (lines.length - 1) * (SIZE[row.style ?? 'normal'] ?? SIZE.normal);
+      const layout = layoutPair(
+        (text) => ctx.measureText(text).width,
+        (text, max) => wrapText(ctx, text, max),
+        row.label,
+        row.value,
+        inner - boxInset,
+      );
+      pairs.set(row, layout);
+      height += rowHeight(row) + layout.extraLines * (SIZE[row.style ?? 'normal'] ?? SIZE.normal);
     } else if (row.kind === 'barcode') {
       // Resolved here and reused when drawing, so the height reserved and the
       // height used cannot drift apart — the same reason wrapping is cached.
@@ -302,10 +391,14 @@ export function renderReceiptRaster(
       case 'center': {
         ctx.font = fontFor(row.style ?? 'normal', family);
         ctx.textAlign = 'center';
+        // Centered rows carry the operator's own words — the header, the footer,
+        // the status line — so each is laid out in its own language's direction.
+        ctx.direction = textDirection(row.text, rtl ? 'rtl' : 'ltr');
         const step = SIZE[row.style ?? 'normal'] ?? SIZE.normal;
         (wrapped.get(row) ?? [row.text]).forEach((ln, i) => {
           ctx.fillText(ln, width / 2, y + i * step);
         });
+        ctx.direction = rtl ? 'rtl' : 'ltr';
         break;
       }
       case 'line': {
@@ -319,22 +412,35 @@ export function renderReceiptRaster(
       }
       case 'pair': {
         ctx.font = fontFor(row.style ?? 'normal', family);
+        const step = SIZE[row.style ?? 'normal'] ?? SIZE.normal;
+        const layout = pairs.get(row) ?? {
+          labelLines: [row.label],
+          valueLines: [row.value],
+          stacked: false,
+          extraLines: 0,
+        };
         const textY = row.boxed ? y + BOX_PAD + 2 : y;
         if (row.boxed) {
-          const h = (SIZE[row.style ?? 'normal'] ?? SIZE.normal) + BOX_PAD * 2;
+          // Sized from the resolved line count, so a box never crops its own
+          // contents if the row turns out to need more than one line.
+          const h = step * (layout.extraLines + 1) + BOX_PAD * 2;
           ctx.lineWidth = 3;
           ctx.strokeStyle = '#000';
           ctx.strokeRect(PAD, y, width - PAD * 2, h);
         }
         const inset = row.boxed ? PAD + BOX_PAD : 0;
-        // The value sits on the first line; a long label wraps beneath it
-        // rather than being squeezed into the leftover width.
-        ctx.textAlign = trailAlign;
-        ctx.fillText(row.value, rtl ? trail + inset : trail - inset, textY);
+        // Side by side, the value holds the first line and a long label wraps
+        // beneath it. Stacked, the label comes first and the value follows on
+        // its own line(s) — still on the trailing edge, so the two read as one
+        // pair rather than as two unrelated rows.
         ctx.textAlign = leadAlign;
-        const step = SIZE[row.style ?? 'normal'] ?? SIZE.normal;
-        (wrapped.get(row) ?? [row.label]).forEach((ln, i) => {
+        layout.labelLines.forEach((ln, i) => {
           ctx.fillText(ln, rtl ? lead - inset : lead + inset, textY + i * step);
+        });
+        ctx.textAlign = trailAlign;
+        const valueTop = layout.stacked ? textY + layout.labelLines.length * step : textY;
+        layout.valueLines.forEach((ln, i) => {
+          ctx.fillText(ln, rtl ? trail + inset : trail - inset, valueTop + i * step);
         });
         break;
       }
@@ -381,7 +487,9 @@ export function renderReceiptRaster(
         : SIZE.muted * (extraLines + 1) + LINE_GAP * 2;
       continue;
     }
-    const extra = (wrapped.get(row)?.length ?? 1) - 1;
+    // Off the same resolved layout the measure pass reserved space from.
+    const extra =
+      row.kind === 'pair' ? (pairs.get(row)?.extraLines ?? 0) : (wrapped.get(row)?.length ?? 1) - 1;
     const style = ('style' in row && row.style) || 'normal';
     y += rowHeight(row) + extra * (SIZE[style] ?? SIZE.normal);
   }
