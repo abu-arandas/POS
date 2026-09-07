@@ -300,6 +300,11 @@ export default function Settings() {
     anonKey: sbKey.trim(),
     authEmail: sbAuthEmail.trim(),
     authPassword: sbAuthPassword,
+    // Both halves, because signInDevice() only attempts a session when it has
+    // both and otherwise runs anonymously. This is the one part of the device
+    // credentials that survives a restart, and it exists so the rehydrated
+    // `status` can tell "works without credentials" from "credentials gone".
+    deviceAuthConfigured: Boolean(sbAuthEmail.trim() && sbAuthPassword),
     enabled,
     status,
   });

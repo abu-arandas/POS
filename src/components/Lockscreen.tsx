@@ -127,30 +127,38 @@ export default function Lockscreen() {
         const nextPin = pin + num;
         setPin(nextPin);
         if (nextPin.length === 4 && selectedUser) {
-          // Re-check `active` against the live list rather than trusting the
-          // captured selection: cloud sync can deactivate an account while this
-          // screen sits open on it. (The cloud path is already covered — the
-          // verify_login RPC filters on active.)
-          const live = users.find((u) => u.id === selectedUser.id);
+          const saltedHash = await hashPinSalted(selectedUser.id, nextPin);
+
+          // Everything below judges the LIVE account record, never `selectedUser`.
+          // That value was copied when the operator tapped their name, which may
+          // have been hours ago, and cloud sync rewrites these rows underneath an
+          // open lock screen — deactivating an account, rotating its PIN, or
+          // changing its role. Only `active` used to be re-checked, so a PIN
+          // revoked on another terminal went on being accepted here for as long
+          // as the screen sat on that name, which is exactly when revoking one
+          // matters. It is read from the store rather than the render-time
+          // `users` snapshot, and read AFTER the hash above, because deriving it
+          // is deliberately slow (PBKDF2, 600k iterations) and a sync can land
+          // inside that window.
+          const live = useAuthStore.getState().users.find((u) => u.id === selectedUser.id);
           if (!live?.active) {
             failPin(selectedUser.id);
             return;
           }
 
-          const saltedHash = await hashPinSalted(selectedUser.id, nextPin);
-          if (selectedUser.pin === saltedHash) {
-            acceptPin(selectedUser);
+          if (live.pin === saltedHash) {
+            acceptPin(live);
             return;
           }
           const legacyHash = await hashPinSaltedLegacy(selectedUser.id, nextPin);
-          if (selectedUser.pin === legacyHash) {
-            handleUpdateUser({ ...selectedUser, pin: saltedHash });
-            acceptPin(selectedUser);
+          if (live.pin === legacyHash) {
+            handleUpdateUser({ ...live, pin: saltedHash });
+            acceptPin(live);
             return;
           }
           setChecking(true);
-          const cloudUser = await cloudLogin(selectedUser.name, saltedHash);
-          const cloudUser2 = cloudUser ?? (await cloudLogin(selectedUser.name, legacyHash));
+          const cloudUser = await cloudLogin(live.name, saltedHash);
+          const cloudUser2 = cloudUser ?? (await cloudLogin(live.name, legacyHash));
           setChecking(false);
           if (cloudUser2) {
             // Keep the LOCAL id. The cloud row may carry a different one (the same
@@ -161,12 +169,15 @@ export default function Lockscreen() {
             // unverifiable next login. The throttle is keyed to the local id too,
             // so clearing the streak has to use the same one.
             const upgraded = {
-              ...selectedUser,
+              ...live,
               ...cloudUser2,
-              id: selectedUser.id,
+              id: live.id,
               pin: saltedHash,
             };
-            setUsers(users.map((u) => (u.id === upgraded.id ? upgraded : u)));
+            // Re-read once more: the cloud round-trip is another await window.
+            setUsers(
+              useAuthStore.getState().users.map((u) => (u.id === upgraded.id ? upgraded : u)),
+            );
             acceptPin(upgraded);
           } else {
             failPin(selectedUser.id);
@@ -184,7 +195,6 @@ export default function Lockscreen() {
       pin,
       selectedUser,
       setUsers,
-      users,
     ],
   );
 

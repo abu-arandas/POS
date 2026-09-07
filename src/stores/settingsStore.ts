@@ -189,6 +189,30 @@ export const useSettingsStore = create<SettingsState>()(
           };
         }
         if (!p.kitchenLayout) merged.kitchenLayout = defaultKitchenLayout();
+
+        // A restored 'connected' has to be re-earned, not inherited.
+        //
+        // `status` is persisted but the device credentials above are not, so a
+        // terminal that had signed in with a device account came back up still
+        // badged "Connected" while signInDevice() saw an empty password and
+        // quietly fell through to its anonymous path. Under the secure-by-
+        // default RLS in scripts/schema.sql `anon` is denied every row, so
+        // realtime sync, the fleet heartbeat and every push and pull silently
+        // did nothing — while Settings and the Dashboard both reported the
+        // cloud as live. Sales stopped replicating and nothing said so.
+        //
+        // 'connected' therefore survives a restart only where the config has
+        // affirmatively recorded that it needs no credentials — an anonymous
+        // install, which is the demo path schema.sql section 8b spells out and
+        // which really does keep working across a restart. Everything else,
+        // including a blob written before this flag existed, is treated as
+        // unprovable: a wrong 'disconnected' announces itself and is one click
+        // to fix, whereas a wrong 'connected' is the silent failure above.
+        const restored = merged.supabaseConfig;
+        const credentialFree = restored?.deviceAuthConfigured === false;
+        if (restored?.status === 'connected' && !credentialFree && !restored.authPassword) {
+          merged.supabaseConfig = { ...restored, status: 'disconnected' };
+        }
         return merged;
       },
       onRehydrateStorage: () => (state) => {
