@@ -132,6 +132,9 @@ export const settings = {
   scanNetwork: 'فحص الشبكة',
   scanningNetwork: 'جارٍ الفحص…',
   autoScanPrinters: 'فحص الشبكة تلقائيًا بحثًا عن الطابعات عند فتح هذا التبويب',
+  showProductImages: 'إظهار صور المنتجات',
+  showProductImagesHint:
+    'عرض صور المنتجات على بطاقات نقطة البيع وسطور السلة وقائمة المخزون وقائمة رمز الاستجابة السريعة. معطّل افتراضيًا، وإيقافه لا يحذف أي صورة محفوظة.',
   useThisPrinter: 'استخدام',
   printerInUse: 'قيد الاستخدام',
   noPrintersFound:

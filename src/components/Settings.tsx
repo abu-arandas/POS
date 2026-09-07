@@ -83,6 +83,8 @@ export default function Settings() {
     setKitchenLayout,
     autoScanPrinters,
     setAutoScanPrinters,
+    showProductImages,
+    setShowProductImages,
     storeId,
     setStoreId,
   } = useSettingsStore();
@@ -457,6 +459,7 @@ export default function Settings() {
       setKitchenStations([]);
       setStationForm([]);
       setAutoScanPrinters(true);
+      setShowProductImages(false);
       setSupabaseConfig(DEFAULT_SUPABASE);
       setSbUrl('');
       setSbKey('');
@@ -567,6 +570,8 @@ export default function Settings() {
                   settings={settings}
                   language={language}
                   emailTemplate={emailTemplate}
+                  showProductImages={showProductImages}
+                  onShowProductImagesChange={setShowProductImages}
                   onUpdateSetting={handleUpdateSetting}
                   onLanguageChange={setLanguage}
                   onEmailTemplateChange={setEmailTemplate}

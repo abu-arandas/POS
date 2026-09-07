@@ -27,6 +27,12 @@ interface SettingsState {
   // Auto-scan the LAN for network printers when the Printer settings tab opens
   // (desktop only). Off keeps discovery manual for large/locked-down networks.
   autoScanPrinters: boolean;
+  // Whether product pictures are shown at all: the register's product tiles,
+  // the cart thumbnails, the inventory rows and the LAN QR menu. Off by
+  // default — a till reads faster as text, and most catalogues never get real
+  // photography. Product.image is untouched either way, so switching this on
+  // brings back whatever was already set.
+  showProductImages: boolean;
   // This terminal's store id for multi-store cloud scoping (see
   // scripts/multi-store-schema.sql). Empty = single-store mode: sync behaves exactly
   // as before (no store_id stamped or filtered).
@@ -43,6 +49,7 @@ interface SettingsState {
   setReceiptLayout: (layout: ReceiptLayout) => void;
   setKitchenLayout: (layout: ReceiptLayout) => void;
   setAutoScanPrinters: (on: boolean) => void;
+  setShowProductImages: (on: boolean) => void;
   setStoreId: (storeId: string) => void;
   setDarkMode: (darkMode: boolean) => void;
   setLanguage: (lang: 'en' | 'ar') => void;
@@ -129,6 +136,7 @@ export const useSettingsStore = create<SettingsState>()(
       receiptLayout: defaultReceiptLayout(),
       kitchenLayout: defaultKitchenLayout(),
       autoScanPrinters: true,
+      showProductImages: false,
       storeId: '',
       // Dark-first: the whole UI is designed for a dark canvas. New terminals
       // start dark and stay cohesive; a saved light preference is restored on
@@ -145,6 +153,7 @@ export const useSettingsStore = create<SettingsState>()(
       setReceiptLayout: (receiptLayout) => set({ receiptLayout }),
       setKitchenLayout: (kitchenLayout) => set({ kitchenLayout }),
       setAutoScanPrinters: (autoScanPrinters) => set({ autoScanPrinters }),
+      setShowProductImages: (showProductImages) => set({ showProductImages }),
       setStoreId: (storeId) => set({ storeId }),
       setDarkMode: (darkMode) => {
         // Apply the theme class immediately; without this the `dark:` variants

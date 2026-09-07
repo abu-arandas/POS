@@ -9,6 +9,8 @@ export interface ProfilePanelProps {
   settings: StoreSettings;
   language: 'en' | 'ar';
   emailTemplate: ReceiptEmailTemplate;
+  showProductImages: boolean;
+  onShowProductImagesChange(value: boolean): void;
   onUpdateSetting(key: keyof StoreSettings, value: string | number): void;
   onLanguageChange(value: 'en' | 'ar'): void;
   onEmailTemplateChange(value: ReceiptEmailTemplate): void;
@@ -19,6 +21,8 @@ export function ProfilePanel({
   settings,
   language,
   emailTemplate,
+  showProductImages,
+  onShowProductImagesChange,
   onUpdateSetting,
   onLanguageChange,
   onEmailTemplateChange,
@@ -150,6 +154,26 @@ export function ProfilePanel({
                 />
               </div>
             )}
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="flex items-start gap-3 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl cursor-pointer">
+              <input
+                id="set-show-product-images"
+                type="checkbox"
+                checked={showProductImages}
+                onChange={(e) => onShowProductImagesChange(e.target.checked)}
+                className="w-5 h-5 mt-0.5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 shrink-0"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-slate-800 dark:text-slate-200">
+                  {t('settings.showProductImages')}
+                </span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  {t('settings.showProductImagesHint')}
+                </span>
+              </span>
+            </label>
           </div>
         </div>
       </div>
