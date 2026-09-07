@@ -188,7 +188,17 @@ jobs:
           # electron-updater compares, and what the release engineer bumps in
           # package.json. A run-number tag left no way to tell which build
           # carried which version.
-          installer=$(basename release/EA-POS-Setup-*.exe)
+          # Exactly one installer, or stop. `basename a.exe b.exe` reads the
+          # second argument as a SUFFIX, so a second match would be silently
+          # ignored and the tag derived from whichever sorted first — a release
+          # published under the wrong version. Adding an architecture is the
+          # realistic way that happens.
+          installers=(release/EA-POS-Setup-*.exe)
+          if (( ${#installers[@]} != 1 )); then
+            echo "::error::Expected exactly one installer in release/, found ${#installers[@]}: ${installers[*]}"
+            exit 1
+          fi
+          installer=$(basename "${installers[0]}")
           version="${installer#EA-POS-Setup-}"
           version="${version%.exe}"
           if [[ -z "$version" ]]; then
@@ -238,10 +248,32 @@ jobs:
           To produce a trusted installer, configure code signing: the AZURE_* secrets plus WINDOWS_PUBLISHER_NAME, or CSC_LINK and CSC_KEY_PASSWORD."
           fi
 
-          gh release create "$tag" "${assets[@]}" \
+          # A publish that fails must fail the job. This used to end in
+          # `|| echo "::warning::..."`, which swallowed EVERY error — a network
+          # blip, a rejected asset upload, an API outage — and exited 0, so the
+          # workflow went green with no release behind it and a warning nobody
+          # reads. It also named the one cause that cannot occur here: this job
+          # declares `permissions: contents: write` above.
+          #
+          # The escape hatch is kept for the case it was actually meant for — an
+          # org policy that withholds write from the workflow token regardless of
+          # the declaration — but narrowed to that, identified from the error
+          # itself rather than assumed of anything that goes wrong.
+          set +e
+          output=$(gh release create "$tag" "${assets[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "$title" \
             $prerelease \
-            --notes "$notes" \
-          || echo "::warning::Release publish skipped (token lacks contents:write). Download the installer from this run's artifacts instead."
+            --notes "$notes" 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          if (( status != 0 )); then
+            if grep -qiE 'resource not accessible|HTTP 403|must have admin rights' <<<"$output"; then
+              echo "::warning::Release publish skipped — the workflow token was denied contents:write by policy. Download the installer from this run's artifacts instead."
+            else
+              echo "::error::Release publish failed for $tag (exit $status). See the output above."
+              exit "$status"
+            fi
+          fi
