@@ -89,3 +89,20 @@ test('a cashier cannot see manager-only navigation', async ({ page }) => {
   await expect(page.locator('#nav-btn-settings')).toHaveCount(0);
   await expect(page.locator('#nav-btn-dashboard')).toHaveCount(0);
 });
+
+test('a cashier can raise a purchase order but not see cost or margin', async ({ page }) => {
+  await login(page, 'Cashier', '0000');
+
+  // Inventory opens for a cashier so purchasing is reachable at all.
+  await page.locator('#nav-btn-inventory').click();
+
+  // Only the purchasing sections render. Products carries cost and margin for
+  // the whole catalogue and the Stock Log is the adjustment audit trail, so
+  // neither may appear — this is the guard, not the hidden tab buttons.
+  await expect(page.getByRole('tab')).toHaveText(['Suppliers', 'Purchase Orders']);
+
+  // And the order can actually be raised, which is the point of the change.
+  await page.getByRole('tab', { name: /Purchase Orders/i }).click();
+  await page.locator('#add-item-trigger-btn').click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+});

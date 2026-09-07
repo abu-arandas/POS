@@ -3,6 +3,7 @@ import { Plus, Layers, PackagePlus, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, PurchaseOrder, PurchaseOrderStatus } from '../types';
 import { normalizePoLines } from '../lib/purchaseOrders';
+import { type InventoryTabId, allowedInventoryTabs, isInventoryTabAllowed } from '../lib/access';
 import { printProductLabels } from '../lib/productLabels';
 
 import { useProductStore } from '../stores/productStore';
@@ -68,10 +69,17 @@ export default function Inventory() {
 
   const currentUser = useAuthStore((s) => s.currentUser);
 
-  // Tab control
-  const [activeTab, setActiveTab] = useState<
-    'products' | 'categories' | 'suppliers' | 'orders' | 'log'
-  >('products');
+  // Tab control. A cashier reaches this screen for purchasing only, so the
+  // opening tab is the first one their role may see rather than a fixed
+  // 'products' they would be bounced off immediately.
+  const role = currentUser?.role ?? 'cashier';
+  const visibleTabs = useMemo(() => allowedInventoryTabs(role), [role]);
+  const [activeTab, setActiveTab] = useState<InventoryTabId>(() => visibleTabs[0] ?? 'orders');
+  // Roles can change under an open screen (an admin edits the account, or a
+  // sync lands), so the selection is re-checked rather than trusted.
+  const currentTab: InventoryTabId = isInventoryTabAllowed(activeTab, role)
+    ? activeTab
+    : (visibleTabs[0] ?? 'orders');
 
   // Receive-stock (lightweight purchase order) modal
   const [receiveOpen, setReceiveOpen] = useState(false);
@@ -396,13 +404,14 @@ export default function Inventory() {
     return categoryMap.get(catId)?.color || 'badge badge-slate';
   };
 
-  const tabs = [
-    { id: 'products', label: t('inventory.products') },
-    { id: 'categories', label: t('inventory.categories') },
-    { id: 'suppliers', label: t('inventory.suppliers') },
-    { id: 'orders', label: t('inventory.purchaseOrders') },
-    { id: 'log', label: t('inventory.stockLog') },
-  ] as const;
+  const TAB_LABELS: Record<InventoryTabId, string> = {
+    products: t('inventory.products'),
+    categories: t('inventory.categories'),
+    suppliers: t('inventory.suppliers'),
+    orders: t('inventory.purchaseOrders'),
+    log: t('inventory.stockLog'),
+  };
+  const tabs = visibleTabs.map((id) => ({ id, label: TAB_LABELS[id] }));
 
   const PO_STATUS_BADGE: Record<PurchaseOrderStatus, string> = {
     draft: 'badge badge-slate',
@@ -433,7 +442,7 @@ export default function Inventory() {
         </div>
 
         <div className="flex items-center space-x-3 w-full sm:w-auto">
-          {activeTab === 'products' && (
+          {currentTab === 'products' && (
             <button
               id="print-labels-btn"
               onClick={handlePrintLabels}
@@ -446,7 +455,7 @@ export default function Inventory() {
             </button>
           )}
 
-          {activeTab === 'products' && (
+          {currentTab === 'products' && (
             <button
               id="receive-stock-btn"
               onClick={() => {
@@ -460,15 +469,15 @@ export default function Inventory() {
             </button>
           )}
 
-          {activeTab !== 'log' && (
+          {currentTab !== 'log' && (
             <button
               id="add-item-trigger-btn"
               onClick={
-                activeTab === 'products'
+                currentTab === 'products'
                   ? handleOpenAddProduct
-                  : activeTab === 'categories'
+                  : currentTab === 'categories'
                     ? () => setCategoryModalOpen(true)
-                    : activeTab === 'orders'
+                    : currentTab === 'orders'
                       ? handleOpenPoModal
                       : () => setSupplierModalOpen(true)
               }
@@ -476,11 +485,11 @@ export default function Inventory() {
             >
               <Plus size={18} />
               <span>
-                {activeTab === 'products'
+                {currentTab === 'products'
                   ? t('inventory.addProduct')
-                  : activeTab === 'categories'
+                  : currentTab === 'categories'
                     ? t('inventory.addCategory')
-                    : activeTab === 'orders'
+                    : currentTab === 'orders'
                       ? t('inventory.newPurchaseOrder')
                       : t('inventory.addSupplier')}
               </span>
@@ -499,16 +508,16 @@ export default function Inventory() {
           <button
             key={tab.id}
             role="tab"
-            aria-selected={activeTab === tab.id}
+            aria-selected={currentTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`pb-3 text-sm font-semibold transition-colors relative z-10 ${
-              activeTab === tab.id
+              currentTab === tab.id
                 ? 'text-emerald-500'
                 : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
             }`}
           >
             {tab.label}
-            {activeTab === tab.id && (
+            {currentTab === tab.id && (
               <motion.div
                 layoutId="inventoryTab"
                 className="absolute -bottom-px left-0 right-0 h-0.5 bg-emerald-500 rounded-t-full"
@@ -521,7 +530,7 @@ export default function Inventory() {
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col">
-        {activeTab === 'products' && (
+        {currentTab === 'products' && (
           <InventoryProductsTab
             t={t}
             products={products}
@@ -544,7 +553,7 @@ export default function Inventory() {
           />
         )}
 
-        {activeTab === 'categories' && (
+        {currentTab === 'categories' && (
           <InventoryCategoriesTab
             t={t}
             products={products}
@@ -554,11 +563,11 @@ export default function Inventory() {
           />
         )}
 
-        {activeTab === 'suppliers' && (
+        {currentTab === 'suppliers' && (
           <InventorySuppliersTab t={t} suppliers={suppliers} onDeleteSupplier={removeSupplier} />
         )}
 
-        {activeTab === 'orders' && (
+        {currentTab === 'orders' && (
           <InventoryPurchaseOrdersTab
             t={t}
             settings={settings}
@@ -570,7 +579,7 @@ export default function Inventory() {
           />
         )}
 
-        {activeTab === 'log' && <InventoryStockLogTab t={t} adjustments={adjustments} />}
+        {currentTab === 'log' && <InventoryStockLogTab t={t} adjustments={adjustments} />}
       </div>
 
       {/* MODAL: Product Add/Edit Form */}
