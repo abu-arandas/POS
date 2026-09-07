@@ -9,7 +9,7 @@ import {
   SalesTrendChart,
   TopProductsChart,
   useDashboardMetrics,
-} from './dashboard';
+} from './dashboard/index';
 
 /**
  * Sales dashboard: revenue and order trends, top products, and stock alerts

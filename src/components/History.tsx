@@ -19,7 +19,7 @@ import {
   TransactionDetailPanel,
   TransactionTable,
   useHistoryFilters,
-} from './history';
+} from './history/index';
 
 /**
  * Sale history screen: search past transactions, reprint receipts, and issue
