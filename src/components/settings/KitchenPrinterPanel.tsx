@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import { ChefHat, Monitor, Plus, RefreshCw, Save, Trash2, Usb, Wifi } from 'lucide-react';
 import type { Category, KitchenStation, ReceiptLayout } from '../../types';
-import type { DetectedPrinter } from '../../lib/printerDiscovery';
+import type { DetectedPrinter } from '../../lib/printing/printerDiscovery';
 import ReceiptSettingsPanel from '../ReceiptSettingsPanel';
 
 export interface KitchenPrinterPanelProps {

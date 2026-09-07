@@ -3,8 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Eye } from 'lucide-react';
 import { ReceiptLayout, ReceiptToggles, SaleTransaction } from '../types';
 import { useSettingsStore } from '../stores/settingsStore';
-import { DATE_FORMATS, TIME_FORMATS, RECEIPT_FONTS, formatDateTime } from '../lib/receiptFormat';
-import { receiptPreviewDoc } from '../lib/receipt';
+import {
+  DATE_FORMATS,
+  TIME_FORMATS,
+  RECEIPT_FONTS,
+  formatDateTime,
+} from '../lib/printing/receiptFormat';
+import { receiptPreviewDoc } from '../lib/printing/receipt';
 
 interface ReceiptSettingsPanelProps {
   kind: 'customer' | 'kitchen';

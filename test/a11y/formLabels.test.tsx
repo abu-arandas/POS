@@ -15,7 +15,7 @@ import FleetDashboard from '../../src/components/FleetDashboard';
 import StoreAdmin from '../../src/components/StoreAdmin';
 import CatalogPush from '../../src/components/CatalogPush';
 import ReceiptSettingsPanel from '../../src/components/ReceiptSettingsPanel';
-import { defaultReceiptLayout, defaultKitchenLayout } from '../../src/lib/receiptFormat';
+import { defaultReceiptLayout, defaultKitchenLayout } from '../../src/lib/printing/receiptFormat';
 
 import { useProductStore } from '../../src/stores/productStore';
 import { useCustomerStore } from '../../src/stores/customerStore';

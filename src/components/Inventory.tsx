@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Product, PurchaseOrder, PurchaseOrderStatus } from '../types';
 import { normalizePoLines } from '../lib/purchaseOrders';
 import { type InventoryTabId, allowedInventoryTabs, isInventoryTabAllowed } from '../lib/access';
-import { printProductLabels } from '../lib/productLabels';
+import { printProductLabels } from '../lib/printing/productLabels';
 
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';

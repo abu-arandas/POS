@@ -26,7 +26,7 @@ import {
   UserModal,
   UsersPanel,
 } from './settings/index';
-import { serialSupported, networkScanSupported } from '../lib/printerDiscovery';
+import { serialSupported, networkScanSupported } from '../lib/printing/printerDiscovery';
 import { usePrinterDiscovery } from './settings/usePrinterDiscovery';
 import { useTranslation } from 'react-i18next';
 import {

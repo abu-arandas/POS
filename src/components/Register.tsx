@@ -44,7 +44,7 @@ import {
   printKitchenTickets,
   openCashDrawer,
   HardwarePrintOutcome,
-} from '../lib/hardwarePrint';
+} from '../lib/printing/hardwarePrint';
 import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useModalA11y } from '../lib/useModalA11y';

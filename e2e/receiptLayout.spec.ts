@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
-import { receiptsPrintDoc, kitchenPrintDoc } from '../src/lib/receipt';
-import { ROLL_MM } from '../src/lib/receiptFormat';
+import { receiptsPrintDoc, kitchenPrintDoc } from '../src/lib/printing/receipt';
+import { ROLL_MM } from '../src/lib/printing/receiptFormat';
 import type { PrinterConfig, SaleTransaction, StoreSettings } from '../src/types';
 
 // Geometry of the printed page, checked in a real browser.

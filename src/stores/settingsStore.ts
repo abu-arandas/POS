@@ -11,7 +11,7 @@ import {
 } from '../types';
 import { INITIAL_SETTINGS } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
-import { defaultReceiptLayout, defaultKitchenLayout } from '../lib/receiptFormat';
+import { defaultReceiptLayout, defaultKitchenLayout } from '../lib/printing/receiptFormat';
 
 interface SettingsState {
   settings: StoreSettings;

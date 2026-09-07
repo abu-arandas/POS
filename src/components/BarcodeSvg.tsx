@@ -1,5 +1,5 @@
 import React from 'react';
-import { code128Modules, BarcodeSvgOptions } from '../lib/barcode';
+import { code128Modules, BarcodeSvgOptions } from '../lib/printing/barcode';
 
 interface BarcodeSvgProps {
   data: string;
