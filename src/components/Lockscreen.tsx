@@ -127,8 +127,6 @@ export default function Lockscreen() {
         const nextPin = pin + num;
         setPin(nextPin);
         if (nextPin.length === 4 && selectedUser) {
-          const saltedHash = await hashPinSalted(selectedUser.id, nextPin);
-
           // Everything below judges the LIVE account record, never `selectedUser`.
           // That value was copied when the operator tapped their name, which may
           // have been hours ago, and cloud sync rewrites these rows underneath an
@@ -136,11 +134,18 @@ export default function Lockscreen() {
           // changing its role. Only `active` used to be re-checked, so a PIN
           // revoked on another terminal went on being accepted here for as long
           // as the screen sat on that name, which is exactly when revoking one
-          // matters. It is read from the store rather than the render-time
-          // `users` snapshot, and read AFTER the hash above, because deriving it
-          // is deliberately slow (PBKDF2, 600k iterations) and a sync can land
-          // inside that window.
-          const live = useAuthStore.getState().users.find((u) => u.id === selectedUser.id);
+          // matters.
+          //
+          // Re-read at EVERY step rather than once. Each await below is a window
+          // in which a realtime-sync write can land, and reading the row before
+          // an await and judging it after is the same stale-copy bug in a
+          // narrower form: deriving a hash yields to the event loop, and the
+          // cloud round-trip can take seconds.
+          const readLive = () =>
+            useAuthStore.getState().users.find((u) => u.id === selectedUser.id) ?? null;
+
+          const saltedHash = await hashPinSalted(selectedUser.id, nextPin);
+          let live = readLive();
           if (!live?.active) {
             failPin(selectedUser.id);
             return;
@@ -150,16 +155,32 @@ export default function Lockscreen() {
             acceptPin(live);
             return;
           }
+
           const legacyHash = await hashPinSaltedLegacy(selectedUser.id, nextPin);
+          live = readLive();
+          if (!live?.active) {
+            failPin(selectedUser.id);
+            return;
+          }
           if (live.pin === legacyHash) {
             handleUpdateUser({ ...live, pin: saltedHash });
             acceptPin(live);
             return;
           }
+
           setChecking(true);
           const cloudUser = await cloudLogin(live.name, saltedHash);
           const cloudUser2 = cloudUser ?? (await cloudLogin(live.name, legacyHash));
           setChecking(false);
+          // The widest window of the three. A revocation that lands while the
+          // network call is out must still win, even though verify_login has
+          // just answered yes — the cloud row it answered from can be the copy
+          // that has not caught up yet.
+          live = readLive();
+          if (!live?.active) {
+            failPin(selectedUser.id);
+            return;
+          }
           if (cloudUser2) {
             // Keep the LOCAL id. The cloud row may carry a different one (the same
             // person created on another terminal), and taking it silently broke
@@ -174,7 +195,6 @@ export default function Lockscreen() {
               id: live.id,
               pin: saltedHash,
             };
-            // Re-read once more: the cloud round-trip is another await window.
             setUsers(
               useAuthStore.getState().users.map((u) => (u.id === upgraded.id ? upgraded : u)),
             );
