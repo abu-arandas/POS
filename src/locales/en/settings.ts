@@ -132,6 +132,9 @@ export const settings = {
   scanNetwork: 'Scan Network',
   scanningNetwork: 'Scanning…',
   autoScanPrinters: 'Auto-scan the network for printers when this tab opens',
+  showProductImages: 'Show product images',
+  showProductImagesHint:
+    'Display product pictures on the register tiles, cart lines, inventory list and the QR menu. Off by default; turning it off does not delete any image you have set.',
   useThisPrinter: 'Use',
   printerInUse: 'In use',
   noPrintersFound:

@@ -4,7 +4,7 @@ import { Check, ShoppingBag } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { BarcodeSvg } from '../BarcodeSvg';
 import type { PrinterConfig, ReceiptLayout, SaleTransaction, StoreSettings } from '../../types';
-import { resolveCustomerLayout } from '../../lib/receiptFormat';
+import { resolveCustomerLayout } from '../../lib/printing/receiptFormat';
 import { safeImageUrl } from '../../lib/imageUrl';
 
 /**

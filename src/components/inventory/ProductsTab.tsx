@@ -12,6 +12,7 @@ import type { TFunction } from 'i18next';
 import type { Category, Product, StoreSettings } from '../../types';
 import { askConfirmation } from '../../lib/utils/ui';
 import { safeImageUrl } from '../../lib/imageUrl';
+import { useSettingsStore } from '../../stores/settingsStore';
 
 type ProductSortField = 'name' | 'stock' | 'price' | 'sku';
 type StockFilter = 'all' | 'low' | 'out';
@@ -57,6 +58,7 @@ export function InventoryProductsTab({
   onEditProduct,
   onDeleteProduct,
 }: InventoryProductsTabProps) {
+  const showProductImages = useSettingsStore((s) => s.showProductImages);
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -235,18 +237,20 @@ export function InventoryProductsTab({
                       className={`hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors group ${isOut ? 'bg-rose-500/5' : isLow ? 'bg-amber-500/5' : ''}`}
                     >
                       <td className="py-4 px-6 flex items-center gap-4 truncate">
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center text-xl">
-                          {safeImageUrl(prod.image) ? (
-                            <img
-                              src={safeImageUrl(prod.image)}
-                              alt={prod.name}
-                              className="w-full h-full object-cover"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <ImageIcon className="text-slate-500" size={20} />
-                          )}
-                        </div>
+                        {showProductImages && (
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center text-xl">
+                            {safeImageUrl(prod.image) ? (
+                              <img
+                                src={safeImageUrl(prod.image)}
+                                alt={prod.name}
+                                className="w-full h-full object-cover"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <ImageIcon className="text-slate-500" size={20} />
+                            )}
+                          </div>
+                        )}
                         <div className="truncate">
                           <span className="font-bold block truncate text-slate-800 dark:text-slate-100">
                             {prod.name}

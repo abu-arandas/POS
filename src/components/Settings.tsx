@@ -26,7 +26,7 @@ import {
   UserModal,
   UsersPanel,
 } from './settings/index';
-import { serialSupported, networkScanSupported } from '../lib/printerDiscovery';
+import { serialSupported, networkScanSupported } from '../lib/printing/printerDiscovery';
 import { usePrinterDiscovery } from './settings/usePrinterDiscovery';
 import { useTranslation } from 'react-i18next';
 import {
@@ -52,6 +52,7 @@ import {
   syncToCloudIfEnabled,
   deleteUsersCloudIfEnabled,
 } from '../lib/sync';
+import { resolveDeviceAuthConfigured } from '../lib/supabase';
 
 type SettingsTab =
   'profile' | 'printer' | 'kitchen_printer' | 'scanner' | 'supabase' | 'users' | 'danger';
@@ -82,6 +83,8 @@ export default function Settings() {
     setKitchenLayout,
     autoScanPrinters,
     setAutoScanPrinters,
+    showProductImages,
+    setShowProductImages,
     storeId,
     setStoreId,
   } = useSettingsStore();
@@ -295,17 +298,35 @@ export default function Settings() {
     notify(t('settings.scannerSaved'));
   };
 
-  const buildConfig = (enabled: boolean, status: 'disconnected' | 'connected' | 'error') => ({
+  // Pass this ONLY where an operation actually reached Supabase — the fields in
+  // hand are then the ones it just used. A plain Save must not: after a restart
+  // the credential inputs are blank whether or not a device account exists, and
+  // reading that blank form as "no device account" would hand the terminal the
+  // one badge that survives a restart. See resolveDeviceAuthConfigured.
+  const observedDeviceAuth = () => ({ authEmail: sbAuthEmail, authPassword: sbAuthPassword });
+
+  const buildConfig = (
+    enabled: boolean,
+    status: 'disconnected' | 'connected' | 'error',
+    observed?: { authEmail: string; authPassword: string },
+  ) => ({
     url: sbUrl.trim(),
     anonKey: sbKey.trim(),
     authEmail: sbAuthEmail.trim(),
     authPassword: sbAuthPassword,
+    deviceAuthConfigured: resolveDeviceAuthConfigured(
+      supabaseConfig.deviceAuthConfigured,
+      observed,
+    ),
     enabled,
     status,
   });
 
-  const persistConfig = (status: 'disconnected' | 'connected' | 'error') => {
-    setSupabaseConfig(buildConfig(sbEnabled, status));
+  const persistConfig = (
+    status: 'disconnected' | 'connected' | 'error',
+    observed?: { authEmail: string; authPassword: string },
+  ) => {
+    setSupabaseConfig(buildConfig(sbEnabled, status, observed));
   };
 
   const hasCreds = () => {
@@ -333,7 +354,7 @@ export default function Settings() {
     if (!hasCreds()) return;
     setBusy('test');
     const ok = await testCloudConnection(sbUrl.trim(), sbKey.trim());
-    persistConfig(ok ? 'connected' : 'error');
+    persistConfig(ok ? 'connected' : 'error', ok ? observedDeviceAuth() : undefined);
     setBusy(null);
     notify(ok ? t('settings.connectionSuccess') : t('settings.connectionFailed'));
   };
@@ -348,7 +369,7 @@ export default function Settings() {
       users,
       transactions,
     });
-    persistConfig(ok ? 'connected' : 'error');
+    persistConfig(ok ? 'connected' : 'error', ok ? observedDeviceAuth() : undefined);
     setBusy(null);
     notify(ok ? t('settings.pushSuccess') : t('settings.pushFailed'));
   };
@@ -389,7 +410,10 @@ export default function Settings() {
     if (data.users?.length) setUsers(data.users);
     if (data.transactions) setTransactions(data.transactions);
 
-    persistConfig(failed.length > 0 ? 'error' : 'connected');
+    persistConfig(
+      failed.length > 0 ? 'error' : 'connected',
+      failed.length > 0 ? undefined : observedDeviceAuth(),
+    );
     notify(
       failed.length > 0
         ? t('settings.pullPartial', {
@@ -435,6 +459,7 @@ export default function Settings() {
       setKitchenStations([]);
       setStationForm([]);
       setAutoScanPrinters(true);
+      setShowProductImages(false);
       setSupabaseConfig(DEFAULT_SUPABASE);
       setSbUrl('');
       setSbKey('');
@@ -545,6 +570,8 @@ export default function Settings() {
                   settings={settings}
                   language={language}
                   emailTemplate={emailTemplate}
+                  showProductImages={showProductImages}
+                  onShowProductImagesChange={setShowProductImages}
                   onUpdateSetting={handleUpdateSetting}
                   onLanguageChange={setLanguage}
                   onEmailTemplateChange={setEmailTemplate}

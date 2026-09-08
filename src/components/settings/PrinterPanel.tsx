@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next';
 import { motion } from 'motion/react';
 import { Monitor, Receipt, RefreshCw, Save, Usb, Wifi, type LucideIcon } from 'lucide-react';
 import type { PrinterConfig, ReceiptLayout } from '../../types';
-import type { DetectedPrinter } from '../../lib/printerDiscovery';
+import type { DetectedPrinter } from '../../lib/printing/printerDiscovery';
 import ReceiptSettingsPanel from '../ReceiptSettingsPanel';
 
 type Setter<T> = Dispatch<SetStateAction<T>>;

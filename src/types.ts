@@ -318,6 +318,13 @@ export interface SupabaseConfig {
   // RLS is enabled (see scripts/schema.sql). Left blank = anonymous (demo mode).
   authEmail?: string;
   authPassword?: string;
+  // Whether a device account was configured when this config was last saved.
+  // The credentials themselves are session-only (settingsStore strips them from
+  // what it persists), so after a restart nothing else can tell "no device
+  // account, sync works anonymously" apart from "device account required, but
+  // its password is gone". `status` is restored against this — see the
+  // rehydrate handling in stores/settingsStore.ts.
+  deviceAuthConfigured?: boolean;
   enabled: boolean;
   status: 'disconnected' | 'connected' | 'error';
 }

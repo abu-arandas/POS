@@ -78,6 +78,7 @@ const CartPanel = ({
 }: CartPanelProps) => {
   const customers = useCustomerStore((s) => s.customers);
   const settings = useSettingsStore((s) => s.settings);
+  const showProductImages = useSettingsStore((s) => s.showProductImages);
   const { t } = useTranslation();
 
   // Redemption is only meaningful when a point is worth something. Production
@@ -225,7 +226,7 @@ const CartPanel = ({
                 className="flex items-center gap-2.5 p-2.5 rounded-xl group bg-slate-100/70 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700/40 hover:bg-slate-800/50 transition-colors"
               >
                 {/* Product thumbnail */}
-                {safeImageUrl(item.product.image) && (
+                {showProductImages && safeImageUrl(item.product.image) && (
                   <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
                     <img
                       src={safeImageUrl(item.product.image)}

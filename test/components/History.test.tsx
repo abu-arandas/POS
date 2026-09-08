@@ -228,3 +228,169 @@ describe('History — a cashier needs a manager override', () => {
     expect(useTransactionStore.getState().transactions[0].status).toBe('completed');
   });
 });
+
+// The detail panel, the bulk bar and the delete modal moved out of History.tsx
+// into components/history/ as separate files. Nothing exercised them before, so
+// these lock the behaviour the move has to preserve.
+
+describe('History — transaction detail panel', () => {
+  it('opens the receipt for the clicked row and closes again', async () => {
+    const user = userEvent.setup();
+    render(<History />);
+
+    expect(document.getElementById('receipt-view-section')).toBeNull();
+
+    await user.click(screen.getByText(/^TX-1/));
+    const panel = await waitFor(() => {
+      const el = document.getElementById('receipt-view-section');
+      if (!el) throw new Error('detail panel not open');
+      return el as HTMLElement;
+    });
+
+    // Store identity, the sale's own numbers and the operator all come from
+    // props once the panel is its own component — assert each one crosses.
+    expect(within(panel).getByText('Test Store')).toBeTruthy();
+    expect(within(panel).getByText('TOTAL PAID:')).toBeTruthy();
+    expect(within(panel).getAllByText('$10.00').length).toBeGreaterThan(0);
+    expect(within(panel).getByText(/PAID VIA CASH/)).toBeTruthy();
+
+    await user.click(within(panel).getByRole('button', { name: /Close receipt details/i }));
+    await waitFor(() => expect(document.getElementById('receipt-view-section')).toBeNull());
+  });
+
+  it('offers Refund on a completed sale but not on a refunded one', async () => {
+    const user = userEvent.setup();
+    render(<History />);
+    await user.click(screen.getByText(/^TX-1/));
+    expect(await screen.findByRole('button', { name: /Refund/i })).toBeTruthy();
+
+    useTransactionStore.setState({ transactions: [{ ...SALE, status: 'refunded' }] });
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^Refund$/i })).toBeNull());
+  });
+});
+
+describe('History — bulk selection', () => {
+  const openDeleteModal = () =>
+    waitFor(() => {
+      const el = document.querySelector('[aria-labelledby="delete-tx-title"]');
+      if (!el) throw new Error('delete modal not open');
+      return el as HTMLElement;
+    });
+
+  const selectFirstRow = async () => {
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('checkbox', { name: /Select transaction TX-1/i }));
+  };
+
+  it('shows the bulk bar with a count once a row is checked', async () => {
+    render(<History />);
+    expect(screen.queryByText(/Selected/i)).toBeNull();
+
+    await selectFirstRow();
+
+    expect(await screen.findByText(/Selected/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Clear selection/i })).toBeTruthy();
+  });
+
+  it('select-all checks every filtered row', async () => {
+    useTransactionStore.setState({ transactions: [SALE, { ...SALE, id: 'TX-2' }] });
+    const user = userEvent.setup();
+    render(<History />);
+
+    await user.click(screen.getByRole('checkbox', { name: /Select all/i }));
+
+    expect(
+      (screen.getByRole('checkbox', { name: /Select transaction TX-1/i }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+    expect(
+      (screen.getByRole('checkbox', { name: /Select transaction TX-2/i }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+  });
+
+  it('hides Delete from a cashier', async () => {
+    useAuthStore.setState({ currentUser: CASHIER });
+    render(<History />);
+    await selectFirstRow();
+
+    await screen.findByText(/Selected/i);
+    expect(screen.queryByRole('button', { name: /^Delete$/i })).toBeNull();
+  });
+
+  it('deletes the selected sales once the modal is confirmed', async () => {
+    const user = userEvent.setup();
+    render(<History />);
+    await selectFirstRow();
+
+    await user.click(await screen.findByRole('button', { name: /^Delete$/i }));
+    const modal = await openDeleteModal();
+
+    await user.click(within(modal).getByRole('button', { name: /^Delete$/i }));
+
+    await waitFor(() => expect(useTransactionStore.getState().transactions).toHaveLength(0));
+    // The bar is inside AnimatePresence, so it leaves on the exit tick.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Clear selection/i })).toBeNull(),
+    );
+  });
+
+  it('cancelling the modal keeps the sales', async () => {
+    const user = userEvent.setup();
+    render(<History />);
+    await selectFirstRow();
+
+    await user.click(await screen.findByRole('button', { name: /^Delete$/i }));
+    const modal = await openDeleteModal();
+    await user.click(within(modal).getByRole('button', { name: /Cancel/i }));
+
+    expect(useTransactionStore.getState().transactions).toHaveLength(1);
+  });
+});
+
+describe('History — CSV export', () => {
+  it('is disabled when the filter matches nothing', async () => {
+    const user = userEvent.setup();
+    render(<History />);
+
+    const button = document.getElementById('export-csv-btn') as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+
+    await user.type(screen.getByLabelText(/Search by receipt ID/i), 'no-such-sale');
+    await waitFor(() => expect(button.disabled).toBe(true));
+  });
+});
+
+describe('History — modal accessibility wiring', () => {
+  // The modals now mount only while open and arm the focus trap themselves,
+  // rather than being handed an `open` flag by the screen.
+  it('Escape closes the refund modal', async () => {
+    const user = userEvent.setup();
+    render(<History />);
+    await openRefund();
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() =>
+      expect(document.querySelector('[aria-labelledby="refund-modal-title"]')).toBeNull(),
+    );
+  });
+
+  it('Escape closes the delete confirmation', async () => {
+    const user = userEvent.setup();
+    render(<History />);
+    await user.click(screen.getByRole('checkbox', { name: /Select transaction TX-1/i }));
+    await user.click(await screen.findByRole('button', { name: /^Delete$/i }));
+    await waitFor(() => {
+      if (!document.querySelector('[aria-labelledby="delete-tx-title"]'))
+        throw new Error('delete modal not open');
+    });
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() =>
+      expect(document.querySelector('[aria-labelledby="delete-tx-title"]')).toBeNull(),
+    );
+    expect(useTransactionStore.getState().transactions).toHaveLength(1);
+  });
+});

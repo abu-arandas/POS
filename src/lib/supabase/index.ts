@@ -6,6 +6,7 @@
  * organized by responsibility.
  */
 export { getSupabaseClient, signInDevice, testSupabaseConnection } from './client';
+export { resolveDeviceAuthConfigured } from './deviceAuth';
 export { verifyLoginCloud, pushUserAccounts, pullUserAccounts } from './accounts';
 export { pushProducts, pullProducts, pushCategories, pullCategories } from './products';
 export { pushCustomers, pullCustomers } from './customers';

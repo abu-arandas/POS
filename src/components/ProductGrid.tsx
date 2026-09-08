@@ -71,6 +71,7 @@ const SortableProductCard = memo(function SortableProductCard({
   const isUnavailable = isOutOfStock || isLimitReached;
   const [imgError, setImgError] = useState(false);
   const imageUrl = safeImageUrl(prod.image);
+  const showProductImages = useSettingsStore((s) => s.showProductImages);
   const { t } = useTranslation();
 
   const getCategoryEmoji = (catName: string) => {
@@ -170,30 +171,35 @@ const SortableProductCard = memo(function SortableProductCard({
         </div>
       )}
 
-      {/* Product image */}
-      <div className="relative aspect-4/3 w-full overflow-hidden bg-slate-100 dark:bg-slate-800/50 pointer-events-none">
-        {imageUrl && !imgError ? (
-          <img
-            src={imageUrl}
-            alt={prod.name}
-            className={`w-full h-full object-cover transition-transform duration-500 ${isUnavailable ? '' : 'group-hover:scale-110'}`}
-            referrerPolicy="no-referrer"
-            onError={() => setImgError(true)}
+      {/* Product image. Omitted entirely when the operator has product images
+          switched off — not swapped for the emoji placeholder, which would keep
+          a picture on the tile and defeat the setting. The card then sizes to
+          its text, so more of the catalogue fits on screen. */}
+      {showProductImages && (
+        <div className="relative aspect-4/3 w-full overflow-hidden bg-slate-100 dark:bg-slate-800/50 pointer-events-none">
+          {imageUrl && !imgError ? (
+            <img
+              src={imageUrl}
+              alt={prod.name}
+              className={`w-full h-full object-cover transition-transform duration-500 ${isUnavailable ? '' : 'group-hover:scale-110'}`}
+              referrerPolicy="no-referrer"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-slate-800/40 to-slate-900/40">
+              <span
+                className={`text-4xl transition-transform duration-400 opacity-70 ${isUnavailable ? '' : 'group-hover:scale-110 group-hover:rotate-6'}`}
+              >
+                {getCategoryEmoji(categoryName)}
+              </span>
+            </div>
+          )}
+          {/* Bottom gradient overlay */}
+          <div
+            className={`absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent transition-opacity duration-300 ${isUnavailable ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
           />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-slate-800/40 to-slate-900/40">
-            <span
-              className={`text-4xl transition-transform duration-400 opacity-70 ${isUnavailable ? '' : 'group-hover:scale-110 group-hover:rotate-6'}`}
-            >
-              {getCategoryEmoji(categoryName)}
-            </span>
-          </div>
-        )}
-        {/* Bottom gradient overlay */}
-        <div
-          className={`absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent transition-opacity duration-300 ${isUnavailable ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
-        />
-      </div>
+        </div>
+      )}
 
       {/* Info */}
       <div className="px-3 pt-2.5 pb-3 flex-1 flex flex-col justify-between pointer-events-none">

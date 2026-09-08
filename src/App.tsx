@@ -51,7 +51,8 @@ export default function App() {
   const [currentScreen, setScreen] = useState<ScreenId>('register');
 
   const { currentUser, setCurrentUser } = useAuthStore();
-  const { settings, darkMode, setDarkMode, language, supabaseConfig } = useSettingsStore();
+  const { settings, darkMode, setDarkMode, language, supabaseConfig, showProductImages } =
+    useSettingsStore();
   const { t, i18n } = useTranslation();
 
   // Live multi-terminal sync: subscribe to cloud changes while sync is
@@ -129,10 +130,14 @@ export default function App() {
         name: p.name,
         price: p.price,
         category: p.category,
-        image: p.image,
+        // The customer-facing menu follows the same switch as the till: with
+        // product images off, sending them anyway would put back on a stranger's
+        // phone exactly what the operator turned off in the shop. menu.html
+        // falls back to the product's initial when this is empty.
+        image: showProductImages ? p.image : '',
         inStock: p.stock > 0,
       })),
-    [products],
+    [products, showProductImages],
   );
   const menuCategories = useMemo(
     () => categories.map((c) => ({ id: c.id, name: c.name, color: c.color })),

@@ -11,7 +11,7 @@ import {
 } from '../types';
 import { INITIAL_SETTINGS } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
-import { defaultReceiptLayout, defaultKitchenLayout } from '../lib/receiptFormat';
+import { defaultReceiptLayout, defaultKitchenLayout } from '../lib/printing/receiptFormat';
 
 interface SettingsState {
   settings: StoreSettings;
@@ -27,6 +27,12 @@ interface SettingsState {
   // Auto-scan the LAN for network printers when the Printer settings tab opens
   // (desktop only). Off keeps discovery manual for large/locked-down networks.
   autoScanPrinters: boolean;
+  // Whether product pictures are shown at all: the register's product tiles,
+  // the cart thumbnails, the inventory rows and the LAN QR menu. Off by
+  // default — a till reads faster as text, and most catalogues never get real
+  // photography. Product.image is untouched either way, so switching this on
+  // brings back whatever was already set.
+  showProductImages: boolean;
   // This terminal's store id for multi-store cloud scoping (see
   // scripts/multi-store-schema.sql). Empty = single-store mode: sync behaves exactly
   // as before (no store_id stamped or filtered).
@@ -43,6 +49,7 @@ interface SettingsState {
   setReceiptLayout: (layout: ReceiptLayout) => void;
   setKitchenLayout: (layout: ReceiptLayout) => void;
   setAutoScanPrinters: (on: boolean) => void;
+  setShowProductImages: (on: boolean) => void;
   setStoreId: (storeId: string) => void;
   setDarkMode: (darkMode: boolean) => void;
   setLanguage: (lang: 'en' | 'ar') => void;
@@ -129,6 +136,7 @@ export const useSettingsStore = create<SettingsState>()(
       receiptLayout: defaultReceiptLayout(),
       kitchenLayout: defaultKitchenLayout(),
       autoScanPrinters: true,
+      showProductImages: false,
       storeId: '',
       // Dark-first: the whole UI is designed for a dark canvas. New terminals
       // start dark and stay cohesive; a saved light preference is restored on
@@ -145,6 +153,7 @@ export const useSettingsStore = create<SettingsState>()(
       setReceiptLayout: (receiptLayout) => set({ receiptLayout }),
       setKitchenLayout: (kitchenLayout) => set({ kitchenLayout }),
       setAutoScanPrinters: (autoScanPrinters) => set({ autoScanPrinters }),
+      setShowProductImages: (showProductImages) => set({ showProductImages }),
       setStoreId: (storeId) => set({ storeId }),
       setDarkMode: (darkMode) => {
         // Apply the theme class immediately; without this the `dark:` variants
@@ -189,6 +198,30 @@ export const useSettingsStore = create<SettingsState>()(
           };
         }
         if (!p.kitchenLayout) merged.kitchenLayout = defaultKitchenLayout();
+
+        // A restored 'connected' has to be re-earned, not inherited.
+        //
+        // `status` is persisted but the device credentials above are not, so a
+        // terminal that had signed in with a device account came back up still
+        // badged "Connected" while signInDevice() saw an empty password and
+        // quietly fell through to its anonymous path. Under the secure-by-
+        // default RLS in scripts/schema.sql `anon` is denied every row, so
+        // realtime sync, the fleet heartbeat and every push and pull silently
+        // did nothing — while Settings and the Dashboard both reported the
+        // cloud as live. Sales stopped replicating and nothing said so.
+        //
+        // 'connected' therefore survives a restart only where the config has
+        // affirmatively recorded that it needs no credentials — an anonymous
+        // install, which is the demo path schema.sql section 8b spells out and
+        // which really does keep working across a restart. Everything else,
+        // including a blob written before this flag existed, is treated as
+        // unprovable: a wrong 'disconnected' announces itself and is one click
+        // to fix, whereas a wrong 'connected' is the silent failure above.
+        const restored = merged.supabaseConfig;
+        const credentialFree = restored?.deviceAuthConfigured === false;
+        if (restored?.status === 'connected' && !credentialFree && !restored.authPassword) {
+          merged.supabaseConfig = { ...restored, status: 'disconnected' };
+        }
         return merged;
       },
       onRehydrateStorage: () => (state) => {

@@ -137,4 +137,61 @@ describe('Lockscreen staff selection', () => {
     await waitFor(() => expect(screen.getByText(/incorrect/i)).toBeInTheDocument());
     expect(useAuthStore.getState().currentUser).toBeNull();
   });
+
+  it('rejects a PIN that was rotated after selection', async () => {
+    const alice = makeUser({ id: 'u-1', name: 'Active Alice' });
+    useAuthStore.setState({ users: [alice] });
+    render(<Lockscreen />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: /Active Alice/ }));
+    // An admin rotates Alice's PIN on a second terminal and it arrives here over
+    // realtime sync, while this screen still sits on her name.
+    useAuthStore.setState({
+      users: [{ ...alice, pin: hashPinSaltedLegacySync('u-1', '9999') }],
+    });
+
+    // The OLD PIN must no longer open the till. It used to: only `active` was
+    // re-read from the store, so the comparison ran against the account copy
+    // captured at selection time and a revoked PIN kept working for as long as
+    // the lock screen stayed open on that name.
+    await typePin('1234');
+
+    await waitFor(() => expect(screen.getByText(/incorrect/i)).toBeInTheDocument());
+    expect(useAuthStore.getState().currentUser).toBeNull();
+    expect(usePinAttemptStore.getState().attempts['u-1']?.failures).toBe(1);
+  });
+
+  it('accepts the rotated PIN after selection', async () => {
+    const alice = makeUser({ id: 'u-1', name: 'Active Alice' });
+    useAuthStore.setState({ users: [alice] });
+    render(<Lockscreen />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: /Active Alice/ }));
+    useAuthStore.setState({
+      users: [{ ...alice, pin: hashPinSaltedLegacySync('u-1', '9999') }],
+    });
+
+    // The other half of the rotation: the NEW PIN has to work immediately,
+    // without the operator backing out to the staff list first.
+    await typePin('9999');
+
+    await waitFor(() => expect(useAuthStore.getState().currentUser?.id).toBe('u-1'));
+  });
+
+  it('signs in with the role the account currently holds, not the selected copy', async () => {
+    const alice = makeUser({ id: 'u-1', name: 'Active Alice', role: 'admin' });
+    useAuthStore.setState({ users: [alice] });
+    render(<Lockscreen />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: /Active Alice/ }));
+    // Demoted elsewhere while the keypad is open. Signing in with the captured
+    // copy would hand back the admin role the account no longer has, and App
+    // gates every screen on currentUser.role.
+    useAuthStore.setState({ users: [{ ...alice, role: 'cashier' }] });
+
+    await typePin('1234');
+
+    await waitFor(() => expect(useAuthStore.getState().currentUser?.id).toBe('u-1'));
+    expect(useAuthStore.getState().currentUser?.role).toBe('cashier');
+  });
 });

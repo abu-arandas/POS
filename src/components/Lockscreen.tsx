@@ -127,31 +127,60 @@ export default function Lockscreen() {
         const nextPin = pin + num;
         setPin(nextPin);
         if (nextPin.length === 4 && selectedUser) {
-          // Re-check `active` against the live list rather than trusting the
-          // captured selection: cloud sync can deactivate an account while this
-          // screen sits open on it. (The cloud path is already covered — the
-          // verify_login RPC filters on active.)
-          const live = users.find((u) => u.id === selectedUser.id);
+          // Everything below judges the LIVE account record, never `selectedUser`.
+          // That value was copied when the operator tapped their name, which may
+          // have been hours ago, and cloud sync rewrites these rows underneath an
+          // open lock screen — deactivating an account, rotating its PIN, or
+          // changing its role. Only `active` used to be re-checked, so a PIN
+          // revoked on another terminal went on being accepted here for as long
+          // as the screen sat on that name, which is exactly when revoking one
+          // matters.
+          //
+          // Re-read at EVERY step rather than once. Each await below is a window
+          // in which a realtime-sync write can land, and reading the row before
+          // an await and judging it after is the same stale-copy bug in a
+          // narrower form: deriving a hash yields to the event loop, and the
+          // cloud round-trip can take seconds.
+          const readLive = () =>
+            useAuthStore.getState().users.find((u) => u.id === selectedUser.id) ?? null;
+
+          const saltedHash = await hashPinSalted(selectedUser.id, nextPin);
+          let live = readLive();
           if (!live?.active) {
             failPin(selectedUser.id);
             return;
           }
 
-          const saltedHash = await hashPinSalted(selectedUser.id, nextPin);
-          if (selectedUser.pin === saltedHash) {
-            acceptPin(selectedUser);
+          if (live.pin === saltedHash) {
+            acceptPin(live);
             return;
           }
+
           const legacyHash = await hashPinSaltedLegacy(selectedUser.id, nextPin);
-          if (selectedUser.pin === legacyHash) {
-            handleUpdateUser({ ...selectedUser, pin: saltedHash });
-            acceptPin(selectedUser);
+          live = readLive();
+          if (!live?.active) {
+            failPin(selectedUser.id);
             return;
           }
+          if (live.pin === legacyHash) {
+            handleUpdateUser({ ...live, pin: saltedHash });
+            acceptPin(live);
+            return;
+          }
+
           setChecking(true);
-          const cloudUser = await cloudLogin(selectedUser.name, saltedHash);
-          const cloudUser2 = cloudUser ?? (await cloudLogin(selectedUser.name, legacyHash));
+          const cloudUser = await cloudLogin(live.name, saltedHash);
+          const cloudUser2 = cloudUser ?? (await cloudLogin(live.name, legacyHash));
           setChecking(false);
+          // The widest window of the three. A revocation that lands while the
+          // network call is out must still win, even though verify_login has
+          // just answered yes — the cloud row it answered from can be the copy
+          // that has not caught up yet.
+          live = readLive();
+          if (!live?.active) {
+            failPin(selectedUser.id);
+            return;
+          }
           if (cloudUser2) {
             // Keep the LOCAL id. The cloud row may carry a different one (the same
             // person created on another terminal), and taking it silently broke
@@ -161,12 +190,14 @@ export default function Lockscreen() {
             // unverifiable next login. The throttle is keyed to the local id too,
             // so clearing the streak has to use the same one.
             const upgraded = {
-              ...selectedUser,
+              ...live,
               ...cloudUser2,
-              id: selectedUser.id,
+              id: live.id,
               pin: saltedHash,
             };
-            setUsers(users.map((u) => (u.id === upgraded.id ? upgraded : u)));
+            setUsers(
+              useAuthStore.getState().users.map((u) => (u.id === upgraded.id ? upgraded : u)),
+            );
             acceptPin(upgraded);
           } else {
             failPin(selectedUser.id);
@@ -184,7 +215,6 @@ export default function Lockscreen() {
       pin,
       selectedUser,
       setUsers,
-      users,
     ],
   );
 

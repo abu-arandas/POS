@@ -5,7 +5,7 @@ import {
   requestSerialPort,
   scanNetworkPrinters,
   type DetectedPrinter,
-} from '../../lib/printerDiscovery';
+} from '../../lib/printing/printerDiscovery';
 
 export interface UsePrinterDiscoveryResult {
   detectedPrinters: DetectedPrinter[];
