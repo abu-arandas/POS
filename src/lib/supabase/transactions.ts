@@ -3,6 +3,14 @@ import { OrderItem, SaleTransaction } from '../../types';
 import { fetchAllPages, keyset, stampStoreId } from './sync-utils';
 
 /**
+ * Reads an optional numeric column: a column the row omits, or stores as SQL
+ * NULL, stays `undefined` rather than becoming `Number(null)` — that is, 0.
+ */
+function optionalNumber(value: unknown): number | undefined {
+  return value === null || value === undefined ? undefined : Number(value);
+}
+
+/**
  * Push local transactions
  */
 export async function pushTransactions(
@@ -81,16 +89,16 @@ export async function pullTransactions(
       total: Number(r.total),
       paymentMethod: r.payment_method as SaleTransaction['paymentMethod'],
       payments: (r.payments as SaleTransaction['payments']) ?? undefined,
-      cashPaid: r.cash_paid != null ? Number(r.cash_paid) : undefined,
-      cashChange: r.cash_change != null ? Number(r.cash_change) : undefined,
+      cashPaid: optionalNumber(r.cash_paid),
+      cashChange: optionalNumber(r.cash_change),
       customerId: r.customer_id,
       customerName: r.customer_name,
       operatorId: r.operator_id ?? null,
       operatorName: r.operator_name ?? null,
-      pointsEarned: r.points_earned != null ? Number(r.points_earned) : undefined,
+      pointsEarned: optionalNumber(r.points_earned),
       status: r.status as SaleTransaction['status'],
       refundedItems: (r.refunded_items as SaleTransaction['refundedItems']) ?? undefined,
-      refundedAmount: r.refunded_amount != null ? Number(r.refunded_amount) : undefined,
+      refundedAmount: optionalNumber(r.refunded_amount),
       refundDate: r.refund_date,
       refundAuthorizedBy: r.refund_authorized_by ?? null,
       shiftId: r.shift_id ?? null,

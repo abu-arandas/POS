@@ -12,6 +12,10 @@ export interface InventoryCategoriesTabProps {
   onDeleteCategory(id: string): void;
 }
 
+/**
+ * Inventory's categories tab: every category with the number of products
+ * filed under it, and the controls to add or delete one.
+ */
 export function InventoryCategoriesTab({
   t,
   products,
@@ -32,7 +36,7 @@ export function InventoryCategoriesTab({
         className="surface border-2 border-dashed border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-lg flex flex-col justify-center items-center gap-4 cursor-pointer hover:border-emerald-500/50 transition-colors group"
         onClick={() => onAddCategory()}
       >
-        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+        <div className="size-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
           <Plus size={24} />
         </div>
         <span className="font-bold text-slate-600 dark:text-slate-300">

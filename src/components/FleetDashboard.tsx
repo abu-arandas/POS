@@ -22,6 +22,12 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { fetchFleetSummary, fetchFleetDaily } from '../lib/fleetClient';
 import { FleetStoreRow } from '../lib/fleet';
 import { FleetDailyRow, fleetTotals, rankStores, buildDailySeries } from '../lib/fleetReport';
+import {
+  trendChartGrid,
+  trendChartMargin,
+  trendTimeAxis,
+  trendValueAxis,
+} from './dashboard/chartPresets';
 
 interface FleetDashboardProps {
   orgId: string;
@@ -46,6 +52,9 @@ function shortDay(day: string): string {
   return parts.length === 3 ? `${Number(parts[1])}/${Number(parts[2])}` : day;
 }
 
+/**
+ * Hover readout for the fleet revenue chart: the day, and what it took.
+ */
 function TrendTooltip({
   active,
   payload,
@@ -107,18 +116,24 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
   useEffect(() => {
     let cancelled = false;
     const since = periodSince(period);
-    Promise.all([fetchFleetSummary(orgId, since), fetchFleetDaily(orgId, since)])
-      .then(([s, d]) => {
+    void (async () => {
+      try {
+        const [s, d] = await Promise.all([
+          fetchFleetSummary(orgId, since),
+          fetchFleetDaily(orgId, since),
+        ]);
         if (cancelled) return;
         setSummary(s);
         setDaily(d);
-      })
-      .catch((err) => console.error('Failed to load fleet dashboard:', err))
-      .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
-        setLoadedOnce(true);
-      });
+      } catch (err) {
+        console.error('Failed to load fleet dashboard:', err);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          setLoadedOnce(true);
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -255,29 +270,16 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
               ) : (
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={series} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <AreaChart data={series} margin={trendChartMargin}>
                       <defs>
                         <linearGradient id="fleetRevenue" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
                           <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#1e293b" />
-                      <XAxis
-                        dataKey="label"
-                        stroke="#475569"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        dy={10}
-                      />
-                      <YAxis
-                        stroke="#475569"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        dx={-10}
-                      />
+                      <CartesianGrid {...trendChartGrid} />
+                      <XAxis {...trendTimeAxis} dy={10} />
+                      <YAxis {...trendValueAxis} dx={-10} />
                       <Tooltip content={<TrendTooltip currency={cur} />} />
                       <Area
                         type="monotone"
@@ -353,6 +355,9 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
   );
 }
 
+/**
+ * One headline figure on the fleet dashboard, with its label and icon.
+ */
 function KpiTile({
   label,
   value,

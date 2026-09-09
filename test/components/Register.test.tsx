@@ -11,10 +11,20 @@ import { useHeldOrderStore } from '../../src/stores/heldOrderStore';
 import { useShiftStore } from '../../src/stores/shiftStore';
 import { Product, Customer, StoreSettings, PrinterConfig } from '../../src/types';
 import { askText } from '../../src/lib/utils/ui';
+import { printReceipt, printKitchenTickets } from '../../src/lib/printing/hardwarePrint';
 
 vi.mock('../../src/lib/utils/ui', () => ({
   askText: vi.fn(),
   askConfirmation: vi.fn(),
+  // Reached once autoPrintOnCheckout is on, which the printing test below needs.
+  notify: vi.fn(),
+}));
+
+vi.mock('../../src/lib/printing/hardwarePrint', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/lib/printing/hardwarePrint')>()),
+  printReceipt: vi.fn(),
+  printKitchenTickets: vi.fn(),
+  openCashDrawer: vi.fn(),
 }));
 
 // Checkout is the highest-consequence flow in the app and had no component
@@ -249,5 +259,46 @@ describe('Register — held orders', () => {
     // Back in the cart, and off the held list.
     await waitFor(() => expect(within(cart()).getByText('$4.40')).toBeInTheDocument());
     expect(useHeldOrderStore.getState().heldOrders).toHaveLength(0);
+  });
+});
+
+describe('Register — checkout printing', () => {
+  // A checkout can produce a receipt and a kitchen ticket, and on most counters
+  // both leave the same serial port or spooler queue. Started independently
+  // their byte streams interleave and both documents come out garbled, so the
+  // receipt has to finish before the ticket starts.
+  it('does not start the kitchen ticket until the receipt has finished', async () => {
+    useSettingsStore.setState({
+      settings: SETTINGS,
+      printerConfig: { ...PRINTER, autoPrintOnCheckout: true, kitchenTicketOnCheckout: true },
+    });
+
+    const order: string[] = [];
+    let releaseReceipt: (() => void) | undefined;
+    vi.mocked(printReceipt).mockImplementation(async () => {
+      order.push('receipt:start');
+      await new Promise<void>((resolve) => {
+        releaseReceipt = resolve;
+      });
+      order.push('receipt:end');
+      return 'printed';
+    });
+    vi.mocked(printKitchenTickets).mockImplementation(async () => {
+      order.push('ticket:start');
+      return 'printed';
+    });
+
+    render(<Register />);
+    await addToCart('Latte');
+    await checkout();
+    await complete();
+
+    // Receipt is in flight; the ticket must not have been dispatched behind it.
+    await waitFor(() => expect(order).toContain('receipt:start'));
+    expect(order).not.toContain('ticket:start');
+
+    releaseReceipt?.();
+    await waitFor(() => expect(order).toContain('ticket:start'));
+    expect(order).toEqual(['receipt:start', 'receipt:end', 'ticket:start']);
   });
 });

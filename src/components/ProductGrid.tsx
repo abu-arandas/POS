@@ -41,6 +41,27 @@ interface SortableProductCardProps {
   index: number;
 }
 
+/**
+ * Stand-in artwork for a product with no image, picked from its category name.
+ * Module scope, not a closure in the card: it depends on nothing the card knows
+ * and every card would otherwise rebuild it on each render.
+ */
+function getCategoryEmoji(catName: string): string {
+  const n = catName.toLowerCase();
+  if (n.includes('coffee') || n.includes('drink') || n.includes('beverage')) return '☕';
+  if (n.includes('bak') || n.includes('bread') || n.includes('cake')) return '🥐';
+  if (n.includes('sandwich') || n.includes('food') || n.includes('burger')) return '🥪';
+  if (n.includes('snack') || n.includes('chip')) return '🍿';
+  if (n.includes('tech') || n.includes('electronic')) return '📱';
+  if (n.includes('apparel') || n.includes('shirt')) return '👕';
+  return '📦';
+}
+
+/**
+ * One product card in the register grid. Tapping it adds the product to the
+ * cart; in edit mode it is a drag handle instead. Memoised because a cart
+ * change re-renders the grid and only the affected card's quantity moves.
+ */
 const SortableProductCard = memo(function SortableProductCard({
   prod,
   isEditMode,
@@ -73,17 +94,6 @@ const SortableProductCard = memo(function SortableProductCard({
   const imageUrl = safeImageUrl(prod.image);
   const showProductImages = useSettingsStore((s) => s.showProductImages);
   const { t } = useTranslation();
-
-  const getCategoryEmoji = (catName: string) => {
-    const n = catName.toLowerCase();
-    if (n.includes('coffee') || n.includes('drink') || n.includes('beverage')) return '☕';
-    if (n.includes('bak') || n.includes('bread') || n.includes('cake')) return '🥐';
-    if (n.includes('sandwich') || n.includes('food') || n.includes('burger')) return '🥪';
-    if (n.includes('snack') || n.includes('chip')) return '🍿';
-    if (n.includes('tech') || n.includes('electronic')) return '📱';
-    if (n.includes('apparel') || n.includes('shirt')) return '👕';
-    return '📦';
-  };
 
   return (
     <motion.div
@@ -186,7 +196,7 @@ const SortableProductCard = memo(function SortableProductCard({
               onError={() => setImgError(true)}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-slate-800/40 to-slate-900/40">
+            <div className="size-full flex items-center justify-center bg-linear-to-br from-slate-800/40 to-slate-900/40">
               <span
                 className={`text-4xl transition-transform duration-400 opacity-70 ${isUnavailable ? '' : 'group-hover:scale-110 group-hover:rotate-6'}`}
               >
@@ -225,6 +235,11 @@ const SortableProductCard = memo(function SortableProductCard({
   );
 });
 
+/**
+ * The register's product picker: category filter, search, and the card grid
+ * itself. In edit mode the cards become draggable and their order is saved
+ * back to the catalog.
+ */
 const ProductGrid = ({
   selectedCategory,
   setSelectedCategory,

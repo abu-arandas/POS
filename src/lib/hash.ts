@@ -37,15 +37,15 @@ function sha256BytesSync(msg: Uint8Array): Uint8Array {
   const w = new Array<number>(64);
 
   for (let offset = 0; offset < padded.length; offset += 64) {
-    for (let i = 0; i < 16; i++) w[i] = view.getUint32(offset + i * 4);
-    for (let i = 16; i < 64; i++) {
+    for (let i = 0; i < 16; i += 1) w[i] = view.getUint32(offset + i * 4);
+    for (let i = 16; i < 64; i += 1) {
       const s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
       const s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
       w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
     }
 
     let [a, b, c, d, e, f, g, hh] = h;
-    for (let i = 0; i < 64; i++) {
+    for (let i = 0; i < 64; i += 1) {
       const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
       const ch = (e & f) ^ (~e & g);
       const temp1 = (hh + S1 + ch + K[i] + w[i]) >>> 0;
@@ -107,7 +107,7 @@ const SALT_PREFIX = 'ea-pos-pin-salt:';
 
 function hexToBytes(hex: string): Uint8Array {
   const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < bytes.length; i++)
+  for (let i = 0; i < bytes.length; i += 1)
     bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   return bytes;
 }
@@ -136,10 +136,14 @@ async function pbkdf2Sha256Async(pin: string, salt: Uint8Array): Promise<Uint8Ar
   new DataView(block.buffer).setUint32(0, 1);
   let u = hmacSha256Sync(password, concatBytes(salt, block));
   const result = u.slice();
-  for (let iteration = 1; iteration < PBKDF2_ITERATIONS; iteration++) {
+  for (let iteration = 1; iteration < PBKDF2_ITERATIONS; iteration += 1) {
     u = hmacSha256Sync(password, u);
-    for (let i = 0; i < result.length; i++) result[i] ^= u[i];
-    if (iteration % 2_000 === 0) await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    for (let i = 0; i < result.length; i += 1) result[i] ^= u[i];
+    if (iteration % 2_000 === 0) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
+    }
   }
   return result;
 }
@@ -150,9 +154,9 @@ function pbkdf2Sha256Sync(pin: string, salt: Uint8Array): Uint8Array {
   new DataView(block.buffer).setUint32(0, 1);
   let u = hmacSha256Sync(password, concatBytes(salt, block));
   const result = u.slice();
-  for (let iteration = 1; iteration < PBKDF2_ITERATIONS; iteration++) {
+  for (let iteration = 1; iteration < PBKDF2_ITERATIONS; iteration += 1) {
     u = hmacSha256Sync(password, u);
-    for (let i = 0; i < result.length; i++) result[i] ^= u[i];
+    for (let i = 0; i < result.length; i += 1) result[i] ^= u[i];
   }
   return result;
 }

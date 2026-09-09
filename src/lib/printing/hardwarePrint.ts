@@ -14,21 +14,26 @@ import { buildReceiptDoc, buildKitchenDoc, docStrings } from './receiptDoc';
 import { renderReceiptRaster, ensureReceiptFont, loadReceiptLogo } from './receiptCanvas';
 import { needsRaster } from './escposRaster';
 
-// Chooses between the two ESC/POS encodings.
-//
-// The text path is compact and fast, but EscPosBuilder.text() can only emit
-// bytes below 0x80 — everything else becomes '?'. So the moment a receipt
-// carries Arabic (or an accented name, or a £), it has to go out as a bitmap
-// instead. Pure-ASCII receipts are unaffected and keep the text path.
-//
-// A store logo forces the same choice for the same underlying reason. The text
-// path has no image command at all, so a receipt carrying a logo the operator
-// switched on can only honor it as a bitmap. Only an actual uploaded image
-// counts: with no src there is nothing to draw, and rastering a receipt to add
-// nothing would cost every English till the larger, slower path for free.
-//
-// Returns null when the text path is fine, or when the raster cannot be
-// produced (no DOM/canvas), so callers fall back cleanly.
+/**
+ * Renders the receipt to a bitmap and encodes it, but only when text alone
+ * will not do: a store logo to draw, or a script the printer's own font
+ * cannot render. Returns null to mean the plain text path is fine, which is
+ * faster and far kinder to the paper.
+ *
+ * The text path is compact and fast, but EscPosBuilder.text() can only emit
+ * bytes below 0x80 — everything else becomes '?'. So the moment a receipt
+ * carries Arabic (or an accented name, or a £), it has to go out as a bitmap
+ * instead. Pure-ASCII receipts are unaffected and keep the text path.
+ *
+ * A store logo forces the same choice for the same underlying reason. The text
+ * path has no image command at all, so a receipt carrying a logo the operator
+ * switched on can only honor it as a bitmap. Only an actual uploaded image
+ * counts: with no src there is nothing to draw, and rastering a receipt to add
+ * nothing would cost every English till the larger, slower path for free.
+ *
+ * Returns null when the text path is fine, or when the raster cannot be
+ * produced (no DOM/canvas), so callers fall back cleanly.
+ */
 async function rasterBytesIfNeeded(
   rows: ReturnType<typeof buildReceiptDoc>,
   paperSize: PrinterConfig['paperSize'],
@@ -68,10 +73,14 @@ interface WebSerial {
   requestPort(): Promise<WebSerialPort>;
 }
 
-// Web Serial API (Chromium/Electron). Prompts the operator to pick the port on
-// first use; writes the raw ESC/POS stream.
+/**
+ * Sends raw ESC/POS bytes over Web Serial (Chromium and Electron only),
+ * prompting the operator to pick the port on first use. Always closes the port
+ * it opened, so a failed print does not leave the device claimed and unusable
+ * until the page reloads.
+ */
 async function printSerial(bytes: Uint8Array, baudRate = 9600): Promise<HardwarePrintOutcome> {
-  const serial = (navigator as unknown as { serial?: WebSerial }).serial;
+  const { serial } = navigator as unknown as { serial?: WebSerial };
   if (!serial) return 'unsupported';
 
   let port: WebSerialPort | undefined;
@@ -120,8 +129,11 @@ async function printNetwork(bytes: Uint8Array, ip: string): Promise<HardwarePrin
   }
 }
 
-// Named local/USB Windows printer via the spooler (RAW ESC/POS). Silent, and it
-// carries the cash-drawer pulse. No-op outside Electron/Windows.
+/**
+ * Sends raw ESC/POS bytes to a named local/USB Windows printer through the
+ * spooler. Silent, and the cash-drawer pulse rides along in the byte stream.
+ * Unsupported outside Electron on Windows, which has no way to reach it.
+ */
 async function printRawWindows(
   bytes: Uint8Array,
   printerName: string,
@@ -137,8 +149,11 @@ async function printRawWindows(
   }
 }
 
-// Silent OS print of a receipt HTML document (no dialog) via Electron. Returns
-// null when not available so the caller can fall back to the print window.
+/**
+ * Prints HTML through the desktop app, with no dialog. Returns null — not a
+ * failure — in a plain browser, which tells the caller to fall back to the
+ * print-window path rather than report a broken printer.
+ */
 async function printHtmlSilent(
   html: string,
   deviceName?: string,
@@ -224,38 +239,33 @@ export async function printKitchenTicket(
   layout?: ReceiptLayout,
   printerOverride?: string,
 ): Promise<HardwarePrintOutcome> {
+  // Every byte-stream transport below sends the same ticket; only where it goes
+  // differs. Rasterised when the layout needs a bitmap, otherwise plain ESC/POS
+  // text, and never with the drawer pulse — a kitchen ticket takes no money.
+  const ticketBytes = async () =>
+    (await rasterBytesIfNeeded(
+      buildKitchenDoc(tx, settings, stationName, layout),
+      printerConfig.paperSize,
+      false,
+    )) ?? encodeKitchenTicket(tx, settings, printerConfig, stationName, layout);
+
   // A station pinned to a named OS printer goes through the RAW spooler,
   // whatever the terminal's own transport is. Checked before ipOverride only
   // when no IP is set, so an existing network station keeps its behaviour.
   if (!ipOverride && printerOverride) {
-    const raster = await rasterBytesIfNeeded(
-      buildKitchenDoc(tx, settings, stationName, layout),
-      printerConfig.paperSize,
-      false,
-    );
-    const bytes = raster ?? encodeKitchenTicket(tx, settings, printerConfig, stationName, layout);
+    const bytes = await ticketBytes();
     return printRawWindows(bytes, printerOverride);
   }
   // A station with its own network printer always goes over the network,
   // regardless of the terminal's default transport.
   if (ipOverride) {
-    const raster = await rasterBytesIfNeeded(
-      buildKitchenDoc(tx, settings, stationName, layout),
-      printerConfig.paperSize,
-      false, // a kitchen ticket never kicks the drawer
-    );
-    const bytes = raster ?? encodeKitchenTicket(tx, settings, printerConfig, stationName, layout);
+    const bytes = await ticketBytes();
     return printNetwork(bytes, ipOverride);
   }
 
   if (printerConfig.type === 'windows') {
     if (!printerConfig.printerName) return 'no-device';
-    const raster = await rasterBytesIfNeeded(
-      buildKitchenDoc(tx, settings, stationName, layout),
-      printerConfig.paperSize,
-      false,
-    );
-    const bytes = raster ?? encodeKitchenTicket(tx, settings, printerConfig, stationName, layout);
+    const bytes = await ticketBytes();
     return printRawWindows(bytes, printerConfig.printerName);
   }
 
@@ -269,12 +279,7 @@ export async function printKitchenTicket(
     return outcome === 'popup-blocked' ? 'popup-blocked' : 'printed';
   }
 
-  const raster = await rasterBytesIfNeeded(
-    buildKitchenDoc(tx, settings, stationName, layout),
-    printerConfig.paperSize,
-    false,
-  );
-  const bytes = raster ?? encodeKitchenTicket(tx, settings, printerConfig, stationName, layout);
+  const bytes = await ticketBytes();
   if (printerConfig.type === 'serial') return printSerial(bytes, printerConfig.baudRate);
   if (printerConfig.type === 'network') {
     if (!printerConfig.ipAddress) return 'no-device';
@@ -304,6 +309,8 @@ export async function printKitchenTickets(
 
   const tickets = routeKitchenTickets(tx, stations, categoryOf);
   let worst: HardwarePrintOutcome = 'printed';
+  // Sequential on purpose: stations often share one spooler or serial port, and
+  // interleaving byte streams there prints two tickets on top of each other.
   for (const ticket of tickets) {
     const stationTx: SaleTransaction = { ...tx, items: ticket.items };
     const outcome = await printKitchenTicket(

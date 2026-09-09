@@ -56,6 +56,10 @@ export function RefundModal({
   const cardRef = useModalA11y(true, onClose);
   const needsOverride = !currentUser || currentUser.role === 'cashier';
 
+  /**
+   * Checks a manager PIN against the refund the cashier is not allowed to
+   * make on their own, and commits it when the PIN is accepted.
+   */
   const handleAuthorizeOverride = async () => {
     setOverrideError('');
     // The override accepts ANY manager/admin PIN, so it is the widest PIN
@@ -87,6 +91,10 @@ export function RefundModal({
     );
   };
 
+  /**
+   * Advances the refund: from choosing lines to confirming them, then either
+   * asking for a manager override or committing the return.
+   */
   const handleProcessRefund = () => {
     const totalQty = Object.values(selection).reduce((sum, qty) => sum + Math.max(0, qty), 0);
     if (totalQty <= 0) return;
@@ -100,6 +108,11 @@ export function RefundModal({
     }
   };
 
+  /**
+   * The money and points this selection would return, shown before the
+   * operator commits. Computed by the same function that performs the refund,
+   * so what is displayed is what will be recorded.
+   */
   const renderRefundAmounts = () => {
     const computed = computeRefund(
       transaction,
@@ -199,7 +212,7 @@ export function RefundModal({
                           })
                         }
                         aria-label={`${t('history.decreaseRefundQty')} — ${item.productName}`}
-                        className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-rose-500/20 hover:text-rose-400"
+                        className="size-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-rose-500/20 hover:text-rose-400"
                       >
                         <Minus size={14} />
                       </button>
@@ -214,7 +227,7 @@ export function RefundModal({
                           })
                         }
                         aria-label={`${t('history.increaseRefundQty')} — ${item.productName}`}
-                        className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-emerald-500/20 hover:text-emerald-400"
+                        className="size-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-emerald-500/20 hover:text-emerald-400"
                       >
                         <Plus size={14} />
                       </button>

@@ -25,26 +25,40 @@ export function stampStoreId<T extends object>(records: T[], storeId?: string): 
  */
 export const PULL_PAGE_SIZE = 1000;
 
-// Paged by primary key, not by offset.
-//
-// `.range(from, to)` counts rows from the start of the result on each request,
-// so anything inserted or deleted before a later page shifts every offset after
-// it — a sale rung up mid-pull slides one row across the page boundary and it is
-// either fetched twice or missed entirely. Pulls are not short (they walk the
-// whole table) and the register is writing the whole time, so that window is
-// wide open in normal use. Because the result then *replaces* local state, a
-// dropped row is not a stale read, it is data destroyed.
-//
-// Keying each page off the last id seen has no such window: rows before the
-// cursor cannot move it, and inserts land on a page that has not been read yet.
-//
-// Two further details:
-//
-//   * Stop on an empty page, not a short one. A short page is exactly what a
-//     server-side row cap (Supabase's `max-rows`) looks like, and treating it
-//     as the end would silently truncate the pull.
-//   * `id` is the primary key on every synced table, so it is unique and stable
-//     — the two properties a keyset cursor needs.
+/**
+ * Reads an entire table through a keyset cursor, page by page, and returns
+ * every row. `page` runs one request for the given cursor and limit.
+ *
+ * Paged by primary key, not by offset.
+ *
+ * `.range(from, to)` counts rows from the start of the result on each request,
+ * so anything inserted or deleted before a later page shifts every offset after
+ * it — a sale rung up mid-pull slides one row across the page boundary and it is
+ * either fetched twice or missed entirely. Pulls are not short (they walk the
+ * whole table) and the register is writing the whole time, so that window is
+ * wide open in normal use. Because the result then *replaces* local state, a
+ * dropped row is not a stale read, it is data destroyed.
+ *
+ * Keying each page off the last id seen closes that window: a row's id does not
+ * change, so no row can slide across a page boundary, and every row present for
+ * the whole pull is returned exactly once.
+ *
+ * What it does not promise is a snapshot. Ids here are random (`crypto.randomUUID`,
+ * or the `shortId` fallback), not monotonic, so a row inserted mid-pull lands
+ * before the cursor as often as after it, and the half that lands before is not
+ * seen until the next pull. That is the right trade: pulls are periodic, so the
+ * row arrives moments later, and the alternative — missing a row that existed
+ * when the pull started, whose absence then *deletes* it locally — is the one
+ * that loses data.
+ *
+ * Two further details:
+ *
+ *   * Stop on an empty page, not a short one. A short page is exactly what a
+ *     server-side row cap (Supabase's `max-rows`) looks like, and treating it
+ *     as the end would silently truncate the pull.
+ *   * `id` is the primary key on every synced table, so it is unique and stable
+ *     — the two properties a keyset cursor needs.
+ */
 export async function fetchAllPages<Row extends { id: string }>(
   page: (
     afterId: string | null,
@@ -53,6 +67,8 @@ export async function fetchAllPages<Row extends { id: string }>(
 ): Promise<Row[]> {
   const rows: Row[] = [];
   let afterId: string | null = null;
+  // Necessarily sequential: each request's cursor is the last id of the page
+  // before it, so there is nothing to overlap.
   for (;;) {
     const { data, error } = await page(afterId, PULL_PAGE_SIZE);
     if (error) throw error;
@@ -103,6 +119,9 @@ export async function deleteRowsSupabase(
 ): Promise<boolean> {
   if (ids.length === 0) return true;
   let failedRows = 0;
+  // One chunk at a time: a bulk delete triggered by "Delete All Transactions"
+  // can be thousands of rows, and firing every chunk at once is what the
+  // chunking exists to avoid.
   for (let i = 0; i < ids.length; i += DELETE_CHUNK_SIZE) {
     const chunk = ids.slice(i, i + DELETE_CHUNK_SIZE);
     try {

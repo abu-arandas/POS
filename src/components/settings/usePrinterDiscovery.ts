@@ -45,11 +45,14 @@ export function usePrinterDiscovery(
   useEffect(() => {
     if (activeTab !== 'printer') return;
     let cancelled = false;
-    detectPrinters()
-      .then((list) => {
+    void (async () => {
+      try {
+        const list = await detectPrinters();
         if (!cancelled) setDetectedPrinters(list);
-      })
-      .catch((error) => console.error('Printer detection failed:', error));
+      } catch (error) {
+        console.error('Printer detection failed:', error);
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -75,16 +78,19 @@ export function usePrinterDiscovery(
   useEffect(() => {
     if (activeTab !== 'printer' || !autoScanPrinters || !networkScanSupported()) return;
     let cancelled = false;
-    scanNetworkPrinters()
-      .then((list) => {
+    void (async () => {
+      try {
+        const list = await scanNetworkPrinters();
         if (!cancelled && list.length > 0) {
           setDetectedPrinters((previous) => [
             ...previous.filter((printer) => printer.kind !== 'network'),
             ...list,
           ]);
         }
-      })
-      .catch((error) => console.error('Auto network-printer scan failed:', error));
+      } catch (error) {
+        console.error('Auto network-printer scan failed:', error);
+      }
+    })();
     return () => {
       cancelled = true;
     };

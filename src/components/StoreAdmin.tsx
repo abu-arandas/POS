@@ -13,8 +13,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { askConfirmation } from '../lib/utils/ui';
-import { notify } from '../lib/utils/ui';
+import { askConfirmation, notify } from '../lib/utils/ui';
 import { Store, Membership, Role } from '../types';
 import {
   listStores,
@@ -80,16 +79,18 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([listStores(orgId), listMemberships(orgId)])
-      .then(([s, m]) => {
+    void (async () => {
+      try {
+        const [s, m] = await Promise.all([listStores(orgId), listMemberships(orgId)]);
         if (cancelled) return;
         setStores(s);
         setMembers(m);
-      })
-      .catch((err) => console.error('Failed to load stores:', err))
-      .finally(() => {
+      } catch (err) {
+        console.error('Failed to load stores:', err);
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -106,6 +107,11 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
     return map;
   }, [members]);
 
+  /**
+   * Validates and saves the store form, creating a store or updating one. A
+   * new store's id is derived from the org and name, so it stays readable in
+   * the fleet views rather than being an opaque key.
+   */
   const saveStore = async () => {
     if (!draft) return;
     const errs = validateStoreForm(draft);
@@ -142,6 +148,10 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
     await reload();
   };
 
+  /**
+   * Suspends an active store, or reactivates a suspended one. Suspending asks
+   * first — a suspended store's terminals stop syncing.
+   */
   const toggleStatus = async (s: Store) => {
     if (
       s.status === 'active' &&
@@ -156,6 +166,11 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
     await reload();
   };
 
+  /**
+   * Grants a user access to one store in the given role. The id is checked
+   * against the UUID shape first: the backend would reject anything else, and
+   * a typo is much easier to explain here than as a failed round trip.
+   */
   const addMember = async (storeId: string) => {
     const uid = memberUserId.trim();
     if (!uid) return;
@@ -184,6 +199,9 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
     await reload();
   };
 
+  /**
+   * Revokes a user's access to one store, after confirmation.
+   */
   const dropMember = async (m: Membership) => {
     if (!m.storeId) return;
     if (
@@ -420,7 +438,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                         aria-label={t('storeAdmin.roleLabel')}
                         value={memberRole}
                         onChange={(e) => setMemberRole(e.target.value as Role)}
-                        className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-[11px] font-semibold px-2 py-2 rounded-lg focus:outline-none focus:border-emerald-500/40"
+                        className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-[11px] font-semibold p-2 rounded-lg focus:outline-none focus:border-emerald-500/40"
                       >
                         {ASSIGNABLE_ROLES.map((r) => (
                           <option key={r} value={r}>
@@ -464,6 +482,9 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
   );
 }
 
+/**
+ * A labelled form field with room for its validation message.
+ */
 function Field({
   label,
   error,
@@ -484,6 +505,10 @@ function Field({
   );
 }
 
+/**
+ * Square icon button used across the store rows, with a tooltip for the
+ * action it performs and a danger variant for the destructive ones.
+ */
 function IconBtn({
   children,
   title,

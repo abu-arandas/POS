@@ -39,11 +39,11 @@ export function TransactionTable({
         <table id="history-table" className="w-full text-start border-collapse table-fixed">
           <thead className="sticky top-0 z-20">
             <tr className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 shadow-sm">
-              <th className="py-4 px-4 w-12.5 text-center">
+              <th className="p-4 w-12.5 text-center">
                 <input
                   type="checkbox"
                   aria-label={t('history.selectAll')}
-                  className="rounded bg-slate-100 dark:bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500 cursor-pointer w-4 h-4"
+                  className="rounded bg-slate-100 dark:bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500 cursor-pointer size-4"
                   checked={
                     filteredTransactions.length > 0 &&
                     selectedTxIds.length === filteredTransactions.length
@@ -52,11 +52,11 @@ export function TransactionTable({
                 />
               </th>
               <th className="py-4 px-2 w-35">{t('history.receiptId')}</th>
-              <th className="py-4 px-4 w-1/4">{t('history.customer')}</th>
+              <th className="p-4 w-1/4">{t('history.customer')}</th>
               <th className="py-4 px-3 w-1/8 text-center">{t('history.items')}</th>
-              <th className="py-4 px-4 w-1/8 text-end">{t('history.total')}</th>
-              <th className="py-4 px-4 w-1/8 text-center">{t('history.payment')}</th>
-              <th className="py-4 px-4 w-30 text-center">{t('history.status')}</th>
+              <th className="p-4 w-1/8 text-end">{t('history.total')}</th>
+              <th className="p-4 w-1/8 text-center">{t('history.payment')}</th>
+              <th className="p-4 w-30 text-center">{t('history.status')}</th>
             </tr>
           </thead>
           <tbody className="text-sm font-sans text-slate-700 dark:text-slate-200">
@@ -109,11 +109,11 @@ export function TransactionTable({
                             : 'hover:bg-slate-100 dark:hover:bg-slate-800/40'
                         } ${isRefunded ? 'opacity-60' : ''}`}
                       >
-                        <td className="py-4 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             aria-label={`${t('history.selectTransaction')} ${tx.id.substring(0, 12)}`}
-                            className="rounded bg-slate-100 dark:bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500 cursor-pointer w-4 h-4"
+                            className="rounded bg-slate-100 dark:bg-slate-800 border-slate-600 text-emerald-500 focus:ring-emerald-500 cursor-pointer size-4"
                             checked={isChecked}
                             onChange={() => onToggleTx(tx.id)}
                           />
@@ -127,7 +127,7 @@ export function TransactionTable({
                             })}
                           </div>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="p-4">
                           {tx.customerName ? (
                             <span className="font-bold text-slate-900 dark:text-white">
                               {tx.customerName}
@@ -143,17 +143,17 @@ export function TransactionTable({
                             {tx.items.reduce((sum, item) => sum + item.quantity, 0)}
                           </span>
                         </td>
-                        <td className="py-4 px-4 text-end font-mono font-bold text-slate-900 dark:text-white">
+                        <td className="p-4 text-end font-mono font-bold text-slate-900 dark:text-white">
                           {currency}
                           {tx.total.toFixed(2)}
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="p-4">
                           <div className="flex items-center justify-center gap-1.5 font-mono uppercase text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 py-1 px-2 rounded-xl border border-slate-300 dark:border-slate-700">
                             <PaymentIcon method={tx.paymentMethod} />
                             <span>{tx.paymentMethod}</span>
                           </div>
                         </td>
-                        <td className="py-4 px-4 text-center">
+                        <td className="p-4 text-center">
                           <span
                             className={`badge ${isRefunded ? 'badge-rose' : isPartial ? 'badge-amber' : 'badge-emerald'}`}
                           >

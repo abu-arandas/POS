@@ -14,7 +14,10 @@ async function login(page: Page, name: string, pin: string) {
   await expect(page.locator('#register-root')).toBeVisible();
 }
 
-// Adds a product to the cart. Targets the card container by matching its text.
+/**
+ * Adds one product to the cart by clicking its card in the register grid.
+ * Matched on the card's text, so the name must be the one shown on it.
+ */
 async function addProduct(page: Page, name: string) {
   const productsGrid = page.locator('#products-grid');
   // Wait for the grid to be visible so the product cards have rendered.

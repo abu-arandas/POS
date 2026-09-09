@@ -22,7 +22,7 @@ export function BarcodeSvg({ data, options = {} }: BarcodeSvgProps) {
   let x = 0;
   let bar = true; // sequence starts with a bar
 
-  for (let i = 0; i < widths.length; i++) {
+  for (let i = 0; i < widths.length; i += 1) {
     const width = widths[i];
     if (bar) {
       rects.push(

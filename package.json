@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.3",
   "type": "module",
-  "description": "EA POS — offline-first point-of-sale for retail and café: inventory, checkout, QR digital menu server, and network thermal-printer support.",
+  "description": "EA POS \u2014 offline-first point-of-sale for retail and caf\u00e9: inventory, checkout, QR digital menu server, and network thermal-printer support.",
   "author": {
     "name": "abu-arandas",
     "email": "e00arandas@gmail.com"
@@ -83,6 +83,7 @@
   },
   "overrides": {
     "http-cache-semantics": "4.2.0",
-    "fast-uri": "3.1.7"
+    "fast-uri": "3.1.7",
+    "js-yaml": "4.3.2"
   }
 }

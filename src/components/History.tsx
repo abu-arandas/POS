@@ -89,9 +89,10 @@ export default function History() {
   };
 
   const handleToggleTx = (id: string) => {
-    setSelectedTxIds((prev) =>
-      prev.includes(id) ? prev.filter((txId) => txId !== id) : [...prev, id],
-    );
+    setSelectedTxIds((prev) => {
+      if (prev.includes(id)) return prev.filter((txId) => txId !== id);
+      return [...prev, id];
+    });
   };
 
   const confirmBulkDelete = () => {
@@ -101,6 +102,12 @@ export default function History() {
     setShowDeleteModal(false);
   };
 
+  /**
+   * Reprints every selected transaction. A system printer takes them as one
+   * job; every other transport prints them one at a time and stops at the
+   * first failure rather than queueing more work on a device already in
+   * trouble.
+   */
   const handleBulkPrint = async () => {
     const txsToPrint = transactions.filter((tx) => selectedTxIds.includes(tx.id));
     if (printerConfig.type === 'system') {
@@ -108,6 +115,8 @@ export default function History() {
       if (outcome === 'popup-blocked') notify(t('history.standardPrintBlocked'));
       return;
     }
+    // Sequential on purpose: one printer, and a failure stops the run rather
+    // than firing the rest of the batch at a device that is already unhappy.
     for (const tx of txsToPrint) {
       const outcome = await printReceipt(tx, settings, printerConfig, false, receiptLayout);
       if (outcome !== 'printed') {
@@ -118,9 +127,10 @@ export default function History() {
   };
 
   const togglePaymentFilter = (method: string) => {
-    setPaymentFilter((prev) =>
-      prev.includes(method) ? prev.filter((m) => m !== method) : [...prev, method],
-    );
+    setPaymentFilter((prev) => {
+      if (prev.includes(method)) return prev.filter((m) => m !== method);
+      return [...prev, method];
+    });
   };
 
   const exportCsv = () => {

@@ -61,18 +61,20 @@ class EscPosBuilder {
   drawerKick() {
     return this.raw(ESC, 0x70, 0x00, 0x19, 0xfa);
   } // pulse pin 2
-  // Native Code128 (code set B) barcode with the human-readable value printed
-  // below it, using the printer's built-in barcode engine.
-  //
-  // The module width is chosen to fit the roll rather than fixed at 2 dots. It
-  // was fixed, and the comment here used to claim the result was "always sharp
-  // and scannable regardless of paper width" — it was not. A `TX-` prefix plus
-  // an uppercased UUID is 464 modules, which at 2 dots is 928 dots of bars
-  // against a 384-dot 58mm head. The printer has nowhere to put them.
-  //
-  // Returns false when no width in the GS w range fits, so the caller can print
-  // the value as plain text instead. A receipt that carries a typeable id beats
-  // one carrying bars that cannot be read.
+  /**
+   * Native Code128 (code set B) barcode with the human-readable value printed
+   * below it, using the printer's built-in barcode engine.
+   *
+   * The module width is chosen to fit the roll rather than fixed at 2 dots. It
+   * was fixed, and the comment here used to claim the result was "always sharp
+   * and scannable regardless of paper width" — it was not. A `TX-` prefix plus
+   * an uppercased UUID is 464 modules, which at 2 dots is 928 dots of bars
+   * against a 384-dot 58mm head. The printer has nowhere to put them.
+   *
+   * Returns false when no width in the GS w range fits, so the caller can print
+   * the value as plain text instead. A receipt that carries a typeable id beats
+   * one carrying bars that cannot be read.
+   */
   barcode128(value: string, availableDots: number): boolean {
     // GS w accepts 2..6. The engine cannot draw a one-dot module, which is the
     // one place this differs from the raster path.
@@ -105,13 +107,15 @@ function twoCol(left: string, right: string, width: number): string {
   return left + ' '.repeat(space) + right;
 }
 
-// Renders the shared receipt document (receiptDoc.ts) as ESC/POS text.
-//
-// This is the compact, fast path, and it is limited to what a printer's default
-// codepage can express — text() below drops anything above 0x7F. Receipts that
-// carry other scripts go out as a bitmap instead; see escposRaster.ts. Both
-// paths now describe the receipt from the same DocRow list, so a layout toggle
-// or a label change lands on both without being written twice.
+/**
+ * Renders the shared receipt document (receiptDoc.ts) as ESC/POS text.
+ *
+ * This is the compact, fast path, and it is limited to what a printer's default
+ * codepage can express — text() below drops anything above 0x7F. Receipts that
+ * carry other scripts go out as a bitmap instead; see escposRaster.ts. Both
+ * paths now describe the receipt from the same DocRow list, so a layout toggle
+ * or a label change lands on both without being written twice.
+ */
 function renderDoc(rows: DocRow[], width: number, b: EscPosBuilder, availableDots: number): void {
   for (const row of rows) {
     switch (row.kind) {

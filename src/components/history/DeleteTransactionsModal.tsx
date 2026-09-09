@@ -33,7 +33,7 @@ export function DeleteTransactionsModal({
         exit={{ scale: 0.95, opacity: 0 }}
         className="modal-card max-w-sm w-full p-6 text-center"
       >
-        <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="size-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
           <AlertTriangle size={32} />
         </div>
         <h3 id="delete-tx-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">

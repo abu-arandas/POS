@@ -36,7 +36,7 @@ export function OperatorPanel({ rows, currency }: OperatorPanelProps) {
             const max = rows[0].revenue || 1;
             return (
               <div key={idx} className="flex items-center gap-4">
-                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs shrink-0">
+                <div className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs shrink-0">
                   {op.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">

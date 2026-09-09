@@ -38,6 +38,10 @@ export interface InventoryProductsTabProps {
   onDeleteProduct(id: string): void;
 }
 
+/**
+ * Inventory's products tab: the searchable, filterable catalog table with
+ * its stock summary.
+ */
 export function InventoryProductsTab({
   t,
   products,
@@ -158,7 +162,7 @@ export function InventoryProductsTab({
               <tr className="bg-white/90 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 sticky top-0 z-10 backdrop-blur-md">
                 <th className="py-4 px-6 w-1/4">{t('inventory.productDetails')}</th>
                 <th
-                  className="py-4 px-4 w-1/8"
+                  className="p-4 w-1/8"
                   aria-sort={
                     sortBy === 'sku'
                       ? sortOrder === 'asc'
@@ -174,9 +178,9 @@ export function InventoryProductsTab({
                     {t('inventory.sku')} <ArrowUpDown size={12} />
                   </button>
                 </th>
-                <th className="py-4 px-4 w-1/6">{t('inventory.category').replace(':', '')}</th>
+                <th className="p-4 w-1/6">{t('inventory.category').replace(':', '')}</th>
                 <th
-                  className="py-4 px-4 w-1/8 text-end"
+                  className="p-4 w-1/8 text-end"
                   aria-sort={
                     sortBy === 'price'
                       ? sortOrder === 'asc'
@@ -192,8 +196,8 @@ export function InventoryProductsTab({
                     {t('inventory.price')} <ArrowUpDown size={12} />
                   </button>
                 </th>
-                <th className="py-4 px-4 w-1/8 text-end">{t('inventory.cost')}</th>
-                <th className="py-4 px-4 w-1/8 text-end">{t('inventory.margin')}</th>
+                <th className="p-4 w-1/8 text-end">{t('inventory.cost')}</th>
+                <th className="p-4 w-1/8 text-end">{t('inventory.margin')}</th>
                 <th
                   className="py-4 px-6 w-1/6 text-center"
                   aria-sort={
@@ -211,7 +215,7 @@ export function InventoryProductsTab({
                     {t('inventory.stock')} <ArrowUpDown size={12} />
                   </button>
                 </th>
-                <th className="py-4 px-4 w-25 text-center">{t('inventory.actions')}</th>
+                <th className="p-4 w-25 text-center">{t('inventory.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-sm text-slate-700 dark:text-slate-200">
@@ -238,12 +242,12 @@ export function InventoryProductsTab({
                     >
                       <td className="py-4 px-6 flex items-center gap-4 truncate">
                         {showProductImages && (
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center text-xl">
+                          <div className="size-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center text-xl">
                             {safeImageUrl(prod.image) ? (
                               <img
                                 src={safeImageUrl(prod.image)}
                                 alt={prod.name}
-                                className="w-full h-full object-cover"
+                                className="size-full object-cover"
                                 referrerPolicy="no-referrer"
                               />
                             ) : (
@@ -260,23 +264,23 @@ export function InventoryProductsTab({
                           </span>
                         </div>
                       </td>
-                      <td className="py-4 px-4 font-mono text-xs truncate text-slate-500 dark:text-slate-400">
+                      <td className="p-4 font-mono text-xs truncate text-slate-500 dark:text-slate-400">
                         {prod.sku}
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="p-4">
                         <span className={getProductCategoryColor(prod.category)}>
                           {getProductCategoryName(prod.category)}
                         </span>
                       </td>
-                      <td className="py-4 px-4 font-mono font-bold text-slate-900 dark:text-white text-end">
+                      <td className="p-4 font-mono font-bold text-slate-900 dark:text-white text-end">
                         {settings.currency}
                         {prod.price.toFixed(2)}
                       </td>
-                      <td className="py-4 px-4 font-mono text-slate-500 dark:text-slate-400 text-end">
+                      <td className="p-4 font-mono text-slate-500 dark:text-slate-400 text-end">
                         {settings.currency}
                         {prod.cost.toFixed(2)}
                       </td>
-                      <td className="py-4 px-4 text-end font-mono font-medium">
+                      <td className="p-4 text-end font-mono font-medium">
                         <span
                           className={
                             margin >= 50 ? 'text-emerald-400' : 'text-slate-500 dark:text-slate-400'
@@ -301,7 +305,7 @@ export function InventoryProductsTab({
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="p-4">
                         <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                           <button
                             onClick={() => onEditProduct(prod)}
@@ -342,14 +346,14 @@ export function InventoryProductsTab({
           </span>
           <span className="flex items-center gap-6">
             <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+              <span className="size-2 rounded-full bg-amber-500"></span>
               {t('inventory.lowStock')}:{' '}
               <strong className="text-amber-400 ms-1">
                 {products.filter((p) => p.stock <= p.minStock && p.stock > 0).length}
               </strong>
             </span>
             <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+              <span className="size-2 rounded-full bg-rose-500"></span>
               {t('inventory.outOfStock')}:{' '}
               <strong className="text-rose-400 ms-1">
                 {products.filter((p) => p.stock <= 0).length}

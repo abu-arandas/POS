@@ -1,4 +1,4 @@
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import {
   getSupabaseClient,
   signInDevice,
@@ -31,7 +31,41 @@ let channel: RealtimeChannel | null = null;
 let timers: Record<string, ReturnType<typeof setTimeout>> = {};
 let generation = 0;
 
-const SYNCED_TABLES = ['products', 'categories', 'customers', 'transactions', 'user_accounts'];
+/**
+ * Pull for each synced table, resolved into the write it *would* perform rather
+ * than performing it. That leaves the caller a place to stand between the await
+ * and the store, which is the one window `clearTimeout` cannot close: a pull
+ * already past its timeout is mid-flight and will otherwise write whatever it
+ * returns, however stale by then.
+ *
+ * Returns null when the pull failed, meaning: leave the local rows alone.
+ */
+const PULL_INTO_STORE = {
+  products: async (client: SupabaseClient, storeId?: string) => {
+    const rows = await pullProducts(client, storeId);
+    return rows ? () => useProductStore.getState().setProducts(rows) : null;
+  },
+  categories: async (client: SupabaseClient, storeId?: string) => {
+    const rows = await pullCategories(client, storeId);
+    return rows ? () => useProductStore.getState().setCategories(rows) : null;
+  },
+  customers: async (client: SupabaseClient, storeId?: string) => {
+    const rows = await pullCustomers(client, storeId);
+    return rows ? () => useCustomerStore.getState().setCustomers(rows) : null;
+  },
+  transactions: async (client: SupabaseClient, storeId?: string) => {
+    const rows = await pullTransactions(client, storeId);
+    return rows ? () => useTransactionStore.getState().setTransactions(rows) : null;
+  },
+  user_accounts: async (client: SupabaseClient, storeId?: string) => {
+    const rows = await pullUserAccounts(client, storeId);
+    return rows ? () => useAuthStore.getState().setUsers(rows) : null;
+  },
+} as const;
+
+type SyncedTable = keyof typeof PULL_INTO_STORE;
+
+const SYNCED_TABLES = Object.keys(PULL_INTO_STORE) as SyncedTable[];
 
 /**
  * Subscribes to Postgres changes on the synced tables and mirrors them into the
@@ -65,7 +99,12 @@ export async function startRealtimeSync(): Promise<boolean> {
   // here to the channel assignment below.
   if (myGeneration !== generation) return false;
 
-  const refresh = (table: string) => {
+  /**
+   * Queues a debounced re-pull of one table after a change arrives. Debounced
+   * because a single operation on another terminal can produce a burst of
+   * row events, and each of them would otherwise be a separate round trip.
+   */
+  const refresh = (table: SyncedTable) => {
     // A channel can still deliver after unsubscribe(). Without this, a stale
     // subscription's handler would reach into the shared timer map and cancel
     // the live subscription's pending pull.
@@ -73,27 +112,8 @@ export async function startRealtimeSync(): Promise<boolean> {
     clearTimeout(timers[table]);
     timers[table] = setTimeout(async () => {
       // Re-read the store scope each pull so it tracks config changes.
-      const storeId = useSettingsStore.getState().storeId;
-      // Each branch resolves its pull into the write it would perform, rather
-      // than performing it, so the staleness check below sits between the
-      // await and the store — the one window clearTimeout cannot close.
-      let apply: (() => void) | null = null;
-      if (table === 'products') {
-        const d = await pullProducts(client, storeId);
-        if (d) apply = () => useProductStore.getState().setProducts(d);
-      } else if (table === 'categories') {
-        const d = await pullCategories(client, storeId);
-        if (d) apply = () => useProductStore.getState().setCategories(d);
-      } else if (table === 'customers') {
-        const d = await pullCustomers(client, storeId);
-        if (d) apply = () => useCustomerStore.getState().setCustomers(d);
-      } else if (table === 'transactions') {
-        const d = await pullTransactions(client, storeId);
-        if (d) apply = () => useTransactionStore.getState().setTransactions(d);
-      } else if (table === 'user_accounts') {
-        const d = await pullUserAccounts(client, storeId);
-        if (d) apply = () => useAuthStore.getState().setUsers(d);
-      }
+      const { storeId } = useSettingsStore.getState();
+      const apply = await PULL_INTO_STORE[table](client, storeId);
       if (myGeneration !== generation) return; // stopped or restarted mid-pull
       // The store scope can change without restarting sync — App only restarts
       // it when the connection changes — so a generation check alone would let
@@ -123,7 +143,7 @@ export async function startRealtimeSync(): Promise<boolean> {
  * results are discarded rather than written. Safe to call when none is open.
  */
 export function stopRealtimeSync(): void {
-  generation++;
+  generation += 1;
   for (const timer of Object.values(timers)) clearTimeout(timer);
   timers = {};
   if (channel) {

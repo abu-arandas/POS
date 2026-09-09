@@ -50,14 +50,16 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
     let cancelled = false;
     const start = new Date();
     start.setHours(0, 0, 0, 0);
-    fetchFleetSummary(orgId, start)
-      .then((r) => {
+    void (async () => {
+      try {
+        const r = await fetchFleetSummary(orgId, start);
         if (!cancelled) setRows(r);
-      })
-      .catch((err) => console.error('Failed to load fleet summary:', err))
-      .finally(() => {
+      } catch (err) {
+        console.error('Failed to load fleet summary:', err);
+      } finally {
         if (!cancelled) setLoadedOnce(true);
-      });
+      }
+    })();
     // Re-derive presence on a timer so a store going quiet flips to offline
     // without a manual refresh.
     const tick = setInterval(() => setRows((r) => [...r]), 30_000);

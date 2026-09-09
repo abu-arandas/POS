@@ -14,8 +14,7 @@ import { syncToCloudIfEnabled } from '../lib/sync';
 import { adjustStock, receivePurchaseOrder } from '../services';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
-import { notify } from '../lib/utils/ui';
-import { askConfirmation } from '../lib/utils/ui';
+import { askConfirmation, notify } from '../lib/utils/ui';
 import { safeImageUrl } from '../lib/imageUrl';
 import { shortId } from '../lib/utils/ids';
 import {
@@ -108,7 +107,7 @@ export default function Inventory() {
   >([]);
 
   const handleOpenPoModal = useCallback(() => {
-    const first = products[0];
+    const [first] = products;
     setPoSupplierId('');
     setPoNote('');
     setPoLines([
@@ -117,6 +116,11 @@ export default function Inventory() {
     setPoModalOpen(true);
   }, [products]);
 
+  /**
+   * Applies an edit to one purchase-order line. Choosing a product pre-fills
+   * that line's unit cost from the catalog, which the operator may then
+   * override with what the supplier actually charged.
+   */
   const handlePoLineChange = (
     idx: number,
     patch: Partial<{ productId: string; quantity: string; unitCost: string }>,
@@ -268,7 +272,9 @@ export default function Inventory() {
     setProductModalOpen(true);
   }, [categories]);
 
-  // Open Edit Product Dialog
+  /**
+   * Loads a product into the form and opens it for editing.
+   */
   const handleOpenEditProduct = (prod: Product) => {
     setEditingProduct(prod);
     setProdName(prod.name);
@@ -282,7 +288,11 @@ export default function Inventory() {
     setProductModalOpen(true);
   };
 
-  // Submit Product Form
+  /**
+   * Saves the product form, creating or updating the product. Rejects a
+   * missing required field and a SKU already used by another product — a
+   * duplicate SKU would make the barcode scanner ambiguous at the register.
+   */
   const handleSubmitProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!prodName.trim() || !prodCategory || !prodPrice || !prodCost || !prodStock) {
@@ -520,7 +530,7 @@ export default function Inventory() {
             {currentTab === tab.id && (
               <motion.div
                 layoutId="inventoryTab"
-                className="absolute -bottom-px left-0 right-0 h-0.5 bg-emerald-500 rounded-t-full"
+                className="absolute -bottom-px inset-x-0 h-0.5 bg-emerald-500 rounded-t-full"
                 initial={false}
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
@@ -692,7 +702,7 @@ export default function Inventory() {
             onLineChange={handlePoLineChange}
             onRemoveLine={(index) => setPoLines((prev) => prev.filter((_, i) => i !== index))}
             onAddLine={() => {
-              const first = products[0];
+              const [first] = products;
               setPoLines((prev) => [
                 ...prev,
                 {

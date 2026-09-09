@@ -33,7 +33,7 @@ async function withSession() {
  * unless sync is on and a storeId is configured.
  */
 export async function sendStoreHeartbeat(): Promise<void> {
-  const storeId = useSettingsStore.getState().storeId;
+  const { storeId } = useSettingsStore.getState();
   if (!storeId) return;
   const client = await withSession();
   if (!client) return;
@@ -128,6 +128,10 @@ export async function fetchFleetDaily(orgId: string, since: Date): Promise<Fleet
 // guard is convenience; the database is the real boundary. Each no-ops safely
 // without a session.
 
+/**
+ * Maps one snake_case store row from the cloud onto the Store shape the app
+ * uses, filling the defaults a partially populated row leaves out.
+ */
 function mapStore(r: Record<string, unknown>): Store {
   return {
     id: String(r.id),

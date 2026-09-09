@@ -44,6 +44,11 @@ export interface RegisterCartResult {
   clearCart(): void;
 }
 
+/**
+ * Owns the register's cart: its lines, the linked customer, the discount in
+ * force, and the totals derived from them. Kept out of Register itself so
+ * the pricing rules can be exercised without rendering the screen.
+ */
 export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
   const [cart, setCart] = useState<RegisterCartLine[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);

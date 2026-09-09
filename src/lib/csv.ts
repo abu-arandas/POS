@@ -21,7 +21,7 @@ export function toCsv(rows: Array<Record<string, unknown>>, columns?: string[]):
   if (rows.length === 0) return columns ? columns.join(',') : '';
   const cols = columns ?? Object.keys(rows[0]);
   const esc = (v: unknown) => {
-    const s = neutralizeFormula(v == null ? '' : String(v));
+    const s = neutralizeFormula(String(v ?? ''));
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const header = cols.map((column) => esc(column)).join(',');
@@ -33,7 +33,9 @@ export function toCsv(rows: Array<Record<string, unknown>>, columns?: string[]):
  * Triggers a browser download of CSV text.
  */
 export function downloadCsv(filename: string, csv: string): void {
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  // Leading BOM so Excel opens the file as UTF-8 rather than the local ANSI
+  // codepage; written as an escape so the character stays visible in review.
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

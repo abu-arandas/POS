@@ -21,6 +21,11 @@ export default function QRMenu() {
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  /**
+   * Re-reads the menu server's address and running state from the desktop
+   * app, with the refresh spinner showing. A plain browser has no server to
+   * ask, so it leaves the state as it is.
+   */
   const fetchMenuInfo = async () => {
     setIsRefreshing(true);
     try {
@@ -39,12 +44,14 @@ export default function QRMenu() {
     // Initial fetch without the refresh spinner: state updates only land
     // after the promise resolves, never synchronously inside the effect.
     let cancelled = false;
-    window.electronAPI
-      ?.getMenuInfo?.()
-      .then((info) => {
-        if (!cancelled) setMenuHost({ ...info, running: info.running !== false });
-      })
-      .catch((err) => console.error('Failed to get menu server info:', err));
+    void (async () => {
+      try {
+        const info = await window.electronAPI?.getMenuInfo?.();
+        if (!cancelled && info) setMenuHost({ ...info, running: info.running !== false });
+      } catch (err) {
+        console.error('Failed to get menu server info:', err);
+      }
+    })();
     return () => {
       cancelled = true;
     };

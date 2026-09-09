@@ -30,6 +30,93 @@ export interface RefundComputation {
 }
 
 /**
+ * Clamps a requested return to what the sale can still give back: never more
+ * than a line's remaining quantity, never a fraction, never negative. Returns
+ * the accepted quantities and their subtotal at the original line prices.
+ */
+function clampToRefundable(
+  tx: SaleTransaction,
+  remaining: Record<string, number>,
+  selection: Record<string, number>,
+): { accepted: Record<string, number>; lineSubtotal: number } {
+  const accepted: Record<string, number> = {};
+  let lineSubtotal = 0;
+  for (const item of tx.items) {
+    const want = Math.max(0, Math.floor(selection[item.productId] ?? 0));
+    const qty = Math.min(want, remaining[item.productId] ?? 0);
+    if (qty > 0) {
+      accepted[item.productId] = qty;
+      lineSubtotal += item.price * qty;
+    }
+  }
+  return { accepted, lineSubtotal };
+}
+
+/**
+ * This return folded into everything already returned, as a productId -> total
+ * quantity map. That cumulative view is what decides whether the sale is now
+ * fully refunded, and what gets persisted on the transaction.
+ */
+function mergeReturnedQuantities(
+  tx: SaleTransaction,
+  accepted: Record<string, number>,
+): Record<string, number> {
+  const merged: Record<string, number> = {};
+  for (const r of tx.refundedItems ?? [])
+    merged[r.productId] = (merged[r.productId] ?? 0) + r.quantity;
+  for (const [pid, qty] of Object.entries(accepted)) merged[pid] = (merged[pid] ?? 0) + qty;
+  return merged;
+}
+
+/**
+ * Points to move on the customer's balance: the earned points this return
+ * reverses, plus — on a full return of a loyalty-paid sale — the redeemed
+ * points given back.
+ *
+ * Like the currency, it is computed as the delta between two cumulative
+ * figures rather than on this return alone, so repeated partial refunds cannot
+ * drift a point at a time.
+ */
+function computePointsReversal(
+  tx: SaleTransaction,
+  priorRefundedSubtotal: number,
+  refundLineSubtotal: number,
+  fullyRefunded: boolean,
+  loyaltyPointsRate: number,
+  loyaltyPointValue?: number,
+): number {
+  // Points only ever move on a sale with a linked customer. A walk-in has no
+  // balance to adjust, and buildSaleTransaction leaves pointsEarned undefined
+  // for one — so without this gate the `??` fallback below invents an award
+  // nobody received, and the refund screen offers to reverse it. The caller
+  // already refuses to apply points without a customerId; deriving 0 here keeps
+  // the number it *displays* honest too.
+  if (!tx.customerId) return 0;
+
+  const earned = tx.pointsEarned ?? Math.floor(tx.total * loyaltyPointsRate);
+  const share = (subtotal: number) =>
+    tx.subtotal > 0 ? Math.round(earned * (subtotal / tx.subtotal)) : 0;
+  const priorPoints = share(priorRefundedSubtotal);
+  const cumulativePoints = fullyRefunded
+    ? earned
+    : share(priorRefundedSubtotal + refundLineSubtotal);
+  let pointsReversal = -(cumulativePoints - priorPoints);
+
+  if (fullyRefunded && tx.discountType === 'loyalty') {
+    // Return only what the redeemed points were actually worth. Sales written
+    // before checkout clamped this stored the *requested* point count, which can
+    // exceed the redemption the order could absorb — crediting that back would
+    // mint points. Deriving from tx.discount caps the reversal for those rows.
+    const redeemable =
+      loyaltyPointValue && loyaltyPointValue > 0
+        ? Math.round(tx.discount / loyaltyPointValue)
+        : tx.discountValue;
+    pointsReversal += Math.min(tx.discountValue, redeemable);
+  }
+  return pointsReversal;
+}
+
+/**
  * Computes the effect of returning `selection` (productId -> qty) from a sale.
  * The refund is a proportional share of the *total* so discount and tax are
  * prorated; a full return therefore refunds exactly the total. Earned points
@@ -43,27 +130,14 @@ export function computeRefund(
   loyaltyPointValue?: number,
 ): RefundComputation | null {
   const remaining = refundableQuantities(tx);
-  // Clamp the selection to what's actually refundable.
-  const clean: Record<string, number> = {};
-  let refundLineSubtotal = 0;
-  for (const item of tx.items) {
-    const want = Math.max(0, Math.floor(selection[item.productId] ?? 0));
-    const qty = Math.min(want, remaining[item.productId] ?? 0);
-    if (qty > 0) {
-      clean[item.productId] = qty;
-      refundLineSubtotal += item.price * qty;
-    }
-  }
+  const { accepted: clean, lineSubtotal: refundLineSubtotal } = clampToRefundable(
+    tx,
+    remaining,
+    selection,
+  );
   if (refundLineSubtotal <= 0) return null; // nothing to refund
 
-  // This operation's share is used only after cumulative boundaries are known;
-  // rounding each partial operation independently would make points drift.
-
-  // Merge into cumulative refunded-items.
-  const merged: Record<string, number> = {};
-  for (const r of tx.refundedItems ?? [])
-    merged[r.productId] = (merged[r.productId] ?? 0) + r.quantity;
-  for (const [pid, qty] of Object.entries(clean)) merged[pid] = (merged[pid] ?? 0) + qty;
+  const merged = mergeReturnedQuantities(tx, clean);
   const refundedItems: RefundedItem[] = Object.entries(merged).map(([productId, quantity]) => ({
     productId,
     quantity,
@@ -78,8 +152,10 @@ export function computeRefund(
   // keeps a piecewise full return summing to exactly tx.total instead of
   // drifting a cent per line. A full return (by quantity) trues up to the total
   // directly, so it is also immune to any rounding in the stored subtotal.
-  const prorate = (lineSubtotal: number) =>
-    tx.subtotal > 0 ? Number((tx.total * (lineSubtotal / tx.subtotal)).toFixed(2)) : 0;
+  const prorate = (lineSubtotal: number) => {
+    if (tx.subtotal <= 0) return 0;
+    return Number((tx.total * (lineSubtotal / tx.subtotal)).toFixed(2));
+  };
   const priorRefundedSubtotal = tx.items.reduce(
     (sum, item) =>
       sum + item.price * (item.quantity - (remaining[item.productId] ?? item.quantity)),
@@ -91,35 +167,14 @@ export function computeRefund(
     : prorate(priorRefundedSubtotal + refundLineSubtotal);
   const refundAmount = Number((cumulativeAfter - cumulativeBefore).toFixed(2));
 
-  // Points only ever move on a sale with a linked customer. A walk-in has no
-  // balance to adjust, and buildSaleTransaction leaves pointsEarned undefined
-  // for one — so without this gate the `??` fallback below invents an award
-  // nobody received, and the refund screen offers to reverse it. The caller
-  // already refuses to apply points without a customerId; deriving 0 here keeps
-  // the number it *displays* honest too.
-  let pointsReversal = 0;
-  if (tx.customerId) {
-    const earned = tx.pointsEarned ?? Math.floor(tx.total * loyaltyPointsRate);
-    const priorPoints =
-      tx.subtotal > 0 ? Math.round(earned * (priorRefundedSubtotal / tx.subtotal)) : 0;
-    const cumulativePoints = fullyRefunded
-      ? earned
-      : tx.subtotal > 0
-        ? Math.round(earned * ((priorRefundedSubtotal + refundLineSubtotal) / tx.subtotal))
-        : 0;
-    pointsReversal = -(cumulativePoints - priorPoints);
-    if (fullyRefunded && tx.discountType === 'loyalty') {
-      // Return only what the redeemed points were actually worth. Sales written
-      // before checkout clamped this stored the *requested* point count, which can
-      // exceed the redemption the order could absorb — crediting that back would
-      // mint points. Deriving from tx.discount caps the reversal for those rows.
-      const redeemable =
-        loyaltyPointValue && loyaltyPointValue > 0
-          ? Math.round(tx.discount / loyaltyPointValue)
-          : tx.discountValue;
-      pointsReversal += Math.min(tx.discountValue, redeemable);
-    }
-  }
+  const pointsReversal = computePointsReversal(
+    tx,
+    priorRefundedSubtotal,
+    refundLineSubtotal,
+    fullyRefunded,
+    loyaltyPointsRate,
+    loyaltyPointValue,
+  );
 
   // Persist the cumulative prorated figure. It is self-correcting: a row that
   // was missing refundedAmount, or drifted by earlier rounding, still lands on

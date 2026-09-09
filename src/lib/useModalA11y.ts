@@ -46,6 +46,11 @@ export function useModalA11y<T extends HTMLElement = HTMLDivElement>(
     const initial = card.querySelector<HTMLElement>('[data-autofocus]') ?? focusables()[0] ?? card;
     initial.focus({ preventScroll: true });
 
+    /**
+     * Keeps keyboard focus inside the open dialog: Escape closes it, and Tab
+     * wraps at the first and last focusable element instead of walking out into
+     * the page behind, which a screen reader user cannot see is still there.
+     */
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (onCloseRef.current) {
@@ -60,7 +65,7 @@ export function useModalA11y<T extends HTMLElement = HTMLDivElement>(
         e.preventDefault();
         return;
       }
-      const first = els[0];
+      const [first] = els;
       const last = els[els.length - 1];
       const active = document.activeElement;
       if (e.shiftKey) {

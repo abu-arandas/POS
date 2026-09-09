@@ -49,8 +49,7 @@ import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
-import { notify } from '../lib/utils/ui';
-import { askConfirmation, askText } from '../lib/utils/ui';
+import { askConfirmation, askText, notify } from '../lib/utils/ui';
 
 /**
  * The register screen: product grid, cart, discounts, held orders, and the
@@ -351,33 +350,54 @@ export default function Register() {
     setReceiptModalOpen(true);
     clearCart();
 
-    if (printerConfig.autoPrintOnCheckout) {
-      printReceipt(transaction, settings, printerConfig, isCashSale, receiptLayout).then(
-        (outcome) => {
+    if (!printerConfig.autoPrintOnCheckout && isCashSale) openCashDrawer(printerConfig);
+
+    // One checkout can produce two documents, and on most counters they leave
+    // the same device — a single serial port, or one Windows spooler queue.
+    // Started independently they interleave their byte streams and both come
+    // out garbled, so the receipt is finished before the kitchen ticket begins.
+    void (async () => {
+      if (printerConfig.autoPrintOnCheckout) {
+        try {
+          const outcome = await printReceipt(
+            transaction,
+            settings,
+            printerConfig,
+            isCashSale,
+            receiptLayout,
+          );
           notifyPrint(outcome);
           if (outcome === 'printed') setReceiptPrinted(true);
-        },
-      );
-    } else if (isCashSale) {
-      openCashDrawer(printerConfig);
-    }
-    if (printerConfig.kitchenTicketOnCheckout) {
+        } catch (err) {
+          console.error('Receipt print failed:', err);
+          notifyPrint('error');
+        }
+      }
+
+      if (!printerConfig.kitchenTicketOnCheckout) return;
       /*
         Pre-computed product map to change O(N^2) category lookups in the kitchen
         ticket loop into O(N) map build + O(1) loop lookups.
       */
-      const products = useProductStore.getState().products;
+      const { products } = useProductStore.getState();
       const prodMap = new Map(products.map((p) => [p.id, p]));
       const catOf = (productId: string) => prodMap.get(productId)?.category;
-      printKitchenTickets(
-        transaction,
-        settings,
-        printerConfig,
-        kitchenStations,
-        catOf,
-        kitchenLayout,
-      ).then(notifyPrint);
-    }
+      try {
+        notifyPrint(
+          await printKitchenTickets(
+            transaction,
+            settings,
+            printerConfig,
+            kitchenStations,
+            catOf,
+            kitchenLayout,
+          ),
+        );
+      } catch (err) {
+        console.error('Kitchen ticket print failed:', err);
+        notifyPrint('error');
+      }
+    })();
   }, [
     cartItems,
     subtotal,
@@ -416,7 +436,7 @@ export default function Register() {
       Pre-computed product map to change O(N^2) category lookups in the kitchen
       ticket loop into O(N) map build + O(1) loop lookups.
     */
-    const products = useProductStore.getState().products;
+    const { products } = useProductStore.getState();
     const prodMap = new Map(products.map((p) => [p.id, p]));
     const catOf = (productId: string) => prodMap.get(productId)?.category;
     notifyPrint(

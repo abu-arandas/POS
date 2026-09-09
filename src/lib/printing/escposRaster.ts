@@ -48,8 +48,8 @@ export function packRaster(
   const bytesPerRow = Math.ceil(width / 8);
   const out = new Uint8Array(bytesPerRow * height);
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
       const i = (y * width + x) * 4;
       const alpha = rgba[i + 3];
       // Transparent pixels are paper, not ink. Canvas starts transparent, so
@@ -91,7 +91,7 @@ export function rasterCommands(packed: Uint8Array, width: number, height: number
       (rows >> 8) & 0xff,
     );
     const from = start * bytesPerRow;
-    for (let i = 0; i < rows * bytesPerRow; i++) out.push(packed[from + i]);
+    for (let i = 0; i < rows * bytesPerRow; i += 1) out.push(packed[from + i]);
   }
   return out;
 }

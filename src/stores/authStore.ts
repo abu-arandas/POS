@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { UserAccount } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { shortId } from '../lib/utils/ids';
+import { hashPinSaltedLegacySync } from '../lib/hash';
 
 interface AuthState {
   users: UserAccount[];
@@ -19,37 +20,28 @@ interface AuthState {
   handleDeleteUser: (id: string) => void;
 }
 
-// Development-only fixture accounts. Their legacy salted hashes are retained so
-// the migration path is exercised; a successful login upgrades the hash to v2.
-// Admin PIN 1234, Manager PIN 5555, Cashier PIN 0000.
+// Development-only fixture accounts, dropped from production builds by the
+// branch below. Their PINs are the demo PINs, hashed here with the v1 helper
+// rather than pasted in as digests: the literal hashes read as leaked
+// credentials to a secret scanner, and burying the PIN they encode made it
+// impossible to see that these are the same fixtures the README documents.
+// Deriving them keeps the v1 -> v2 migration path exercised on first login.
+const DEV_FIXTURES: Array<{ id: string; name: string; role: UserAccount['role']; pin: string }> = [
+  { id: 'u-1', name: 'Admin', role: 'admin', pin: '1234' },
+  { id: 'u-2', name: 'Manager', role: 'manager', pin: '5555' },
+  { id: 'u-3', name: 'Cashier', role: 'cashier', pin: '0000' },
+];
+
 const DEFAULT_USERS: UserAccount[] =
   import.meta.env.DEV || import.meta.env.MODE === 'test'
-    ? [
-        {
-          id: 'u-1',
-          name: 'Admin',
-          role: 'admin',
-          pin: '2efd4458fced12834fc6f39317faa5a689dde4ec088267d768a3b3b0193ccbcf',
-          active: true,
-          createdAt: '2023-01-01',
-        },
-        {
-          id: 'u-2',
-          name: 'Manager',
-          role: 'manager',
-          pin: '8690c9b4e9feb5cb74a13a8b3193c9a049d0f9cf01f631d257d472f0680b42be',
-          active: true,
-          createdAt: '2023-01-01',
-        },
-        {
-          id: 'u-3',
-          name: 'Cashier',
-          role: 'cashier',
-          pin: 'e103c0738bb6f7e2f6deb31424b25de795db8c477cb839745c19e41c20ec4396',
-          active: true,
-          createdAt: '2023-01-01',
-        },
-      ]
+    ? DEV_FIXTURES.map(({ id, name, role, pin }) => ({
+        id,
+        name,
+        role,
+        pin: hashPinSaltedLegacySync(id, pin),
+        active: true,
+        createdAt: '2023-01-01',
+      }))
     : [];
 
 /**

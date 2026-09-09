@@ -5,10 +5,10 @@
 <meta charset="utf-8" />
 <body style="margin:0;background:#888">
 <script type="module">
-import { buildReceiptDoc } from '/src/lib/receiptDoc.ts';
-import { renderReceiptRaster, ensureReceiptFont } from '/src/lib/receiptCanvas.ts';
-import { defaultReceiptLayout, allTogglesOn } from '/src/lib/receiptFormat.ts';
-import i18n from '/src/lib/i18n.ts';
+import { buildReceiptDoc } from '../src/lib/printing/receiptDoc.ts';
+import { renderReceiptRaster, ensureReceiptFont } from '../src/lib/printing/receiptCanvas.ts';
+import { defaultReceiptLayout, allTogglesOn } from '../src/lib/printing/receiptFormat.ts';
+import i18n from '../src/lib/i18n.ts';
 
 const AR = {
   tx: { id:'TX-4F2A9C', date:new Date('2026-07-25T20:15:00').toISOString(),

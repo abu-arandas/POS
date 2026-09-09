@@ -49,7 +49,7 @@ export function ReceiptModal({
 }: ReceiptModalProps) {
   const { t } = useTranslation();
   const resolvedLayout = resolveCustomerLayout(receiptLayout, printerConfig);
-  const show = resolvedLayout.show;
+  const { show } = resolvedLayout;
   return (
     <AnimatePresence>
       {open && receipt && (
@@ -71,8 +71,8 @@ export function ReceiptModal({
           >
             <div className="bg-linear-to-br from-emerald-500 to-emerald-600 text-slate-900 dark:text-white p-8 pb-10 text-center flex flex-col items-center relative overflow-hidden">
               {/* Decorative background circle */}
-              <div className="absolute -top-12 -right-12 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
-              <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-black opacity-10 rounded-full blur-xl"></div>
+              <div className="absolute -top-12 -right-12 size-32 bg-white opacity-10 rounded-full blur-2xl"></div>
+              <div className="absolute -bottom-8 -left-8 size-24 bg-black opacity-10 rounded-full blur-xl"></div>
 
               <motion.div
                 initial={{ scale: 0, rotate: -45 }}
@@ -96,7 +96,7 @@ export function ReceiptModal({
             <div className="px-6 pb-6 pt-0 flex-1 overflow-y-auto max-h-105 relative -mt-4 z-20">
               <div
                 id="thermal-receipt"
-                className="bg-white dark:bg-slate-950 border-x border-slate-200 dark:border-slate-800 border-y-[6px] border-y-slate-200 dark:border-y-slate-800 border-dashed rounded-xl p-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] space-y-4 font-mono text-xs text-slate-700 dark:text-slate-300"
+                className="bg-white dark:bg-slate-950 border-x border-slate-200 dark:border-slate-800 border-y-[6px] border-dashed rounded-xl p-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] space-y-4 font-mono text-xs text-slate-700 dark:text-slate-300"
               >
                 <div className="text-center border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
                   {show.logo && (

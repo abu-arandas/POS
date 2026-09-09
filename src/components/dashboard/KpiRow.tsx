@@ -49,6 +49,10 @@ interface KpiCardProps {
   delay: number;
 }
 
+/**
+ * One headline figure on the dashboard: its label, value and trailing note,
+ * in the accent colour that identifies the metric.
+ */
 function KpiCard({ label, icon, accent, value, footer, delay }: KpiCardProps) {
   const { glow, icon: iconClass } = ACCENTS[accent];
   return (
@@ -159,7 +163,7 @@ export function KpiRow({ kpis, currency }: KpiRowProps) {
             </span>
           ) : (
             <span className="badge badge-slate flex items-center gap-1.5 px-2 py-0.5">
-              <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" /> {t('dashboard.allGood')}
+              <span className="size-1.5 bg-slate-400 rounded-full" /> {t('dashboard.allGood')}
             </span>
           )
         }

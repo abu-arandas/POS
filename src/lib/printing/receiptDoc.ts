@@ -53,18 +53,22 @@ const money = (cur: string, n: number) => `${cur}${n.toFixed(2)}`;
  * Builds the customer receipt as renderer-independent rows, honoring the
  * layout's field toggles. Pure — no DOM and no printer bytes.
  */
-export function buildReceiptDoc(
-  tx: SaleTransaction,
-  settings: StoreSettings,
-  printerConfig: PrinterConfig,
-  layout?: ReceiptLayout,
-): DocRow[] {
-  const L = resolveCustomerLayout(layout, printerConfig);
-  const S = L.show;
-  const cur = settings.currency;
-  const d = new Date(tx.date);
-  const rows: DocRow[] = [];
+/**
+ * What every section of the receipt needs: the sale, the store, the resolved
+ * layout (`show` decides which blocks appear at all), and the currency and date
+ * derived from them once.
+ */
+interface ReceiptContext {
+  tx: SaleTransaction;
+  settings: StoreSettings;
+  layout: ReceiptLayout;
+  currency: string;
+  date: Date;
+}
 
+/** Store identity above the first rule: logo, name, branch, contact, VAT. */
+function pushStoreHeader(rows: DocRow[], { settings, layout: L }: ReceiptContext): void {
+  const S = L.show;
   if (L.header) rows.push({ kind: 'center', text: L.header, style: 'bold' });
   if (S.logo) rows.push({ kind: 'logo', src: settings.storeLogo || undefined });
   if (S.storeName) rows.push({ kind: 'center', text: settings.storeName, style: 'title' });
@@ -84,8 +88,11 @@ export function buildReceiptDoc(
       text: `${i18n.t('receipt.vat', 'VAT')}: ${settings.taxNumber}`,
       style: 'muted',
     });
-  rows.push({ kind: 'divider' });
+}
 
+/** Which sale this is: when, its number, who rang it up, and for whom. */
+function pushSaleMeta(rows: DocRow[], { tx, layout: L, date: d }: ReceiptContext): void {
+  const S = L.show;
   if (S.date)
     rows.push({
       kind: 'pair',
@@ -118,65 +125,75 @@ export function buildReceiptDoc(
       value: tx.customerName,
       style: 'bold',
     });
-  rows.push({ kind: 'divider' });
+}
 
+/** One row per line item, with the unit price under any multi-unit line. */
+function pushItems(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptContext): void {
+  const S = L.show;
   for (const item of tx.items) {
     const name = `${item.quantity}x ${item.productName}`;
-    if (S.priceColumn) {
-      rows.push({ kind: 'pair', label: name, value: money(cur, item.total) });
-      if (S.itemUnitPrice && item.quantity > 1) {
-        rows.push({
-          kind: 'line',
-          text: `@ ${money(cur, item.price)} ${i18n.t('register.each', 'ea')}`,
-          style: 'muted',
-        });
-      }
-    } else {
+    if (!S.priceColumn) {
       rows.push({ kind: 'line', text: name });
+      continue;
+    }
+    rows.push({ kind: 'pair', label: name, value: money(cur, item.total) });
+    if (S.itemUnitPrice && item.quantity > 1) {
+      rows.push({
+        kind: 'line',
+        text: `@ ${money(cur, item.price)} ${i18n.t('register.each', 'ea')}`,
+        style: 'muted',
+      });
     }
   }
-  rows.push({ kind: 'divider' });
+}
 
-  if (S.totals) {
-    const itemCount = tx.items.reduce((s, i) => s + i.quantity, 0);
+/** Item count through to the boxed total, plus the savings line. */
+function pushTotals(rows: DocRow[], ctx: ReceiptContext): void {
+  const { tx, settings, layout: L, currency: cur } = ctx;
+  if (!L.show.totals) return;
+  const itemCount = tx.items.reduce((s, i) => s + i.quantity, 0);
+  rows.push({
+    kind: 'pair',
+    label: i18n.t('history.itemsUpper', 'ITEMS:'),
+    value: String(itemCount),
+    style: 'muted',
+  });
+  rows.push({
+    kind: 'pair',
+    label: i18n.t('history.subtotal', 'SUBTOTAL:'),
+    value: money(cur, tx.subtotal),
+  });
+  if (tx.discount > 0)
     rows.push({
       kind: 'pair',
-      label: i18n.t('history.itemsUpper', 'ITEMS:'),
-      value: String(itemCount),
-      style: 'muted',
+      label: i18n.t('history.discount', 'DISCOUNT:'),
+      value: `-${money(cur, tx.discount)}`,
     });
+  const taxStr = i18n.t('history.tax', 'TAX:').replace(':', '');
+  const taxLabel = settings.taxRate > 0 ? `${taxStr} (${settings.taxRate}%)` : taxStr;
+  rows.push({
+    kind: 'pair',
+    label: `${taxLabel}:`,
+    value: money(cur, tx.tax),
+  });
+  rows.push({
+    kind: 'pair',
+    label: i18n.t('history.totalPaid', 'TOTAL PAID:'),
+    value: money(cur, tx.total),
+    style: 'large',
+    boxed: true,
+  });
+  if (tx.discount > 0)
     rows.push({
-      kind: 'pair',
-      label: i18n.t('history.subtotal', 'SUBTOTAL:'),
-      value: money(cur, tx.subtotal),
+      kind: 'center',
+      text: `${i18n.t('history.savings', 'YOU SAVED')} ${money(cur, tx.discount)}`,
+      style: 'bold',
     });
-    if (tx.discount > 0)
-      rows.push({
-        kind: 'pair',
-        label: i18n.t('history.discount', 'DISCOUNT:'),
-        value: `-${money(cur, tx.discount)}`,
-      });
-    const taxStr = i18n.t('history.tax', 'TAX:').replace(':', '');
-    rows.push({
-      kind: 'pair',
-      label: `${settings.taxRate > 0 ? `${taxStr} (${settings.taxRate}%)` : taxStr}:`,
-      value: money(cur, tx.tax),
-    });
-    rows.push({
-      kind: 'pair',
-      label: i18n.t('history.totalPaid', 'TOTAL PAID:'),
-      value: money(cur, tx.total),
-      style: 'large',
-      boxed: true,
-    });
-    if (tx.discount > 0)
-      rows.push({
-        kind: 'center',
-        text: `${i18n.t('history.savings', 'YOU SAVED')} ${money(cur, tx.discount)}`,
-        style: 'bold',
-      });
-  }
+}
 
+/** How it was paid: method, split breakdown, change given, points earned. */
+function pushPayment(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptContext): void {
+  const S = L.show;
   if (S.paymentDetails) {
     rows.push({
       kind: 'pair',
@@ -214,8 +231,10 @@ export function buildReceiptDoc(
       style: 'bold',
     });
   }
+}
 
-  rows.push({ kind: 'divider' });
+/** Status, the refund audit trail, the configured footer, and the barcode. */
+function pushFooter(rows: DocRow[], { tx, layout: L }: ReceiptContext): void {
   rows.push({
     kind: 'center',
     text: i18n.t(`receipt.status_${tx.status}`, tx.status),
@@ -243,7 +262,37 @@ export function buildReceiptDoc(
       style: 'muted',
     });
   if (L.footer) rows.push({ kind: 'center', text: L.footer, style: 'muted' });
-  if (S.barcode) rows.push({ kind: 'barcode', value: tx.id });
+  if (L.show.barcode) rows.push({ kind: 'barcode', value: tx.id });
+}
+
+export function buildReceiptDoc(
+  tx: SaleTransaction,
+  settings: StoreSettings,
+  printerConfig: PrinterConfig,
+  layout?: ReceiptLayout,
+): DocRow[] {
+  const ctx: ReceiptContext = {
+    tx,
+    settings,
+    layout: resolveCustomerLayout(layout, printerConfig),
+    currency: settings.currency,
+    date: new Date(tx.date),
+  };
+  const rows: DocRow[] = [];
+
+  // The rules are part of the receipt's shape, not decoration, so they stay
+  // here where the order of the sections is visible rather than hiding inside
+  // whichever section happens to come first or last.
+  pushStoreHeader(rows, ctx);
+  rows.push({ kind: 'divider' });
+  pushSaleMeta(rows, ctx);
+  rows.push({ kind: 'divider' });
+  pushItems(rows, ctx);
+  rows.push({ kind: 'divider' });
+  pushTotals(rows, ctx);
+  pushPayment(rows, ctx);
+  rows.push({ kind: 'divider' });
+  pushFooter(rows, ctx);
 
   return rows;
 }

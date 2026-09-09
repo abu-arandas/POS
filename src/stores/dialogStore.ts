@@ -35,22 +35,22 @@ interface DialogState {
 export const useDialogStore = create<DialogState>((set, get) => ({
   queue: [],
   requestConfirm: (message) =>
-    new Promise<boolean>((resolve) =>
+    new Promise<boolean>((resolve) => {
       set((state) => ({
         queue: [...state.queue, { id: `dialog-${shortId()}`, kind: 'confirm', message, resolve }],
-      })),
-    ),
+      }));
+    }),
   requestPrompt: (message, defaultValue = '') =>
-    new Promise<string | null>((resolve) =>
+    new Promise<string | null>((resolve) => {
       set((state) => ({
         queue: [
           ...state.queue,
           { id: `dialog-${shortId()}`, kind: 'prompt', message, defaultValue, resolve },
         ],
-      })),
-    ),
+      }));
+    }),
   resolveCurrent: (value) => {
-    const current = get().queue[0];
+    const [current] = get().queue;
     if (!current) return;
     set((state) => ({ queue: state.queue.slice(1) }));
     if (current.kind === 'confirm' && typeof value === 'boolean') current.resolve(value);

@@ -29,7 +29,7 @@ export const ChartTooltip = ({
       {payload.map((entry, index) => (
         <div key={index} className="flex items-center gap-2 text-sm font-mono mt-1">
           <span
-            className="swatch w-2 h-2 rounded-full"
+            className="swatch size-2 rounded-full"
             style={{ '--swatch-color': entry.color } as CSSProperties}
           />
           <span className="text-slate-500 dark:text-slate-400 capitalize">{entry.name}:</span>

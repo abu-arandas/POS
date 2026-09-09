@@ -94,6 +94,11 @@ export default function Customers() {
     setCustomerModalOpen(true);
   };
 
+  /**
+   * Saves the customer form, creating a new record or updating the one being
+   * edited. A blank name is rejected without a message: the field is required
+   * and empty, which the form already shows.
+   */
   const handleSubmitCustomer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!custName.trim()) return;
@@ -362,7 +367,7 @@ export default function Customers() {
             className="flex flex-col h-full"
           >
             <div className="p-6 border-b border-slate-200 dark:border-white/10 bg-white/60 dark:bg-slate-900/40 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl" />
+              <div className="absolute top-0 right-0 size-32 bg-emerald-500/10 rounded-full blur-3xl" />
               <div className="flex items-start justify-between relative z-10">
                 <div className="flex items-center gap-4">
                   <div
@@ -467,7 +472,7 @@ export default function Customers() {
           </motion.div>
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center p-8">
-            <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border border-slate-200 dark:border-slate-700/50 shadow-inner">
+            <div className="size-24 bg-slate-100 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border border-slate-200 dark:border-slate-700/50 shadow-inner">
               <span className="text-4xl">🏅</span>
             </div>
             <h4 className="font-sans font-bold text-slate-900 dark:text-white text-lg mb-2">
@@ -625,7 +630,7 @@ export default function Customers() {
               className="modal-card max-w-sm w-full overflow-hidden"
             >
               <div className="p-6 flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mb-4">
+                <div className="size-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mb-4">
                   <AlertTriangle size={32} />
                 </div>
                 <h3

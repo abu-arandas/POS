@@ -74,13 +74,16 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
 
   useEffect(() => {
     let cancelled = false;
-    listStores(orgId)
-      .then((s) => {
+    void (async () => {
+      try {
+        const s = await listStores(orgId);
         if (!cancelled) setStores(s);
-      })
-      .finally(() => {
+      } catch (err) {
+        console.error('Failed to load stores:', err);
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -93,66 +96,60 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
 
   const canRun = sourceId && targetIds.length > 0 && !working;
 
+  const storeNameOf = (id: string) => stores.find((s) => s.id === id)?.name ?? id;
+
+  /**
+   * Fetches the source catalog once, then builds each target store's push plan
+   * with the fan-out capped, and hands every plan to `fromPlan`. Preview and
+   * push differ only in what they make of a plan — a summary, or the outcome of
+   * writing it — so the fetching and planning live here once.
+   */
+  const planEachTarget = async <R,>(
+    fromPlan: (targetId: string, plan: ReturnType<typeof planCatalogPush>) => R | Promise<R>,
+  ): Promise<R[]> => {
+    const [srcProducts, srcCategories] = await Promise.all([
+      fetchStoreProducts(sourceId),
+      fetchStoreCategories(sourceId),
+    ]);
+    return mapWithLimit(targetIds, CATALOG_PUSH_CONCURRENCY, async (tid) => {
+      const [tp, tc] = await Promise.all([fetchStoreProducts(tid), fetchStoreCategories(tid)]);
+      const plan = planCatalogPush(
+        { products: srcProducts, categories: srcCategories },
+        { products: tp, categories: tc },
+        options,
+        genId,
+      );
+      return fromPlan(tid, plan);
+    });
+  };
+
+  /** Builds the diff for every target store without writing anything. */
   const runPreview = async () => {
     if (!canRun) return;
     setWorking(true);
     setResults(null);
     try {
-      const [srcProducts, srcCategories] = await Promise.all([
-        fetchStoreProducts(sourceId),
-        fetchStoreCategories(sourceId),
-      ]);
-      // Fetch + plan each target store concurrently, but cap the fan-out so a
-      // large fleet can't dispatch every request at once.
-      const rows: PreviewRow[] = await mapWithLimit(
-        targetIds,
-        CATALOG_PUSH_CONCURRENCY,
-        async (tid) => {
-          const [tp, tc] = await Promise.all([fetchStoreProducts(tid), fetchStoreCategories(tid)]);
-          const plan = planCatalogPush(
-            { products: srcProducts, categories: srcCategories },
-            { products: tp, categories: tc },
-            options,
-            genId,
-          );
-          return {
-            storeId: tid,
-            storeName: stores.find((s) => s.id === tid)?.name ?? tid,
-            summary: plan.summary,
-          };
-        },
-      );
+      const rows: PreviewRow[] = await planEachTarget((tid, plan) => ({
+        storeId: tid,
+        storeName: storeNameOf(tid),
+        summary: plan.summary,
+      }));
       setPreview(rows);
     } finally {
       setWorking(false);
     }
   };
 
+  /** Writes the planned catalog into every target store. */
   const runPush = async () => {
     if (!canRun) return;
     setWorking(true);
     try {
-      const [srcProducts, srcCategories] = await Promise.all([
-        fetchStoreProducts(sourceId),
-        fetchStoreCategories(sourceId),
-      ]);
-      // Fetch + push each target store concurrently, capped so a large fleet
-      // can't dispatch every request at once.
-      const out: ResultRow[] = await mapWithLimit(
-        targetIds,
-        CATALOG_PUSH_CONCURRENCY,
-        async (tid) => {
-          const [tp, tc] = await Promise.all([fetchStoreProducts(tid), fetchStoreCategories(tid)]);
-          const plan = planCatalogPush(
-            { products: srcProducts, categories: srcCategories },
-            { products: tp, categories: tc },
-            options,
-            genId,
-          );
-          const ok = await pushStoreCatalog(tid, plan.categoriesToUpsert, plan.productsToUpsert);
-          return { storeId: tid, storeName: stores.find((s) => s.id === tid)?.name ?? tid, ok };
-        },
-      );
+      const out: ResultRow[] = await planEachTarget(async (tid, plan) => ({
+        storeId: tid,
+        storeName: storeNameOf(tid),
+        ok: await pushStoreCatalog(tid, plan.categoriesToUpsert, plan.productsToUpsert),
+      }));
       setResults(out);
       setPreview(null);
     } finally {
@@ -281,7 +278,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                         setOptions((o) => ({ ...o, [k]: e.target.checked }));
                         setPreview(null);
                       }}
-                      className="accent-emerald-500 w-4 h-4"
+                      className="accent-emerald-500 size-4"
                     />
                     <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                       {t(`catalogPush.${label}`)}

@@ -8,8 +8,7 @@ import {
 } from '../types';
 import { summarizeTenders } from './payments';
 import { shortId } from './utils/ids';
-import { nonNegative } from './utils/validation';
-import { isPositiveIntegerQuantity } from './utils/validation';
+import { isPositiveIntegerQuantity, nonNegative } from './utils/validation';
 
 /**
  * Everything the register has collected for one sale, with totals already
@@ -50,6 +49,67 @@ export type CheckoutOutcome =
         'invalid-quantity' | 'split-incomplete' | 'split-non-cash-overpay' | 'insufficient-cash';
     };
 
+/** How a sale was paid for, once the tender has been validated. */
+interface ResolvedTender {
+  saleMethod: PaymentMethod;
+  payments?: Payment[];
+  paidValue?: number;
+  changeDue?: number;
+}
+
+type TenderOutcome =
+  | { ok: true; tender: ResolvedTender }
+  | { ok: false; error: 'split-incomplete' | 'split-non-cash-overpay' | 'insufficient-cash' };
+
+/**
+ * Validates what the operator tendered and settles how the sale records it:
+ * which method it counts as, the split breakdown where there is one, and the
+ * cash taken and change owed.
+ */
+function resolveTender(req: CheckoutRequest): TenderOutcome {
+  if (req.splitMode) {
+    const clean = req.splitPayments.filter((p) => (p.amount || 0) > 0);
+    const tenders = summarizeTenders(clean, req.totalAmount);
+    if (clean.length === 0 || !tenders.coversTotal) {
+      return { ok: false, error: 'split-incomplete' };
+    }
+    // Only cash can overpay (for change). Non-cash tenders exceeding the
+    // total would record phantom money with no way to return it.
+    const nonCashTotal = clean.filter((p) => p.method !== 'cash').reduce((s, p) => s + p.amount, 0);
+    if (nonCashTotal > req.totalAmount + 0.005) {
+      return { ok: false, error: 'split-non-cash-overpay' };
+    }
+    const tookCash = tenders.cashTendered > 0;
+    return {
+      ok: true,
+      tender: {
+        saleMethod: tenders.dominantMethod,
+        payments: clean,
+        paidValue: tookCash ? tenders.cashTendered : undefined,
+        changeDue: tookCash ? tenders.cashChange : undefined,
+      },
+    };
+  }
+
+  const paidValue = req.paymentMethod === 'cash' ? parseFloat(req.cashPaidText) || 0 : undefined;
+  // A fully-discounted ($0) sale needs no tendered cash.
+  if (req.paymentMethod === 'cash' && req.totalAmount > 0 && (paidValue ?? 0) < req.totalAmount) {
+    return { ok: false, error: 'insufficient-cash' };
+  }
+  // A sale fully covered by redeemed points is a points redemption, not a $0
+  // card charge. Any other $0 total (e.g. a 100% promo) keeps its chosen method.
+  const saleMethod =
+    req.totalAmount <= 0 && req.discountType === 'loyalty' ? 'loyalty' : req.paymentMethod;
+  return {
+    ok: true,
+    tender: {
+      saleMethod,
+      paidValue,
+      changeDue: saleMethod === 'cash' ? req.cashChangeDue : undefined,
+    },
+  };
+}
+
 /**
  * Validates the tender and assembles the SaleTransaction to persist.
  *
@@ -65,39 +125,9 @@ export function buildSaleTransaction(req: CheckoutRequest): CheckoutOutcome {
     return { success: false, error: 'invalid-quantity' };
   }
 
-  let saleMethod: PaymentMethod;
-  let payments: Payment[] | undefined;
-  let paidValue: number | undefined;
-  let changeDue: number | undefined;
-
-  if (req.splitMode) {
-    const clean = req.splitPayments.filter((p) => (p.amount || 0) > 0);
-    const tenders = summarizeTenders(clean, req.totalAmount);
-    if (clean.length === 0 || !tenders.coversTotal) {
-      return { success: false, error: 'split-incomplete' };
-    }
-    // Only cash can overpay (for change). Non-cash tenders exceeding the
-    // total would record phantom money with no way to return it.
-    const nonCashTotal = clean.filter((p) => p.method !== 'cash').reduce((s, p) => s + p.amount, 0);
-    if (nonCashTotal > req.totalAmount + 0.005) {
-      return { success: false, error: 'split-non-cash-overpay' };
-    }
-    payments = clean;
-    saleMethod = tenders.dominantMethod;
-    paidValue = tenders.cashTendered > 0 ? tenders.cashTendered : undefined;
-    changeDue = tenders.cashTendered > 0 ? tenders.cashChange : undefined;
-  } else {
-    paidValue = req.paymentMethod === 'cash' ? parseFloat(req.cashPaidText) || 0 : undefined;
-    // A fully-discounted ($0) sale needs no tendered cash.
-    if (req.paymentMethod === 'cash' && req.totalAmount > 0 && (paidValue ?? 0) < req.totalAmount) {
-      return { success: false, error: 'insufficient-cash' };
-    }
-    // A sale fully covered by redeemed points is a points redemption, not a $0
-    // card charge. Any other $0 total (e.g. a 100% promo) keeps its chosen method.
-    saleMethod =
-      req.totalAmount <= 0 && req.discountType === 'loyalty' ? 'loyalty' : req.paymentMethod;
-    changeDue = saleMethod === 'cash' ? req.cashChangeDue : undefined;
-  }
+  const tendered = resolveTender(req);
+  if (!tendered.ok) return { success: false, error: tendered.error };
+  const { saleMethod, payments, paidValue, changeDue } = tendered.tender;
 
   const nextId = `TX-${shortId().toUpperCase()}`;
 

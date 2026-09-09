@@ -43,8 +43,7 @@ import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { hashPinSalted } from '../lib/hash';
 import { shortId } from '../lib/utils/ids';
-import { notify } from '../lib/utils/ui';
-import { askConfirmation } from '../lib/utils/ui';
+import { askConfirmation, notify } from '../lib/utils/ui';
 import {
   testCloudConnection,
   pushAllToCloud,
@@ -157,19 +156,28 @@ export default function Settings() {
   const updateStation = (id: string, patch: Partial<KitchenStation>) =>
     setStationForm((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   const removeStation = (id: string) => setStationForm((prev) => prev.filter((s) => s.id !== id));
+  /**
+   * Adds or removes one category from a kitchen station's routing. A station
+   * with no categories is a catch-all, which is what the panel tells the
+   * operator when they clear the last one.
+   */
   const toggleStationCategory = (id: string, categoryId: string) =>
     setStationForm((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              categoryIds: s.categoryIds.includes(categoryId)
-                ? s.categoryIds.filter((c) => c !== categoryId)
-                : [...s.categoryIds, categoryId],
-            }
-          : s,
-      ),
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        return {
+          ...s,
+          categoryIds: s.categoryIds.includes(categoryId)
+            ? s.categoryIds.filter((c) => c !== categoryId)
+            : [...s.categoryIds, categoryId],
+        };
+      }),
     );
+  /**
+   * Saves the kitchen station routing, dropping unnamed stations and trimming
+   * the addresses. A station with no name has no way to be identified on a
+   * ticket, so it is discarded rather than saved blank.
+   */
   const handleSaveStations = () => {
     // Drop stations with a blank name; trim IPs.
     const cleaned = stationForm
@@ -227,48 +235,86 @@ export default function Settings() {
     setUserModalOpen(true);
   };
 
+  /** Pushes one staff account to the cloud, when cloud sync is on. */
+  const syncUserToCloud = (user: UserAccount) =>
+    syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [user]);
+
+  /**
+   * True when saving the form would leave no active admin — demoting or
+   * deactivating the last one locks everybody out of the settings that could
+   * undo it.
+   */
+  const wouldStrandTerminal = (user: UserAccount) => {
+    const isLastActiveAdmin =
+      user.role === 'admin' &&
+      user.active &&
+      users.filter((x) => x.role === 'admin' && x.active).length <= 1;
+    return isLastActiveAdmin && (uRole !== 'admin' || !uActive);
+  };
+
+  /** Applies the form to an existing account. Returns false if it was blocked. */
+  const saveEditedUser = async (user: UserAccount) => {
+    if (wouldStrandTerminal(user)) {
+      notify(t('settings.cannotDeleteLastAdmin'));
+      return false;
+    }
+    const updated: UserAccount = {
+      ...user,
+      name: uName.trim(),
+      role: uRole,
+      active: uActive,
+      // A blank PIN field means "leave it alone", not "clear it".
+      pin: uPin ? await hashPinSalted(user.id, uPin) : user.pin,
+    };
+    handleUpdateUser(updated);
+    syncUserToCloud(updated);
+    return true;
+  };
+
+  /**
+   * Creates the account the form describes. The id is settled first because the
+   * PIN hash is salted with it, so it cannot be assigned after hashing.
+   */
+  const createUser = async () => {
+    const newId = `user-${shortId()}`;
+    const pinHash = await hashPinSalted(newId, uPin);
+    const created = handleAddUser(uName.trim(), uRole, pinHash, newId);
+    if (uActive) {
+      syncUserToCloud(created);
+      return;
+    }
+    const deactivated = { ...created, active: false };
+    handleUpdateUser(deactivated);
+    syncUserToCloud(deactivated);
+  };
+
+  /**
+   * Validates the staff form and saves it, editing the selected account or
+   * creating a new one.
+   */
   const handleSubmitUser = async (e: FormEvent) => {
     e.preventDefault();
     if (!uName.trim()) return;
+    // An existing account keeps its PIN when the field is left blank; a new one
+    // has to be given a 4-digit PIN.
     if ((!editingUser || uPin) && !/^\d{4}$/.test(uPin)) {
       notify(t('settings.pinMustBe4'));
       return;
     }
 
     if (editingUser) {
-      const isLastActiveAdmin =
-        editingUser.role === 'admin' &&
-        editingUser.active &&
-        users.filter((x) => x.role === 'admin' && x.active).length <= 1;
-      if (isLastActiveAdmin && (uRole !== 'admin' || !uActive)) {
-        notify(t('settings.cannotDeleteLastAdmin'));
-        return;
-      }
-
-      const updated: UserAccount = {
-        ...editingUser,
-        name: uName.trim(),
-        role: uRole,
-        active: uActive,
-        pin: uPin ? await hashPinSalted(editingUser.id, uPin) : editingUser.pin,
-      };
-      handleUpdateUser(updated);
-      syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [updated]);
+      if (!(await saveEditedUser(editingUser))) return;
     } else {
-      const tempId = `user-${shortId()}`;
-      const pinHash = await hashPinSalted(tempId, uPin);
-      const created = handleAddUser(uName.trim(), uRole, pinHash, tempId);
-      if (!uActive) {
-        const deactivated = { ...created, active: false };
-        handleUpdateUser(deactivated);
-        syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [deactivated]);
-      } else {
-        syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [created]);
-      }
+      await createUser();
     }
     setUserModalOpen(false);
   };
 
+  /**
+   * Deletes a staff account, locally and in the cloud. Refuses to remove the
+   * signed-in operator or the last active admin — either would lock this
+   * terminal out of the settings that could undo it.
+   */
   const handleRemoveUser = async (u: UserAccount) => {
     if (currentUser && u.id === currentUser.id) {
       notify(t('settings.cannotDeleteSelf'));
@@ -305,6 +351,11 @@ export default function Settings() {
   // one badge that survives a restart. See resolveDeviceAuthConfigured.
   const observedDeviceAuth = () => ({ authEmail: sbAuthEmail, authPassword: sbAuthPassword });
 
+  /**
+   * Assembles the Supabase config to persist from the current form fields.
+   * `observed` carries the credentials an operation actually reached the
+   * server with, which is the only evidence that device auth is configured.
+   */
   const buildConfig = (
     enabled: boolean,
     status: 'disconnected' | 'connected' | 'error',
@@ -359,6 +410,10 @@ export default function Settings() {
     notify(ok ? t('settings.connectionSuccess') : t('settings.connectionFailed'));
   };
 
+  /**
+   * Uploads this terminal's catalog, customers, staff and transactions to the
+   * cloud, and records whether the attempt connected.
+   */
   const handlePush = async () => {
     if (!hasCreds()) return;
     setBusy('push');
@@ -374,6 +429,11 @@ export default function Settings() {
     notify(ok ? t('settings.pushSuccess') : t('settings.pushFailed'));
   };
 
+  /**
+   * Replaces this terminal's data with the cloud's, after confirmation.
+   * Anything local that never reached the cloud is lost, which is what the
+   * warning is for.
+   */
   const handlePull = async () => {
     if (!hasCreds()) return;
     if (!(await askConfirmation(t('settings.pullWarning')))) return;
@@ -424,6 +484,11 @@ export default function Settings() {
     );
   };
 
+  /**
+   * Deletes every transaction on this terminal, and in the cloud when sync is
+   * on, after confirmation. Sales history is the audit trail, so this asks
+   * before it acts and cannot be undone afterwards.
+   */
   const handleDeleteAllTransactions = async () => {
     if (
       await askConfirmation(
@@ -441,6 +506,10 @@ export default function Settings() {
     }
   };
 
+  /**
+   * Restores every store setting to its default, after confirmation.
+   * Transactions, customers and staff accounts are left alone.
+   */
   const handleResetDefaults = async () => {
     if (
       await askConfirmation(

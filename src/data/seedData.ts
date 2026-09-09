@@ -170,11 +170,13 @@ const CATEGORY_GRADIENT: Record<string, [string, string]> = {
   'cat-snk': ['#a78bfa', '#7c3aed'],
 };
 
-// Builds a self-contained SVG thumbnail (a category-tinted gradient behind the
-// product's emoji) as a data URI. This keeps the demo catalog looking polished
-// fully offline — an offline-first POS often runs on a café LAN with no
-// internet — with no external image host and no binary assets in the repo.
-// encodeURIComponent (not base64) keeps it UTF-8-safe for the emoji glyph.
+/**
+ * Builds a self-contained SVG thumbnail (a category-tinted gradient behind the
+ * product's emoji) as a data URI. This keeps the demo catalog looking polished
+ * fully offline — an offline-first POS often runs on a café LAN with no
+ * internet — with no external image host and no binary assets in the repo.
+ * encodeURIComponent (not base64) keeps it UTF-8-safe for the emoji glyph.
+ */
 function productThumb(category: string, emoji: string): string {
   const [from, to] = CATEGORY_GRADIENT[category] ?? ['#94a3b8', '#475569'];
   const svg =

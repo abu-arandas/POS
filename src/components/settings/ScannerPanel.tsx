@@ -13,6 +13,11 @@ export interface ScannerPanelProps {
   onSaveScanner(): void;
 }
 
+/**
+ * Settings' scanner panel: the keyboard-wedge timing that separates a
+ * scanned barcode from ordinary typing, with a live test field to confirm
+ * the thresholds suit the hardware in the shop.
+ */
 export function ScannerPanel({
   t,
   scannerForm,
@@ -37,7 +42,7 @@ export function ScannerPanel({
           type="checkbox"
           checked={scannerForm.enabled}
           onChange={(e) => onScannerFormChange({ ...scannerForm, enabled: e.target.checked })}
-          className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+          className="size-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
         />
         <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
           {t('settings.scannerEnabled')}

@@ -24,6 +24,10 @@ export interface SupabasePanelProps {
   onPush(): void | Promise<void>;
 }
 
+/**
+ * Settings' cloud panel: the Supabase credentials, the store this terminal
+ * syncs as, and the manual push/pull controls with the connection state.
+ */
 export function SupabasePanel({
   t,
   supabaseConfig,
@@ -58,19 +62,19 @@ export function SupabasePanel({
           </span>
           {supabaseConfig.status === 'connected' && (
             <span className="badge badge-emerald flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span className="size-2 rounded-full bg-emerald-500"></span>
               {t('settings.statusConnected')}
             </span>
           )}
           {supabaseConfig.status === 'disconnected' && (
             <span className="badge badge-slate flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+              <span className="size-2 rounded-full bg-slate-400"></span>
               {t('settings.statusDisconnected')}
             </span>
           )}
           {supabaseConfig.status === 'error' && (
             <span className="badge badge-rose flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+              <span className="size-2 rounded-full bg-rose-500"></span>
               {t('settings.statusError')}
             </span>
           )}
@@ -190,7 +194,7 @@ export function SupabasePanel({
             type="checkbox"
             checked={sbEnabled}
             onChange={(e) => onToggleEnabled(e.target.checked)}
-            className="mt-1 w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+            className="mt-1 size-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
           />
           <div>
             <span className="block text-sm font-bold text-slate-900 dark:text-emerald-100">

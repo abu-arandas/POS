@@ -189,7 +189,7 @@ export default function ReceiptSettingsPanel({
                   type="checkbox"
                   checked={!!layout.show[key]}
                   onChange={(e) => setToggle(key, e.target.checked)}
-                  className="accent-emerald-500 w-4 h-4 shrink-0"
+                  className="accent-emerald-500 size-4 shrink-0"
                 />
                 <span className="text-xs text-slate-600 dark:text-slate-300 truncate">
                   {t(`receiptCfg.tg_${key}`)}

@@ -7,6 +7,10 @@ export interface DangerZonePanelProps {
   onResetDefaults(): void | Promise<void>;
 }
 
+/**
+ * Settings' danger zone: the two irreversible actions — wiping transactions
+ * and resetting settings — kept together and away from everything else.
+ */
 export function DangerZonePanel({
   t,
   onDeleteAllTransactions,
