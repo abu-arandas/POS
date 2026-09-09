@@ -98,13 +98,10 @@ export function useDashboardMetrics(t: TFunction, language: string) {
   // 'all' is handled separately (rangeTxns returns everything), so 30d/all both map to 30.
   const rangeDays = range === 'today' ? 1 : range === '7d' ? 7 : 30;
 
-  const rangeTxns = useMemo(
-    () =>
-      range === 'all'
-        ? completedTransactions
-        : withinLastDays(completedTransactions, todayStart, rangeDays),
-    [completedTransactions, range, rangeDays, todayStart],
-  );
+  const rangeTxns = useMemo(() => {
+    if (range === 'all') return completedTransactions;
+    return withinLastDays(completedTransactions, todayStart, rangeDays);
+  }, [completedTransactions, range, rangeDays, todayStart]);
 
   const kpis = useMemo(
     () => computeKpis(todayTransactions, completedTransactions, products),

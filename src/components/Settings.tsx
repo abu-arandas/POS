@@ -43,8 +43,7 @@ import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { hashPinSalted } from '../lib/hash';
 import { shortId } from '../lib/utils/ids';
-import { notify } from '../lib/utils/ui';
-import { askConfirmation } from '../lib/utils/ui';
+import { askConfirmation, notify } from '../lib/utils/ui';
 import {
   testCloudConnection,
   pushAllToCloud,
@@ -159,16 +158,15 @@ export default function Settings() {
   const removeStation = (id: string) => setStationForm((prev) => prev.filter((s) => s.id !== id));
   const toggleStationCategory = (id: string, categoryId: string) =>
     setStationForm((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              categoryIds: s.categoryIds.includes(categoryId)
-                ? s.categoryIds.filter((c) => c !== categoryId)
-                : [...s.categoryIds, categoryId],
-            }
-          : s,
-      ),
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        return {
+          ...s,
+          categoryIds: s.categoryIds.includes(categoryId)
+            ? s.categoryIds.filter((c) => c !== categoryId)
+            : [...s.categoryIds, categoryId],
+        };
+      }),
     );
   const handleSaveStations = () => {
     // Drop stations with a blank name; trim IPs.

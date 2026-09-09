@@ -12,8 +12,9 @@ export interface CheckoutItem {
   quantity: number;
 }
 
-const finiteNonNegative = (value: number): number =>
-  Number.isFinite(value) && value > 0 ? value : 0;
+const finiteNonNegative = (value: number): number => {
+  return Number.isFinite(value) && value > 0 ? value : 0;
+};
 
 /**
  * Computes subtotal, discount, tax and total for a cart.

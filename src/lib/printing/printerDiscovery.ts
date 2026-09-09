@@ -41,8 +41,10 @@ export function serialSupported(): boolean {
   return !!webSerial();
 }
 
-const hex = (n?: number) =>
-  n === undefined ? '????' : n.toString(16).toUpperCase().padStart(4, '0');
+const hex = (n?: number) => {
+  if (n === undefined) return '????';
+  return n.toString(16).toUpperCase().padStart(4, '0');
+};
 
 /**
  * OS printers, desktop app only. Resolves [] in a plain browser.

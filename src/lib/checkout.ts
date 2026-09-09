@@ -8,8 +8,7 @@ import {
 } from '../types';
 import { summarizeTenders } from './payments';
 import { shortId } from './utils/ids';
-import { nonNegative } from './utils/validation';
-import { isPositiveIntegerQuantity } from './utils/validation';
+import { isPositiveIntegerQuantity, nonNegative } from './utils/validation';
 
 /**
  * Everything the register has collected for one sale, with totals already

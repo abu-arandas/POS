@@ -252,11 +252,7 @@ export function ProductFormModal({
             <div className="flex gap-4">
               <div className="size-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 flex items-center justify-center overflow-hidden shrink-0">
                 {productPreviewUrl ? (
-                  <img
-                    src={productPreviewUrl}
-                    alt="Preview"
-                    className="size-full object-cover"
-                  />
+                  <img src={productPreviewUrl} alt="Preview" className="size-full object-cover" />
                 ) : (
                   <ImageIcon className="text-slate-500" size={32} />
                 )}

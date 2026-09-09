@@ -90,7 +90,7 @@ export async function pullUserAccounts(
       name: r.name,
       role: r.role as UserAccount['role'],
       pin: localUsers.get(r.id)?.pin ?? '',
-      active: !!r.active,
+      active: Boolean(r.active),
       createdAt: r.created_at,
     }));
   } catch (err) {

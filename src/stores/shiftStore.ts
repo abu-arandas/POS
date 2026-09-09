@@ -38,17 +38,16 @@ export const useShiftStore = create<ShiftState>()(
 
       closeShift: (id, countedCash, note, closedBy) => {
         set({
-          shifts: get().shifts.map((s) =>
-            s.id === id
-              ? {
-                  ...s,
-                  closedAt: new Date().toISOString(),
-                  closedBy,
-                  countedCash,
-                  note: note || null,
-                }
-              : s,
-          ),
+          shifts: get().shifts.map((s) => {
+            if (s.id !== id) return s;
+            return {
+              ...s,
+              closedAt: new Date().toISOString(),
+              closedBy,
+              countedCash,
+              note: note || null,
+            };
+          }),
           currentShiftId: get().currentShiftId === id ? null : get().currentShiftId,
         });
       },

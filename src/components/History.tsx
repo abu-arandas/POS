@@ -89,9 +89,10 @@ export default function History() {
   };
 
   const handleToggleTx = (id: string) => {
-    setSelectedTxIds((prev) =>
-      prev.includes(id) ? prev.filter((txId) => txId !== id) : [...prev, id],
-    );
+    setSelectedTxIds((prev) => {
+      if (prev.includes(id)) return prev.filter((txId) => txId !== id);
+      return [...prev, id];
+    });
   };
 
   const confirmBulkDelete = () => {
@@ -118,9 +119,10 @@ export default function History() {
   };
 
   const togglePaymentFilter = (method: string) => {
-    setPaymentFilter((prev) =>
-      prev.includes(method) ? prev.filter((m) => m !== method) : [...prev, method],
-    );
+    setPaymentFilter((prev) => {
+      if (prev.includes(method)) return prev.filter((m) => m !== method);
+      return [...prev, method];
+    });
   };
 
   const exportCsv = () => {

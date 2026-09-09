@@ -78,8 +78,10 @@ export function computeRefund(
   // keeps a piecewise full return summing to exactly tx.total instead of
   // drifting a cent per line. A full return (by quantity) trues up to the total
   // directly, so it is also immune to any rounding in the stored subtotal.
-  const prorate = (lineSubtotal: number) =>
-    tx.subtotal > 0 ? Number((tx.total * (lineSubtotal / tx.subtotal)).toFixed(2)) : 0;
+  const prorate = (lineSubtotal: number) => {
+    if (tx.subtotal <= 0) return 0;
+    return Number((tx.total * (lineSubtotal / tx.subtotal)).toFixed(2));
+  };
   const priorRefundedSubtotal = tx.items.reduce(
     (sum, item) =>
       sum + item.price * (item.quantity - (remaining[item.productId] ?? item.quantity)),
