@@ -77,7 +77,9 @@ npm run electron:build
 **Output Locations:**
 Once completed successfully, your executables will be located in the `release/` folder inside the workspace:
 
-- **Installer:** `release/EA-POS-Setup-1.0.0.exe` (Distribute this to install on Windows machines)
+- **Installer:** `release/EA-POS-Setup-<version>.exe` — the version is the one in
+  `package.json` (electron-builder names the file from it), so today's build is
+  `EA-POS-Setup-1.0.3.exe`. Distribute this to install on Windows machines.
 - **Standalone App:** `release/win-unpacked/EA POS.exe` (Portable version, run directly without installing)
 
 _Troubleshooting: If you get an `EPERM` error during the build, ensure you do not have any File Explorer windows or terminals open inside the `release` folder, as Windows locks files while being viewed._
@@ -106,7 +108,9 @@ _Troubleshooting: If you get an `EPERM` error during the build, ensure you do no
 >
 > Until a release is signed, verify a download by hand: the Windows workflow
 > publishes a `SHA256SUMS.txt` beside the installer, so compare it with
-> `Get-FileHash .\EA-POS-Setup-1.0.0.exe -Algorithm SHA256`.
+> `Get-FileHash .\EA-POS-Setup-<version>.exe -Algorithm SHA256` — substituting the
+> same version as above, since a mistyped filename fails the check by not existing
+> rather than by mismatching.
 
 ### Build for Web
 
