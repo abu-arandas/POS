@@ -123,7 +123,7 @@ export async function startRealtimeSync(): Promise<boolean> {
  * results are discarded rather than written. Safe to call when none is open.
  */
 export function stopRealtimeSync(): void {
-  generation++;
+  generation += 1;
   for (const timer of Object.values(timers)) clearTimeout(timer);
   timers = {};
   if (channel) {

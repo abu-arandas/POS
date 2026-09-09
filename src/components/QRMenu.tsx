@@ -39,12 +39,14 @@ export default function QRMenu() {
     // Initial fetch without the refresh spinner: state updates only land
     // after the promise resolves, never synchronously inside the effect.
     let cancelled = false;
-    window.electronAPI
-      ?.getMenuInfo?.()
-      .then((info) => {
-        if (!cancelled) setMenuHost({ ...info, running: info.running !== false });
-      })
-      .catch((err) => console.error('Failed to get menu server info:', err));
+    void (async () => {
+      try {
+        const info = await window.electronAPI?.getMenuInfo?.();
+        if (!cancelled && info) setMenuHost({ ...info, running: info.running !== false });
+      } catch (err) {
+        console.error('Failed to get menu server info:', err);
+      }
+    })();
     return () => {
       cancelled = true;
     };

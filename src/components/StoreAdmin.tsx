@@ -79,16 +79,18 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([listStores(orgId), listMemberships(orgId)])
-      .then(([s, m]) => {
+    void (async () => {
+      try {
+        const [s, m] = await Promise.all([listStores(orgId), listMemberships(orgId)]);
         if (cancelled) return;
         setStores(s);
         setMembers(m);
-      })
-      .catch((err) => console.error('Failed to load stores:', err))
-      .finally(() => {
+      } catch (err) {
+        console.error('Failed to load stores:', err);
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };

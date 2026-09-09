@@ -109,7 +109,7 @@ export function buildTrendBuckets(
   const byDay = new Map<string, TrendBucket>();
   const today = new Date(todayStart);
 
-  for (let i = buckets - 1; i >= 0; i--) {
+  for (let i = buckets - 1; i >= 0; i -= 1) {
     const day = new Date(today);
     day.setDate(today.getDate() - i);
     byDay.set(day.toDateString(), { key: day.toDateString(), revenue: 0, profit: 0 });

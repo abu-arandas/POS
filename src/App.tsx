@@ -74,11 +74,14 @@ export default function App() {
     if (!(syncEnabled && syncConnected)) return;
     startFleetHeartbeat();
     let cancelled = false;
-    fetchSuperadminOrg()
-      .then((org) => {
+    void (async () => {
+      try {
+        const org = await fetchSuperadminOrg();
         if (!cancelled) setSuperadminOrg(org);
-      })
-      .catch((err) => console.error('Failed to resolve super-admin org:', err));
+      } catch (err) {
+        console.error('Failed to resolve super-admin org:', err);
+      }
+    })();
     // Leaving the connected state stops the heartbeat and clears super-admin
     // access. Resetting in cleanup (not the effect body) avoids a synchronous
     // state update during render.

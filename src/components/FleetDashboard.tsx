@@ -107,18 +107,24 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
   useEffect(() => {
     let cancelled = false;
     const since = periodSince(period);
-    Promise.all([fetchFleetSummary(orgId, since), fetchFleetDaily(orgId, since)])
-      .then(([s, d]) => {
+    void (async () => {
+      try {
+        const [s, d] = await Promise.all([
+          fetchFleetSummary(orgId, since),
+          fetchFleetDaily(orgId, since),
+        ]);
         if (cancelled) return;
         setSummary(s);
         setDaily(d);
-      })
-      .catch((err) => console.error('Failed to load fleet dashboard:', err))
-      .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
-        setLoadedOnce(true);
-      });
+      } catch (err) {
+        console.error('Failed to load fleet dashboard:', err);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          setLoadedOnce(true);
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };

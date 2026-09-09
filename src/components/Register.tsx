@@ -351,12 +351,22 @@ export default function Register() {
     clearCart();
 
     if (printerConfig.autoPrintOnCheckout) {
-      printReceipt(transaction, settings, printerConfig, isCashSale, receiptLayout).then(
-        (outcome) => {
+      void (async () => {
+        try {
+          const outcome = await printReceipt(
+            transaction,
+            settings,
+            printerConfig,
+            isCashSale,
+            receiptLayout,
+          );
           notifyPrint(outcome);
           if (outcome === 'printed') setReceiptPrinted(true);
-        },
-      );
+        } catch (err) {
+          console.error('Receipt print failed:', err);
+          notifyPrint('error');
+        }
+      })();
     } else if (isCashSale) {
       openCashDrawer(printerConfig);
     }
@@ -368,14 +378,23 @@ export default function Register() {
       const products = useProductStore.getState().products;
       const prodMap = new Map(products.map((p) => [p.id, p]));
       const catOf = (productId: string) => prodMap.get(productId)?.category;
-      printKitchenTickets(
-        transaction,
-        settings,
-        printerConfig,
-        kitchenStations,
-        catOf,
-        kitchenLayout,
-      ).then(notifyPrint);
+      void (async () => {
+        try {
+          notifyPrint(
+            await printKitchenTickets(
+              transaction,
+              settings,
+              printerConfig,
+              kitchenStations,
+              catOf,
+              kitchenLayout,
+            ),
+          );
+        } catch (err) {
+          console.error('Kitchen ticket print failed:', err);
+          notifyPrint('error');
+        }
+      })();
     }
   }, [
     cartItems,

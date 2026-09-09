@@ -74,13 +74,16 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
 
   useEffect(() => {
     let cancelled = false;
-    listStores(orgId)
-      .then((s) => {
+    void (async () => {
+      try {
+        const s = await listStores(orgId);
         if (!cancelled) setStores(s);
-      })
-      .finally(() => {
+      } catch (err) {
+        console.error('Failed to load stores:', err);
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
