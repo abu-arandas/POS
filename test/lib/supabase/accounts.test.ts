@@ -6,6 +6,8 @@ import {
   verifyLoginCloud,
 } from '../../../src/lib/supabase/accounts';
 import { useAuthStore } from '../../../src/stores/authStore';
+import { makePagedClient, servingOnePage } from './pageClient';
+import { PULL_PAGE_SIZE } from '../../../src/lib/supabase/sync-utils';
 import type { UserAccount } from '../../../src/types';
 
 // Staff accounts are the one synced table whose secret deliberately does NOT
@@ -34,28 +36,16 @@ function capturingClient() {
   return { client, upserted };
 }
 
-function servingClient(rows: Record<string, unknown>[]) {
-  let served = false;
-  const page = () => {
-    const data = served ? [] : rows;
-    served = true;
-    return Promise.resolve({ data, error: null });
-  };
-  const builder: Record<string, unknown> = {};
-  builder.order = () => builder;
-  builder.limit = () => builder;
-  builder.gt = () => builder;
-  builder.eq = () => builder;
-  builder.then = (resolve: (v: unknown) => unknown) => page().then(resolve);
-  return { from: () => ({ select: () => builder }) } as unknown as SupabaseClient;
-}
-
-/** Answers the verify_login RPC with `reply`, and records what it was asked. */
+/**
+ * Answers the RPC with `reply`, recording the function NAME as well as the
+ * params. The name matters: verify_login is a SECURITY DEFINER function, so a
+ * misspelling does not fall back to a slower path, it fails every cloud login.
+ */
 function rpcClient(reply: unknown, error: { message: string } | null = null) {
-  const calls: Array<Record<string, string>> = [];
+  const calls: Array<{ fn: string; params: Record<string, string> }> = [];
   const client = {
-    rpc: (_fn: string, params: Record<string, string>) => {
-      calls.push(params);
+    rpc: (fn: string, params: Record<string, string>) => {
+      calls.push({ fn, params });
       return Promise.resolve({ data: reply, error });
     },
   } as unknown as SupabaseClient;
@@ -76,7 +66,7 @@ describe('user account sync', () => {
     const publicRow = { ...(upserted[0] as Record<string, unknown>) };
     delete publicRow.pin;
     useAuthStore.setState({ users: [account] });
-    const pulled = await pullUserAccounts(servingClient([publicRow]));
+    const pulled = await pullUserAccounts(servingOnePage([publicRow]).client);
     expect(pulled).toEqual([account]);
   });
 
@@ -85,9 +75,9 @@ describe('user account sync', () => {
     // hash here would lock an offline terminal out on the next Pull From Cloud.
     useAuthStore.setState({ users: [account] });
     const pulled = await pullUserAccounts(
-      servingClient([
+      servingOnePage([
         { id: 'u-1', name: 'Ada Lovelace', role: 'admin', active: true, created_at: '2026-01-04' },
-      ]),
+      ]).client,
     );
     expect(pulled?.[0].pin).toBe(account.pin);
   });
@@ -96,18 +86,18 @@ describe('user account sync', () => {
     // Nothing local to keep, and inventing a hash would be worse than an empty
     // one: '' can never verify, so the account simply cannot sign in here yet.
     const pulled = await pullUserAccounts(
-      servingClient([
+      servingOnePage([
         { id: 'u-9', name: 'New Hire', role: 'cashier', active: true, created_at: '2026-02-01' },
-      ]),
+      ]).client,
     );
     expect(pulled?.[0].pin).toBe('');
   });
 
   it('reads a deactivated account as inactive rather than truthy', async () => {
     const pulled = await pullUserAccounts(
-      servingClient([
+      servingOnePage([
         { id: 'u-1', name: 'Ada', role: 'admin', active: false, created_at: '2026-01-04' },
-      ]),
+      ]).client,
     );
     expect(pulled?.[0].active).toBe(false);
   });
@@ -132,6 +122,53 @@ describe('user account sync', () => {
   });
 });
 
+// How the pull is performed, not just what it returns.
+describe('how the account pull walks the view', () => {
+  it('reads the public projection, ordered by primary key', async () => {
+    const { client, from, select, orders, limits } = makePagedClient([{ data: [] }]);
+    await pullUserAccounts(client);
+    expect(from).toHaveBeenCalledWith('user_accounts_public');
+    expect(select).toHaveBeenCalledWith('*');
+    expect(orders[0]).toEqual(['id']);
+    expect(limits[0]).toBe(PULL_PAGE_SIZE);
+  });
+
+  it('carries the last id forward as the cursor and accumulates every page', async () => {
+    const row = (id: string) => ({
+      id,
+      name: `Staff ${id}`,
+      role: 'cashier',
+      active: true,
+      created_at: '2026-01-04',
+    });
+    const { client, cursors } = makePagedClient([
+      { data: [row('a'), row('b')] },
+      { data: [row('c')] },
+      { data: [] },
+    ]);
+
+    const pulled = await pullUserAccounts(client);
+
+    expect(pulled?.map((u) => u.id)).toEqual(['a', 'b', 'c']);
+    expect(cursors).toEqual([null, 'b', 'c']);
+  });
+
+  it('filters by store when one is configured, and not when it is not', async () => {
+    const scoped = makePagedClient([{ data: [] }]);
+    await pullUserAccounts(scoped.client, 'store-7');
+    expect(scoped.eq).toHaveBeenCalledWith('store_id', 'store-7');
+
+    const unscoped = makePagedClient([{ data: [] }]);
+    await pullUserAccounts(unscoped.client);
+    expect(unscoped.eq).not.toHaveBeenCalled();
+  });
+
+  it('returns null rather than an empty roster when a page errors', async () => {
+    const { client } = makePagedClient([{ data: null, error: { message: 'nope' } }]);
+    expect(await pullUserAccounts(client)).toBeNull();
+  });
+});
+
 describe('verifyLoginCloud', () => {
   const row = {
     id: 'u-1',
@@ -141,16 +178,25 @@ describe('verifyLoginCloud', () => {
     created_at: '2026-01-04',
   };
 
+  it('calls the verify_login RPC by name', async () => {
+    // A misspelling here does not degrade to a slower path — it fails every
+    // cloud login, and the local-only fallback hides that until a terminal
+    // needs a PIN changed on another till.
+    const { client, calls } = rpcClient([row]);
+    await verifyLoginCloud(client, 'Ada Lovelace', account.pin);
+    expect(calls[0].fn).toBe('verify_login');
+  });
+
   it('sends the derived hash, never the PIN itself', async () => {
     const { client, calls } = rpcClient([row]);
     await verifyLoginCloud(client, 'Ada Lovelace', account.pin);
-    expect(calls[0]).toEqual({ p_name: 'Ada Lovelace', p_pin_hash: account.pin });
+    expect(calls[0].params).toEqual({ p_name: 'Ada Lovelace', p_pin_hash: account.pin });
   });
 
   it('scopes the lookup to a store when one is configured', async () => {
     const { client, calls } = rpcClient([row]);
     await verifyLoginCloud(client, 'Ada Lovelace', account.pin, 'store-7');
-    expect(calls[0].p_store_id).toBe('store-7');
+    expect(calls[0].params.p_store_id).toBe('store-7');
   });
 
   it('caches the candidate hash that was just verified', async () => {

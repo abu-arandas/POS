@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { pushCustomers, pullCustomers } from '../../../src/lib/supabase/customers';
+import { makePagedClient, servingOnePage } from './pageClient';
+import { PULL_PAGE_SIZE } from '../../../src/lib/supabase/sync-utils';
 import type { Customer } from '../../../src/types';
 
 // The customer mapper is the only place the camelCase domain object and the
@@ -29,23 +31,6 @@ function capturingClient() {
   return { client, upserted };
 }
 
-/** Serves `rows` as a single page, then an empty one to end the keyset walk. */
-function servingClient(rows: Record<string, unknown>[]) {
-  let served = false;
-  const page = () => {
-    const data = served ? [] : rows;
-    served = true;
-    return Promise.resolve({ data, error: null });
-  };
-  const builder: Record<string, unknown> = {};
-  builder.order = () => builder;
-  builder.limit = () => builder;
-  builder.gt = () => builder;
-  builder.eq = () => builder;
-  builder.then = (resolve: (v: unknown) => unknown) => page().then(resolve);
-  return { from: () => ({ select: () => builder }) } as unknown as SupabaseClient;
-}
-
 describe('customer sync', () => {
   it('sends nothing, and reports success, for an empty list', async () => {
     const { client, upserted } = capturingClient();
@@ -58,7 +43,7 @@ describe('customer sync', () => {
     expect(await pushCustomers(client, [customer])).toBe(true);
     expect(upserted[0].created_at).toBe('2026-01-04');
 
-    const pulled = await pullCustomers(servingClient(upserted));
+    const pulled = await pullCustomers(servingOnePage(upserted).client);
     expect(pulled).toEqual([customer]);
   });
 
@@ -76,7 +61,7 @@ describe('customer sync', () => {
 
   it('reads a null email or phone as empty rather than the string "null"', async () => {
     const pulled = await pullCustomers(
-      servingClient([{ ...customer, email: null, phone: null, created_at: '2026-01-04' }]),
+      servingOnePage([{ ...customer, email: null, phone: null, created_at: '2026-01-04' }]).client,
     );
     expect(pulled?.[0].email).toBe('');
     expect(pulled?.[0].phone).toBe('');
@@ -84,7 +69,7 @@ describe('customer sync', () => {
 
   it('reads a NULL balance as zero', async () => {
     const pulled = await pullCustomers(
-      servingClient([{ ...customer, points: null, created_at: '2026-01-04' }]),
+      servingOnePage([{ ...customer, points: null, created_at: '2026-01-04' }]).client,
     );
     expect(pulled?.[0].points).toBe(0);
   });
@@ -95,17 +80,19 @@ describe('customer sync', () => {
     // sum it reaches, silently, because NaN compares false against everything.
     const noPointsColumn: Record<string, unknown> = { ...customer, created_at: '2026-01-04' };
     delete noPointsColumn.points;
-    const pulled = await pullCustomers(servingClient([noPointsColumn]));
+    const pulled = await pullCustomers(servingOnePage([noPointsColumn]).client);
     expect(pulled?.[0].points).toBe(0);
   });
 
   it('keeps a real balance rather than falling through to zero', async () => {
-    const pulled = await pullCustomers(servingClient([{ ...customer, created_at: '2026-01-04' }]));
+    const pulled = await pullCustomers(
+      servingOnePage([{ ...customer, created_at: '2026-01-04' }]).client,
+    );
     expect(pulled?.[0].points).toBe(240);
   });
 
   it('dates a row that has no created_at rather than leaving it undefined', async () => {
-    const pulled = await pullCustomers(servingClient([{ ...customer, created_at: null }]));
+    const pulled = await pullCustomers(servingOnePage([{ ...customer, created_at: null }]).client);
     expect(pulled?.[0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
@@ -119,18 +106,55 @@ describe('customer sync', () => {
   it('returns null, not an empty list, when the pull fails', async () => {
     // An empty array means "the cloud has no customers" and replaces local
     // data; null means "ask again later". Conflating them deletes the book.
-    const client = {
-      from: () => ({
-        select: () => ({
-          order: () => ({
-            limit: () => ({
-              then: (resolve: (v: unknown) => unknown) =>
-                Promise.resolve({ data: null, error: { message: 'nope' } }).then(resolve),
-            }),
-          }),
-        }),
-      }),
-    } as unknown as SupabaseClient;
+    const { client } = makePagedClient([{ data: null, error: { message: 'nope' } }]);
     expect(await pullCustomers(client)).toBeNull();
+  });
+});
+
+// How the pull is performed, not just what it returns. A fake that ignores
+// .order/.limit/.gt/.eq passes whether or not the cursor is carried forward or
+// the store filter applied, which is most of what can actually go wrong here.
+describe('how the customer pull walks the table', () => {
+  it('asks for a page ordered by primary key', async () => {
+    const { client, select, orders, limits } = makePagedClient([{ data: [] }]);
+    await pullCustomers(client);
+    expect(select).toHaveBeenCalledWith('*');
+    expect(orders[0]).toEqual(['id']);
+    expect(limits[0]).toBe(PULL_PAGE_SIZE);
+  });
+
+  it('carries the last id forward as the cursor and accumulates every page', async () => {
+    const row = (id: string) => ({ ...customer, id, created_at: '2026-01-04' });
+    const { client, cursors } = makePagedClient([
+      { data: [row('a'), row('b')] },
+      { data: [row('c')] },
+      { data: [] },
+    ]);
+
+    const pulled = await pullCustomers(client);
+
+    expect(pulled?.map((c) => c.id)).toEqual(['a', 'b', 'c']);
+    expect(cursors).toEqual([null, 'b', 'c']);
+  });
+
+  it('confirms the end with an empty page rather than a short one', async () => {
+    // A short page is what a server-side row cap looks like, so reading it as
+    // the end would silently truncate the book and then overwrite the rest.
+    const { client, cursors } = makePagedClient([
+      { data: [{ ...customer, created_at: '2026-01-04' }] },
+      { data: [] },
+    ]);
+    await pullCustomers(client);
+    expect(cursors).toHaveLength(2);
+  });
+
+  it('filters by store when one is configured, and not when it is not', async () => {
+    const scoped = makePagedClient([{ data: [] }]);
+    await pullCustomers(scoped.client, 'store-7');
+    expect(scoped.eq).toHaveBeenCalledWith('store_id', 'store-7');
+
+    const unscoped = makePagedClient([{ data: [] }]);
+    await pullCustomers(unscoped.client);
+    expect(unscoped.eq).not.toHaveBeenCalled();
   });
 });
