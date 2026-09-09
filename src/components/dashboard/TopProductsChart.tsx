@@ -12,6 +12,12 @@ import {
 } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { ChartTooltip } from './ChartTooltip';
+import {
+  barCategoryAxis,
+  barValueAxis,
+  horizontalBarGrid,
+  horizontalBarMargin,
+} from './chartPresets';
 
 export interface TopProductRow {
   name: string;
@@ -48,28 +54,10 @@ export function TopProductsChart({ data, currency }: TopProductsChartProps) {
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data}
-              layout="vertical"
-              margin={{ top: 0, right: 20, left: 20, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="4 4" horizontal={false} stroke="#1e293b" />
-              <XAxis
-                type="number"
-                stroke="#475569"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                dataKey="name"
-                type="category"
-                stroke="#94a3b8"
-                fontSize={12}
-                width={120}
-                tickLine={false}
-                axisLine={false}
-              />
+            <BarChart data={data} layout="vertical" margin={horizontalBarMargin}>
+              <CartesianGrid {...horizontalBarGrid} />
+              <XAxis {...barValueAxis} />
+              <YAxis {...barCategoryAxis} width={120} />
               <Tooltip
                 content={<ChartTooltip currency={currency} valueType="number" />}
                 cursor={{ fill: '#1e293b', opacity: 0.4 }}

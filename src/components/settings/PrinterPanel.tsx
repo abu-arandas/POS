@@ -1,10 +1,11 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { TFunction } from 'i18next';
 import { motion } from 'motion/react';
-import { Monitor, Receipt, RefreshCw, Save, Usb, Wifi, type LucideIcon } from 'lucide-react';
+import { Receipt, Save, type LucideIcon } from 'lucide-react';
 import type { PrinterConfig, ReceiptLayout } from '../../types';
 import type { DetectedPrinter } from '../../lib/printing/printerDiscovery';
 import ReceiptSettingsPanel from '../ReceiptSettingsPanel';
+import { ConnectedPrinters, printerRowActionClass } from './ConnectedPrinters';
 
 type Setter<T> = Dispatch<SetStateAction<T>>;
 
@@ -59,120 +60,61 @@ export function PrinterPanel({
 }: PrinterPanelProps) {
   return (
     <div className="surface rounded-2xl p-6 max-w-3xl mx-auto space-y-8">
-      {/* Connected printers */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-            {t('settings.connectedPrinters')}
-          </h3>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            {serialSupported() && (
+      <ConnectedPrinters
+        t={t}
+        detectedPrinters={detectedPrinters}
+        printersLoading={printersLoading}
+        scanningNetwork={scanningNetwork}
+        onPairSerial={onPairSerial}
+        onScanNetwork={onScanNetwork}
+        onRefreshPrinters={onRefreshPrinters}
+        serialSupported={serialSupported}
+        networkScanSupported={networkScanSupported}
+        renderRowActions={(p) => (
+          <>
+            {p.isDefault && (
+              <span className="badge badge-emerald">{t('settings.printerDefault')}</span>
+            )}
+            {p.kind === 'network' && p.ipAddress && (
               <button
                 type="button"
-                onClick={onPairSerial}
-                className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center gap-2 transition-colors"
+                onClick={() => onUseNetworkPrinter(p.ipAddress!)}
+                className={printerRowActionClass}
               >
-                <Usb size={14} />
-                {t('settings.pairSerial')}
+                {printerForm.type === 'network' && printerForm.ipAddress === p.ipAddress
+                  ? t('settings.printerInUse')
+                  : t('settings.useThisPrinter')}
               </button>
             )}
-            {networkScanSupported() && (
+            {p.kind === 'system' && (
               <button
                 type="button"
-                onClick={onScanNetwork}
-                disabled={scanningNetwork}
-                className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 rounded-xl flex items-center gap-2 transition-colors"
+                onClick={() => onUseSystemPrinter(p.name)}
+                className={printerRowActionClass}
               >
-                <Wifi size={14} className={scanningNetwork ? 'animate-pulse' : ''} />
-                {scanningNetwork ? t('settings.scanningNetwork') : t('settings.scanNetwork')}
+                {(printerForm.type === 'windows' || printerForm.type === 'system') &&
+                printerForm.printerName === p.name
+                  ? t('settings.printerInUse')
+                  : t('settings.useThisPrinter')}
               </button>
             )}
-            <button
-              type="button"
-              onClick={onRefreshPrinters}
-              disabled={printersLoading}
-              className="px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 rounded-xl flex items-center gap-2 transition-colors"
-            >
-              <RefreshCw size={14} className={printersLoading ? 'animate-spin' : ''} />
-              {t('settings.refreshPrinters')}
-            </button>
-          </div>
-        </div>
-        {detectedPrinters.length === 0 ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-4 leading-relaxed">
-            {printersLoading ? '…' : t('settings.noPrintersFound')}
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {detectedPrinters.map((p) => (
-              <li
-                key={p.id}
-                className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
-                    {p.kind === 'system' ? (
-                      <Monitor size={16} />
-                    ) : p.kind === 'network' ? (
-                      <Wifi size={16} />
-                    ) : (
-                      <Usb size={16} />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block truncate">
-                      {p.name}
-                    </span>
-                    {p.detail && (
-                      <span className="text-[11px] text-slate-500 block truncate">{p.detail}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {p.isDefault && (
-                    <span className="badge badge-emerald">{t('settings.printerDefault')}</span>
-                  )}
-                  {p.kind === 'network' && p.ipAddress && (
-                    <button
-                      type="button"
-                      onClick={() => onUseNetworkPrinter(p.ipAddress!)}
-                      className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
-                    >
-                      {printerForm.type === 'network' && printerForm.ipAddress === p.ipAddress
-                        ? t('settings.printerInUse')
-                        : t('settings.useThisPrinter')}
-                    </button>
-                  )}
-                  {p.kind === 'system' && (
-                    <button
-                      type="button"
-                      onClick={() => onUseSystemPrinter(p.name)}
-                      className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
-                    >
-                      {(printerForm.type === 'windows' || printerForm.type === 'system') &&
-                      printerForm.printerName === p.name
-                        ? t('settings.printerInUse')
-                        : t('settings.useThisPrinter')}
-                    </button>
-                  )}
-                  <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
-                </div>
-              </li>
-            ))}
-          </ul>
+            <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
+          </>
         )}
-        {networkScanSupported() && (
-          <label className="mt-3 flex items-center gap-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={autoScanPrinters}
-              onChange={(e) => onAutoScanPrintersChange(e.target.checked)}
-              className="size-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
-            />
-            {t('settings.autoScanPrinters')}
-          </label>
-        )}
-      </div>
+        footer={
+          networkScanSupported() ? (
+            <label className="mt-3 flex items-center gap-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoScanPrinters}
+                onChange={(e) => onAutoScanPrintersChange(e.target.checked)}
+                className="size-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+              />
+              {t('settings.autoScanPrinters')}
+            </label>
+          ) : undefined
+        }
+      />
 
       <div>
         <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-4">

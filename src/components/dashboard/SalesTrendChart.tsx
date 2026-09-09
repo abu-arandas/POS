@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { ChartTooltip } from './ChartTooltip';
+import { trendChartGrid, trendChartMargin, trendTimeAxis, trendValueAxis } from './chartPresets';
 
 export interface SalesTrendPoint {
   label: string;
@@ -57,7 +58,7 @@ export function SalesTrendChart({ data, currency }: SalesTrendChartProps) {
       </div>
       <div className="h-80 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <AreaChart data={data} margin={trendChartMargin}>
             <defs>
               <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
@@ -68,23 +69,9 @@ export function SalesTrendChart({ data, currency }: SalesTrendChartProps) {
                 <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#1e293b" />
-            <XAxis
-              dataKey="label"
-              stroke="#475569"
-              fontSize={12}
-              tickLine={false}
-              axisLine={false}
-              dy={15}
-            />
-            <YAxis
-              stroke="#475569"
-              fontSize={12}
-              tickLine={false}
-              axisLine={false}
-              dx={-15}
-              tickFormatter={(val) => `${val}`}
-            />
+            <CartesianGrid {...trendChartGrid} />
+            <XAxis {...trendTimeAxis} dy={15} />
+            <YAxis {...trendValueAxis} dx={-15} tickFormatter={(val) => `${val}`} />
             <Tooltip content={<ChartTooltip currency={currency} />} />
             <Area
               type="monotone"

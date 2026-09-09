@@ -1,7 +1,8 @@
 import type { RefObject } from 'react';
 import { ModalShell } from '../shared/ModalShell';
+import { ModalFooter } from '../shared/ModalFooter';
 import type { TFunction } from 'i18next';
-import { Check, ClipboardList, X } from 'lucide-react';
+import { ClipboardList, X } from 'lucide-react';
 import type { Product, StoreSettings, Supplier } from '../../types';
 
 export interface PurchaseOrderDraftLine {
@@ -178,20 +179,12 @@ export function PurchaseOrderFormModal({
         </div>
       </div>
 
-      <div className="px-8 py-5 border-t border-slate-200 dark:border-white/10 bg-white/90 dark:bg-slate-900/80 flex justify-end gap-3">
-        <button
-          onClick={onClose}
-          className="px-6 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
-        >
-          {t('inventory.cancel')}
-        </button>
-        <button
-          onClick={onSubmit}
-          className="px-6 py-3 font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
-        >
-          <Check size={20} /> {t('inventory.poSaveDraft')}
-        </button>
-      </div>
+      <ModalFooter
+        cancelLabel={t('inventory.cancel')}
+        confirmLabel={t('inventory.poSaveDraft')}
+        onCancel={onClose}
+        onConfirm={onSubmit}
+      />
     </ModalShell>
   );
 }

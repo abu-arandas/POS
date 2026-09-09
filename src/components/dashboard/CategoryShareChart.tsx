@@ -12,6 +12,12 @@ import {
 } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { ChartTooltip } from './ChartTooltip';
+import {
+  barCategoryAxis,
+  barValueAxis,
+  horizontalBarGrid,
+  horizontalBarMargin,
+} from './chartPresets';
 import type { CategoryShareRow } from './useDashboardMetrics';
 
 export interface CategoryShareChartProps {
@@ -49,28 +55,10 @@ export function CategoryShareChart({ data, currency }: CategoryShareChartProps) 
                 category name in the axis, so identity never rests on colour
                 alone — and that doubles as the visible label the light
                 surface requires, where three of the steps sit under 3:1. */}
-            <BarChart
-              data={data}
-              layout="vertical"
-              margin={{ top: 0, right: 20, left: 20, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="4 4" horizontal={false} stroke="#1e293b" />
-              <XAxis
-                type="number"
-                stroke="#475569"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                dataKey="name"
-                type="category"
-                stroke="#94a3b8"
-                fontSize={12}
-                width={110}
-                tickLine={false}
-                axisLine={false}
-              />
+            <BarChart data={data} layout="vertical" margin={horizontalBarMargin}>
+              <CartesianGrid {...horizontalBarGrid} />
+              <XAxis {...barValueAxis} />
+              <YAxis {...barCategoryAxis} width={110} />
               <Tooltip content={<ChartTooltip currency={currency} />} />
               <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={22}>
                 {data.map((entry) => (
