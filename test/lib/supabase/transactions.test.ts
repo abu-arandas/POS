@@ -63,6 +63,31 @@ function servingClient(rows: Record<string, unknown>[]) {
   return { from: () => ({ select: () => builder }) } as unknown as SupabaseClient;
 }
 
+/**
+ * Rejects any upsert carrying `column` the way PostgREST does when the table
+ * has no such column, and records every attempt.
+ */
+function schemaBehindClient(column: string, code = 'PGRST204') {
+  const attempts: Record<string, unknown>[][] = [];
+  const client = {
+    from: () => ({
+      upsert: (rows: Record<string, unknown>[]) => {
+        attempts.push(rows);
+        if (rows.some((r) => column in r)) {
+          return {
+            error: {
+              code,
+              message: `Could not find the '${column}' column of 'transactions' in the schema cache`,
+            },
+          };
+        }
+        return { error: null };
+      },
+    }),
+  } as unknown as SupabaseClient;
+  return { client, attempts };
+}
+
 describe('transaction sync — tax rate', () => {
   it('writes the rate to tax_rate', async () => {
     const { client, upserted } = capturingClient();
@@ -109,5 +134,55 @@ describe('transaction sync — tax rate', () => {
       servingClient([{ ...sale, tax_rate: null, items: sale.items }]),
     );
     expect(pulled?.[0].taxRate).toBeUndefined();
+  });
+});
+
+// The app updates itself; the Supabase schema does not. Between an install
+// picking up tax_rate and an operator running the ALTER TABLE, PostgREST
+// rejects the entire row over the one column it does not recognise — so every
+// sale would stop reaching the cloud, silently, over a field that only labels a
+// receipt. This repo has been bitten by silently-dead sync before.
+describe('pushing to a database whose migration has not run', () => {
+  it('still syncs the sale, without the rate', async () => {
+    const { client, attempts } = schemaBehindClient('tax_rate');
+
+    expect(await pushTransactions(client, [sale])).toBe(true);
+    expect(attempts).toHaveLength(2);
+    expect(attempts[0][0]).toHaveProperty('tax_rate');
+    expect(attempts[1][0]).not.toHaveProperty('tax_rate');
+    // Everything else still goes, which is the point.
+    expect(attempts[1][0]).toMatchObject({ id: sale.id, total: sale.total, tax: sale.tax });
+  });
+
+  it('handles the underlying Postgres code too', async () => {
+    const { client, attempts } = schemaBehindClient('tax_rate', '42703');
+    expect(await pushTransactions(client, [sale])).toBe(true);
+    expect(attempts).toHaveLength(2);
+  });
+
+  it('does not retry, or swallow, an unrelated failure', async () => {
+    // A genuine outage must still surface as a failed push rather than being
+    // mistaken for a missing column and quietly "succeeding".
+    const attempts: unknown[][] = [];
+    const client = {
+      from: () => ({
+        upsert: (rows: unknown[]) => (
+          attempts.push(rows),
+          { error: { code: '08006', message: 'connection failure' } }
+        ),
+      }),
+    } as unknown as SupabaseClient;
+
+    expect(await pushTransactions(client, [sale])).toBe(false);
+    expect(attempts).toHaveLength(1);
+  });
+
+  it('does not treat a missing-column error for another column as this one', async () => {
+    const { client, attempts } = schemaBehindClient('shift_id');
+    // shift_id is present too, so the first attempt fails and the retry — which
+    // only drops tax_rate — fails again. The push reports failure rather than
+    // looping or claiming success.
+    expect(await pushTransactions(client, [sale])).toBe(false);
+    expect(attempts).toHaveLength(1);
   });
 });

@@ -11,6 +11,20 @@ function optionalNumber(value: unknown): number | undefined {
 }
 
 /**
+ * Whether an error is PostgREST refusing a column the table does not have.
+ *
+ * PostgREST answers a write naming an unknown column with PGRST204 and the
+ * column in the message; the underlying Postgres code is 42703. Both are
+ * matched, and the column name is checked too, so this never swallows some
+ * other schema error as a missing-column case.
+ */
+function isUnknownColumn(error: unknown, column: string): boolean {
+  const { code, message } = (error ?? {}) as { code?: string; message?: string };
+  if (code !== 'PGRST204' && code !== '42703') return false;
+  return typeof message === 'string' && message.includes(column);
+}
+
+/**
  * Push local transactions
  */
 export async function pushTransactions(
@@ -51,7 +65,23 @@ export async function pushTransactions(
       storeId,
     );
     const { error } = await client.from('transactions').upsert(records);
-    if (error) throw error;
+    if (!error) return true;
+
+    // The app updates itself; the schema does not. Between an install picking
+    // up tax_rate and an operator running scripts/schema.sql, PostgREST rejects
+    // the whole row for the one column it does not know — so every sale would
+    // stop syncing, silently, over a field that is only a receipt label.
+    // Dropping it and retrying keeps the money flowing and leaves a warning
+    // pointing at the migration.
+    if (!isUnknownColumn(error, 'tax_rate')) throw error;
+    console.warn(
+      'transactions.tax_rate is missing in Supabase — pushing without it. ' +
+        'Run the ALTER TABLE in scripts/schema.sql so reprinted receipts can ' +
+        'show the rate each sale was charged at.',
+    );
+    const withoutRate = records.map(({ tax_rate: _rate, ...rest }) => rest);
+    const retry = await client.from('transactions').upsert(withoutRate);
+    if (retry.error) throw retry.error;
     return true;
   } catch (err) {
     console.error('Failed pushing transactions:', err);
