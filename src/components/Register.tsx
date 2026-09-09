@@ -350,8 +350,14 @@ export default function Register() {
     setReceiptModalOpen(true);
     clearCart();
 
-    if (printerConfig.autoPrintOnCheckout) {
-      void (async () => {
+    if (!printerConfig.autoPrintOnCheckout && isCashSale) openCashDrawer(printerConfig);
+
+    // One checkout can produce two documents, and on most counters they leave
+    // the same device — a single serial port, or one Windows spooler queue.
+    // Started independently they interleave their byte streams and both come
+    // out garbled, so the receipt is finished before the kitchen ticket begins.
+    void (async () => {
+      if (printerConfig.autoPrintOnCheckout) {
         try {
           const outcome = await printReceipt(
             transaction,
@@ -366,11 +372,9 @@ export default function Register() {
           console.error('Receipt print failed:', err);
           notifyPrint('error');
         }
-      })();
-    } else if (isCashSale) {
-      openCashDrawer(printerConfig);
-    }
-    if (printerConfig.kitchenTicketOnCheckout) {
+      }
+
+      if (!printerConfig.kitchenTicketOnCheckout) return;
       /*
         Pre-computed product map to change O(N^2) category lookups in the kitchen
         ticket loop into O(N) map build + O(1) loop lookups.
@@ -378,24 +382,22 @@ export default function Register() {
       const { products } = useProductStore.getState();
       const prodMap = new Map(products.map((p) => [p.id, p]));
       const catOf = (productId: string) => prodMap.get(productId)?.category;
-      void (async () => {
-        try {
-          notifyPrint(
-            await printKitchenTickets(
-              transaction,
-              settings,
-              printerConfig,
-              kitchenStations,
-              catOf,
-              kitchenLayout,
-            ),
-          );
-        } catch (err) {
-          console.error('Kitchen ticket print failed:', err);
-          notifyPrint('error');
-        }
-      })();
-    }
+      try {
+        notifyPrint(
+          await printKitchenTickets(
+            transaction,
+            settings,
+            printerConfig,
+            kitchenStations,
+            catOf,
+            kitchenLayout,
+          ),
+        );
+      } catch (err) {
+        console.error('Kitchen ticket print failed:', err);
+        notifyPrint('error');
+      }
+    })();
   }, [
     cartItems,
     subtotal,

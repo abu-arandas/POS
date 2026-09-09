@@ -39,8 +39,17 @@ export const PULL_PAGE_SIZE = 1000;
  * wide open in normal use. Because the result then *replaces* local state, a
  * dropped row is not a stale read, it is data destroyed.
  *
- * Keying each page off the last id seen has no such window: rows before the
- * cursor cannot move it, and inserts land on a page that has not been read yet.
+ * Keying each page off the last id seen closes that window: a row's id does not
+ * change, so no row can slide across a page boundary, and every row present for
+ * the whole pull is returned exactly once.
+ *
+ * What it does not promise is a snapshot. Ids here are random (`crypto.randomUUID`,
+ * or the `shortId` fallback), not monotonic, so a row inserted mid-pull lands
+ * before the cursor as often as after it, and the half that lands before is not
+ * seen until the next pull. That is the right trade: pulls are periodic, so the
+ * row arrives moments later, and the alternative — missing a row that existed
+ * when the pull started, whose absence then *deletes* it locally — is the one
+ * that loses data.
  *
  * Two further details:
  *
