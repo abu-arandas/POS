@@ -13,6 +13,10 @@ export interface InventoryTableProps {
   children: ReactNode;
 }
 
+/**
+ * Renders the shell: a fade-in card, a scroll container, and a table whose
+ * header row stays put while the body scrolls under it.
+ */
 export function InventoryTable({ header, children }: InventoryTableProps) {
   return (
     <motion.div

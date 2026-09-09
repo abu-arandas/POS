@@ -41,8 +41,13 @@ export function ScanNetworkButton({ t, scanningNetwork, onScanNetwork }: ScanNet
   );
 }
 
-export interface ConnectedPrintersProps {
-  t: TFunction;
+/**
+ * What discovery found and the controls that drive it. Bundled into one object
+ * because it travels as a unit from usePrinterDiscovery through whichever panel
+ * is open down to this list — as nine loose props it was the same forwarding
+ * block written out in both panels.
+ */
+export interface PrinterDiscovery {
   detectedPrinters: DetectedPrinter[];
   printersLoading: boolean;
   scanningNetwork: boolean;
@@ -51,6 +56,11 @@ export interface ConnectedPrintersProps {
   onRefreshPrinters(): void | Promise<void>;
   serialSupported(): boolean;
   networkScanSupported(): boolean;
+}
+
+export interface ConnectedPrintersProps {
+  t: TFunction;
+  discovery: PrinterDiscovery;
   /** Panel-specific action(s) rendered at the right of each printer row. */
   renderRowActions(printer: DetectedPrinter): ReactNode;
   /** Optional control below the list, such as the auto-scan toggle. */
@@ -63,17 +73,20 @@ export interface ConnectedPrintersProps {
  */
 export function ConnectedPrinters({
   t,
-  detectedPrinters,
-  printersLoading,
-  scanningNetwork,
-  onPairSerial,
-  onScanNetwork,
-  onRefreshPrinters,
-  serialSupported,
-  networkScanSupported,
+  discovery,
   renderRowActions,
   footer,
 }: ConnectedPrintersProps) {
+  const {
+    detectedPrinters,
+    printersLoading,
+    scanningNetwork,
+    onPairSerial,
+    onScanNetwork,
+    onRefreshPrinters,
+    serialSupported,
+    networkScanSupported,
+  } = discovery;
   return (
     <div>
       <div className="flex items-center justify-between mb-4">

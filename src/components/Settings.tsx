@@ -28,6 +28,7 @@ import {
 } from './settings/index';
 import { serialSupported, networkScanSupported } from '../lib/printing/printerDiscovery';
 import { usePrinterDiscovery } from './settings/usePrinterDiscovery';
+import type { PrinterDiscovery } from './settings/ConnectedPrinters';
 import { useTranslation } from 'react-i18next';
 import {
   useSettingsStore,
@@ -118,6 +119,19 @@ export default function Settings() {
   } = usePrinterDiscovery(activeTab, autoScanPrinters);
   const handlePairSerial = pairSerial;
   const handleScanNetwork = scanNetwork;
+
+  // What discovery found plus the controls that drive it, assembled once and
+  // handed to whichever printer panel is open.
+  const printerDiscovery: PrinterDiscovery = {
+    detectedPrinters,
+    printersLoading,
+    scanningNetwork,
+    onPairSerial: handlePairSerial,
+    onScanNetwork: handleScanNetwork,
+    onRefreshPrinters: refreshPrinters,
+    serialSupported,
+    networkScanSupported,
+  };
 
   // One-click apply a discovered network printer to the config form.
   const handleUseNetworkPrinter = (ip: string) => {
@@ -649,40 +663,28 @@ export default function Settings() {
 
               {activeTab === 'printer' && (
                 <PrinterPanel
+                  discovery={printerDiscovery}
                   t={t}
                   printerForm={printerForm}
                   onPrinterFormChange={setPrinterForm}
-                  detectedPrinters={detectedPrinters}
-                  printersLoading={printersLoading}
-                  scanningNetwork={scanningNetwork}
                   autoScanPrinters={autoScanPrinters}
                   printerTypes={printerTypes}
                   receiptLayout={receiptLayout}
-                  onPairSerial={handlePairSerial}
-                  onScanNetwork={handleScanNetwork}
-                  onRefreshPrinters={refreshPrinters}
                   onUseNetworkPrinter={handleUseNetworkPrinter}
                   onUseSystemPrinter={handleUseSystemPrinter}
                   onAutoScanPrintersChange={setAutoScanPrinters}
                   onSavePrinter={handleSavePrinter}
                   onReceiptLayoutChange={setReceiptLayout}
-                  serialSupported={serialSupported}
-                  networkScanSupported={networkScanSupported}
                 />
               )}
 
               {activeTab === 'kitchen_printer' && (
                 <KitchenPrinterPanel
+                  discovery={printerDiscovery}
                   t={t}
                   categories={categories}
                   stationForm={stationForm}
-                  detectedPrinters={detectedPrinters}
-                  scanningNetwork={scanningNetwork}
-                  printersLoading={printersLoading}
                   kitchenLayout={kitchenLayout}
-                  onPairSerial={handlePairSerial}
-                  onScanNetwork={handleScanNetwork}
-                  onRefreshPrinters={refreshPrinters}
                   onAddStation={addStation}
                   onAddStationFromPrinter={addStationFromPrinter}
                   onUpdateStation={updateStation}
@@ -690,8 +692,6 @@ export default function Settings() {
                   onToggleStationCategory={toggleStationCategory}
                   onSaveStations={handleSaveStations}
                   onKitchenLayoutChange={setKitchenLayout}
-                  serialSupported={serialSupported}
-                  networkScanSupported={networkScanSupported}
                 />
               )}
 
