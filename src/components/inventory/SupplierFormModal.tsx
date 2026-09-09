@@ -18,6 +18,9 @@ export interface SupplierFormModalProps {
   onSubmit(event: FormEvent): void;
 }
 
+/**
+ * Dialog for creating a supplier and its contact details.
+ */
 export function SupplierFormModal({
   t,
   modalRef,

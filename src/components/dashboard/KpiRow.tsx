@@ -49,6 +49,10 @@ interface KpiCardProps {
   delay: number;
 }
 
+/**
+ * One headline figure on the dashboard: its label, value and trailing note,
+ * in the accent colour that identifies the metric.
+ */
 function KpiCard({ label, icon, accent, value, footer, delay }: KpiCardProps) {
   const { glow, icon: iconClass } = ACCENTS[accent];
   return (

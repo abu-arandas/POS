@@ -16,6 +16,10 @@ export interface ProfilePanelProps {
   onEmailTemplateChange(value: ReceiptEmailTemplate): void;
 }
 
+/**
+ * Settings' store panel: the identity that prints on receipts, plus the
+ * tax, currency, loyalty, language and display preferences.
+ */
 export function ProfilePanel({
   t,
   settings,

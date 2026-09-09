@@ -10,6 +10,9 @@ export interface InventorySuppliersTabProps {
   onDeleteSupplier(id: string): void;
 }
 
+/**
+ * Inventory's suppliers tab: who the store buys from, and how to reach them.
+ */
 export function InventorySuppliersTab({
   t,
   suppliers,

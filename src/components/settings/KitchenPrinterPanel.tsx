@@ -27,6 +27,10 @@ export interface KitchenPrinterPanelProps {
   networkScanSupported(): boolean;
 }
 
+/**
+ * Settings' kitchen-printer panel: the printers discovery found, the ticket
+ * layout, and the station routing that decides which items print where.
+ */
 export function KitchenPrinterPanel({
   t,
   categories,

@@ -96,6 +96,11 @@ export default function Lockscreen() {
     [registerSuccess, setCurrentUser],
   );
 
+  /**
+   * Creates the first administrator on a terminal that has no accounts yet,
+   * and signs them in. Without this the lock screen would have nobody to
+   * authenticate and no way to add anyone.
+   */
   const handleFirstRunSetup = async () => {
     const name = setupName.trim();
     if (!name) {

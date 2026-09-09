@@ -25,26 +25,31 @@ export function stampStoreId<T extends object>(records: T[], storeId?: string): 
  */
 export const PULL_PAGE_SIZE = 1000;
 
-// Paged by primary key, not by offset.
-//
-// `.range(from, to)` counts rows from the start of the result on each request,
-// so anything inserted or deleted before a later page shifts every offset after
-// it — a sale rung up mid-pull slides one row across the page boundary and it is
-// either fetched twice or missed entirely. Pulls are not short (they walk the
-// whole table) and the register is writing the whole time, so that window is
-// wide open in normal use. Because the result then *replaces* local state, a
-// dropped row is not a stale read, it is data destroyed.
-//
-// Keying each page off the last id seen has no such window: rows before the
-// cursor cannot move it, and inserts land on a page that has not been read yet.
-//
-// Two further details:
-//
-//   * Stop on an empty page, not a short one. A short page is exactly what a
-//     server-side row cap (Supabase's `max-rows`) looks like, and treating it
-//     as the end would silently truncate the pull.
-//   * `id` is the primary key on every synced table, so it is unique and stable
-//     — the two properties a keyset cursor needs.
+/**
+ * Reads an entire table through a keyset cursor, page by page, and returns
+ * every row. `page` runs one request for the given cursor and limit.
+ *
+ * Paged by primary key, not by offset.
+ *
+ * `.range(from, to)` counts rows from the start of the result on each request,
+ * so anything inserted or deleted before a later page shifts every offset after
+ * it — a sale rung up mid-pull slides one row across the page boundary and it is
+ * either fetched twice or missed entirely. Pulls are not short (they walk the
+ * whole table) and the register is writing the whole time, so that window is
+ * wide open in normal use. Because the result then *replaces* local state, a
+ * dropped row is not a stale read, it is data destroyed.
+ *
+ * Keying each page off the last id seen has no such window: rows before the
+ * cursor cannot move it, and inserts land on a page that has not been read yet.
+ *
+ * Two further details:
+ *
+ *   * Stop on an empty page, not a short one. A short page is exactly what a
+ *     server-side row cap (Supabase's `max-rows`) looks like, and treating it
+ *     as the end would silently truncate the pull.
+ *   * `id` is the primary key on every synced table, so it is unique and stable
+ *     — the two properties a keyset cursor needs.
+ */
 export async function fetchAllPages<Row extends { id: string }>(
   page: (
     afterId: string | null,

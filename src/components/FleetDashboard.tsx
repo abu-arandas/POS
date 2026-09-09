@@ -52,6 +52,9 @@ function shortDay(day: string): string {
   return parts.length === 3 ? `${Number(parts[1])}/${Number(parts[2])}` : day;
 }
 
+/**
+ * Hover readout for the fleet revenue chart: the day, and what it took.
+ */
 function TrendTooltip({
   active,
   payload,
@@ -352,6 +355,9 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
   );
 }
 
+/**
+ * One headline figure on the fleet dashboard, with its label and icon.
+ */
 function KpiTile({
   label,
   value,

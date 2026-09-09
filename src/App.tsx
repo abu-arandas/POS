@@ -46,6 +46,12 @@ function ScreenLoader() {
   );
 }
 
+/**
+ * Root of the running terminal: holds which screen is showing and who is
+ * signed in, and wires the cross-cutting concerns — theme, language and
+ * direction, cloud sync, the barcode scanner, and the fleet heartbeat.
+ * Renders the lock screen until an operator signs in.
+ */
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentScreen, setScreen] = useState<ScreenId>('register');
@@ -204,6 +210,10 @@ export default function App() {
   // effect alone would flash one frame of a prohibited screen.
   const activeScreen: ScreenId = canView(currentScreen) ? currentScreen : 'register';
 
+  /**
+   * The screen the sidebar has selected. Access is already settled by the
+   * caller, so a screen that reaches here is one this operator may open.
+   */
   const renderActiveScreen = () => {
     switch (activeScreen) {
       case 'register':

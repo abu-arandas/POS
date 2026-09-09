@@ -128,6 +128,10 @@ export async function fetchFleetDaily(orgId: string, since: Date): Promise<Fleet
 // guard is convenience; the database is the real boundary. Each no-ops safely
 // without a session.
 
+/**
+ * Maps one snake_case store row from the cloud onto the Store shape the app
+ * uses, filling the defaults a partially populated row leaves out.
+ */
 function mapStore(r: Record<string, unknown>): Store {
   return {
     id: String(r.id),

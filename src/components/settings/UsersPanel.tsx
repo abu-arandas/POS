@@ -11,6 +11,10 @@ export interface UsersPanelProps {
   onRemoveUser(user: UserAccount): void | Promise<void>;
 }
 
+/**
+ * Settings' staff panel: every account with its role, and the controls to
+ * add, edit or remove one.
+ */
 export function UsersPanel({
   t,
   users,

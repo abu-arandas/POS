@@ -31,6 +31,10 @@ export interface ProductFormModalProps {
   onSubmit(event: FormEvent): void;
 }
 
+/**
+ * Dialog for creating or editing a product: identity, pricing, stock levels
+ * and image. Fully controlled — every field's state lives in Inventory.
+ */
 export function ProductFormModal({
   t,
   modalRef,

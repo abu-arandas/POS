@@ -102,6 +102,12 @@ export default function History() {
     setShowDeleteModal(false);
   };
 
+  /**
+   * Reprints every selected transaction. A system printer takes them as one
+   * job; every other transport prints them one at a time and stops at the
+   * first failure rather than queueing more work on a device already in
+   * trouble.
+   */
   const handleBulkPrint = async () => {
     const txsToPrint = transactions.filter((tx) => selectedTxIds.includes(tx.id));
     if (printerConfig.type === 'system') {

@@ -15,6 +15,10 @@ export interface InventoryPurchaseOrdersTabProps {
   onDeleteOrder(id: string): void;
 }
 
+/**
+ * Inventory's purchase-orders tab: every order with its status, and the
+ * actions that move it along — send, receive into stock, cancel, delete.
+ */
 export function InventoryPurchaseOrdersTab({
   t,
   settings,

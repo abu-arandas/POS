@@ -28,6 +28,10 @@ export interface PurchaseOrderFormModalProps {
   onSubmit(): void;
 }
 
+/**
+ * Dialog for drafting a purchase order: the supplier, the lines being
+ * ordered, and the running cost of the order.
+ */
 export function PurchaseOrderFormModal({
   t,
   modalRef,

@@ -8,6 +8,11 @@ type VisibleDialog =
   | Pick<Extract<DialogRequest, { kind: 'confirm' }>, 'id' | 'kind' | 'message'>
   | Pick<Extract<DialogRequest, { kind: 'prompt' }>, 'id' | 'kind' | 'message' | 'defaultValue'>;
 
+/**
+ * One queued dialog rendered as a confirm or a prompt, resolving the promise
+ * the caller is waiting on. Split from the queue itself so each dialog gets a
+ * fresh input value and focus target rather than inheriting the last one's.
+ */
 function DialogContent({
   dialog,
   resolveCurrent,

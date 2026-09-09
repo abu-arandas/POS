@@ -37,6 +37,10 @@ export interface PrinterPanelProps {
   networkScanSupported(): boolean;
 }
 
+/**
+ * Settings' receipt-printer panel: the printers discovery found, how this
+ * terminal talks to the one it uses, and what the customer receipt shows.
+ */
 export function PrinterPanel({
   t,
   printerForm,

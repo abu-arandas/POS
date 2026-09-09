@@ -13,6 +13,11 @@ export interface ScannerPanelProps {
   onSaveScanner(): void;
 }
 
+/**
+ * Settings' scanner panel: the keyboard-wedge timing that separates a
+ * scanned barcode from ordinary typing, with a live test field to confirm
+ * the thresholds suit the hardware in the shop.
+ */
 export function ScannerPanel({
   t,
   scannerForm,

@@ -210,6 +210,9 @@ function breakOversizedWord(
   return { full, rest: chunk };
 }
 
+/**
+ * Baseline height one row occupies, before any wrapping the caller measures.
+ */
 function rowHeight(row: DocRow): number {
   switch (row.kind) {
     case 'divider':

@@ -94,6 +94,11 @@ export default function Customers() {
     setCustomerModalOpen(true);
   };
 
+  /**
+   * Saves the customer form, creating a new record or updating the one being
+   * edited. A blank name is rejected without a message: the field is required
+   * and empty, which the form already shows.
+   */
   const handleSubmitCustomer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!custName.trim()) return;

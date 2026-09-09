@@ -71,6 +71,10 @@ export default function ShiftScreen() {
     setCloseNote('');
   };
 
+  /**
+   * Prints a shift's Z-report: what the register took, broken down by tender,
+   * against the cash actually counted at close.
+   */
   const printReport = (shift: Shift) => {
     const txns = transactions.filter((tx) => tx.shiftId === shift.id);
     const s = summarizeShift(txns);

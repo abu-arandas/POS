@@ -20,6 +20,9 @@ export interface CategoryFormModalProps {
   onSubmit(event: FormEvent): void;
 }
 
+/**
+ * Dialog for naming a new category and picking its colour.
+ */
 export function CategoryFormModal({
   t,
   modalRef,

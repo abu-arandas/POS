@@ -38,6 +38,10 @@ export interface InventoryProductsTabProps {
   onDeleteProduct(id: string): void;
 }
 
+/**
+ * Inventory's products tab: the searchable, filterable catalog table with
+ * its stock summary.
+ */
 export function InventoryProductsTab({
   t,
   products,

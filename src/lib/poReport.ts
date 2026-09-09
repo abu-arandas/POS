@@ -24,7 +24,12 @@ export interface PoReport {
   suppliers: SupplierSpend[]; // sorted by received desc
 }
 
-// Optionally restrict to orders created within the last `days` days.
+/**
+ * Whether a purchase order falls inside a report window of `days`, measured
+ * from the start of today. The date compared is the one that matches the
+ * order's status — received, ordered, or failing those, created — so an
+ * order counts in the window it actually happened in.
+ */
 function withinWindow(po: PurchaseOrder, days?: number): boolean {
   if (!days) return true;
   const start = new Date();

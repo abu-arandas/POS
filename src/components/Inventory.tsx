@@ -116,6 +116,11 @@ export default function Inventory() {
     setPoModalOpen(true);
   }, [products]);
 
+  /**
+   * Applies an edit to one purchase-order line. Choosing a product pre-fills
+   * that line's unit cost from the catalog, which the operator may then
+   * override with what the supplier actually charged.
+   */
   const handlePoLineChange = (
     idx: number,
     patch: Partial<{ productId: string; quantity: string; unitCost: string }>,
@@ -267,7 +272,9 @@ export default function Inventory() {
     setProductModalOpen(true);
   }, [categories]);
 
-  // Open Edit Product Dialog
+  /**
+   * Loads a product into the form and opens it for editing.
+   */
   const handleOpenEditProduct = (prod: Product) => {
     setEditingProduct(prod);
     setProdName(prod.name);
@@ -281,7 +288,11 @@ export default function Inventory() {
     setProductModalOpen(true);
   };
 
-  // Submit Product Form
+  /**
+   * Saves the product form, creating or updating the product. Rejects a
+   * missing required field and a SKU already used by another product — a
+   * duplicate SKU would make the barcode scanner ambiguous at the register.
+   */
   const handleSubmitProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!prodName.trim() || !prodCategory || !prodPrice || !prodCost || !prodStock) {

@@ -20,6 +20,11 @@ export interface UserModalProps {
   onSubmit(event: FormEvent): void | Promise<void>;
 }
 
+/**
+ * Dialog for creating or editing a staff account: name, role, PIN and
+ * whether the account is active. On an existing account a blank PIN field
+ * leaves the current PIN alone.
+ */
 export function UserModal({
   t,
   modalRef,

@@ -34,6 +34,11 @@ export class ErrorBoundary extends Component<Props, State> {
     window.location.reload();
   };
 
+  /**
+   * Shows the recovery screen once a descendant has thrown, otherwise the
+   * children unchanged. A POS that renders nothing is a till that cannot take
+   * money, so the fallback offers a reload rather than a blank page.
+   */
   public override render() {
     if (this.state.hasError) {
       return (

@@ -99,6 +99,11 @@ export async function startRealtimeSync(): Promise<boolean> {
   // here to the channel assignment below.
   if (myGeneration !== generation) return false;
 
+  /**
+   * Queues a debounced re-pull of one table after a change arrives. Debounced
+   * because a single operation on another terminal can produce a burst of
+   * row events, and each of them would otherwise be a separate round trip.
+   */
   const refresh = (table: SyncedTable) => {
     // A channel can still deliver after unsubscribe(). Without this, a stale
     // subscription's handler would reach into the shared timer map and cancel

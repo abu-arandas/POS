@@ -182,8 +182,11 @@ export const pullAllFromCloud = async (
   return { categories, products, customers, users, transactions };
 };
 
-// Propagates a local deletion to the cloud when live sync is enabled. Without
-// this, deleted rows survive in Supabase and reappear on the next Pull.
+/**
+ * Propagates a local delete to the cloud, so the rows do not come back on
+ * the next pull. A no-op that reports success when sync is off — there is
+ * nothing to keep in step.
+ */
 const deleteFromCloudIfEnabled = async (table: SyncTable, ids: string[]): Promise<boolean> => {
   const { supabaseConfig } = useSettingsStore.getState();
   if (!supabaseConfig.enabled || !supabaseConfig.url || !supabaseConfig.anonKey) return true;

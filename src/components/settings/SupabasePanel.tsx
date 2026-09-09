@@ -24,6 +24,10 @@ export interface SupabasePanelProps {
   onPush(): void | Promise<void>;
 }
 
+/**
+ * Settings' cloud panel: the Supabase credentials, the store this terminal
+ * syncs as, and the manual push/pull controls with the connection state.
+ */
 export function SupabasePanel({
   t,
   supabaseConfig,

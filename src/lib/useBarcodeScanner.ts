@@ -34,6 +34,13 @@ export function useBarcodeScanner({
       return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
     };
 
+    /**
+     * Reads keystrokes as they arrive and decides whether they came from a
+     * scanner or from fingers. A wedge scanner types its whole code far faster
+     * than a person can and finishes with Enter, so a fast enough burst of that
+     * shape is emitted as a scan and swallowed; anything slower is left to the
+     * focused field.
+     */
     const handler = (e: KeyboardEvent) => {
       const now = Date.now();
       const delta = now - lastTimeRef.current;

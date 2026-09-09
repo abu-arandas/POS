@@ -25,6 +25,10 @@ export interface ReceiveStockModalProps {
   onSubmit(): void;
 }
 
+/**
+ * Dialog for taking stock in against a product: how many arrived, from
+ * which supplier, and why — the reason is what the stock log records.
+ */
 export function ReceiveStockModal({
   t,
   modalRef,

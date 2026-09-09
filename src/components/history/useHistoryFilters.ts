@@ -21,6 +21,11 @@ export interface HistoryFiltersResult {
   groupedTransactions: Record<string, SaleTransaction[]>;
 }
 
+/**
+ * Holds the transaction list's filter state — search, date range, status,
+ * tender — and the filtered result, so the table, the filter bar and the
+ * bulk-action bar all read one source rather than each filtering again.
+ */
 export function useHistoryFilters(
   transactions: SaleTransaction[],
   t: TFunction,

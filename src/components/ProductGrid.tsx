@@ -57,6 +57,11 @@ function getCategoryEmoji(catName: string): string {
   return '📦';
 }
 
+/**
+ * One product card in the register grid. Tapping it adds the product to the
+ * cart; in edit mode it is a drag handle instead. Memoised because a cart
+ * change re-renders the grid and only the affected card's quantity moves.
+ */
 const SortableProductCard = memo(function SortableProductCard({
   prod,
   isEditMode,
@@ -230,6 +235,11 @@ const SortableProductCard = memo(function SortableProductCard({
   );
 });
 
+/**
+ * The register's product picker: category filter, search, and the card grid
+ * itself. In edit mode the cards become draggable and their order is saved
+ * back to the catalog.
+ */
 const ProductGrid = ({
   selectedCategory,
   setSelectedCategory,

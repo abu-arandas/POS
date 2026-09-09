@@ -21,6 +21,11 @@ export default function QRMenu() {
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  /**
+   * Re-reads the menu server's address and running state from the desktop
+   * app, with the refresh spinner showing. A plain browser has no server to
+   * ask, so it leaves the state as it is.
+   */
   const fetchMenuInfo = async () => {
     setIsRefreshing(true);
     try {

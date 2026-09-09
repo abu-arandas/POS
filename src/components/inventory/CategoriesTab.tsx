@@ -12,6 +12,10 @@ export interface InventoryCategoriesTabProps {
   onDeleteCategory(id: string): void;
 }
 
+/**
+ * Inventory's categories tab: every category with the number of products
+ * filed under it, and the controls to add or delete one.
+ */
 export function InventoryCategoriesTab({
   t,
   products,

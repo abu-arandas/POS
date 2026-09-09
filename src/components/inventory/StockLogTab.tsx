@@ -8,6 +8,11 @@ export interface InventoryStockLogTabProps {
   adjustments: StockAdjustment[];
 }
 
+/**
+ * Inventory's stock-log tab: every stock adjustment in order, with its
+ * reason, the resulting level, and who made it. The audit trail behind any
+ * stock figure elsewhere in the app.
+ */
 export function InventoryStockLogTab({ t, adjustments }: InventoryStockLogTabProps) {
   return (
     <motion.div

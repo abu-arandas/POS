@@ -50,6 +50,11 @@ interface CartPanelProps {
   onOpenHeldOrders: () => void;
 }
 
+/**
+ * The register's running order: line items and their quantities, the linked
+ * customer, the discount in force, and the totals. Owns no cart state of its
+ * own — every edit goes back to the register through a callback.
+ */
 const CartPanel = ({
   cart,
   updateCartQty,
