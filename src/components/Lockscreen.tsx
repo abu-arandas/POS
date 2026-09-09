@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserAccount } from '../types';
 import { Delete, ArrowLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { hashPinSalted, hashPinSaltedLegacy } from '../lib/hash';
+import { hashPinSalted, hashPinSaltedLegacy, verifyPinHash } from '../lib/hash';
 import { cloudLogin } from '../lib/sync';
 import Logo from './Logo';
 import { useAuthStore } from '../stores/authStore';
@@ -147,31 +147,44 @@ export default function Lockscreen() {
     async (user: UserAccount, enteredPin: string) => {
       const readLive = () => useAuthStore.getState().users.find((u) => u.id === user.id) ?? null;
 
-      const saltedHash = await hashPinSalted(user.id, enteredPin);
+      // Verify before judging `active`, as this has always done: a deactivated
+      // account must cost the same as a wrong PIN, or the delay before the
+      // refusal says which of the two it was.
+      //
+      // Checked against the hash this account actually carries, at the version
+      // and work factor recorded in it. An account still on a v1 digest, or on
+      // a v2 one derived before the work factor was last raised, signs in and
+      // is re-hashed below instead of being locked out.
+      const check = await verifyPinHash(user.id, enteredPin, readLive()?.pin ?? '');
       let live = readLive();
       if (!live?.active) {
         failPin(user.id);
         return;
       }
 
-      if (live.pin === saltedHash) {
+      if (check.ok && !check.needsUpgrade) {
         acceptPin(live);
         return;
       }
 
-      const legacyHash = await hashPinSaltedLegacy(user.id, enteredPin);
-      live = readLive();
-      if (!live?.active) {
-        failPin(user.id);
-        return;
-      }
-      if (live.pin === legacyHash) {
-        handleUpdateUser({ ...live, pin: saltedHash });
+      if (check.ok) {
+        const freshHash = await hashPinSalted(user.id, enteredPin);
+        live = readLive();
+        if (!live?.active) {
+          failPin(user.id);
+          return;
+        }
+        handleUpdateUser({ ...live, pin: freshHash });
         acceptPin(live);
         return;
       }
 
       setChecking(true);
+      // Only the cloud path needs these: verify_login takes a derived hash
+      // rather than the PIN, so both versions are offered in case the cloud
+      // row has not been upgraded either.
+      const saltedHash = await hashPinSalted(user.id, enteredPin);
+      const legacyHash = await hashPinSaltedLegacy(user.id, enteredPin);
       const cloudUser = await cloudLogin(live.name, saltedHash);
       const cloudUser2 = cloudUser ?? (await cloudLogin(live.name, legacyHash));
       setChecking(false);

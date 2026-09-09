@@ -7,16 +7,22 @@ import type { UserAccount } from '../../src/types';
 // rewrite the account row. These hooks fire *inside* those windows so a test can
 // land a revocation exactly where a real sync would, which is the only way to
 // exercise them — the awaits are otherwise far too fast to interleave with.
-let duringLegacyHash: (() => void) | null = null;
+let duringVerify: (() => void) | null = null;
+let duringUpgradeHash: (() => void) | null = null;
 let duringCloudLogin: (() => void) | null = null;
 
 vi.mock('../../src/lib/hash', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/lib/hash')>();
   return {
     ...actual,
-    hashPinSaltedLegacy: async (userId: string, pin: string) => {
-      const digest = await actual.hashPinSaltedLegacy(userId, pin);
-      duringLegacyHash?.();
+    verifyPinHash: async (userId: string, pin: string, storedHash: string) => {
+      const check = await actual.verifyPinHash(userId, pin, storedHash);
+      duringVerify?.();
+      return check;
+    },
+    hashPinSalted: async (userId: string, pin: string) => {
+      const digest = await actual.hashPinSalted(userId, pin);
+      duringUpgradeHash?.();
       return digest;
     },
   };
@@ -58,7 +64,8 @@ const typePin = async (pin: string) => {
 };
 
 beforeEach(() => {
-  duringLegacyHash = null;
+  duringVerify = null;
+  duringUpgradeHash = null;
   duringCloudLogin = null;
   cloudReply = null;
   useAuthStore.setState({ currentUser: null, users: [alice] });
@@ -66,14 +73,29 @@ beforeEach(() => {
 });
 
 describe('Lockscreen revocation landing mid-await', () => {
-  it('refuses a PIN revoked while the legacy hash is being derived', async () => {
+  it('refuses a PIN revoked while it is being verified', async () => {
     render(<Lockscreen />);
     await userEvent.setup().click(screen.getByRole('button', { name: /Active Alice/ }));
 
-    // Alice holds a legacy hash, so the v2 comparison misses and the legacy
-    // derivation runs. Deactivate her inside it: reading the account before the
+    // Deactivate Alice inside the verification: reading the account before the
     // await and judging it after would accept a PIN that is already revoked.
-    duringLegacyHash = () => useAuthStore.setState({ users: [{ ...alice, active: false }] });
+    duringVerify = () => useAuthStore.setState({ users: [{ ...alice, active: false }] });
+
+    await typePin('1234');
+
+    await waitFor(() => expect(screen.getByText(/incorrect/i)).toBeInTheDocument());
+    expect(useAuthStore.getState().currentUser).toBeNull();
+  });
+
+  it('refuses a PIN revoked while an outdated hash is being upgraded', async () => {
+    render(<Lockscreen />);
+    await userEvent.setup().click(screen.getByRole('button', { name: /Active Alice/ }));
+
+    // Alice holds a legacy hash, so her correct PIN verifies and is then
+    // re-derived at the current work factor — a second window, after the PIN
+    // has already been accepted. A revocation landing there must still win,
+    // and must not leave the upgraded hash written to a revoked account.
+    duringUpgradeHash = () => useAuthStore.setState({ users: [{ ...alice, active: false }] });
 
     await typePin('1234');
 

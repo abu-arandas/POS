@@ -265,6 +265,37 @@ describe('withinLastDays', () => {
     ];
     expect(withinLastDays(txs, todayStart, 2).map((tx) => tx.id)).toEqual(['TX-1', 'TX-2']);
   });
+
+  it('keeps a sale rung up later today', () => {
+    // The window has to run to the end of today, not to `todayStart`, or the
+    // afternoon's takings vanish from the morning's report.
+    const txs = [sale({ date: '2026-03-12T23:59:59.000Z' })];
+    expect(withinLastDays(txs, todayStart, 1).map((tx) => tx.id)).toEqual(['TX-1']);
+  });
+
+  it('excludes a sale dated in the future', () => {
+    // A till with a wrong clock stamps sales ahead of today, and keeps that
+    // date after the clock is fixed. Unbounded, such a sale counted toward
+    // every range — "Today" included — for good.
+    const future = [sale({ id: 'CLOCK-BUG', date: '2027-01-01T09:00:00.000Z' })];
+    expect(withinLastDays(future, todayStart, 1)).toEqual([]);
+    expect(withinLastDays(future, todayStart, 7)).toEqual([]);
+    expect(withinLastDays(future, todayStart, 30)).toEqual([]);
+  });
+
+  it('agrees with the trend chart about what is in the window', () => {
+    // The chart has no bucket past today and silently drops a future sale, so
+    // an unbounded window made the totals, best sellers, category split,
+    // payment mix and CSV export disagree with the chart beside them.
+    const txs = [
+      sale({ date: '2026-03-12T09:00:00.000Z', total: 22 }),
+      sale({ id: 'CLOCK-BUG', date: '2027-01-01T09:00:00.000Z', total: 999 }),
+    ];
+    const inRange = withinLastDays(txs, todayStart, 7);
+    const charted = buildTrendBuckets(inRange, todayStart, 7).reduce((s, b) => s + b.revenue, 0);
+    const summed = inRange.reduce((s, tx) => s + tx.total, 0);
+    expect(summed).toBe(charted);
+  });
 });
 
 describe('reportableTransactions', () => {

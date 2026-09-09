@@ -6,6 +6,7 @@ import {
   hashPinSaltedLegacySync,
   hashPinSaltedSync,
   sha256HexSync,
+  verifyPinHash,
 } from '../../src/lib/hash';
 
 // Known SHA-256 vectors. These protect the explicit legacy verification path
@@ -65,5 +66,82 @@ describe('hashPinSalted', () => {
     const expected = '7279202b4bc5a1b671df119c7be961807f00fb16cc4d2e6a7c3b628dbd7e8245';
     await expect(hashPinSaltedLegacy('u123', '1234')).resolves.toBe(expected);
     expect(hashPinSaltedLegacySync('u123', '1234')).toBe(expected);
+  });
+});
+
+// The hash format records the work factor each digest was derived at
+// (`v2$<iterations>$<salt>$<digest>`), and verifyPinHash derives with THAT
+// value rather than the constant this build ships. Without it, raising
+// PBKDF2_ITERATIONS would lock every operator out of the till: verification
+// compared whole strings, so the iteration count was part of the comparison and
+// a correct PIN was refused on the prefix alone, with no way back in.
+describe('verifyPinHash', () => {
+  /** The hash the app would have stored had PBKDF2_ITERATIONS been `iterations`. */
+  async function hashAtWorkFactor(userId: string, pin: string, iterations: number) {
+    const saltHex = (await hashPinSalted(userId, pin)).split('$')[2];
+    const saltBytes = saltHex.match(/../g) ?? [];
+    const salt = Uint8Array.from(saltBytes.map((byte) => Number.parseInt(byte, 16)));
+    const key = await globalThis.crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(pin),
+      'PBKDF2',
+      false,
+      ['deriveBits'],
+    );
+    const bits = await globalThis.crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
+      key,
+      256,
+    );
+    const digest = Array.from(new Uint8Array(bits), (b) => b.toString(16).padStart(2, '0')).join(
+      '',
+    );
+    return `v2$${iterations}$${saltHex}$${digest}`;
+  }
+
+  it('accepts a hash derived at a different work factor, and asks to be upgraded', async () => {
+    const stored = await hashAtWorkFactor('u123', '1234', 1_000);
+    expect(await verifyPinHash('u123', '1234', stored)).toEqual({ ok: true, needsUpgrade: true });
+  });
+
+  it('still refuses the wrong PIN at that other work factor', async () => {
+    const stored = await hashAtWorkFactor('u123', '1234', 1_000);
+    expect(await verifyPinHash('u123', '9999', stored)).toEqual({ ok: false, needsUpgrade: false });
+  });
+
+  it('accepts a current-factor hash without asking for an upgrade', async () => {
+    const stored = await hashPinSalted('u123', '1234');
+    expect(await verifyPinHash('u123', '1234', stored)).toEqual({ ok: true, needsUpgrade: false });
+  });
+
+  it('accepts a v1 legacy digest and asks to be upgraded', async () => {
+    const stored = hashPinSaltedLegacySync('u123', '1234');
+    expect(await verifyPinHash('u123', '1234', stored)).toEqual({ ok: true, needsUpgrade: true });
+    expect(await verifyPinHash('u123', '0000', stored)).toEqual({ ok: false, needsUpgrade: false });
+  });
+
+  it("refuses a hash carrying another account's salt", async () => {
+    // The recorded salt is checked against the one this account derives, so a
+    // row copied from a colleague does not authenticate as this user even
+    // though the PIN inside it is correct.
+    const otherUsersHash = await hashPinSalted('u456', '1234');
+    expect(await verifyPinHash('u123', '1234', otherUsersHash)).toEqual({
+      ok: false,
+      needsUpgrade: false,
+    });
+  });
+
+  it('refuses a malformed stored value instead of throwing at the login prompt', async () => {
+    const refused = { ok: false, needsUpgrade: false };
+    for (const stored of [
+      '',
+      'v2$600000$deadbeef', // truncated
+      'v2$notanumber$9b2e37bf6f878649d3d422d6dd6286a6$' + 'a'.repeat(64),
+      'v2$0$9b2e37bf6f878649d3d422d6dd6286a6$' + 'a'.repeat(64), // zero iterations
+      'v3$600000$9b2e37bf6f878649d3d422d6dd6286a6$' + 'a'.repeat(64), // unknown version
+      'v2$600000$nothex$' + 'a'.repeat(64),
+    ]) {
+      expect(await verifyPinHash('u123', '1234', stored)).toEqual(refused);
+    }
   });
 });
