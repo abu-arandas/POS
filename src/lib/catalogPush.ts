@@ -63,19 +63,22 @@ export function categoryKey(name: string): string {
 }
 
 /**
- * Computes exactly what to write into one target store to reconcile it toward
- * the source catalog, honoring the options. `genId` mints target-scoped ids
- * (injected so tests can pass a deterministic generator).
+ * Matches the source's categories to the target's by name, minting the ones the
+ * target lacks when the options allow it.
+ *
+ * Returns the categories to write plus the source-id -> target-id map the
+ * product pass needs: the two stores number their categories independently, so
+ * a product's category id has to be translated on the way across. A source
+ * category left unmapped — it does not exist in the target and pushCategories
+ * is off — lands its products with no category rather than a dangling id.
  */
-export function planCatalogPush(
-  source: { products: Product[]; categories: Category[] },
-  target: { products: Product[]; categories: Category[] },
+function reconcileCategories(
+  source: { categories: Category[] },
+  target: { categories: Category[] },
   options: CatalogPushOptions,
   genId: (kind: 'product' | 'category') => string,
-): CatalogPushPlan {
+): { categoriesToUpsert: Category[]; srcCatIdToTargetId: Map<string, string> } {
   const categoriesToUpsert: Category[] = [];
-
-  // 1. Reconcile categories → a map from source category id to target id.
   const targetCatByName = new Map<string, string>();
   for (const c of target.categories) targetCatByName.set(categoryKey(c.name), c.id);
 
@@ -92,8 +95,28 @@ export function planCatalogPush(
       targetCatByName.set(key, newId); // so repeats in source don't double-create
       srcCatIdToTargetId.set(c.id, newId);
     }
-    // else: leave unmapped → products land with no category
   }
+  return { categoriesToUpsert, srcCatIdToTargetId };
+}
+
+/**
+ * Computes exactly what to write into one target store to reconcile it toward
+ * the source catalog, honoring the options. `genId` mints target-scoped ids
+ * (injected so tests can pass a deterministic generator).
+ */
+export function planCatalogPush(
+  source: { products: Product[]; categories: Category[] },
+  target: { products: Product[]; categories: Category[] },
+  options: CatalogPushOptions,
+  genId: (kind: 'product' | 'category') => string,
+): CatalogPushPlan {
+  // 1. Reconcile categories → a map from source category id to target id.
+  const { categoriesToUpsert, srcCatIdToTargetId } = reconcileCategories(
+    source,
+    target,
+    options,
+    genId,
+  );
 
   // 2. Reconcile products by business key.
   const targetByKey = new Map<string, Product>();

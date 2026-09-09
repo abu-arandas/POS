@@ -300,33 +300,30 @@ export async function loadReceiptLogo(src: string | undefined): Promise<HTMLImag
   }
 }
 
+/** Everything pass 1 resolves, handed to pass 2 so it never re-measures. */
+interface RasterLayout {
+  height: number;
+  wrapped: Map<DocRow, string[]>;
+  pairs: Map<DocRow, PairLayout>;
+  barcodes: Map<DocRow, ReturnType<typeof barcodeBox>>;
+}
+
 /**
- * Renders the rows to a monochrome raster sized for the roll.
+ * Pass 1 — measure. Wrapping depends on the font metrics, and the canvas height
+ * depends on how many lines each row wraps to, so the layout has to be resolved
+ * before the bitmap can be sized. Resizing a canvas clears it, which is why
+ * this cannot be folded into the drawing pass.
  *
- * `rtl` flips the leading/trailing edges so labels sit on the right and values
- * on the left, matching how the HTML receipt lays out in Arabic.
+ * Everything measured here is cached and handed back, so the height reserved
+ * for a row and the height it actually draws into cannot drift apart.
  */
-export function renderReceiptRaster(
+function measureRows(
+  ctx: CanvasRenderingContext2D,
   rows: DocRow[],
-  paperSize: '58mm' | '80mm',
-  opts: { rtl?: boolean; fontFamily?: string; logo?: HTMLImageElement | null } = {},
-): RasterReceipt | null {
-  const width = RASTER_WIDTH[paperSize];
-  const rtl = opts.rtl ?? false;
-  // Cairo is bundled with the app and covers Arabic properly; it is loaded in
-  // the renderer document, so the canvas can use it. The fallbacks matter for
-  // a browser deploy where it may not have finished loading.
-  const family = opts.fontFamily ?? "'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif";
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return null;
-
-  // Pass 1 — measure. Wrapping depends on the font metrics, and the canvas
-  // height depends on how many lines each row wraps to, so the layout has to be
-  // resolved before the bitmap can be sized. Resizing a canvas clears it, which
-  // is why this cannot be folded into the drawing pass.
+  width: number,
+  family: string,
+  opts: { logo?: HTMLImageElement | null },
+): RasterLayout {
   const inner = width - PAD * 2;
   const wrapped = new Map<DocRow, string[]>();
   const pairs = new Map<DocRow, PairLayout>();
@@ -374,6 +371,33 @@ export function renderReceiptRaster(
       height += rowHeight(row);
     }
   }
+  return { height, wrapped, pairs, barcodes };
+}
+
+/**
+ * Renders the rows to a monochrome raster sized for the roll.
+ *
+ * `rtl` flips the leading/trailing edges so labels sit on the right and values
+ * on the left, matching how the HTML receipt lays out in Arabic.
+ */
+export function renderReceiptRaster(
+  rows: DocRow[],
+  paperSize: '58mm' | '80mm',
+  opts: { rtl?: boolean; fontFamily?: string; logo?: HTMLImageElement | null } = {},
+): RasterReceipt | null {
+  const width = RASTER_WIDTH[paperSize];
+  const rtl = opts.rtl ?? false;
+  // Cairo is bundled with the app and covers Arabic properly; it is loaded in
+  // the renderer document, so the canvas can use it. The fallbacks matter for
+  // a browser deploy where it may not have finished loading.
+  const family = opts.fontFamily ?? "'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif";
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+
+  const { height, wrapped, pairs, barcodes } = measureRows(ctx, rows, width, family, opts);
 
   // Pass 2 — draw. Setting height resets every context property, so the whole
   // context is re-established below.

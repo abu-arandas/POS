@@ -41,6 +41,22 @@ interface SortableProductCardProps {
   index: number;
 }
 
+/**
+ * Stand-in artwork for a product with no image, picked from its category name.
+ * Module scope, not a closure in the card: it depends on nothing the card knows
+ * and every card would otherwise rebuild it on each render.
+ */
+function getCategoryEmoji(catName: string): string {
+  const n = catName.toLowerCase();
+  if (n.includes('coffee') || n.includes('drink') || n.includes('beverage')) return '☕';
+  if (n.includes('bak') || n.includes('bread') || n.includes('cake')) return '🥐';
+  if (n.includes('sandwich') || n.includes('food') || n.includes('burger')) return '🥪';
+  if (n.includes('snack') || n.includes('chip')) return '🍿';
+  if (n.includes('tech') || n.includes('electronic')) return '📱';
+  if (n.includes('apparel') || n.includes('shirt')) return '👕';
+  return '📦';
+}
+
 const SortableProductCard = memo(function SortableProductCard({
   prod,
   isEditMode,
@@ -73,17 +89,6 @@ const SortableProductCard = memo(function SortableProductCard({
   const imageUrl = safeImageUrl(prod.image);
   const showProductImages = useSettingsStore((s) => s.showProductImages);
   const { t } = useTranslation();
-
-  const getCategoryEmoji = (catName: string) => {
-    const n = catName.toLowerCase();
-    if (n.includes('coffee') || n.includes('drink') || n.includes('beverage')) return '☕';
-    if (n.includes('bak') || n.includes('bread') || n.includes('cake')) return '🥐';
-    if (n.includes('sandwich') || n.includes('food') || n.includes('burger')) return '🥪';
-    if (n.includes('snack') || n.includes('chip')) return '🍿';
-    if (n.includes('tech') || n.includes('electronic')) return '📱';
-    if (n.includes('apparel') || n.includes('shirt')) return '👕';
-    return '📦';
-  };
 
   return (
     <motion.div

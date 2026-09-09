@@ -174,9 +174,7 @@ export function buildReceiptHtml(
         })
       : '';
 
-  return `
-    <div class="receipt">
-      ${L.header ? `<div class="center receipt-header">${esc(L.header)}</div>` : ''}
+  const storeHeader = `${L.header ? `<div class="center receipt-header">${esc(L.header)}</div>` : ''}
       ${
         S.logo
           ? `<div class="logo">${
@@ -190,7 +188,25 @@ export function buildReceiptHtml(
         ${S.address && settings.storeAddress ? `<div>${esc(settings.storeAddress)}</div>` : ''}
         ${S.phone && settings.storePhone ? `<div class="ltr">${esc(i18n.t('receipt.phone', 'Phone'))}: ${esc(settings.storePhone)}</div>` : ''}
         ${S.taxNumber && settings.taxNumber ? `<div class="ltr">${esc(i18n.t('receipt.vat', 'VAT'))}: ${esc(settings.taxNumber)}</div>` : ''}
-      </div>
+      </div>`;
+
+  const statusLines = `<div class="center uppercase status-line status-${esc(tx.status)}">${esc(i18n.t(`receipt.status_${tx.status}`, tx.status))}</div>
+      ${
+        tx.refundDate
+          ? `<div class="center muted">${esc(i18n.t('history.refund', 'REFUND:'))} <span class="ltr">${esc(formatDateTime(new Date(tx.refundDate), L.dateFormat))}</span></div>`
+          : ''
+      }
+      ${
+        tx.refundAuthorizedBy
+          ? `<div class="center muted">${esc(i18n.t('history.refundAuthBy', 'REFUND AUTH:'))} ${esc(tx.refundAuthorizedBy)}</div>`
+          : ''
+      }`;
+
+  // Every block above is a named fragment, so this last step is only the order
+  // they print in and the rules between them — the shape of the receipt itself.
+  return `
+    <div class="receipt">
+      ${storeHeader}
 
       <div class="divider"></div>
       <div class="meta-row">${meta}</div>
@@ -204,17 +220,7 @@ export function buildReceiptHtml(
 
       <div class="divider"></div>
 
-      <div class="center uppercase status-line status-${esc(tx.status)}">${esc(i18n.t(`receipt.status_${tx.status}`, tx.status))}</div>
-      ${
-        tx.refundDate
-          ? `<div class="center muted">${esc(i18n.t('history.refund', 'REFUND:'))} <span class="ltr">${esc(formatDateTime(new Date(tx.refundDate), L.dateFormat))}</span></div>`
-          : ''
-      }
-      ${
-        tx.refundAuthorizedBy
-          ? `<div class="center muted">${esc(i18n.t('history.refundAuthBy', 'REFUND AUTH:'))} ${esc(tx.refundAuthorizedBy)}</div>`
-          : ''
-      }
+      ${statusLines}
 
       ${L.footer ? `<div class="center footer-msg">${esc(L.footer)}</div>` : ''}
       ${S.barcode ? barcodeBlock(tx.id, printerConfig.paperSize) : ''}
