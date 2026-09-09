@@ -58,6 +58,10 @@ export interface SaleTransaction {
   discountType: 'none' | 'percentage' | 'fixed' | 'loyalty';
   discountValue: number;
   tax: number;
+  // The tax rate this sale was actually charged at, as a percentage. Stored so
+  // a receipt reprinted after the rate changes shows the rate that was applied,
+  // not today's. Absent on sales written before this was recorded.
+  taxRate?: number;
   total: number;
   paymentMethod: PaymentMethod; // dominant method (largest tender)
   payments?: Payment[]; // full breakdown; present (length > 1) only for split sales

@@ -158,6 +158,10 @@ export function buildSaleTransaction(req: CheckoutRequest): CheckoutOutcome {
     discountType: req.discountType,
     discountValue: req.discountType === 'loyalty' ? redeemedPoints : req.discountValue,
     tax: req.taxAmount,
+    // The clamped rate, matching the one calculateOrderTotals actually taxed
+    // with — a negative or non-finite configured rate charges 0, and the
+    // receipt has to agree with the money.
+    taxRate: nonNegative(req.settings.taxRate),
     total: req.totalAmount,
     paymentMethod: saleMethod,
     payments: payments && payments.length > 1 ? payments : undefined,

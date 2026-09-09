@@ -57,6 +57,7 @@ const richSale: SaleTransaction = {
   discountType: 'fixed',
   discountValue: 2,
   tax: 0.85,
+  taxRate: 8.5,
   total: 10.85,
   paymentMethod: 'cash',
   payments: [

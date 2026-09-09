@@ -28,6 +28,7 @@ const tx: SaleTransaction = {
   discountType: 'none',
   discountValue: 0,
   tax: 0.9,
+  taxRate: 10,
   total: 9.9,
   paymentMethod: 'card',
   customerId: null,

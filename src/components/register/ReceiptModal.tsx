@@ -198,7 +198,10 @@ export function ReceiptModal({
                     <div className="flex justify-between">
                       <span>
                         {t('register.tax').toUpperCase()}
-                        {settings.taxRate > 0 ? ` (${settings.taxRate}%)` : ''}:
+                        {receipt.taxRate !== undefined && receipt.taxRate > 0
+                          ? ` (${receipt.taxRate}%)`
+                          : ''}
+                        :
                       </span>
                       <span>
                         {settings.currency}

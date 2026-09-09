@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   discount_type TEXT NOT NULL,
   discount_value NUMERIC NOT NULL,
   tax NUMERIC NOT NULL,
+  tax_rate NUMERIC,                        -- rate charged at sale time, for reprints
   total NUMERIC NOT NULL,
   payment_method TEXT NOT NULL,
   payments JSONB,                          -- tender breakdown for split payments
@@ -101,6 +102,11 @@ ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payments JSONB;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refunded_items JSONB;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refunded_amount NUMERIC;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS shift_id TEXT;
+-- Left NULL on existing rows on purpose: the rate they were charged at is not
+-- recoverable (tax is rounded to the cent, so several rates fit the same
+-- amount), and those receipts reprint without a percentage rather than with a
+-- guessed one.
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS tax_rate NUMERIC;
 -- Allow the new 'partial' refund status (the CHECK is recreated to include it):
 ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_status_check;
 ALTER TABLE transactions ADD CONSTRAINT transactions_status_check

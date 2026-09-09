@@ -4,6 +4,27 @@
 // helpers. The renderers (escpos.ts, receipt/, print/) consume these.
 
 import { PrinterConfig, ReceiptLayout, ReceiptToggles } from '../../types';
+import i18n from '../i18n';
+
+/**
+ * The TAX line's label, without its trailing colon.
+ *
+ * The percentage comes from the sale, never from current settings. A sale is
+ * taxed once, at the rate in force that day, so a receipt reprinted after the
+ * rate changes has to show what was actually charged — reading settings here is
+ * how a $2.00 tax line came to be labelled "TAX (16%)" on a sale rung up at 10%.
+ *
+ * A sale written before the rate was recorded has none to show, so the label is
+ * bare. The rate is not recoverable from the stored figures: tax is rounded to
+ * the cent, and on a small order several rates land on the same amount — 8.5%
+ * and 9% both turn $1.00 into $0.09. A guess on a tax document is worse than an
+ * omission, and the tax amount itself, which is the figure that matters, prints
+ * either way.
+ */
+export function taxLineLabel(taxRate: number | undefined): string {
+  const base = i18n.t('history.tax', 'TAX:').replace(':', '');
+  return taxRate !== undefined && taxRate > 0 ? `${base} (${taxRate}%)` : base;
+}
 
 /**
  * Formats a date with a subset of the familiar yyyy/MM/dd HH:mm tokens. Longer
