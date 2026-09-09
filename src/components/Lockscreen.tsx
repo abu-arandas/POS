@@ -120,102 +120,97 @@ export default function Lockscreen() {
     setCurrentUser(user);
   };
 
+  /**
+   * Verifies a completed PIN against `user` and signs in, upgrades a legacy
+   * hash, or records a failure.
+   *
+   * Everything below judges the LIVE account record, never the `user` the
+   * operator tapped. That value was copied when they tapped their name, which
+   * may have been hours ago, and cloud sync rewrites these rows underneath an
+   * open lock screen — deactivating an account, rotating its PIN, or changing
+   * its role. Only `active` used to be re-checked, so a PIN revoked on another
+   * terminal went on being accepted here for as long as the screen sat on that
+   * name, which is exactly when revoking one matters.
+   *
+   * Re-read at EVERY step rather than once. Each await below is a window in
+   * which a realtime-sync write can land, and reading the row before an await
+   * and judging it after is the same stale-copy bug in a narrower form:
+   * deriving a hash yields to the event loop, and the cloud round-trip can take
+   * seconds.
+   */
+  const attemptSignIn = useCallback(
+    async (user: UserAccount, enteredPin: string) => {
+      const readLive = () => useAuthStore.getState().users.find((u) => u.id === user.id) ?? null;
+
+      const saltedHash = await hashPinSalted(user.id, enteredPin);
+      let live = readLive();
+      if (!live?.active) {
+        failPin(user.id);
+        return;
+      }
+
+      if (live.pin === saltedHash) {
+        acceptPin(live);
+        return;
+      }
+
+      const legacyHash = await hashPinSaltedLegacy(user.id, enteredPin);
+      live = readLive();
+      if (!live?.active) {
+        failPin(user.id);
+        return;
+      }
+      if (live.pin === legacyHash) {
+        handleUpdateUser({ ...live, pin: saltedHash });
+        acceptPin(live);
+        return;
+      }
+
+      setChecking(true);
+      const cloudUser = await cloudLogin(live.name, saltedHash);
+      const cloudUser2 = cloudUser ?? (await cloudLogin(live.name, legacyHash));
+      setChecking(false);
+      // The widest window of the three. A revocation that lands while the
+      // network call is out must still win, even though verify_login has
+      // just answered yes — the cloud row it answered from can be the copy
+      // that has not caught up yet.
+      live = readLive();
+      if (!live?.active) {
+        failPin(user.id);
+        return;
+      }
+      if (!cloudUser2) {
+        failPin(user.id);
+        return;
+      }
+      // Keep the LOCAL id. The cloud row may carry a different one (the same
+      // person created on another terminal), and taking it silently broke
+      // two things: users.map matched nothing so the PIN upgrade was never
+      // persisted, and the salted hash we just computed is salted with the
+      // local id — storing it against a different id would make it
+      // unverifiable next login. The throttle is keyed to the local id too,
+      // so clearing the streak has to use the same one.
+      const upgraded = {
+        ...live,
+        ...cloudUser2,
+        id: live.id,
+        pin: saltedHash,
+      };
+      setUsers(useAuthStore.getState().users.map((u) => (u.id === upgraded.id ? upgraded : u)));
+      acceptPin(upgraded);
+    },
+    [acceptPin, failPin, handleUpdateUser, setUsers],
+  );
+
   const handleKeyPress = useCallback(
     async (num: string) => {
       if (error || checking || lockout.locked) return;
-      if (pin.length < 4) {
-        const nextPin = pin + num;
-        setPin(nextPin);
-        if (nextPin.length === 4 && selectedUser) {
-          // Everything below judges the LIVE account record, never `selectedUser`.
-          // That value was copied when the operator tapped their name, which may
-          // have been hours ago, and cloud sync rewrites these rows underneath an
-          // open lock screen — deactivating an account, rotating its PIN, or
-          // changing its role. Only `active` used to be re-checked, so a PIN
-          // revoked on another terminal went on being accepted here for as long
-          // as the screen sat on that name, which is exactly when revoking one
-          // matters.
-          //
-          // Re-read at EVERY step rather than once. Each await below is a window
-          // in which a realtime-sync write can land, and reading the row before
-          // an await and judging it after is the same stale-copy bug in a
-          // narrower form: deriving a hash yields to the event loop, and the
-          // cloud round-trip can take seconds.
-          const readLive = () =>
-            useAuthStore.getState().users.find((u) => u.id === selectedUser.id) ?? null;
-
-          const saltedHash = await hashPinSalted(selectedUser.id, nextPin);
-          let live = readLive();
-          if (!live?.active) {
-            failPin(selectedUser.id);
-            return;
-          }
-
-          if (live.pin === saltedHash) {
-            acceptPin(live);
-            return;
-          }
-
-          const legacyHash = await hashPinSaltedLegacy(selectedUser.id, nextPin);
-          live = readLive();
-          if (!live?.active) {
-            failPin(selectedUser.id);
-            return;
-          }
-          if (live.pin === legacyHash) {
-            handleUpdateUser({ ...live, pin: saltedHash });
-            acceptPin(live);
-            return;
-          }
-
-          setChecking(true);
-          const cloudUser = await cloudLogin(live.name, saltedHash);
-          const cloudUser2 = cloudUser ?? (await cloudLogin(live.name, legacyHash));
-          setChecking(false);
-          // The widest window of the three. A revocation that lands while the
-          // network call is out must still win, even though verify_login has
-          // just answered yes — the cloud row it answered from can be the copy
-          // that has not caught up yet.
-          live = readLive();
-          if (!live?.active) {
-            failPin(selectedUser.id);
-            return;
-          }
-          if (cloudUser2) {
-            // Keep the LOCAL id. The cloud row may carry a different one (the same
-            // person created on another terminal), and taking it silently broke
-            // two things: users.map matched nothing so the PIN upgrade was never
-            // persisted, and the salted hash we just computed is salted with the
-            // local id — storing it against a different id would make it
-            // unverifiable next login. The throttle is keyed to the local id too,
-            // so clearing the streak has to use the same one.
-            const upgraded = {
-              ...live,
-              ...cloudUser2,
-              id: live.id,
-              pin: saltedHash,
-            };
-            setUsers(
-              useAuthStore.getState().users.map((u) => (u.id === upgraded.id ? upgraded : u)),
-            );
-            acceptPin(upgraded);
-          } else {
-            failPin(selectedUser.id);
-          }
-        }
-      }
+      if (pin.length >= 4) return;
+      const nextPin = pin + num;
+      setPin(nextPin);
+      if (nextPin.length === 4 && selectedUser) await attemptSignIn(selectedUser, nextPin);
     },
-    [
-      acceptPin,
-      checking,
-      error,
-      failPin,
-      handleUpdateUser,
-      lockout.locked,
-      pin,
-      selectedUser,
-      setUsers,
-    ],
+    [attemptSignIn, checking, error, lockout.locked, pin, selectedUser],
   );
 
   const handleBackspace = useCallback(() => {

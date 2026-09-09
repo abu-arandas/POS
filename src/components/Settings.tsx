@@ -225,44 +225,73 @@ export default function Settings() {
     setUserModalOpen(true);
   };
 
+  /** Pushes one staff account to the cloud, when cloud sync is on. */
+  const syncUserToCloud = (user: UserAccount) =>
+    syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [user]);
+
+  /**
+   * True when saving the form would leave no active admin — demoting or
+   * deactivating the last one locks everybody out of the settings that could
+   * undo it.
+   */
+  const wouldStrandTerminal = (user: UserAccount) => {
+    const isLastActiveAdmin =
+      user.role === 'admin' &&
+      user.active &&
+      users.filter((x) => x.role === 'admin' && x.active).length <= 1;
+    return isLastActiveAdmin && (uRole !== 'admin' || !uActive);
+  };
+
+  /** Applies the form to an existing account. Returns false if it was blocked. */
+  const saveEditedUser = async (user: UserAccount) => {
+    if (wouldStrandTerminal(user)) {
+      notify(t('settings.cannotDeleteLastAdmin'));
+      return false;
+    }
+    const updated: UserAccount = {
+      ...user,
+      name: uName.trim(),
+      role: uRole,
+      active: uActive,
+      // A blank PIN field means "leave it alone", not "clear it".
+      pin: uPin ? await hashPinSalted(user.id, uPin) : user.pin,
+    };
+    handleUpdateUser(updated);
+    syncUserToCloud(updated);
+    return true;
+  };
+
+  /**
+   * Creates the account the form describes. The id is settled first because the
+   * PIN hash is salted with it, so it cannot be assigned after hashing.
+   */
+  const createUser = async () => {
+    const newId = `user-${shortId()}`;
+    const pinHash = await hashPinSalted(newId, uPin);
+    const created = handleAddUser(uName.trim(), uRole, pinHash, newId);
+    if (uActive) {
+      syncUserToCloud(created);
+      return;
+    }
+    const deactivated = { ...created, active: false };
+    handleUpdateUser(deactivated);
+    syncUserToCloud(deactivated);
+  };
+
   const handleSubmitUser = async (e: FormEvent) => {
     e.preventDefault();
     if (!uName.trim()) return;
+    // An existing account keeps its PIN when the field is left blank; a new one
+    // has to be given a 4-digit PIN.
     if ((!editingUser || uPin) && !/^\d{4}$/.test(uPin)) {
       notify(t('settings.pinMustBe4'));
       return;
     }
 
     if (editingUser) {
-      const isLastActiveAdmin =
-        editingUser.role === 'admin' &&
-        editingUser.active &&
-        users.filter((x) => x.role === 'admin' && x.active).length <= 1;
-      if (isLastActiveAdmin && (uRole !== 'admin' || !uActive)) {
-        notify(t('settings.cannotDeleteLastAdmin'));
-        return;
-      }
-
-      const updated: UserAccount = {
-        ...editingUser,
-        name: uName.trim(),
-        role: uRole,
-        active: uActive,
-        pin: uPin ? await hashPinSalted(editingUser.id, uPin) : editingUser.pin,
-      };
-      handleUpdateUser(updated);
-      syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [updated]);
+      if (!(await saveEditedUser(editingUser))) return;
     } else {
-      const tempId = `user-${shortId()}`;
-      const pinHash = await hashPinSalted(tempId, uPin);
-      const created = handleAddUser(uName.trim(), uRole, pinHash, tempId);
-      if (!uActive) {
-        const deactivated = { ...created, active: false };
-        handleUpdateUser(deactivated);
-        syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [deactivated]);
-      } else {
-        syncToCloudIfEnabled(undefined, undefined, undefined, undefined, [created]);
-      }
+      await createUser();
     }
     setUserModalOpen(false);
   };

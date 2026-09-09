@@ -224,38 +224,33 @@ export async function printKitchenTicket(
   layout?: ReceiptLayout,
   printerOverride?: string,
 ): Promise<HardwarePrintOutcome> {
+  // Every byte-stream transport below sends the same ticket; only where it goes
+  // differs. Rasterised when the layout needs a bitmap, otherwise plain ESC/POS
+  // text, and never with the drawer pulse — a kitchen ticket takes no money.
+  const ticketBytes = async () =>
+    (await rasterBytesIfNeeded(
+      buildKitchenDoc(tx, settings, stationName, layout),
+      printerConfig.paperSize,
+      false,
+    )) ?? encodeKitchenTicket(tx, settings, printerConfig, stationName, layout);
+
   // A station pinned to a named OS printer goes through the RAW spooler,
   // whatever the terminal's own transport is. Checked before ipOverride only
   // when no IP is set, so an existing network station keeps its behaviour.
   if (!ipOverride && printerOverride) {
-    const raster = await rasterBytesIfNeeded(
-      buildKitchenDoc(tx, settings, stationName, layout),
-      printerConfig.paperSize,
-      false,
-    );
-    const bytes = raster ?? encodeKitchenTicket(tx, settings, printerConfig, stationName, layout);
+    const bytes = await ticketBytes();
     return printRawWindows(bytes, printerOverride);
   }
   // A station with its own network printer always goes over the network,
   // regardless of the terminal's default transport.
   if (ipOverride) {
-    const raster = await rasterBytesIfNeeded(
-      buildKitchenDoc(tx, settings, stationName, layout),
-      printerConfig.paperSize,
-      false, // a kitchen ticket never kicks the drawer
-    );
-    const bytes = raster ?? encodeKitchenTicket(tx, settings, printerConfig, stationName, layout);
+    const bytes = await ticketBytes();
     return printNetwork(bytes, ipOverride);
   }
 
   if (printerConfig.type === 'windows') {
     if (!printerConfig.printerName) return 'no-device';
-    const raster = await rasterBytesIfNeeded(
-      buildKitchenDoc(tx, settings, stationName, layout),
-      printerConfig.paperSize,
-      false,
-    );
-    const bytes = raster ?? encodeKitchenTicket(tx, settings, printerConfig, stationName, layout);
+    const bytes = await ticketBytes();
     return printRawWindows(bytes, printerConfig.printerName);
   }
 
@@ -269,12 +264,7 @@ export async function printKitchenTicket(
     return outcome === 'popup-blocked' ? 'popup-blocked' : 'printed';
   }
 
-  const raster = await rasterBytesIfNeeded(
-    buildKitchenDoc(tx, settings, stationName, layout),
-    printerConfig.paperSize,
-    false,
-  );
-  const bytes = raster ?? encodeKitchenTicket(tx, settings, printerConfig, stationName, layout);
+  const bytes = await ticketBytes();
   if (printerConfig.type === 'serial') return printSerial(bytes, printerConfig.baudRate);
   if (printerConfig.type === 'network') {
     if (!printerConfig.ipAddress) return 'no-device';

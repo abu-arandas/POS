@@ -180,19 +180,34 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
     if (ctx.measureText(word).width <= maxWidth) {
       line = word;
     } else {
-      // Break the oversized word itself.
-      let chunk = '';
-      for (const ch of word) {
-        if (ctx.measureText(chunk + ch).width > maxWidth && chunk) {
-          lines.push(chunk);
-          chunk = ch;
-        } else chunk += ch;
-      }
-      line = chunk;
+      const broken = breakOversizedWord(ctx, word, maxWidth);
+      lines.push(...broken.full);
+      line = broken.rest;
     }
   }
   if (line) lines.push(line);
   return lines;
+}
+
+/**
+ * Splits a single word that cannot fit on a line of its own — a SKU, a URL —
+ * into character-wide chunks. Returns the chunks that are already full plus the
+ * trailing partial, which the caller carries on filling with whatever follows.
+ */
+function breakOversizedWord(
+  ctx: CanvasRenderingContext2D,
+  word: string,
+  maxWidth: number,
+): { full: string[]; rest: string } {
+  const full: string[] = [];
+  let chunk = '';
+  for (const ch of word) {
+    if (ctx.measureText(chunk + ch).width > maxWidth && chunk) {
+      full.push(chunk);
+      chunk = ch;
+    } else chunk += ch;
+  }
+  return { full, rest: chunk };
 }
 
 function rowHeight(row: DocRow): number {
