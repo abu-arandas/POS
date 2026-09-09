@@ -155,9 +155,21 @@ export default function Lockscreen() {
       // and work factor recorded in it. An account still on a v1 digest, or on
       // a v2 one derived before the work factor was last raised, signs in and
       // is re-hashed below instead of being locked out.
-      const check = await verifyPinHash(user.id, enteredPin, readLive()?.pin ?? '');
+      const storedAtStart = readLive()?.pin ?? '';
+      const check = await verifyPinHash(user.id, enteredPin, storedAtStart);
       let live = readLive();
       if (!live?.active) {
+        failPin(user.id);
+        return;
+      }
+      // `check` answers a question about the hash as it stood BEFORE the
+      // derivation. If sync replaced it meanwhile — a PIN rotated on another
+      // terminal — that answer is about a hash the account no longer has, and
+      // honouring it would accept the old PIN after it was replaced. This
+      // comparison used to be inline against the freshly re-read row, so
+      // moving it inside verifyPinHash is what put the window here. Fail
+      // closed; the operator types again against the row as it now stands.
+      if (live.pin !== storedAtStart) {
         failPin(user.id);
         return;
       }
@@ -171,6 +183,13 @@ export default function Lockscreen() {
         const freshHash = await hashPinSalted(user.id, enteredPin);
         live = readLive();
         if (!live?.active) {
+          failPin(user.id);
+          return;
+        }
+        // Same window again, and worse: writing here would put a hash derived
+        // from the OLD PIN over the one sync just rotated in, undoing the
+        // rotation.
+        if (live.pin !== storedAtStart) {
           failPin(user.id);
           return;
         }

@@ -123,6 +123,42 @@ describe('Lockscreen revocation landing mid-await', () => {
     expect(useAuthStore.getState().currentUser).toBeNull();
   });
 
+  it('refuses the old PIN when the hash is rotated while it is being verified', async () => {
+    render(<Lockscreen />);
+    await userEvent.setup().click(screen.getByRole('button', { name: /Active Alice/ }));
+
+    // A PIN rotated on another terminal lands mid-derivation. The verification
+    // already running answers about the hash as it WAS, so accepting on that
+    // answer would let the replaced PIN through. Alice stays active throughout:
+    // this is about the hash, not the account.
+    duringVerify = () =>
+      useAuthStore.setState({
+        users: [{ ...alice, pin: hashPinSaltedLegacySync('u-1', '9999') }],
+      });
+
+    await typePin('1234');
+
+    await waitFor(() => expect(screen.getByText(/incorrect/i)).toBeInTheDocument());
+    expect(useAuthStore.getState().currentUser).toBeNull();
+  });
+
+  it('does not write an upgraded old-PIN hash over a rotation', async () => {
+    render(<Lockscreen />);
+    await userEvent.setup().click(screen.getByRole('button', { name: /Active Alice/ }));
+
+    // Alice's legacy hash verifies, so the re-hash begins — and the rotation
+    // lands inside it. Writing then would put a hash derived from the OLD PIN
+    // over the one that just replaced it, silently undoing the rotation.
+    const rotated = hashPinSaltedLegacySync('u-1', '9999');
+    duringUpgradeHash = () => useAuthStore.setState({ users: [{ ...alice, pin: rotated }] });
+
+    await typePin('1234');
+
+    await waitFor(() => expect(screen.getByText(/incorrect/i)).toBeInTheDocument());
+    expect(useAuthStore.getState().currentUser).toBeNull();
+    expect(useAuthStore.getState().users[0].pin).toBe(rotated);
+  });
+
   it('still signs in over the cloud when nothing revokes the account', async () => {
     // The guard must not swallow the ordinary cloud-fallback path.
     useAuthStore.setState({ users: [{ ...alice, pin: 'not-a-matching-hash' }] });

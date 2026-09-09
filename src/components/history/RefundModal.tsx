@@ -3,10 +3,11 @@ import { motion } from 'motion/react';
 import { X, Lock, ChevronRight, Minus, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { SaleTransaction, StoreSettings, UserAccount } from '../../types';
-import { authorizeOverride, authorizerLabel } from '../../lib/managerOverride';
+import { authorizeOverride, authorizerLabel, overrideCandidates } from '../../lib/managerOverride';
 import { computeRefund, refundableQuantities } from '../../lib/refunds';
 import { lockoutStatus, formatRemaining } from '../../lib/pinThrottle';
 import { usePinAttemptStore } from '../../stores/pinAttemptStore';
+import { useAuthStore } from '../../stores/authStore';
 import { useModalA11y } from '../../lib/useModalA11y';
 
 // Single throttle bucket for the manager-override PIN (it is not tied to one
@@ -72,9 +73,18 @@ export function RefundModal({
     }
 
     const authorizedUser = await authorizeOverride(users, overridePin);
-    if (authorizedUser) {
+    // authorizeOverride is deliberately pure: it judges the list it was handed,
+    // which was read before the PIN derivation that just took hundreds of
+    // milliseconds. Revoking a manager has to revoke them at that moment, not
+    // at the next render, so the winner is confirmed against the live store
+    // before any money moves. Re-derived from the same rule the check used, so
+    // a role demoted mid-derive is caught alongside a deactivation.
+    const live = authorizedUser
+      ? overrideCandidates(useAuthStore.getState().users).find((u) => u.id === authorizedUser.id)
+      : undefined;
+    if (live) {
       registerPinSuccess(OVERRIDE_THROTTLE_KEY);
-      onCommit(selection, authorizerLabel(authorizedUser));
+      onCommit(selection, authorizerLabel(live));
       return;
     }
 
