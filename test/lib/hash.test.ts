@@ -138,6 +138,12 @@ describe('verifyPinHash', () => {
       'v2$600000$deadbeef', // truncated
       'v2$notanumber$9b2e37bf6f878649d3d422d6dd6286a6$' + 'a'.repeat(64),
       'v2$0$9b2e37bf6f878649d3d422d6dd6286a6$' + 'a'.repeat(64), // zero iterations
+      // A work factor above the current one cannot have been written by any
+      // build, and honouring it would let one edited row hang the lock screen
+      // for as long as it asked — on the JS fallback path, indefinitely.
+      'v2$99999999999$9b2e37bf6f878649d3d422d6dd6286a6$' + 'a'.repeat(64),
+      'v2$1e9$9b2e37bf6f878649d3d422d6dd6286a6$' + 'a'.repeat(64), // Number() would take this
+      'v2$0x2710$9b2e37bf6f878649d3d422d6dd6286a6$' + 'a'.repeat(64), // and this
       'v3$600000$9b2e37bf6f878649d3d422d6dd6286a6$' + 'a'.repeat(64), // unknown version
       'v2$600000$nothex$' + 'a'.repeat(64),
     ]) {

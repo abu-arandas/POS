@@ -243,8 +243,21 @@ function parseStoredHash(
   const parts = stored.split('$');
   if (parts.length !== 4 || parts[0] !== HASH_VERSION) return null;
   const [, rawIterations, salt, digest] = parts;
+
+  // The work factor decides how much work verifying costs, so it is read as a
+  // plain decimal (not via Number(), which also accepts '0x…' and '1e9') and
+  // capped at the current one.
+  //
+  // A hash is only ever written at whatever PBKDF2_ITERATIONS was at the time,
+  // and that number only goes up, so no build can have produced a stored factor
+  // above today's. One that claims a higher figure is corrupt or crafted, and
+  // honouring it would let a single edited row hang the lock screen for as long
+  // as it liked — on the JS fallback path, where 600,000 already takes about
+  // fifteen seconds, "as long as it liked" means the till never opens again.
+  // Bounded this way, verifying the worst case costs exactly one normal login.
+  if (!/^[1-9][0-9]*$/.test(rawIterations)) return null;
   const iterations = Number(rawIterations);
-  if (!Number.isInteger(iterations) || iterations < 1) return null;
+  if (iterations > PBKDF2_ITERATIONS) return null;
   // 16-byte salt and 32-byte digest as hex, exactly as hashPinSalted writes
   // them. The digest length matters: deriveDigestHex only ever produces one
   // SHA-256 block, so a longer stored digest could never be reproduced and
