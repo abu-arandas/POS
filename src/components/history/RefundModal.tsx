@@ -199,7 +199,7 @@ export function RefundModal({
                           })
                         }
                         aria-label={`${t('history.decreaseRefundQty')} — ${item.productName}`}
-                        className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-rose-500/20 hover:text-rose-400"
+                        className="size-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-rose-500/20 hover:text-rose-400"
                       >
                         <Minus size={14} />
                       </button>
@@ -214,7 +214,7 @@ export function RefundModal({
                           })
                         }
                         aria-label={`${t('history.increaseRefundQty')} — ${item.productName}`}
-                        className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-emerald-500/20 hover:text-emerald-400"
+                        className="size-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-emerald-500/20 hover:text-emerald-400"
                       >
                         <Plus size={14} />
                       </button>

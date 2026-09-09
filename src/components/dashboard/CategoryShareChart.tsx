@@ -37,7 +37,7 @@ export function CategoryShareChart({ data, currency }: CategoryShareChartProps) 
       </div>
       <div className="flex-1 min-h-55 w-full relative">
         {data.length === 0 ? (
-          <div className="w-full h-full flex items-center justify-center text-slate-500 bg-[var(--surface-1)] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
+          <div className="size-full flex items-center justify-center text-slate-500 bg-[var(--surface-1)] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
             {t('dashboard.noCategoryStats')}
           </div>
         ) : (
@@ -88,7 +88,7 @@ export function CategoryShareChart({ data, currency }: CategoryShareChartProps) 
         {data.map((item) => (
           <div key={item.key} className="flex items-center gap-2">
             <span
-              className="swatch w-3 h-3 rounded-full shrink-0"
+              className="swatch size-3 rounded-full shrink-0"
               style={{ '--swatch-color': item.color } as CSSProperties}
             />
             <div className="flex flex-col">

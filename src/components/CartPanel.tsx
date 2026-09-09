@@ -140,7 +140,7 @@ const CartPanel = ({
             className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
+              <div className="size-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
                 <User size={14} className="text-emerald-400" />
               </div>
               <div className="min-w-0">
@@ -208,7 +208,7 @@ const CartPanel = ({
               animate={{ opacity: 1 }}
               className="h-full flex flex-col items-center justify-center text-center py-12"
             >
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50">
+              <div className="size-16 rounded-2xl flex items-center justify-center mb-4 bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50">
                 <ShoppingCart size={28} className="text-slate-600" />
               </div>
               <p className="text-slate-500 text-xs font-medium">{t('register.cartEmpty')}</p>
@@ -227,11 +227,11 @@ const CartPanel = ({
               >
                 {/* Product thumbnail */}
                 {showProductImages && safeImageUrl(item.product.image) && (
-                  <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
+                  <div className="size-9 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
                     <img
                       src={safeImageUrl(item.product.image)}
                       alt={item.product.name}
-                      className="w-full h-full object-cover"
+                      className="size-full object-cover"
                     />
                   </div>
                 )}
@@ -260,7 +260,7 @@ const CartPanel = ({
                     <button
                       onClick={() => updateCartQty(item.product.id, -1)}
                       aria-label={`${t('register.decreaseQty')} — ${item.product.name}`}
-                      className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 transition-colors"
+                      className="size-6 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 transition-colors"
                     >
                       <Minus size={11} />
                     </button>
@@ -271,7 +271,7 @@ const CartPanel = ({
                       onClick={() => updateCartQty(item.product.id, 1)}
                       disabled={item.quantity >= item.product.stock}
                       aria-label={`${t('register.increaseQty')} — ${item.product.name}`}
-                      className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 disabled:opacity-25 transition-colors"
+                      className="size-6 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 disabled:opacity-25 transition-colors"
                     >
                       <Plus size={11} />
                     </button>
@@ -279,7 +279,7 @@ const CartPanel = ({
                   <button
                     onClick={() => removeFromCart(item.product.id)}
                     aria-label={`${t('register.removeFromCart')} — ${item.product.name}`}
-                    className="ms-1.5 w-6 h-6 flex items-center justify-center text-slate-700 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                    className="ms-1.5 size-6 flex items-center justify-center text-slate-700 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                   >
                     <Trash2 size={11} />
                   </button>

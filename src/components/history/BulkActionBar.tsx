@@ -28,7 +28,7 @@ export function BulkActionBar({
       className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-800/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-3 rounded-2xl flex items-center gap-6 shadow-2xl z-40"
     >
       <div className="flex items-center gap-3 px-2">
-        <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+        <div className="size-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
           {count}
         </div>
         <span className="text-slate-900 dark:text-white font-bold text-sm">

@@ -89,24 +89,24 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
       {/* Ambient glow orbs — dark canvas only. Over a white panel the large
           blur radius bands into visible concentric rings instead of a glow. */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden hidden dark:block">
-        <div className="absolute top-0 left-0 w-48 h-48 rounded-full opacity-20 blur-3xl bg-emerald-500/40" />
-        <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full opacity-10 blur-3xl bg-blue-500/40" />
+        <div className="absolute top-0 left-0 size-48 rounded-full opacity-20 blur-3xl bg-emerald-500/40" />
+        <div className="absolute bottom-0 right-0 size-40 rounded-full opacity-10 blur-3xl bg-blue-500/40" />
       </div>
 
       {/* ── Brand ── */}
-      <div id="brand-header" className="relative z-10 px-5 py-5 border-b border-slate-800/60">
+      <div id="brand-header" className="relative z-10 p-5 border-b border-slate-800/60">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
           className="flex items-center gap-3"
         >
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
+          <div className="size-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
             {safeImageUrl(settings.storeLogo) ? (
               <img
                 src={safeImageUrl(settings.storeLogo)}
                 alt="Logo"
-                className="w-full h-full object-contain rounded-sm"
+                className="size-full object-contain rounded-sm"
               />
             ) : (
               <Logo size={36} />
@@ -120,7 +120,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
               {settings.storeName}
             </h1>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+              <span className="size-1.5 bg-emerald-400 rounded-full animate-pulse" />
               <span className="text-[9px] font-mono text-emerald-400 tracking-[0.18em] uppercase">
                 EA POS
               </span>

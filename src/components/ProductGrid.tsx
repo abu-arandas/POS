@@ -186,7 +186,7 @@ const SortableProductCard = memo(function SortableProductCard({
               onError={() => setImgError(true)}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-slate-800/40 to-slate-900/40">
+            <div className="size-full flex items-center justify-center bg-linear-to-br from-slate-800/40 to-slate-900/40">
               <span
                 className={`text-4xl transition-transform duration-400 opacity-70 ${isUnavailable ? '' : 'group-hover:scale-110 group-hover:rotate-6'}`}
               >

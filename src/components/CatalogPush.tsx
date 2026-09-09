@@ -281,7 +281,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                         setOptions((o) => ({ ...o, [k]: e.target.checked }));
                         setPreview(null);
                       }}
-                      className="accent-emerald-500 w-4 h-4"
+                      className="accent-emerald-500 size-4"
                     />
                     <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                       {t(`catalogPush.${label}`)}

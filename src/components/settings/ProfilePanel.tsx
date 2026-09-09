@@ -163,7 +163,7 @@ export function ProfilePanel({
                 type="checkbox"
                 checked={showProductImages}
                 onChange={(e) => onShowProductImagesChange(e.target.checked)}
-                className="w-5 h-5 mt-0.5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 shrink-0"
+                className="size-5 mt-0.5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 shrink-0"
               />
               <span>
                 <span className="block text-sm font-semibold text-slate-800 dark:text-slate-200">

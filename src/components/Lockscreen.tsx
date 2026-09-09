@@ -257,9 +257,9 @@ export default function Lockscreen() {
     >
       {/* Animated background orbs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="animate-orb-1 absolute top-[-15%] left-[-10%] w-125 h-125 rounded-full opacity-20 bg-linear-to-br from-emerald-500/40 to-transparent blur-3xl" />
-        <div className="animate-orb-2 absolute bottom-[-20%] right-[-10%] w-150 h-150 rounded-full opacity-15 bg-linear-to-br from-blue-500/40 to-transparent blur-3xl" />
-        <div className="animate-orb-3 absolute top-[40%] left-[50%] w-87.5 h-87.5 rounded-full opacity-10 bg-linear-to-br from-purple-500/40 to-transparent blur-3xl" />
+        <div className="animate-orb-1 absolute top-[-15%] left-[-10%] size-125 rounded-full opacity-20 bg-linear-to-br from-emerald-500/40 to-transparent blur-3xl" />
+        <div className="animate-orb-2 absolute bottom-[-20%] right-[-10%] size-150 rounded-full opacity-15 bg-linear-to-br from-blue-500/40 to-transparent blur-3xl" />
+        <div className="animate-orb-3 absolute top-[40%] left-[50%] size-87.5 rounded-full opacity-10 bg-linear-to-br from-purple-500/40 to-transparent blur-3xl" />
         {/* Dot grid */}
         <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(#94a3b8_1px,transparent_1px)] bg-size-[24px_24px]" />
       </div>
@@ -272,7 +272,7 @@ export default function Lockscreen() {
         className="text-center mb-8 z-10"
       >
         <div className="inline-flex items-center gap-3 mb-3">
-          <div className="w-11 h-11 flex items-center justify-center">
+          <div className="size-11 flex items-center justify-center">
             <Logo size={44} title="Arandas IT Solutions" />
           </div>
           <span className="font-mono text-2xl font-extrabold tracking-tight text-white">

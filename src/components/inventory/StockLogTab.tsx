@@ -20,10 +20,10 @@ export function InventoryStockLogTab({ t, adjustments }: InventoryStockLogTabPro
           <thead>
             <tr className="bg-white/90 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 sticky top-0 z-10 backdrop-blur-md">
               <th className="py-4 px-6">{t('inventory.logWhen')}</th>
-              <th className="py-4 px-4">{t('inventory.productDetails')}</th>
-              <th className="py-4 px-4 text-center">{t('inventory.logReason')}</th>
-              <th className="py-4 px-4 text-end">{t('inventory.logChange')}</th>
-              <th className="py-4 px-4 text-end">{t('inventory.stock')}</th>
+              <th className="p-4">{t('inventory.productDetails')}</th>
+              <th className="p-4 text-center">{t('inventory.logReason')}</th>
+              <th className="p-4 text-end">{t('inventory.logChange')}</th>
+              <th className="p-4 text-end">{t('inventory.stock')}</th>
               <th className="py-4 px-6">{t('inventory.logBy')}</th>
             </tr>
           </thead>
@@ -46,7 +46,7 @@ export function InventoryStockLogTab({ t, adjustments }: InventoryStockLogTabPro
                   <td className="py-4 px-6 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                     {new Date(a.createdAt).toLocaleString()}
                   </td>
-                  <td className="py-4 px-4">
+                  <td className="p-4">
                     <span className="font-bold text-slate-900 dark:text-white block">
                       {a.productName}
                     </span>
@@ -56,7 +56,7 @@ export function InventoryStockLogTab({ t, adjustments }: InventoryStockLogTabPro
                       </span>
                     )}
                   </td>
-                  <td className="py-4 px-4 text-center">
+                  <td className="p-4 text-center">
                     <span
                       className={`badge ${
                         a.reason === 'received'
@@ -77,7 +77,7 @@ export function InventoryStockLogTab({ t, adjustments }: InventoryStockLogTabPro
                     {a.delta >= 0 ? '+' : ''}
                     {a.delta}
                   </td>
-                  <td className="py-4 px-4 text-end font-mono font-bold text-slate-600 dark:text-slate-300">
+                  <td className="p-4 text-end font-mono font-bold text-slate-600 dark:text-slate-300">
                     {a.newStock}
                   </td>
                   <td className="py-4 px-6 text-slate-500 dark:text-slate-400">

@@ -39,8 +39,8 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-6">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mb-6">
-              <AlertTriangle className="w-8 h-8 text-rose-500" />
+            <div className="size-16 bg-rose-500/10 rounded-full flex items-center justify-center mb-6">
+              <AlertTriangle className="size-8 text-rose-500" />
             </div>
 
             <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
@@ -59,7 +59,7 @@ export class ErrorBoundary extends Component<Props, State> {
               onClick={this.handleReload}
               className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-semibold transition-colors w-full justify-center"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="size-4" />
               <span>{i18n.t('errorBoundary.reload', 'Reload Application')}</span>
             </button>
           </div>

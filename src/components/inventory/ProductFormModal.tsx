@@ -250,12 +250,12 @@ export function ProductFormModal({
               {t('inventory.productImageOptional')}
             </label>
             <div className="flex gap-4">
-              <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+              <div className="size-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 flex items-center justify-center overflow-hidden shrink-0">
                 {productPreviewUrl ? (
                   <img
                     src={productPreviewUrl}
                     alt="Preview"
-                    className="w-full h-full object-cover"
+                    className="size-full object-cover"
                   />
                 ) : (
                   <ImageIcon className="text-slate-500" size={32} />

@@ -118,7 +118,7 @@ export function UserModal({
             type="checkbox"
             checked={userActive}
             onChange={(e) => onUserActiveChange(e.target.checked)}
-            className="w-5 h-5 rounded border-slate-600 text-emerald-500 focus:ring-emerald-500 bg-white dark:bg-slate-900"
+            className="size-5 rounded border-slate-600 text-emerald-500 focus:ring-emerald-500 bg-white dark:bg-slate-900"
           />
           <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
             {t('settings.statusActive')}

@@ -35,10 +35,10 @@ export function InventoryPurchaseOrdersTab({
           <thead>
             <tr className="bg-white/90 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 sticky top-0 z-10 backdrop-blur-md">
               <th className="py-4 px-6">{t('inventory.poOrder')}</th>
-              <th className="py-4 px-4">{t('inventory.poSupplier')}</th>
-              <th className="py-4 px-4">{t('inventory.poItems')}</th>
-              <th className="py-4 px-4 text-end">{t('inventory.poTotalCost')}</th>
-              <th className="py-4 px-4 text-center">{t('inventory.poStatus')}</th>
+              <th className="p-4">{t('inventory.poSupplier')}</th>
+              <th className="p-4">{t('inventory.poItems')}</th>
+              <th className="p-4 text-end">{t('inventory.poTotalCost')}</th>
+              <th className="p-4 text-center">{t('inventory.poStatus')}</th>
               <th className="py-4 px-6 text-end">{t('inventory.actions')}</th>
             </tr>
           </thead>
@@ -72,23 +72,23 @@ export function InventoryPurchaseOrdersTab({
                       </span>
                     )}
                   </td>
-                  <td className="py-4 px-4 text-slate-600 dark:text-slate-300">
+                  <td className="p-4 text-slate-600 dark:text-slate-300">
                     <div className="flex items-center gap-2">
                       <Truck size={14} className="text-slate-500" />
                       {po.supplierName || '—'}
                     </div>
                   </td>
-                  <td className="py-4 px-4 text-slate-600 dark:text-slate-300 font-mono text-xs">
+                  <td className="p-4 text-slate-600 dark:text-slate-300 font-mono text-xs">
                     {t('inventory.poLinesUnits', {
                       lines: po.lines.length,
                       units: poUnitCount(po),
                     })}
                   </td>
-                  <td className="py-4 px-4 text-end font-mono font-bold text-slate-900 dark:text-white">
+                  <td className="p-4 text-end font-mono font-bold text-slate-900 dark:text-white">
                     {settings.currency}
                     {poTotal(po).toFixed(2)}
                   </td>
-                  <td className="py-4 px-4 text-center">
+                  <td className="p-4 text-center">
                     <span className={statusBadge[po.status]}>
                       {t(`inventory.poStatus_${po.status}`)}
                     </span>

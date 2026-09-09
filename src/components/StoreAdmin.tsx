@@ -420,7 +420,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                         aria-label={t('storeAdmin.roleLabel')}
                         value={memberRole}
                         onChange={(e) => setMemberRole(e.target.value as Role)}
-                        className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-[11px] font-semibold px-2 py-2 rounded-lg focus:outline-none focus:border-emerald-500/40"
+                        className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-[11px] font-semibold p-2 rounded-lg focus:outline-none focus:border-emerald-500/40"
                       >
                         {ASSIGNABLE_ROLES.map((r) => (
                           <option key={r} value={r}>

@@ -89,7 +89,7 @@ export function KitchenPrinterPanel({
           </div>
         </div>
         {detectedPrinters.length === 0 ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl px-4 py-4 leading-relaxed">
+          <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-4 leading-relaxed">
             {printersLoading ? '…' : t('settings.noPrintersFound')}
           </p>
         ) : (
@@ -100,7 +100,7 @@ export function KitchenPrinterPanel({
                 className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                  <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
                     {p.kind === 'system' ? (
                       <Monitor size={16} />
                     ) : p.kind === 'network' ? (
@@ -202,7 +202,7 @@ export function KitchenPrinterPanel({
             ))}
         </datalist>
         {stationForm.length === 0 ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl px-4 py-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-4">
             {t('settings.noStations')}
           </p>
         ) : (

@@ -72,7 +72,7 @@ export function PurchasingPanel({ report, currency }: PurchasingPanelProps) {
             const spend = s.received || s.outstanding;
             return (
               <div key={s.supplierId ?? 'none'} className="flex items-center gap-4">
-                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-emerald-400 shrink-0">
+                <div className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-emerald-400 shrink-0">
                   <Truck size={15} />
                 </div>
                 <div className="flex-1 min-w-0">

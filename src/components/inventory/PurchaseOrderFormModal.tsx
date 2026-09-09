@@ -129,7 +129,7 @@ export function PurchaseOrderFormModal({
                 onChange={(e) => onLineChange(idx, { quantity: e.target.value })}
                 aria-label={t('inventory.poQty')}
                 placeholder={t('inventory.poQty')}
-                className="w-24 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-3 text-slate-900 dark:text-white font-mono text-center focus:outline-none focus:border-emerald-500"
+                className="w-24 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl p-3 text-slate-900 dark:text-white font-mono text-center focus:outline-none focus:border-emerald-500"
               />
               <div className="w-32 flex items-center bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden focus-within:border-emerald-500">
                 <span className="ps-3 text-slate-500 font-mono text-sm">{settings.currency}</span>

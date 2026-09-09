@@ -26,9 +26,9 @@ export function InventorySuppliersTab({
           <thead>
             <tr className="bg-white/90 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 sticky top-0 z-10 backdrop-blur-md">
               <th className="py-4 px-6">{t('inventory.supplierName')}</th>
-              <th className="py-4 px-4">{t('inventory.supplierContact')}</th>
-              <th className="py-4 px-4">{t('inventory.phoneNumber')}</th>
-              <th className="py-4 px-4">{t('inventory.emailAddress')}</th>
+              <th className="p-4">{t('inventory.supplierContact')}</th>
+              <th className="p-4">{t('inventory.phoneNumber')}</th>
+              <th className="p-4">{t('inventory.emailAddress')}</th>
               <th className="py-4 px-6 text-end">{t('inventory.actions')}</th>
             </tr>
           </thead>
@@ -50,25 +50,25 @@ export function InventorySuppliersTab({
                 >
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-emerald-400">
+                      <div className="size-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-emerald-400">
                         <Truck size={20} />
                       </div>
                       <span className="font-bold text-slate-900 dark:text-white">{sup.name}</span>
                     </div>
                   </td>
-                  <td className="py-4 px-4 text-slate-600 dark:text-slate-300">
+                  <td className="p-4 text-slate-600 dark:text-slate-300">
                     <div className="flex items-center gap-2">
                       <User size={14} className="text-slate-500" />
                       {sup.contact || '—'}
                     </div>
                   </td>
-                  <td className="py-4 px-4 text-slate-600 dark:text-slate-300 font-mono">
+                  <td className="p-4 text-slate-600 dark:text-slate-300 font-mono">
                     <div className="flex items-center gap-2">
                       <Phone size={14} className="text-slate-500" />
                       {sup.phone || '—'}
                     </div>
                   </td>
-                  <td className="py-4 px-4 text-slate-600 dark:text-slate-300">
+                  <td className="p-4 text-slate-600 dark:text-slate-300">
                     <div className="flex items-center gap-2">
                       <Mail size={14} className="text-slate-500" />
                       {sup.email || '—'}

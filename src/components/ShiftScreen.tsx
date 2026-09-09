@@ -149,9 +149,9 @@ export default function ShiftScreen() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="glass dark:glass-dark border border-slate-200 dark:border-white/10 rounded-3xl p-10 max-w-lg mx-auto text-center shadow-2xl relative overflow-hidden group"
             >
-              <div className="absolute -inset-e-6 -top-6 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-colors" />
+              <div className="absolute -inset-e-6 -top-6 size-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-colors" />
               <div className="relative z-10">
-                <div className="mx-auto w-20 h-20 rounded-3xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-6 shadow-inner animate-bounce-in">
+                <div className="mx-auto size-20 rounded-3xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-6 shadow-inner animate-bounce-in">
                   <Unlock size={32} />
                 </div>
                 <h3 className="font-bold text-2xl text-slate-900 dark:text-white mb-2">
@@ -178,7 +178,7 @@ export default function ShiftScreen() {
                       value={openFloat}
                       onChange={(e) => setOpenFloat(e.target.value)}
                       placeholder="0.00"
-                      className="flex-1 bg-transparent border-none px-3 py-3 font-mono text-2xl font-bold text-slate-900 dark:text-white focus:outline-none"
+                      className="flex-1 bg-transparent border-none p-3 font-mono text-2xl font-bold text-slate-900 dark:text-white focus:outline-none"
                     />
                   </div>
                 </div>
@@ -204,13 +204,13 @@ export default function ShiftScreen() {
               {/* Active Shift Overview */}
               <div className="lg:col-span-2 space-y-6">
                 <div className="surface rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                  <div className="absolute -inset-e-6 -top-6 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl" />
+                  <div className="absolute -inset-e-6 -top-6 size-32 bg-emerald-500/10 rounded-full blur-3xl" />
                   <div className="relative z-10 flex items-start justify-between">
                     <div>
                       <h3 className="font-bold text-2xl text-slate-900 dark:text-white flex items-center gap-3">
                         {t('shift.currentShift')}
                         <span className="badge badge-emerald flex items-center gap-1.5 px-3 py-1 text-xs">
-                          <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                          <span className="size-2 bg-emerald-400 rounded-full animate-pulse" />
                           {t('shift.open')}
                         </span>
                       </h3>
@@ -429,9 +429,9 @@ export default function ShiftScreen() {
                     const v = Number(((shift.countedCash ?? 0) - expected).toFixed(2));
                     return (
                       <tr key={shift.id} className="hover:bg-white/5 transition-colors group">
-                        <td className="py-4 px-4">
+                        <td className="p-4">
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs">
+                            <div className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs">
                               {shift.openedBy.charAt(0).toUpperCase()}
                             </div>
                             <span className="font-medium text-slate-700 dark:text-slate-200">
@@ -439,10 +439,10 @@ export default function ShiftScreen() {
                             </span>
                           </div>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="p-4">
                           {shift.closedBy ? (
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold text-xs">
+                              <div className="size-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold text-xs">
                                 {shift.closedBy.charAt(0).toUpperCase()}
                               </div>
                               <span className="text-sm text-slate-600 dark:text-slate-300">
@@ -453,17 +453,17 @@ export default function ShiftScreen() {
                             <span className="text-slate-600">—</span>
                           )}
                         </td>
-                        <td className="py-4 px-4 font-mono text-slate-500 dark:text-slate-400 text-xs">
+                        <td className="p-4 font-mono text-slate-500 dark:text-slate-400 text-xs">
                           {new Date(shift.openedAt).toLocaleString()}
                         </td>
-                        <td className="py-4 px-4 font-mono text-slate-500 dark:text-slate-400 text-xs">
+                        <td className="p-4 font-mono text-slate-500 dark:text-slate-400 text-xs">
                           {shift.closedAt ? new Date(shift.closedAt).toLocaleString() : '—'}
                         </td>
-                        <td className="py-4 px-4 text-end font-mono font-medium text-slate-900 dark:text-white">
+                        <td className="p-4 text-end font-mono font-medium text-slate-900 dark:text-white">
                           {cur}
                           {s.grossSales.toFixed(2)}
                         </td>
-                        <td className="py-4 px-4 text-end">
+                        <td className="p-4 text-end">
                           <span
                             className={`badge ${Math.abs(v) < 0.005 ? 'badge-emerald' : 'badge-rose'} font-mono text-xs`}
                           >
@@ -472,7 +472,7 @@ export default function ShiftScreen() {
                             {v.toFixed(2)}
                           </span>
                         </td>
-                        <td className="py-4 px-4 text-center">
+                        <td className="p-4 text-center">
                           <button
                             onClick={() => printReport(shift)}
                             aria-label={t('shift.printReport')}

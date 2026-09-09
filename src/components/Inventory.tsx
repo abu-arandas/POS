@@ -520,7 +520,7 @@ export default function Inventory() {
             {currentTab === tab.id && (
               <motion.div
                 layoutId="inventoryTab"
-                className="absolute -bottom-px left-0 right-0 h-0.5 bg-emerald-500 rounded-t-full"
+                className="absolute -bottom-px inset-x-0 h-0.5 bg-emerald-500 rounded-t-full"
                 initial={false}
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />

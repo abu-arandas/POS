@@ -46,11 +46,11 @@ export function SalesTrendChart({ data, currency }: SalesTrendChartProps) {
         </div>
         <div className="flex items-center gap-4 text-xs font-mono bg-[var(--surface-1)] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
           <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-            <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+            <span className="size-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
             {t('dashboard.revenue')}
           </span>
           <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-            <span className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+            <span className="size-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
             {t('dashboard.profit')}
           </span>
         </div>

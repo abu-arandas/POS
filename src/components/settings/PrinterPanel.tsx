@@ -99,7 +99,7 @@ export function PrinterPanel({
           </div>
         </div>
         {detectedPrinters.length === 0 ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl px-4 py-4 leading-relaxed">
+          <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-4 leading-relaxed">
             {printersLoading ? '…' : t('settings.noPrintersFound')}
           </p>
         ) : (
@@ -110,7 +110,7 @@ export function PrinterPanel({
                 className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                  <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
                     {p.kind === 'system' ? (
                       <Monitor size={16} />
                     ) : p.kind === 'network' ? (
@@ -155,7 +155,7 @@ export function PrinterPanel({
                         : t('settings.useThisPrinter')}
                     </button>
                   )}
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true" />
+                  <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
                 </div>
               </li>
             ))}
@@ -167,7 +167,7 @@ export function PrinterPanel({
               type="checkbox"
               checked={autoScanPrinters}
               onChange={(e) => onAutoScanPrintersChange(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+              className="size-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
             />
             {t('settings.autoScanPrinters')}
           </label>
@@ -315,7 +315,7 @@ export function PrinterPanel({
             type="checkbox"
             checked={printerForm.showBarcode}
             onChange={(e) => onPrinterFormChange({ ...printerForm, showBarcode: e.target.checked })}
-            className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+            className="size-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
           />
           <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
             {t('settings.showBarcode')}
@@ -329,7 +329,7 @@ export function PrinterPanel({
             onChange={(e) =>
               onPrinterFormChange({ ...printerForm, autoPrintOnCheckout: e.target.checked })
             }
-            className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+            className="size-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
           />
           <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
             {t('settings.autoPrint')}
@@ -346,7 +346,7 @@ export function PrinterPanel({
                 kitchenTicketOnCheckout: e.target.checked,
               })
             }
-            className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+            className="size-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
           />
           <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
             {t('settings.autoPrintKitchen')}
