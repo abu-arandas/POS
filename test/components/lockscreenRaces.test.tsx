@@ -159,6 +159,20 @@ describe('Lockscreen revocation landing mid-await', () => {
     expect(useAuthStore.getState().users[0].pin).toBe(rotated);
   });
 
+  it('signs in with the upgraded record, not the hash it replaced', async () => {
+    // handleUpdateUser rewrites `users`; signing in with the pre-upgrade object
+    // would leave currentUser carrying the superseded hash.
+    render(<Lockscreen />);
+    await userEvent.setup().click(screen.getByRole('button', { name: /Active Alice/ }));
+
+    await typePin('1234');
+
+    await waitFor(() => expect(useAuthStore.getState().currentUser?.id).toBe('u-1'));
+    const stored = useAuthStore.getState().users[0].pin;
+    expect(stored).not.toBe(alice.pin);
+    expect(useAuthStore.getState().currentUser?.pin).toBe(stored);
+  });
+
   it('still signs in over the cloud when nothing revokes the account', async () => {
     // The guard must not swallow the ordinary cloud-fallback path.
     useAuthStore.setState({ users: [{ ...alice, pin: 'not-a-matching-hash' }] });

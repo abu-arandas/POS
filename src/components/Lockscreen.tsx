@@ -193,8 +193,14 @@ export default function Lockscreen() {
           failPin(user.id);
           return;
         }
-        handleUpdateUser({ ...live, pin: freshHash });
-        acceptPin(live);
+        // Sign in with the upgraded record, not the one just replaced.
+        // handleUpdateUser rewrites `users`, so signing in with `live` would
+        // leave currentUser holding the superseded hash. Nothing reads it
+        // today and it is not persisted, but a stale credential copy in state
+        // is precisely what the rest of this function exists to avoid.
+        const upgradedUser = { ...live, pin: freshHash };
+        handleUpdateUser(upgradedUser);
+        acceptPin(upgradedUser);
         return;
       }
 
