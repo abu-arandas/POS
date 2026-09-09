@@ -375,7 +375,7 @@ export default function Register() {
         Pre-computed product map to change O(N^2) category lookups in the kitchen
         ticket loop into O(N) map build + O(1) loop lookups.
       */
-      const products = useProductStore.getState().products;
+      const { products } = useProductStore.getState();
       const prodMap = new Map(products.map((p) => [p.id, p]));
       const catOf = (productId: string) => prodMap.get(productId)?.category;
       void (async () => {
@@ -434,7 +434,7 @@ export default function Register() {
       Pre-computed product map to change O(N^2) category lookups in the kitchen
       ticket loop into O(N) map build + O(1) loop lookups.
     */
-    const products = useProductStore.getState().products;
+    const { products } = useProductStore.getState();
     const prodMap = new Map(products.map((p) => [p.id, p]));
     const catOf = (productId: string) => prodMap.get(productId)?.category;
     notifyPrint(

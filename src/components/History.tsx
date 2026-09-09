@@ -109,6 +109,8 @@ export default function History() {
       if (outcome === 'popup-blocked') notify(t('history.standardPrintBlocked'));
       return;
     }
+    // Sequential on purpose: one printer, and a failure stops the run rather
+    // than firing the rest of the batch at a device that is already unhappy.
     for (const tx of txsToPrint) {
       const outcome = await printReceipt(tx, settings, printerConfig, false, receiptLayout);
       if (outcome !== 'printed') {

@@ -53,6 +53,8 @@ export async function fetchAllPages<Row extends { id: string }>(
 ): Promise<Row[]> {
   const rows: Row[] = [];
   let afterId: string | null = null;
+  // Necessarily sequential: each request's cursor is the last id of the page
+  // before it, so there is nothing to overlap.
   for (;;) {
     const { data, error } = await page(afterId, PULL_PAGE_SIZE);
     if (error) throw error;
@@ -103,6 +105,9 @@ export async function deleteRowsSupabase(
 ): Promise<boolean> {
   if (ids.length === 0) return true;
   let failedRows = 0;
+  // One chunk at a time: a bulk delete triggered by "Delete All Transactions"
+  // can be thousands of rows, and firing every chunk at once is what the
+  // chunking exists to avoid.
   for (let i = 0; i < ids.length; i += DELETE_CHUNK_SIZE) {
     const chunk = ids.slice(i, i + DELETE_CHUNK_SIZE);
     try {

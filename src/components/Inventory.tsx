@@ -107,7 +107,7 @@ export default function Inventory() {
   >([]);
 
   const handleOpenPoModal = useCallback(() => {
-    const first = products[0];
+    const [first] = products;
     setPoSupplierId('');
     setPoNote('');
     setPoLines([
@@ -691,7 +691,7 @@ export default function Inventory() {
             onLineChange={handlePoLineChange}
             onRemoveLine={(index) => setPoLines((prev) => prev.filter((_, i) => i !== index))}
             onAddLine={() => {
-              const first = products[0];
+              const [first] = products;
               setPoLines((prev) => [
                 ...prev,
                 {

@@ -33,8 +33,9 @@ export function receiptDocHtml(
   // 'monospace' and 'Courier New' resolve to faces whose Arabic is barely
   // legible at receipt size, so they yield to the system UI faces instead.
   const ARABIC_CAPABLE = ['Arial', 'Tahoma'];
+  const rtlLead = ARABIC_CAPABLE.includes(font) ? `"${font}", ` : '';
   const stack = rtl
-    ? `${ARABIC_CAPABLE.includes(font) ? `"${font}", ` : ''}'Segoe UI', Tahoma, Arial, sans-serif`
+    ? `${rtlLead}'Segoe UI', Tahoma, Arial, sans-serif`
     : `"${font}", 'Courier New', Courier, monospace`;
 
   return `<html lang="${lang}" dir="${rtl ? 'rtl' : 'ltr'}">

@@ -49,7 +49,7 @@ export function ReceiptModal({
 }: ReceiptModalProps) {
   const { t } = useTranslation();
   const resolvedLayout = resolveCustomerLayout(receiptLayout, printerConfig);
-  const show = resolvedLayout.show;
+  const { show } = resolvedLayout;
   return (
     <AnimatePresence>
       {open && receipt && (

@@ -71,7 +71,7 @@ interface WebSerial {
 // Web Serial API (Chromium/Electron). Prompts the operator to pick the port on
 // first use; writes the raw ESC/POS stream.
 async function printSerial(bytes: Uint8Array, baudRate = 9600): Promise<HardwarePrintOutcome> {
-  const serial = (navigator as unknown as { serial?: WebSerial }).serial;
+  const { serial } = navigator as unknown as { serial?: WebSerial };
   if (!serial) return 'unsupported';
 
   let port: WebSerialPort | undefined;
@@ -304,6 +304,8 @@ export async function printKitchenTickets(
 
   const tickets = routeKitchenTickets(tx, stations, categoryOf);
   let worst: HardwarePrintOutcome = 'printed';
+  // Sequential on purpose: stations often share one spooler or serial port, and
+  // interleaving byte streams there prints two tickets on top of each other.
   for (const ticket of tickets) {
     const stationTx: SaleTransaction = { ...tx, items: ticket.items };
     const outcome = await printKitchenTicket(

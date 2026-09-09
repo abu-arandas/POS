@@ -139,7 +139,11 @@ async function pbkdf2Sha256Async(pin: string, salt: Uint8Array): Promise<Uint8Ar
   for (let iteration = 1; iteration < PBKDF2_ITERATIONS; iteration += 1) {
     u = hmacSha256Sync(password, u);
     for (let i = 0; i < result.length; i += 1) result[i] ^= u[i];
-    if (iteration % 2_000 === 0) await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    if (iteration % 2_000 === 0) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
+    }
   }
   return result;
 }

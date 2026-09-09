@@ -157,9 +157,10 @@ export function buildReceiptDoc(
         value: `-${money(cur, tx.discount)}`,
       });
     const taxStr = i18n.t('history.tax', 'TAX:').replace(':', '');
+    const taxLabel = settings.taxRate > 0 ? `${taxStr} (${settings.taxRate}%)` : taxStr;
     rows.push({
       kind: 'pair',
-      label: `${settings.taxRate > 0 ? `${taxStr} (${settings.taxRate}%)` : taxStr}:`,
+      label: `${taxLabel}:`,
       value: money(cur, tx.tax),
     });
     rows.push({

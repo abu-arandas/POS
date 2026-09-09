@@ -60,7 +60,7 @@ export function useModalA11y<T extends HTMLElement = HTMLDivElement>(
         e.preventDefault();
         return;
       }
-      const first = els[0];
+      const [first] = els;
       const last = els[els.length - 1];
       const active = document.activeElement;
       if (e.shiftKey) {

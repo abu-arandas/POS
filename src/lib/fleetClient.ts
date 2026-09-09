@@ -33,7 +33,7 @@ async function withSession() {
  * unless sync is on and a storeId is configured.
  */
 export async function sendStoreHeartbeat(): Promise<void> {
-  const storeId = useSettingsStore.getState().storeId;
+  const { storeId } = useSettingsStore.getState();
   if (!storeId) return;
   const client = await withSession();
   if (!client) return;

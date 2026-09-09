@@ -73,7 +73,7 @@ export async function startRealtimeSync(): Promise<boolean> {
     clearTimeout(timers[table]);
     timers[table] = setTimeout(async () => {
       // Re-read the store scope each pull so it tracks config changes.
-      const storeId = useSettingsStore.getState().storeId;
+      const { storeId } = useSettingsStore.getState();
       // Each branch resolves its pull into the write it would perform, rather
       // than performing it, so the staleness check below sits between the
       // await and the store — the one window clearTimeout cannot close.

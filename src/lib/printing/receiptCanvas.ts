@@ -456,7 +456,7 @@ export function renderReceiptRaster(
         const box = barcodes.get(row) ?? null;
         const top = y + LINE_GAP;
         if (box) {
-          let x = box.x;
+          let { x } = box;
           let bar = true;
           for (const w of code128Modules(row.value)) {
             if (bar) ctx.fillRect(Math.round(x), top, w * box.module, BARCODE_HEIGHT);
@@ -506,7 +506,7 @@ export function renderReceiptRaster(
  */
 export async function ensureReceiptFont(): Promise<void> {
   try {
-    const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
+    const { fonts } = document as Document & { fonts?: FontFaceSet };
     if (!fonts) return;
     await Promise.all([fonts.load('400 24px Cairo'), fonts.load('700 38px Cairo')]);
   } catch {

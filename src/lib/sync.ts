@@ -54,7 +54,7 @@ export const syncToCloudIfEnabled = async (
   const client = getSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
   if (!client) return;
 
-  const storeId = useSettingsStore.getState().storeId;
+  const { storeId } = useSettingsStore.getState();
   try {
     await ensureDeviceSession(client);
     // By passing only modified items as arrays to these functions, we do an incremental upsert!
@@ -80,7 +80,7 @@ export const cloudLogin = async (name: string, pinHash: string): Promise<UserAcc
   if (!client) return null;
   try {
     await ensureDeviceSession(client);
-    const storeId = useSettingsStore.getState().storeId;
+    const { storeId } = useSettingsStore.getState();
     return storeId
       ? await verifyLoginCloud(client, name, pinHash, storeId)
       : await verifyLoginCloud(client, name, pinHash);
@@ -136,7 +136,7 @@ export const pushAllToCloud = async (
     return false;
   }
 
-  const storeId = useSettingsStore.getState().storeId;
+  const { storeId } = useSettingsStore.getState();
   const results = await Promise.all([
     pushCategories(client, data.categories, storeId),
     pushProducts(client, data.products, storeId),
@@ -171,7 +171,7 @@ export const pullAllFromCloud = async (
     return null;
   }
 
-  const storeId = useSettingsStore.getState().storeId;
+  const { storeId } = useSettingsStore.getState();
   const [categories, products, customers, users, transactions] = await Promise.all([
     pullCategories(client, storeId),
     pullProducts(client, storeId),
