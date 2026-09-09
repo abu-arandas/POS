@@ -71,6 +71,14 @@ ALTER TABLE login_attempts DROP CONSTRAINT IF EXISTS login_attempts_pkey;
 ALTER TABLE login_attempts ADD CONSTRAINT login_attempts_pkey PRIMARY KEY (scope_key);
 
 -- Replace the single-store login routine with a compatible three-argument form.
+--
+-- This body deliberately restates the throttle from scripts/schema.sql §7 rather
+-- than sharing it. Postgres has no way to patch a function body, and both files
+-- are standalone scripts pasted whole into the SQL editor, so there is nothing
+-- to factor out without breaking that workflow. The cost is that the two can
+-- drift: a change to the escalation ladder, the FOR UPDATE lock, or the streak
+-- reset has to be made in BOTH, and schema.sql carries the comments explaining
+-- why each of those is there.
 -- The third argument has a default, so existing two-argument callers continue to
 -- work until a terminal is configured with a store id; scoped callers must match
 -- the account's store_id. The old two-argument routine is removed so it cannot be

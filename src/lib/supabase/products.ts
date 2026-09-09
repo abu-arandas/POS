@@ -3,6 +3,28 @@ import { Category, Product } from '../../types';
 import { fetchAllPages, keyset, stampStoreId } from './sync-utils';
 
 /**
+ * One product as the `products` table stores it: camelCase to snake_case, with
+ * an unset category written as SQL NULL so it satisfies the foreign key rather
+ * than pointing at a category id of `''`.
+ *
+ * Exported because the fleet catalog push sends the same shape through an RPC.
+ * A column added to the table has to be added here once, not in both callers.
+ */
+export function toProductRow(p: Product) {
+  return {
+    id: p.id,
+    name: p.name,
+    price: p.price,
+    cost: p.cost,
+    category: p.category || null,
+    sku: p.sku,
+    stock: p.stock,
+    min_stock: p.minStock,
+    image: p.image,
+  };
+}
+
+/**
  * Push local products to Supabase
  */
 export async function pushProducts(
@@ -12,20 +34,7 @@ export async function pushProducts(
 ): Promise<boolean> {
   if (products.length === 0) return true;
   try {
-    const records = stampStoreId(
-      products.map((p) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        cost: p.cost,
-        category: p.category || null,
-        sku: p.sku,
-        stock: p.stock,
-        min_stock: p.minStock,
-        image: p.image,
-      })),
-      storeId,
-    );
+    const records = stampStoreId(products.map(toProductRow), storeId);
 
     const { error } = await client.from('products').upsert(records);
     if (error) throw error;

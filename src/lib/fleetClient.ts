@@ -9,6 +9,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { FleetStoreRow } from './fleet';
 import { FleetDailyRow } from './fleetReport';
 import { Store, Membership, Role, Product, Category } from '../types';
+import { toProductRow } from './supabase/products';
 
 function activeClient() {
   const { supabaseConfig } = useSettingsStore.getState();
@@ -351,17 +352,7 @@ export async function pushStoreCatalog(
     const { error } = await client.rpc('push_store_catalog', {
       p_store_id: storeId,
       p_categories: categories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
-      p_products: products.map((p) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        cost: p.cost,
-        category: p.category || null, // empty → NULL to satisfy the FK
-        sku: p.sku,
-        stock: p.stock,
-        min_stock: p.minStock,
-        image: p.image,
-      })),
+      p_products: products.map(toProductRow),
     });
     if (error) {
       console.warn('pushStoreCatalog failed:', error);

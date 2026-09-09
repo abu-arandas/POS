@@ -1,21 +1,16 @@
 import type { TFunction } from 'i18next';
 import { ChefHat, Plus, Save, Trash2 } from 'lucide-react';
 import type { Category, KitchenStation, ReceiptLayout } from '../../types';
-import type { DetectedPrinter } from '../../lib/printing/printerDiscovery';
 import ReceiptSettingsPanel from '../ReceiptSettingsPanel';
+import type { PrinterDiscovery } from './ConnectedPrinters';
 import { ConnectedPrinters, ScanNetworkButton, printerRowActionClass } from './ConnectedPrinters';
 
 export interface KitchenPrinterPanelProps {
   t: TFunction;
+  discovery: PrinterDiscovery;
   categories: Category[];
   stationForm: KitchenStation[];
-  detectedPrinters: DetectedPrinter[];
-  scanningNetwork: boolean;
-  printersLoading: boolean;
   kitchenLayout: ReceiptLayout;
-  onPairSerial(): void | Promise<void>;
-  onScanNetwork(): void | Promise<void>;
-  onRefreshPrinters(): void | Promise<void>;
   onAddStation(): void;
   onAddStationFromPrinter(name: string, ipAddress?: string): void;
   onUpdateStation(id: string, patch: Partial<KitchenStation>): void;
@@ -23,8 +18,6 @@ export interface KitchenPrinterPanelProps {
   onToggleStationCategory(id: string, categoryId: string): void;
   onSaveStations(): void;
   onKitchenLayoutChange(value: ReceiptLayout): void;
-  serialSupported(): boolean;
-  networkScanSupported(): boolean;
 }
 
 /**
@@ -33,15 +26,10 @@ export interface KitchenPrinterPanelProps {
  */
 export function KitchenPrinterPanel({
   t,
+  discovery,
   categories,
   stationForm,
-  detectedPrinters,
-  scanningNetwork,
-  printersLoading,
   kitchenLayout,
-  onPairSerial,
-  onScanNetwork,
-  onRefreshPrinters,
   onAddStation,
   onAddStationFromPrinter,
   onUpdateStation,
@@ -49,21 +37,15 @@ export function KitchenPrinterPanel({
   onToggleStationCategory,
   onSaveStations,
   onKitchenLayoutChange,
-  serialSupported,
-  networkScanSupported,
 }: KitchenPrinterPanelProps) {
+  // Also used outside the list: the station IP/name datalists, and the scan
+  // button above the station rows that fills them.
+  const { detectedPrinters, scanningNetwork, onScanNetwork, networkScanSupported } = discovery;
   return (
     <div className="surface rounded-2xl p-6 max-w-3xl mx-auto space-y-8">
       <ConnectedPrinters
         t={t}
-        detectedPrinters={detectedPrinters}
-        printersLoading={printersLoading}
-        scanningNetwork={scanningNetwork}
-        onPairSerial={onPairSerial}
-        onScanNetwork={onScanNetwork}
-        onRefreshPrinters={onRefreshPrinters}
-        serialSupported={serialSupported}
-        networkScanSupported={networkScanSupported}
+        discovery={discovery}
         renderRowActions={(p) => (
           <button
             type="button"

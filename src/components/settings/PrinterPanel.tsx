@@ -3,8 +3,8 @@ import type { TFunction } from 'i18next';
 import { motion } from 'motion/react';
 import { Receipt, Save, type LucideIcon } from 'lucide-react';
 import type { PrinterConfig, ReceiptLayout } from '../../types';
-import type { DetectedPrinter } from '../../lib/printing/printerDiscovery';
 import ReceiptSettingsPanel from '../ReceiptSettingsPanel';
+import type { PrinterDiscovery } from './ConnectedPrinters';
 import { ConnectedPrinters, printerRowActionClass } from './ConnectedPrinters';
 
 type Setter<T> = Dispatch<SetStateAction<T>>;
@@ -17,24 +17,17 @@ export interface PrinterTypeOption {
 
 export interface PrinterPanelProps {
   t: TFunction;
+  discovery: PrinterDiscovery;
   printerForm: PrinterConfig;
   onPrinterFormChange: Setter<PrinterConfig>;
-  detectedPrinters: DetectedPrinter[];
-  printersLoading: boolean;
-  scanningNetwork: boolean;
   autoScanPrinters: boolean;
   printerTypes: readonly PrinterTypeOption[];
   receiptLayout: ReceiptLayout;
-  onPairSerial(): void | Promise<void>;
-  onScanNetwork(): void | Promise<void>;
-  onRefreshPrinters(): void | Promise<void>;
   onUseNetworkPrinter(ip: string): void;
   onUseSystemPrinter(name: string): void;
   onAutoScanPrintersChange(value: boolean): void;
   onSavePrinter(): void;
   onReceiptLayoutChange(value: ReceiptLayout): void;
-  serialSupported(): boolean;
-  networkScanSupported(): boolean;
 }
 
 /**
@@ -43,37 +36,25 @@ export interface PrinterPanelProps {
  */
 export function PrinterPanel({
   t,
+  discovery,
   printerForm,
   onPrinterFormChange,
-  detectedPrinters,
-  printersLoading,
-  scanningNetwork,
   autoScanPrinters,
   printerTypes,
   receiptLayout,
-  onPairSerial,
-  onScanNetwork,
-  onRefreshPrinters,
   onUseNetworkPrinter,
   onUseSystemPrinter,
   onAutoScanPrintersChange,
   onSavePrinter,
   onReceiptLayoutChange,
-  serialSupported,
-  networkScanSupported,
 }: PrinterPanelProps) {
+  // Also used outside the list: the OS-printer datalist and the auto-scan toggle.
+  const { detectedPrinters, networkScanSupported } = discovery;
   return (
     <div className="surface rounded-2xl p-6 max-w-3xl mx-auto space-y-8">
       <ConnectedPrinters
         t={t}
-        detectedPrinters={detectedPrinters}
-        printersLoading={printersLoading}
-        scanningNetwork={scanningNetwork}
-        onPairSerial={onPairSerial}
-        onScanNetwork={onScanNetwork}
-        onRefreshPrinters={onRefreshPrinters}
-        serialSupported={serialSupported}
-        networkScanSupported={networkScanSupported}
+        discovery={discovery}
         renderRowActions={(p) => (
           <>
             {p.isDefault && (

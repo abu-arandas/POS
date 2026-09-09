@@ -90,21 +90,32 @@ function pushStoreHeader(rows: DocRow[], { settings, layout: L }: ReceiptContext
     });
 }
 
-/** Which sale this is: when, its number, who rang it up, and for whom. */
-function pushSaleMeta(rows: DocRow[], { tx, layout: L, date: d }: ReceiptContext): void {
-  const S = L.show;
+/**
+ * When the sale happened, as the layout's date and time toggles ask for it.
+ * Shared because the customer receipt and the kitchen ticket both stamp a sale
+ * the same way — a ticket that disagreed with its receipt about the time would
+ * be the one thing a kitchen dispute turns on.
+ */
+function pushWhen(rows: DocRow[], layout: ReceiptLayout, date: Date): void {
+  const S = layout.show;
   if (S.date)
     rows.push({
       kind: 'pair',
       label: i18n.t('history.date', 'DATE:'),
-      value: formatDateTime(d, L.dateFormat),
+      value: formatDateTime(date, layout.dateFormat),
     });
   if (S.time)
     rows.push({
       kind: 'pair',
       label: `${i18n.t('receiptCfg.tg_time', 'Time').toUpperCase()}:`,
-      value: formatDateTime(d, L.timeFormat),
+      value: formatDateTime(date, layout.timeFormat),
     });
+}
+
+/** Which sale this is: when, its number, who rang it up, and for whom. */
+function pushSaleMeta(rows: DocRow[], { tx, layout: L, date: d }: ReceiptContext): void {
+  const S = L.show;
+  pushWhen(rows, L, d);
   if (S.receiptNumber)
     rows.push({
       kind: 'pair',
@@ -265,6 +276,12 @@ function pushFooter(rows: DocRow[], { tx, layout: L }: ReceiptContext): void {
   if (L.show.barcode) rows.push({ kind: 'barcode', value: tx.id });
 }
 
+/**
+ * Builds the customer receipt as renderer-independent rows, honouring the
+ * layout's field toggles. Pure — no DOM and no printer bytes. Mirrors
+ * buildReceiptHtml's block order, so the thermal and HTML receipts stay the
+ * same document in two media.
+ */
 export function buildReceiptDoc(
   tx: SaleTransaction,
   settings: StoreSettings,
@@ -328,18 +345,7 @@ export function buildKitchenDoc(
       value: tx.id,
       style: 'bold',
     });
-  if (S.date)
-    rows.push({
-      kind: 'pair',
-      label: i18n.t('history.date', 'DATE:'),
-      value: formatDateTime(d, L.dateFormat),
-    });
-  if (S.time)
-    rows.push({
-      kind: 'pair',
-      label: `${i18n.t('receiptCfg.tg_time', 'Time').toUpperCase()}:`,
-      value: formatDateTime(d, L.timeFormat),
-    });
+  pushWhen(rows, L, d);
   if (S.operator && tx.operatorName)
     rows.push({
       kind: 'pair',
