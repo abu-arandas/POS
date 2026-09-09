@@ -1,7 +1,12 @@
 import i18n from '../../../i18n';
 import { code128SvgMm } from '../../barcode';
 import { escapeHtml as esc } from '../../../utils/formatting';
-import { formatDateTime, printableWidthMm, resolveCustomerLayout } from '../../receiptFormat';
+import {
+  formatDateTime,
+  printableWidthMm,
+  resolveCustomerLayout,
+  taxLineLabel,
+} from '../../receiptFormat';
 import { safeImageUrl } from '../../../imageUrl';
 import { PrinterConfig, ReceiptLayout, SaleTransaction, StoreSettings } from '../../../../types';
 
@@ -83,8 +88,7 @@ export function buildReceiptHtml(
   const itemCount = tx.items.reduce((s, i) => s + i.quantity, 0);
   const isCash =
     tx.paymentMethod === 'cash' || (tx.payments ?? []).some((p) => p.method === 'cash');
-  const taxStr = i18n.t('history.tax', 'TAX:').replace(':', '');
-  const taxLabel = settings.taxRate > 0 ? `${taxStr} (${settings.taxRate}%)` : taxStr;
+  const taxLabel = taxLineLabel(tx.taxRate);
   const L = resolveCustomerLayout(layout, printerConfig);
   const S = L.show;
   const money = (n: number) => `${cur}${n.toFixed(2)}`;

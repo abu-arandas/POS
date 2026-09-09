@@ -157,3 +157,48 @@ describe('HTML and DocRow receipts agree on every toggle', () => {
     ).toEqual({ html: false, doc: false });
   });
 });
+
+// The tax rate a sale was charged at belongs to the sale, not to today's
+// settings. A receipt reprinted from History after the operator changes the
+// rate used to read `settings.taxRate`, so a sale rung up at 8.5% reprinted as
+// "TAX (16%)" beside its original $0.83 — a wrong rate on a tax document, on
+// both renderers.
+describe('the tax rate on a reprint', () => {
+  const reprint = (tx: SaleTransaction, currentRate: number) => {
+    const now: StoreSettings = { ...settings, taxRate: currentRate };
+    const full = layout(allTogglesOn());
+    return {
+      html: buildReceiptHtml(tx, now, printer, full),
+      thermal: docStrings(buildReceiptDoc(tx, now, printer, full)).join('\n'),
+    };
+  };
+
+  it('shows the rate the sale was charged at, not the rate now in force', () => {
+    const { html, thermal } = reprint({ ...sale, taxRate: 8.5 }, 16);
+
+    for (const out of [html, thermal]) {
+      expect(out).toContain('TAX (8.5%)');
+      expect(out).not.toContain('16%');
+    }
+  });
+
+  it('leaves the percentage off a sale recorded before the rate was stored', () => {
+    // taxRate is absent — the rate is genuinely unknown and cannot be recovered
+    // from the stored figures, so neither renderer may invent one.
+    const { html, thermal } = reprint(sale, 16);
+
+    for (const out of [html, thermal]) {
+      expect(out).toContain('TAX');
+      expect(out).not.toContain('16%');
+      expect(out).not.toMatch(/TAX \(/);
+    }
+    // The amount, which is the figure that matters, still prints.
+    expect(thermal).toContain('$0.83');
+  });
+
+  it('leaves the percentage off a zero-rated sale', () => {
+    const { html, thermal } = reprint({ ...sale, taxRate: 0, tax: 0 }, 16);
+
+    for (const out of [html, thermal]) expect(out).not.toMatch(/TAX \(/);
+  });
+});

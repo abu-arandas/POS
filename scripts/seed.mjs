@@ -359,6 +359,7 @@ function generateTransactions() {
         discount_type,
         discount_value,
         tax,
+        tax_rate: SETTINGS_TAX_RATE,
         total,
         payment_method,
         cash_paid,

@@ -8,7 +8,12 @@
 
 import { SaleTransaction, StoreSettings, PrinterConfig, ReceiptLayout } from '../../types';
 import i18n from '../i18n';
-import { formatDateTime, resolveCustomerLayout, resolveKitchenLayout } from './receiptFormat';
+import {
+  formatDateTime,
+  resolveCustomerLayout,
+  resolveKitchenLayout,
+  taxLineLabel,
+} from './receiptFormat';
 
 /**
  * Visual weight of a receipt row. Each renderer maps these to its own medium —
@@ -160,7 +165,7 @@ function pushItems(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptCont
 
 /** Item count through to the boxed total, plus the savings line. */
 function pushTotals(rows: DocRow[], ctx: ReceiptContext): void {
-  const { tx, settings, layout: L, currency: cur } = ctx;
+  const { tx, layout: L, currency: cur } = ctx;
   if (!L.show.totals) return;
   const itemCount = tx.items.reduce((s, i) => s + i.quantity, 0);
   rows.push({
@@ -180,8 +185,7 @@ function pushTotals(rows: DocRow[], ctx: ReceiptContext): void {
       label: i18n.t('history.discount', 'DISCOUNT:'),
       value: `-${money(cur, tx.discount)}`,
     });
-  const taxStr = i18n.t('history.tax', 'TAX:').replace(':', '');
-  const taxLabel = settings.taxRate > 0 ? `${taxStr} (${settings.taxRate}%)` : taxStr;
+  const taxLabel = taxLineLabel(tx.taxRate);
   rows.push({
     kind: 'pair',
     label: `${taxLabel}:`,

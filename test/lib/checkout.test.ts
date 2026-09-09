@@ -183,3 +183,39 @@ describe('buildSaleTransaction', () => {
     },
   );
 });
+
+// A sale is taxed once, at the rate in force that day. Recording that rate is
+// what lets a receipt reprinted months later show what was actually charged
+// instead of whatever the setting says by then.
+describe('buildSaleTransaction — recording the tax rate', () => {
+  const ok = (r: ReturnType<typeof buildSaleTransaction>) => {
+    if (!r.success) throw new Error(`expected a sale, got ${r.error}`);
+    return r.transaction;
+  };
+
+  it('stamps the rate the sale was charged at', () => {
+    const tx = ok(
+      buildSaleTransaction({ ...baseReq, settings: { ...mockSettings, taxRate: 8.5 } }),
+    );
+    expect(tx.taxRate).toBe(8.5);
+  });
+
+  it('records zero for a tax-free sale rather than leaving the rate unknown', () => {
+    // Absent means "not recorded"; 0 means "recorded, and it was zero". A
+    // zero-rated sale must be the second, or its receipt loses the distinction.
+    const tx = ok(buildSaleTransaction({ ...baseReq, settings: { ...mockSettings, taxRate: 0 } }));
+    expect(tx.taxRate).toBe(0);
+  });
+
+  it('stamps the clamped rate, matching the money that was charged', () => {
+    // calculateOrderTotals clamps a negative or non-finite rate to 0 before
+    // taxing, so stamping the raw setting would put a rate on the receipt that
+    // contradicts its own tax line.
+    for (const bad of [-5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const tx = ok(
+        buildSaleTransaction({ ...baseReq, settings: { ...mockSettings, taxRate: bad } }),
+      );
+      expect(tx.taxRate).toBe(0);
+    }
+  });
+});
