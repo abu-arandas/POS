@@ -268,8 +268,19 @@ export function operatorBreakdown(transactions: SaleTransaction[]): OperatorSale
 }
 
 /**
- * Restricts transactions to those on or after the start of the window. `days`
- * counts today as the first day, so 7 is today plus the six before it.
+ * Restricts transactions to the window. `days` counts today as the first day,
+ * so 7 is today plus the six before it.
+ *
+ * The window is closed at both ends. It used to have no upper bound, which let
+ * a sale dated in the future — a till whose clock was wrong when it rang up,
+ * and whose sales keep that date after the clock is fixed — count toward every
+ * range at once, "Today" included, permanently.
+ *
+ * That also put the dashboard at odds with itself: buildTrendBuckets only has
+ * buckets for the days up to today and drops anything later, so the same sale
+ * inflated the totals, best sellers, category split, payment mix and CSV export
+ * while being invisible in the chart beside them. Bounding the window here is
+ * what makes those six agree.
  */
 export function withinLastDays(
   transactions: SaleTransaction[],
@@ -278,7 +289,13 @@ export function withinLastDays(
 ): SaleTransaction[] {
   const start = new Date(todayStart);
   start.setDate(start.getDate() - (days - 1));
-  return transactions.filter((tx) => new Date(tx.date) >= start);
+  // Exclusive: the first instant of tomorrow, so all of today is included.
+  const end = new Date(todayStart);
+  end.setDate(end.getDate() + 1);
+  return transactions.filter((tx) => {
+    const at = new Date(tx.date);
+    return at >= start && at < end;
+  });
 }
 
 /**

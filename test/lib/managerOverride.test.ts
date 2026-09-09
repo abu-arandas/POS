@@ -110,6 +110,35 @@ describe('authorizeOverride', () => {
     const authorized = await authorizeOverride([m2, m1], '1234');
     expect(authorized?.id).toBe('m1');
   });
+
+  it('accepts a manager whose hash predates the current work factor', async () => {
+    // Refund authorization must survive raising PBKDF2_ITERATIONS. Each hash
+    // records the factor it was derived at and is verified at that factor, so
+    // a manager who has not signed in since the raise can still authorize a
+    // refund — rather than the tills losing every override at once.
+    const saltHex = (await hashPinSalted('m1', '1234')).split('$')[2];
+    const saltBytes = saltHex.match(/../g) ?? [];
+    const salt = Uint8Array.from(saltBytes.map((byte) => Number.parseInt(byte, 16)));
+    const key = await globalThis.crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode('1234'),
+      'PBKDF2',
+      false,
+      ['deriveBits'],
+    );
+    const bits = await globalThis.crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt, iterations: 1_000, hash: 'SHA-256' },
+      key,
+      256,
+    );
+    const digest = Array.from(new Uint8Array(bits), (b) => b.toString(16).padStart(2, '0')).join(
+      '',
+    );
+
+    const stale = await user({ id: 'm1', pin: `v2$1000$${saltHex}$${digest}` });
+    expect((await authorizeOverride([stale], '1234'))?.id).toBe('m1');
+    expect(await authorizeOverride([stale], '9999')).toBeNull();
+  });
 });
 
 describe('authorizerLabel', () => {

@@ -98,8 +98,18 @@ export async function hashPin(pin: string): Promise<string> {
 }
 
 /**
- * PBKDF2 work factor baked into every v2 hash. Stored inside the hash string
- * itself, so raising it here leaves existing hashes verifiable.
+ * PBKDF2 work factor used for hashes derived from now on.
+ *
+ * Every v2 hash records the factor it was actually derived at, and
+ * `verifyPinHash` derives with that recorded value rather than this one. So
+ * raising this number does not invalidate the hashes already stored: they keep
+ * verifying at their own factor and are re-derived at the new one on the
+ * account's next successful sign-in.
+ *
+ * That property has to be preserved by anything that checks a PIN. Comparing a
+ * stored hash against a freshly derived string instead — which is what this
+ * module used to invite — makes the work factor part of the comparison, so
+ * raising it locks every operator out of the till with no way back in.
  */
 export const PBKDF2_ITERATIONS = 600_000;
 const HASH_VERSION = 'v2';
@@ -130,13 +140,17 @@ function deriveSalt(userId: string): Uint8Array {
   return hexToBytes(sha256HexSync(`${SALT_PREFIX}${userId}`).slice(0, 32));
 }
 
-async function pbkdf2Sha256Async(pin: string, salt: Uint8Array): Promise<Uint8Array> {
+async function pbkdf2Sha256Async(
+  pin: string,
+  salt: Uint8Array,
+  iterations: number,
+): Promise<Uint8Array> {
   const password = new TextEncoder().encode(pin);
   const block = new Uint8Array(4);
   new DataView(block.buffer).setUint32(0, 1);
   let u = hmacSha256Sync(password, concatBytes(salt, block));
   const result = u.slice();
-  for (let iteration = 1; iteration < PBKDF2_ITERATIONS; iteration += 1) {
+  for (let iteration = 1; iteration < iterations; iteration += 1) {
     u = hmacSha256Sync(password, u);
     for (let i = 0; i < result.length; i += 1) result[i] ^= u[i];
     if (iteration % 2_000 === 0) {
@@ -148,17 +162,38 @@ async function pbkdf2Sha256Async(pin: string, salt: Uint8Array): Promise<Uint8Ar
   return result;
 }
 
-function pbkdf2Sha256Sync(pin: string, salt: Uint8Array): Uint8Array {
+function pbkdf2Sha256Sync(pin: string, salt: Uint8Array, iterations: number): Uint8Array {
   const password = new TextEncoder().encode(pin);
   const block = new Uint8Array(4);
   new DataView(block.buffer).setUint32(0, 1);
   let u = hmacSha256Sync(password, concatBytes(salt, block));
   const result = u.slice();
-  for (let iteration = 1; iteration < PBKDF2_ITERATIONS; iteration += 1) {
+  for (let iteration = 1; iteration < iterations; iteration += 1) {
     u = hmacSha256Sync(password, u);
     for (let i = 0; i < result.length; i += 1) result[i] ^= u[i];
   }
   return result;
+}
+
+/**
+ * The 32-byte PBKDF2-SHA256 digest as hex, preferring WebCrypto and falling
+ * back to the JavaScript implementation where `crypto.subtle` is unavailable.
+ * Both paths take the work factor as an argument so a stored hash can be
+ * checked at the factor it was made with.
+ */
+async function deriveDigestHex(pin: string, salt: Uint8Array, iterations: number): Promise<string> {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) return bytesToHex(await pbkdf2Sha256Async(pin, salt, iterations));
+
+  const key = await subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, [
+    'deriveBits',
+  ]);
+  const bits = await subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
+    key,
+    256,
+  );
+  return bytesToHex(new Uint8Array(bits));
 }
 
 /**
@@ -182,7 +217,7 @@ export async function hashPinSaltedLegacy(userId: string, pin: string): Promise<
  */
 export function hashPinSaltedSync(userId: string, pin: string): string {
   const salt = deriveSalt(userId);
-  const derived = pbkdf2Sha256Sync(pin, salt);
+  const derived = pbkdf2Sha256Sync(pin, salt, PBKDF2_ITERATIONS);
   return `${HASH_VERSION}$${PBKDF2_ITERATIONS}$${bytesToHex(salt)}$${bytesToHex(derived)}`;
 }
 
@@ -191,20 +226,106 @@ export function hashPinSaltedSync(userId: string, pin: string): string {
  * synchronous implementation where `crypto.subtle` is unavailable.
  */
 export async function hashPinSalted(userId: string, pin: string): Promise<string> {
-  const subtle = globalThis.crypto?.subtle;
   const salt = deriveSalt(userId);
-  if (!subtle) {
-    const derived = await pbkdf2Sha256Async(pin, salt);
-    return `${HASH_VERSION}$${PBKDF2_ITERATIONS}$${bytesToHex(salt)}$${bytesToHex(derived)}`;
+  const digest = await deriveDigestHex(pin, salt, PBKDF2_ITERATIONS);
+  return `${HASH_VERSION}$${PBKDF2_ITERATIONS}$${bytesToHex(salt)}$${digest}`;
+}
+
+/**
+ * A stored v2 hash taken apart, or null if the string is not one. Anything
+ * malformed — a truncated row, a half-written value, a legacy digest — is not
+ * a parse failure to report but simply "not a v2 hash", so the caller falls
+ * through to the legacy check instead of throwing at a login prompt.
+ */
+function parseStoredHash(
+  stored: string,
+): { iterations: number; salt: string; digest: string } | null {
+  const parts = stored.split('$');
+  if (parts.length !== 4 || parts[0] !== HASH_VERSION) return null;
+  const [, rawIterations, salt, digest] = parts;
+
+  // The work factor decides how much work verifying costs, so it is read as a
+  // plain decimal (not via Number(), which also accepts '0x…' and '1e9') and
+  // capped at the current one.
+  //
+  // A hash is only ever written at whatever PBKDF2_ITERATIONS was at the time,
+  // and that number only goes up, so no build can have produced a stored factor
+  // above today's. One that claims a higher figure is corrupt or crafted, and
+  // honouring it would let a single edited row hang the lock screen for as long
+  // as it liked — on the JS fallback path, where 600,000 already takes about
+  // fifteen seconds, "as long as it liked" means the till never opens again.
+  // Bounded this way, verifying the worst case costs exactly one normal login.
+  if (!/^[1-9][0-9]*$/.test(rawIterations)) return null;
+  const iterations = Number(rawIterations);
+  if (iterations > PBKDF2_ITERATIONS) return null;
+  // 16-byte salt and 32-byte digest as hex, exactly as hashPinSalted writes
+  // them. The digest length matters: deriveDigestHex only ever produces one
+  // SHA-256 block, so a longer stored digest could never be reproduced and
+  // must be rejected rather than silently compared against a prefix.
+  if (!/^[0-9a-f]{32}$/.test(salt) || !/^[0-9a-f]{64}$/.test(digest)) return null;
+  return { iterations, salt, digest };
+}
+
+/**
+ * Compares two equal-length hex strings without returning early on the first
+ * differing character, so how long a rejected PIN takes to reject says nothing
+ * about how much of it was right.
+ */
+function equalsConstantTime(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/** The outcome of checking an entered PIN against a stored hash. */
+export interface PinCheck {
+  /** Whether the PIN matches the stored hash. */
+  ok: boolean;
+  /**
+   * Set on a match that came from an outdated hash — a v1 digest, or a v2 one
+   * derived at a work factor other than the current `PBKDF2_ITERATIONS`. The
+   * caller should replace the stored hash with a freshly derived one; that is
+   * what lets the work factor be raised without locking anyone out.
+   */
+  needsUpgrade: boolean;
+}
+
+const NO_MATCH: PinCheck = { ok: false, needsUpgrade: false };
+
+/**
+ * Checks an entered PIN against whatever hash the account currently carries.
+ *
+ * A v2 hash is verified at the iteration count recorded *inside it*, not at
+ * the constant this build happens to ship, which is what allows the work
+ * factor to be raised: an account hashed at the old factor still signs in, and
+ * comes back with `needsUpgrade` so the caller can re-hash it at the new one.
+ *
+ * The salt still has to be the one this account derives, so a hash lifted out
+ * of another user's row does not authenticate as this user — the recorded salt
+ * is checked against `deriveSalt(userId)` rather than trusted.
+ *
+ * A stored value that is not a v2 hash is treated as a v1 (unsalted
+ * `userId:pin`) digest from before the PBKDF2 upgrade, and also reports
+ * `needsUpgrade`.
+ */
+export async function verifyPinHash(
+  userId: string,
+  pin: string,
+  storedHash: string,
+): Promise<PinCheck> {
+  if (!storedHash) return NO_MATCH;
+
+  const parsed = parseStoredHash(storedHash);
+  if (!parsed) {
+    const legacy = await hashPinSaltedLegacy(userId, pin);
+    return equalsConstantTime(legacy, storedHash) ? { ok: true, needsUpgrade: true } : NO_MATCH;
   }
 
-  const key = await subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, [
-    'deriveBits',
-  ]);
-  const bits = await subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
-    key,
-    256,
-  );
-  return `${HASH_VERSION}$${PBKDF2_ITERATIONS}$${bytesToHex(salt)}$${bytesToHex(new Uint8Array(bits))}`;
+  const salt = deriveSalt(userId);
+  if (!equalsConstantTime(parsed.salt, bytesToHex(salt))) return NO_MATCH;
+
+  const digest = await deriveDigestHex(pin, salt, parsed.iterations);
+  if (!equalsConstantTime(digest, parsed.digest)) return NO_MATCH;
+  return { ok: true, needsUpgrade: parsed.iterations !== PBKDF2_ITERATIONS };
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserAccount } from '../types';
 import { Delete, ArrowLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { hashPinSalted, hashPinSaltedLegacy } from '../lib/hash';
+import { hashPinSalted, hashPinSaltedLegacy, verifyPinHash } from '../lib/hash';
 import { cloudLogin } from '../lib/sync';
 import Logo from './Logo';
 import { useAuthStore } from '../stores/authStore';
@@ -147,31 +147,69 @@ export default function Lockscreen() {
     async (user: UserAccount, enteredPin: string) => {
       const readLive = () => useAuthStore.getState().users.find((u) => u.id === user.id) ?? null;
 
-      const saltedHash = await hashPinSalted(user.id, enteredPin);
+      // Verify before judging `active`, as this has always done: a deactivated
+      // account must cost the same as a wrong PIN, or the delay before the
+      // refusal says which of the two it was.
+      //
+      // Checked against the hash this account actually carries, at the version
+      // and work factor recorded in it. An account still on a v1 digest, or on
+      // a v2 one derived before the work factor was last raised, signs in and
+      // is re-hashed below instead of being locked out.
+      const storedAtStart = readLive()?.pin ?? '';
+      const check = await verifyPinHash(user.id, enteredPin, storedAtStart);
       let live = readLive();
       if (!live?.active) {
         failPin(user.id);
         return;
       }
-
-      if (live.pin === saltedHash) {
-        acceptPin(live);
-        return;
-      }
-
-      const legacyHash = await hashPinSaltedLegacy(user.id, enteredPin);
-      live = readLive();
-      if (!live?.active) {
+      // `check` answers a question about the hash as it stood BEFORE the
+      // derivation. If sync replaced it meanwhile — a PIN rotated on another
+      // terminal — that answer is about a hash the account no longer has, and
+      // honouring it would accept the old PIN after it was replaced. This
+      // comparison used to be inline against the freshly re-read row, so
+      // moving it inside verifyPinHash is what put the window here. Fail
+      // closed; the operator types again against the row as it now stands.
+      if (live.pin !== storedAtStart) {
         failPin(user.id);
         return;
       }
-      if (live.pin === legacyHash) {
-        handleUpdateUser({ ...live, pin: saltedHash });
+
+      if (check.ok && !check.needsUpgrade) {
         acceptPin(live);
+        return;
+      }
+
+      if (check.ok) {
+        const freshHash = await hashPinSalted(user.id, enteredPin);
+        live = readLive();
+        if (!live?.active) {
+          failPin(user.id);
+          return;
+        }
+        // Same window again, and worse: writing here would put a hash derived
+        // from the OLD PIN over the one sync just rotated in, undoing the
+        // rotation.
+        if (live.pin !== storedAtStart) {
+          failPin(user.id);
+          return;
+        }
+        // Sign in with the upgraded record, not the one just replaced.
+        // handleUpdateUser rewrites `users`, so signing in with `live` would
+        // leave currentUser holding the superseded hash. Nothing reads it
+        // today and it is not persisted, but a stale credential copy in state
+        // is precisely what the rest of this function exists to avoid.
+        const upgradedUser = { ...live, pin: freshHash };
+        handleUpdateUser(upgradedUser);
+        acceptPin(upgradedUser);
         return;
       }
 
       setChecking(true);
+      // Only the cloud path needs these: verify_login takes a derived hash
+      // rather than the PIN, so both versions are offered in case the cloud
+      // row has not been upgraded either.
+      const saltedHash = await hashPinSalted(user.id, enteredPin);
+      const legacyHash = await hashPinSaltedLegacy(user.id, enteredPin);
       const cloudUser = await cloudLogin(live.name, saltedHash);
       const cloudUser2 = cloudUser ?? (await cloudLogin(live.name, legacyHash));
       setChecking(false);

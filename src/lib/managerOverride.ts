@@ -12,7 +12,7 @@
 // with the caller.
 
 import { UserAccount } from '../types';
-import { hashPinSalted, hashPinSaltedLegacy } from './hash';
+import { verifyPinHash } from './hash';
 
 /**
  * Roles that may authorize a refund override. A cashier cannot authorize their
@@ -39,9 +39,11 @@ export function overrideCandidates(users: UserAccount[]): UserAccount[] {
  * return would let the duration of a rejected guess leak the position of a
  * valid account.
  *
- * Both hash versions are accepted. An account that has not signed in since the
- * PBKDF2 upgrade still carries a v1 hash, and refusing it here would make the
- * override fail for a manager whose PIN is correct.
+ * Every stored hash version is accepted, because verifyPinHash checks each
+ * account at the version and work factor its own hash records. An account that
+ * has not signed in since the PBKDF2 upgrade still carries a v1 hash, and one
+ * hashed before the work factor was last raised carries the old count; refusing
+ * either here would make the override fail for a manager whose PIN is correct.
  */
 export async function authorizeOverride(
   users: UserAccount[],
@@ -50,15 +52,12 @@ export async function authorizeOverride(
   const candidates = overrideCandidates(users);
   if (candidates.length === 0 || !pin) return null;
 
-  const [salted, legacy] = await Promise.all([
-    Promise.all(candidates.map((user) => hashPinSalted(user.id, pin))),
-    Promise.all(candidates.map((user) => hashPinSaltedLegacy(user.id, pin))),
-  ]);
+  const checks = await Promise.all(candidates.map((user) => verifyPinHash(user.id, pin, user.pin)));
 
   let authorized: UserAccount | null = null;
   candidates.forEach((user, index) => {
     if (authorized) return;
-    if (user.pin === salted[index] || user.pin === legacy[index]) authorized = user;
+    if (checks[index].ok) authorized = user;
   });
   return authorized;
 }
