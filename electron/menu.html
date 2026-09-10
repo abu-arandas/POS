@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Our Digital Menu</title>
+    <!-- Fully self-contained: no CDN scripts/fonts, so the menu works on a
+         LAN with no internet access (the normal POS deployment). -->
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      @keyframes aurora {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      html { min-height: 100%; }
+      body {
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(-45deg, #0f172a, #1e293b, #064e3b, #0f172a);
+        background-size: 400% 400%;
+        background-attachment: fixed;
+        animation: aurora 15s ease infinite;
+        color: #f8fafc;
+        -webkit-tap-highlight-color: transparent;
+        min-height: 100vh;
+        padding-bottom: 96px;
+      }
+      .glass {
+        background: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+      }
+      header.app-header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        padding: 16px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .header-title { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: #fff; }
+      .header-sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+      .logo-wrap {
+        display: none;
+        height: 40px;
+        width: 40px;
+        border-radius: 9999px;
+        background: #1e293b;
+        border: 1px solid #334155;
+        overflow: hidden;
+        align-items: center;
+        justify-content: center;
+      }
+      .logo-wrap.visible { display: flex; }
+      .logo-wrap img { height: 100%; width: 100%; object-fit: cover; }
+      main { padding: 0 16px; max-width: 448px; margin: 0 auto; }
+      .search-wrap { position: relative; margin-bottom: 24px; }
+      .search-wrap svg {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        color: #94a3b8;
+      }
+      #search-input {
+        width: 100%;
+        background: rgba(30, 41, 59, 0.5);
+        border: 1px solid #334155;
+        border-radius: 16px;
+        padding: 12px 16px 12px 40px;
+        font-size: 14px;
+        color: #fff;
+        outline: none;
+        font-family: inherit;
+      }
+      #search-input::placeholder { color: #94a3b8; }
+      #search-input:focus { border-color: #10b981; box-shadow: 0 0 0 1px #10b981; }
+      .chips-scroller {
+        display: flex;
+        overflow-x: auto;
+        gap: 8px;
+        padding-bottom: 8px;
+        margin-bottom: 24px;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .chips-scroller::-webkit-scrollbar { display: none; }
+      .category-chip {
+        transition: all 0.3s ease;
+        background: #1e293b;
+        color: #cbd5e1;
+        padding: 8px 16px;
+        border-radius: 9999px;
+        font-size: 14px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        border: 1px solid #334155;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .category-chip.active { background-color: #10b981; color: #022c22; font-weight: 600; }
+      #products-container { display: flex; flex-direction: column; gap: 16px; }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+      .product-card { border-radius: 16px; overflow: hidden; display: flex; opacity: 0; }
+      .product-thumb { width: 112px; height: 112px; flex-shrink: 0; position: relative; }
+      .product-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .thumb-fallback {
+        width: 100%;
+        height: 100%;
+        background: #334155;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 700;
+        font-size: 20px;
+      }
+      .soldout-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .soldout-badge {
+        background: #f43f5e;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 4px 8px;
+        border-radius: 4px;
+      }
+      .product-body {
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        flex: 1;
+        min-width: 0;
+      }
+      .product-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; gap: 8px; }
+      .product-name {
+        font-weight: 600;
+        color: #f1f5f9;
+        font-size: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .product-price { font-weight: 700; color: #34d399; font-size: 14px; flex-shrink: 0; }
+      .product-cat {
+        font-size: 10px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 500;
+      }
+      .empty-state { text-align: center; padding: 48px 0; }
+      .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
+      .empty-state h3 { color: #cbd5e1; font-weight: 500; font-size: 16px; }
+      .empty-state p { color: #64748b; font-size: 14px; margin-top: 4px; }
+      .spinner-wrap { display: flex; justify-content: center; align-items: center; padding: 48px 0; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .spinner {
+        width: 32px;
+        height: 32px;
+        border-radius: 9999px;
+        border: 2px solid transparent;
+        border-bottom-color: #10b981;
+        animation: spin 1s linear infinite;
+      }
+      .retry-btn {
+        margin-top: 16px;
+        padding: 8px 16px;
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        font-family: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="app-header glass">
+      <div>
+        <h1 id="store-name" class="header-title">Loading...</h1>
+        <p class="header-sub">Digital Menu</p>
+      </div>
+      <div id="store-logo-container" class="logo-wrap">
+        <img id="store-logo" src="" alt="Logo" />
+      </div>
+    </header>
+
+    <main>
+      <!-- Search -->
+      <div class="search-wrap">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+        <input type="text" id="search-input" placeholder="Search menu..." />
+      </div>
+
+      <!-- Categories -->
+      <div class="chips-scroller" id="categories-container">
+        <!-- Categories are injected here -->
+      </div>
+
+      <!-- Products -->
+      <div id="products-container">
+        <div class="spinner-wrap"><div class="spinner"></div></div>
+      </div>
+    </main>
+
+    <script>
+      let allProducts = [];
+      let allCategories = [];
+      let storeSettings = {};
+      let activeCategory = 'all';
+      let searchQuery = '';
+
+      // Everything rendered on this page comes from operator-entered data —
+      // it must never reach the DOM unescaped.
+      function esc(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      // Mirrors src/lib/imageUrl.ts — keep the two in step. Both outputs are
+      // only ever assigned to an <img src>, where SVG loads in a restricted
+      // mode: no script execution, no external fetches. The app generates its
+      // own product thumbnails as `data:image/svg+xml,<url-encoded>`, so
+      // rejecting that format blanked every seeded thumbnail on this page.
+      const MAX_IMAGE_URL_LENGTH = 4096;
+      const RASTER_DATA_URL_PATTERN =
+        /^data:image\/(?:png|jpe?g|gif|webp|avif|bmp);(?:charset=[^;,]+;)?base64,[a-z0-9+/=\s]+$/i;
+      const SVG_DATA_URL_PATTERN =
+        /^data:image\/svg\+xml(?:;charset=[\w-]+)?(?:;base64)?,[a-z0-9%+/=._~!*'()\s-]*$/i;
+
+      function safeImageUrl(value) {
+        if (typeof value !== 'string') return '';
+        const raw = value.trim();
+        if (!raw || raw.length > MAX_IMAGE_URL_LENGTH) return '';
+        if (RASTER_DATA_URL_PATTERN.test(raw) || SVG_DATA_URL_PATTERN.test(raw)) return raw;
+        try {
+          const url = new URL(raw, window.location.origin);
+          return url.protocol === 'http:' || url.protocol === 'https:' ? encodeURI(url.href) : '';
+        } catch {
+          return '';
+        }
+      }
+
+      async function fetchMenu() {
+        try {
+          const response = await fetch('/api/menu');
+          const data = await response.json();
+          allProducts = data.products || [];
+          allCategories = data.categories || [];
+          storeSettings = data.settings || {};
+
+          initUI();
+        } catch (err) {
+          console.error('Failed to load menu', err);
+          document.getElementById('store-name').textContent = 'Error loading menu';
+          const container = document.getElementById('products-container');
+          container.innerHTML =
+            '<div class="empty-state"><p>Could not load the menu.</p></div>';
+          const retry = document.createElement('button');
+          retry.className = 'retry-btn';
+          retry.textContent = 'Retry';
+          retry.addEventListener('click', fetchMenu);
+          container.querySelector('.empty-state').appendChild(retry);
+        }
+      }
+
+      function initUI() {
+        // Header (textContent — no markup interpretation)
+        document.getElementById('store-name').textContent =
+          storeSettings.storeName || 'Our Menu';
+        const storeLogo = safeImageUrl(storeSettings.storeLogo);
+        if (storeLogo) {
+          const logoContainer = document.getElementById('store-logo-container');
+          const logoImg = document.getElementById('store-logo');
+          logoImg.src = storeLogo;
+          logoContainer.classList.add('visible');
+        }
+
+        // Search
+        const searchInput = document.getElementById('search-input');
+        searchInput.addEventListener('input', (e) => {
+          searchQuery = e.target.value.toLowerCase();
+          renderProducts();
+        });
+
+        renderCategories();
+        renderProducts();
+      }
+
+      function renderCategories() {
+        const container = document.getElementById('categories-container');
+        container.innerHTML = '';
+
+        const makeChip = (id, label) => {
+          const btn = document.createElement('button');
+          btn.className = 'category-chip' + (activeCategory === id ? ' active' : '');
+          btn.textContent = label;
+          btn.addEventListener('click', () => setCategory(id));
+          return btn;
+        };
+
+        container.appendChild(makeChip('all', 'All Items'));
+        allCategories.forEach((cat) => container.appendChild(makeChip(cat.id, cat.name)));
+      }
+
+      function setCategory(id) {
+        activeCategory = id;
+        renderCategories();
+        renderProducts();
+      }
+
+      function formatCurrency(amount) {
+        const symbol = storeSettings.currency || '$';
+        return `${symbol}${Number(amount).toFixed(2)}`;
+      }
+
+      function renderProducts() {
+        const container = document.getElementById('products-container');
+
+        let filtered = allProducts;
+
+        if (activeCategory !== 'all') {
+          filtered = filtered.filter((p) => p.category === activeCategory);
+        }
+
+        if (searchQuery) {
+          filtered = filtered.filter((p) =>
+            String(p.name || '').toLowerCase().includes(searchQuery),
+          );
+        }
+
+        if (filtered.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state animate-fade-in" style="opacity: 1;">
+              <div class="icon">🍽️</div>
+              <h3>No items found</h3>
+              <p>Try selecting a different category or search term.</p>
+            </div>`;
+          return;
+        }
+
+        let delay = 0;
+        const html = filtered
+          .map((product) => {
+            const name = esc(product.name);
+            const isTailwindColor = product.image && String(product.image).startsWith('bg-');
+            let imgContent = '';
+
+            const imageUrl = safeImageUrl(product.image);
+            if (imageUrl && !isTailwindColor) {
+              imgContent = `<img src="${esc(imageUrl)}" alt="${name}">`;
+            } else {
+              imgContent = `<div class="thumb-fallback">${esc(String(product.name || '?').charAt(0))}</div>`;
+            }
+
+            const catName =
+              allCategories.find((c) => c.id === product.category)?.name || 'Uncategorized';
+
+            delay += 0.05;
+
+            return `
+              <div class="product-card glass animate-fade-in" style="animation-delay: ${delay}s; animation-fill-mode: forwards;">
+                <div class="product-thumb">
+                  ${imgContent}
+                  ${product.inStock === false ? '<div class="soldout-overlay"><span class="soldout-badge">SOLD OUT</span></div>' : ''}
+                </div>
+                <div class="product-body">
+                  <div>
+                    <div class="product-top">
+                      <h3 class="product-name">${name}</h3>
+                      <span class="product-price">${esc(formatCurrency(product.price))}</span>
+                    </div>
+                    <span class="product-cat">${esc(catName)}</span>
+                  </div>
+                </div>
+              </div>`;
+          })
+          .join('');
+
+        container.innerHTML = html;
+      }
+
+      // Initialize
+      fetchMenu();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Arandas IT Solutions">
+  <title>Arandas IT Solutions</title>
+  <defs>
+    <!-- userSpaceOnUse throughout: an objectBoundingBox gradient collapses on a
+         shape with a zero-height/width bbox (the horizontal crossbar below), and
+         renders nothing at all. Absolute coordinates also keep one continuous
+         ramp across the separate strokes instead of restarting per element. -->
+    <linearGradient id="aStroke" gradientUnits="userSpaceOnUse" x1="140" y1="410" x2="380" y2="140">
+      <stop offset="0" stop-color="#17439a"/>
+      <stop offset="0.55" stop-color="#2b7fd4"/>
+      <stop offset="1" stop-color="#3ec6f5"/>
+    </linearGradient>
+    <linearGradient id="swoosh" gradientUnits="userSpaceOnUse" x1="96" y1="330" x2="410" y2="190">
+      <stop offset="0" stop-color="#1c3f86"/>
+      <stop offset="0.45" stop-color="#2f9bdd"/>
+      <stop offset="1" stop-color="#5cdcff"/>
+    </linearGradient>
+    <linearGradient id="spark" gradientUnits="userSpaceOnUse" x1="343" y1="62" x2="453" y2="172">
+      <stop offset="0" stop-color="#8eecff"/>
+      <stop offset="1" stop-color="#29b6f6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Letter A: two legs, crossbar sits low so the swoosh clears it -->
+  <g fill="none" stroke="url(#aStroke)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M148 402 L256 148"/>
+    <path d="M256 148 L364 402"/>
+    <path d="M205 352 L307 352"/>
+  </g>
+
+  <!-- Orbit swoosh: sweeps up from lower-left, crosses the A, exits upper-right -->
+  <path d="M96 322 C 150 232, 262 190, 356 214"
+        fill="none" stroke="url(#swoosh)" stroke-width="28" stroke-linecap="round"/>
+  <!-- Arrowhead continuing the swoosh's direction (up and to the right) -->
+  <path d="M330 168 L410 206 L344 258 Z" fill="url(#swoosh)"/>
+
+  <!-- Network nodes riding the swoosh -->
+  <g fill="#2f7fd0">
+    <circle cx="103" cy="312" r="18"/>
+    <circle cx="196" cy="244" r="15"/>
+    <circle cx="300" cy="206" r="15"/>
+  </g>
+
+  <!-- Sparkle -->
+  <path d="M398 62 L411 104 L453 117 L411 130 L398 172 L385 130 L343 117 L385 104 Z" fill="url(#spark)"/>
+</svg>

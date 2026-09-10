@@ -1,0 +1,148 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`customer receipt markup > collapses the blocks its toggles switch off 1`] = `
+"
+    <div class="receipt">
+      <div class="center receipt-header">CUSTOMER COPY</div>
+      
+      <div class="center store-name">Cafe Test</div>
+      <div class="center store-meta">
+        
+        <div>1 Test Street</div>
+        <div class="ltr">Phone: 555-0100</div>
+        
+      </div>
+
+      <div class="divider"></div>
+      <div class="meta-row"><div class="flex-row"><span>DATE:</span><span class="num ltr">2026-03-04</span></div><div class="flex-row"><span>TIME:</span><span class="num ltr">8:15 PM</span></div><div class="flex-row bold"><span>RECEIPT:</span><span class="num ltr">TX-ABCD1234</span></div></div>
+      <div class="divider"></div>
+
+      <div class="flex-row item"><span>2x Latte</span><span class="num ltr">$9.00</span></div><div class="flex-row item"><span>1x Croissant</span><span class="num ltr">$3.00</span></div>
+
+      <div class="divider"></div>
+      <div class="totals">
+      <div class="flex-row muted"><span>ITEMS:</span><span class="num ltr">3</span></div>
+      <div class="flex-row"><span>SUBTOTAL:</span><span class="num ltr">$12.00</span></div>
+      <div class="flex-row"><span>DISCOUNT:</span><span class="num ltr">-$2.00</span></div>
+      <div class="flex-row"><span>TAX (8.5%):</span><span class="num ltr">$0.85</span></div>
+      <div class="flex-row total-row"><span>TOTAL PAID:</span><span class="num ltr">$10.85</span></div>
+      <div class="center savings">YOU SAVED <span class="num ltr">$2.00</span></div>
+    </div>
+      <div class="flex-row bold"><span>PAY METHOD:</span><span class="num">Cash</span></div><div class="flex-row tender"><span>Card</span><span class="num ltr">$5.00</span></div><div class="flex-row tender"><span>Cash</span><span class="num ltr">$10.00</span></div><div class="flex-row"><span>CASH PAID:</span><span class="num ltr">$10.00</span></div><div class="flex-row bold"><span>CASH CHANGE:</span><span class="num ltr">$4.15</span></div>
+
+      <div class="divider"></div>
+
+      <div class="center uppercase status-line status-partial">Partially Refunded</div>
+      <div class="center muted">Refund <span class="ltr">2026-03-05</span></div>
+      <div class="center muted">REFUND AUTH: Jane (manager)</div>
+
+      <div class="center footer-msg">Thank you for visiting!</div>
+      
+    </div>"
+`;
+
+exports[`customer receipt markup > keeps numeric values LTR-isolated on an Arabic receipt 1`] = `
+"
+    <div class="receipt">
+      <div class="center receipt-header">CUSTOMER COPY</div>
+      <div class="logo"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 512 512"><g fill="none" stroke="#000" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"><path d="M148 402 L256 148"/><path d="M256 148 L364 402"/><path d="M205 352 L307 352"/></g><path d="M96 322 C 150 232, 262 190, 356 214" fill="none" stroke="#000" stroke-width="28" stroke-linecap="round"/><path d="M330 168 L410 206 L344 258 Z" fill="#000"/><path d="M398 62 L411 104 L453 117 L411 130 L398 172 L385 130 L343 117 L385 104 Z" fill="#000"/></svg></div>
+      <div class="center store-name">Cafe Test</div>
+      <div class="center store-meta">
+        <div>Downtown</div>
+        <div>1 Test Street</div>
+        <div class="ltr">هاتف: 555-0100</div>
+        <div class="ltr">الرقم الضريبي: VAT-99</div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="meta-row"><div class="flex-row"><span>التاريخ:</span><span class="num ltr">2026-03-04</span></div><div class="flex-row"><span>الوقت:</span><span class="num ltr">8:15 PM</span></div><div class="flex-row bold"><span>الإيصال:</span><span class="num ltr">TX-ABCD1234</span></div><div class="flex-row"><span>الموظف:</span><span class="num">Ada Lovelace</span></div><div class="flex-row bold"><span>العضو:</span><span class="num">Grace Hopper</span></div></div>
+      <div class="divider"></div>
+
+      <div class="flex-row item"><span>2x Latte</span><span class="num ltr">$9.00</span></div><div class="item-unit ltr">@ $4.50 للوحدة</div><div class="flex-row item"><span>1x Croissant</span><span class="num ltr">$3.00</span></div>
+
+      <div class="divider"></div>
+      <div class="totals">
+      <div class="flex-row muted"><span>العناصر:</span><span class="num ltr">3</span></div>
+      <div class="flex-row"><span>المجموع الفرعي:</span><span class="num ltr">$12.00</span></div>
+      <div class="flex-row"><span>الخصم:</span><span class="num ltr">-$2.00</span></div>
+      <div class="flex-row"><span>الضريبة (8.5%):</span><span class="num ltr">$0.85</span></div>
+      <div class="flex-row total-row"><span>إجمالي المدفوع:</span><span class="num ltr">$10.85</span></div>
+      <div class="center savings">لقد وفّرت <span class="num ltr">$2.00</span></div>
+    </div>
+      <div class="flex-row bold"><span>طريقة الدفع:</span><span class="num">نقدي</span></div><div class="flex-row tender"><span>بطاقة</span><span class="num ltr">$5.00</span></div><div class="flex-row tender"><span>نقدي</span><span class="num ltr">$10.00</span></div><div class="flex-row"><span>المبلغ المدفوع:</span><span class="num ltr">$10.00</span></div><div class="flex-row bold"><span>الباقي:</span><span class="num ltr">$4.15</span></div><div class="flex-row bold"><span>النقاط المكتسبة:</span><span class="num ltr">10</span></div>
+
+      <div class="divider"></div>
+
+      <div class="center uppercase status-line status-partial">مستردة جزئياً</div>
+      <div class="center muted">استرداد <span class="ltr">2026-03-05</span></div>
+      <div class="center muted">مفوض الاسترداد: Jane (manager)</div>
+
+      <div class="center footer-msg">Thank you for visiting!</div>
+      <div class="center barcode"><svg xmlns="http://www.w3.org/2000/svg" width="74.00mm" height="13.00mm" viewBox="0 0 176 10" preserveAspectRatio="none" fill="#000" shape-rendering="crispEdges"><rect x="10" y="0" width="2" height="10"/><rect x="13" y="0" width="1" height="10"/><rect x="16" y="0" width="1" height="10"/><rect x="21" y="0" width="2" height="10"/><rect x="24" y="0" width="3" height="10"/><rect x="30" y="0" width="1" height="10"/><rect x="32" y="0" width="3" height="10"/><rect x="38" y="0" width="1" height="10"/><rect x="40" y="0" width="2" height="10"/><rect x="43" y="0" width="1" height="10"/><rect x="46" y="0" width="2" height="10"/><rect x="49" y="0" width="3" height="10"/><rect x="54" y="0" width="1" height="10"/><rect x="56" y="0" width="1" height="10"/><rect x="60" y="0" width="2" height="10"/><rect x="65" y="0" width="1" height="10"/><rect x="69" y="0" width="1" height="10"/><rect x="71" y="0" width="2" height="10"/><rect x="76" y="0" width="1" height="10"/><rect x="80" y="0" width="1" height="10"/><rect x="84" y="0" width="2" height="10"/><rect x="87" y="0" width="1" height="10"/><rect x="89" y="0" width="2" height="10"/><rect x="94" y="0" width="1" height="10"/><rect x="98" y="0" width="1" height="10"/><rect x="101" y="0" width="3" height="10"/><rect x="106" y="0" width="2" height="10"/><rect x="109" y="0" width="2" height="10"/><rect x="113" y="0" width="3" height="10"/><rect x="118" y="0" width="1" height="10"/><rect x="120" y="0" width="2" height="10"/><rect x="124" y="0" width="1" height="10"/><rect x="126" y="0" width="3" height="10"/><rect x="131" y="0" width="2" height="10"/><rect x="135" y="0" width="1" height="10"/><rect x="138" y="0" width="3" height="10"/><rect x="142" y="0" width="3" height="10"/><rect x="147" y="0" width="2" height="10"/><rect x="150" y="0" width="1" height="10"/><rect x="153" y="0" width="2" height="10"/><rect x="158" y="0" width="3" height="10"/><rect x="162" y="0" width="1" height="10"/><rect x="164" y="0" width="2" height="10"/></svg></div><div class="center barcode-label ltr">TX-ABCD1234</div>
+    </div>"
+`;
+
+exports[`customer receipt markup > renders every block with all toggles on 1`] = `
+"
+    <div class="receipt">
+      <div class="center receipt-header">CUSTOMER COPY</div>
+      <div class="logo"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 512 512"><g fill="none" stroke="#000" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"><path d="M148 402 L256 148"/><path d="M256 148 L364 402"/><path d="M205 352 L307 352"/></g><path d="M96 322 C 150 232, 262 190, 356 214" fill="none" stroke="#000" stroke-width="28" stroke-linecap="round"/><path d="M330 168 L410 206 L344 258 Z" fill="#000"/><path d="M398 62 L411 104 L453 117 L411 130 L398 172 L385 130 L343 117 L385 104 Z" fill="#000"/></svg></div>
+      <div class="center store-name">Cafe Test</div>
+      <div class="center store-meta">
+        <div>Downtown</div>
+        <div>1 Test Street</div>
+        <div class="ltr">Phone: 555-0100</div>
+        <div class="ltr">VAT: VAT-99</div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="meta-row"><div class="flex-row"><span>DATE:</span><span class="num ltr">2026-03-04</span></div><div class="flex-row"><span>TIME:</span><span class="num ltr">8:15 PM</span></div><div class="flex-row bold"><span>RECEIPT:</span><span class="num ltr">TX-ABCD1234</span></div><div class="flex-row"><span>OPERATOR:</span><span class="num">Ada Lovelace</span></div><div class="flex-row bold"><span>MEMBER:</span><span class="num">Grace Hopper</span></div></div>
+      <div class="divider"></div>
+
+      <div class="flex-row item"><span>2x Latte</span><span class="num ltr">$9.00</span></div><div class="item-unit ltr">@ $4.50 ea</div><div class="flex-row item"><span>1x Croissant</span><span class="num ltr">$3.00</span></div>
+
+      <div class="divider"></div>
+      <div class="totals">
+      <div class="flex-row muted"><span>ITEMS:</span><span class="num ltr">3</span></div>
+      <div class="flex-row"><span>SUBTOTAL:</span><span class="num ltr">$12.00</span></div>
+      <div class="flex-row"><span>DISCOUNT:</span><span class="num ltr">-$2.00</span></div>
+      <div class="flex-row"><span>TAX (8.5%):</span><span class="num ltr">$0.85</span></div>
+      <div class="flex-row total-row"><span>TOTAL PAID:</span><span class="num ltr">$10.85</span></div>
+      <div class="center savings">YOU SAVED <span class="num ltr">$2.00</span></div>
+    </div>
+      <div class="flex-row bold"><span>PAY METHOD:</span><span class="num">Cash</span></div><div class="flex-row tender"><span>Card</span><span class="num ltr">$5.00</span></div><div class="flex-row tender"><span>Cash</span><span class="num ltr">$10.00</span></div><div class="flex-row"><span>CASH PAID:</span><span class="num ltr">$10.00</span></div><div class="flex-row bold"><span>CASH CHANGE:</span><span class="num ltr">$4.15</span></div><div class="flex-row bold"><span>POINTS EARNED:</span><span class="num ltr">10</span></div>
+
+      <div class="divider"></div>
+
+      <div class="center uppercase status-line status-partial">Partially Refunded</div>
+      <div class="center muted">Refund <span class="ltr">2026-03-05</span></div>
+      <div class="center muted">REFUND AUTH: Jane (manager)</div>
+
+      <div class="center footer-msg">Thank you for visiting!</div>
+      <div class="center barcode"><svg xmlns="http://www.w3.org/2000/svg" width="74.00mm" height="13.00mm" viewBox="0 0 176 10" preserveAspectRatio="none" fill="#000" shape-rendering="crispEdges"><rect x="10" y="0" width="2" height="10"/><rect x="13" y="0" width="1" height="10"/><rect x="16" y="0" width="1" height="10"/><rect x="21" y="0" width="2" height="10"/><rect x="24" y="0" width="3" height="10"/><rect x="30" y="0" width="1" height="10"/><rect x="32" y="0" width="3" height="10"/><rect x="38" y="0" width="1" height="10"/><rect x="40" y="0" width="2" height="10"/><rect x="43" y="0" width="1" height="10"/><rect x="46" y="0" width="2" height="10"/><rect x="49" y="0" width="3" height="10"/><rect x="54" y="0" width="1" height="10"/><rect x="56" y="0" width="1" height="10"/><rect x="60" y="0" width="2" height="10"/><rect x="65" y="0" width="1" height="10"/><rect x="69" y="0" width="1" height="10"/><rect x="71" y="0" width="2" height="10"/><rect x="76" y="0" width="1" height="10"/><rect x="80" y="0" width="1" height="10"/><rect x="84" y="0" width="2" height="10"/><rect x="87" y="0" width="1" height="10"/><rect x="89" y="0" width="2" height="10"/><rect x="94" y="0" width="1" height="10"/><rect x="98" y="0" width="1" height="10"/><rect x="101" y="0" width="3" height="10"/><rect x="106" y="0" width="2" height="10"/><rect x="109" y="0" width="2" height="10"/><rect x="113" y="0" width="3" height="10"/><rect x="118" y="0" width="1" height="10"/><rect x="120" y="0" width="2" height="10"/><rect x="124" y="0" width="1" height="10"/><rect x="126" y="0" width="3" height="10"/><rect x="131" y="0" width="2" height="10"/><rect x="135" y="0" width="1" height="10"/><rect x="138" y="0" width="3" height="10"/><rect x="142" y="0" width="3" height="10"/><rect x="147" y="0" width="2" height="10"/><rect x="150" y="0" width="1" height="10"/><rect x="153" y="0" width="2" height="10"/><rect x="158" y="0" width="3" height="10"/><rect x="162" y="0" width="1" height="10"/><rect x="164" y="0" width="2" height="10"/></svg></div><div class="center barcode-label ltr">TX-ABCD1234</div>
+    </div>"
+`;
+
+exports[`kitchen ticket markup > renders items in large type with no pricing 1`] = `
+"
+    <div class="receipt">
+      <div class="center kitchen-title">*** GRILL ***</div>
+      
+      <div class="center store-meta">Cafe Test</div>
+      <div class="divider"></div>
+
+      <div class="flex-row bold"><span>RECEIPT / ORDER NO.:</span><span class="num ltr">TX-ABCD1234</span></div>
+      
+      <div class="flex-row"><span>TIME:</span><span class="num ltr">20:15</span></div>
+      <div class="flex-row"><span>OPERATOR:</span><span class="num ltr">Ada Lovelace</span></div>
+      <div class="flex-row"><span>Customer</span><span class="num ltr">Grace Hopper</span></div>
+
+      <div class="divider"></div>
+
+      <div class="kitchen-item">2x Latte</div><div class="kitchen-item">1x Croissant</div>
+
+      <div class="divider"></div>
+      <div class="center kitchen-count">3 ITEMS</div>
+      
+    </div>"
+`;
