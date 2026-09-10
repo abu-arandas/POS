@@ -265,9 +265,6 @@ in CI on every push and pull request.
   disposition and the dependency advisory notes.
 - [docs/third-party-licenses.md](docs/third-party-licenses.md) — the dependency-license
   review and the disposition of the one weak-copyleft package in the graph.
-- [docs/refactor-phase-1-structure.md](docs/refactor-phase-1-structure.md),
-  [phase 2](docs/refactor-phase-2-structure.md),
-  [phase 3](docs/refactor-phase-3-structure.md) — module and component boundaries.
 
 ## 📄 License
 

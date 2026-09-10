@@ -161,8 +161,7 @@ POS/
 ├── scripts/                     SQL schemas, seeder, icon/font generators, bundle budget
 ├── test/                        63 Vitest files (lib, stores, components, a11y, i18n, styles)
 ├── e2e/checkout.spec.ts         Playwright end-to-end suite
-├── docs/                        refactor phase notes, security notes, this file
-├── tools/raster-preview.html    dev harness for the thermal raster renderer
+├── docs/                        security notes and this file
 ├── public/                      favicons
 ├── buildResources/              Electron app icons
 └── .github/workflows/           ci.yml, build-windows.yml, sonarcloud.yml
@@ -644,10 +643,6 @@ canvas clears it_, so measurement cannot be folded into drawing. Details worth k
   of a session does not silently fall back to a system font. It resolves either way — a
   fallback receipt beats no receipt.
 
-`tools/raster-preview.html` is a dev harness that renders a sample Arabic receipt through
-the real canvas renderer and hands back the ESC/POS bytes, so thermal output can be
-inspected without a printer.
-
 ### 7.6 Transport dispatch — `hardwarePrint.ts`
 
 The router. `printReceipt(tx, settings, printerConfig, openDrawer, layout)` returns a
@@ -996,9 +991,9 @@ and never calls `getMenuInfo` — does not show a permanent warning.
 
 ### 10.5 Component decomposition (refactor phases 1–3)
 
-Recorded in `docs/refactor-phase-{1,2,3}-structure.md`. The consistent boundary rule:
-**reusable UI and pure derivations move into focused modules; store writes and
-hardware/network effects stay in the orchestration component.**
+The consistent boundary rule: **reusable UI and pure derivations move into focused
+modules; store writes and hardware/network effects stay in the orchestration
+component.**
 
 - Phase 1 split the i18n catalogue, the receipt/print pipeline, the Supabase client and the
   semantic utilities, leaving compatibility facades behind.
@@ -1591,7 +1586,6 @@ lcov up.
 | `scripts/check-bundle-budget.mjs`     | Gzips the hashed Vite entry assets and fails past budget                                                                                                                                                                                                           |
 | `scripts/generate-icons.mjs`          | Regenerates every raster icon from `src/assets/logo-mark.svg` (needs one-off `sharp` + `png-to-ico`, not project deps)                                                                                                                                             |
 | `scripts/fetch-fonts.mjs`             | Re-downloads the self-hosted woff2 faces and prints the `@font-face` block. Only the subsets the app renders, and only upright faces — exactly one label in the UI is italic, so the browser synthesises an oblique instead of shipping another 221 KB.            |
-| `tools/raster-preview.html`           | Dev harness for the thermal raster renderer; not part of the bundle                                                                                                                                                                                                |
 
 `src/data/seedData.ts` holds the development fixture: 31 categories and 74 products with
 Arabic names (a café menu), 4 demo customers, and `INITIAL_SETTINGS`. `productThumb` builds a
@@ -1748,8 +1742,5 @@ barrel), `settings/` (7 panels + `UserModal` + `usePrinterDiscovery` + barrel), 
 | ------------------------------------ | -------------------------------------------------------------- |
 | `README.md`                          | User-facing setup, features, cloud sync, signing, tests        |
 | `PERF.md`                            | Performance/quality ledger and enforced budgets                |
-| `docs/refactor-phase-1-structure.md` | i18n, receipt/print, Supabase, utils module boundaries         |
-| `docs/refactor-phase-2-structure.md` | Inventory/Settings decomposition, `ModalShell`                 |
-| `docs/refactor-phase-3-structure.md` | `useRegisterCart` / `useHistoryFilters` boundaries             |
 | `docs/security-and-performance.md`   | Security-report disposition, dependency advisory, perf changes |
 | `docs/PROJECT.md`                    | This document                                                  |
