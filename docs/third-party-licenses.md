@@ -40,19 +40,19 @@ transformer, not something the application calls.
 `electron-builder.config.cjs` packages `files: ['dist/**/*', 'electron/**/*']`
 — the compiled bundle and the Electron main process. No `node_modules` tree is
 packaged, so no MPL-covered file is shipped in the installer, the portable
-build, or the browser bundle. What ships is CSS that lightningcss *processed*,
+build, or the browser bundle. What ships is CSS that lightningcss _processed_,
 which is this project's own stylesheet output and not a derivative of the
 transformer.
 
 **What MPL-2.0 would require if it were shipped.** MPL-2.0 is file-level
-copyleft (§3.1–§3.3): distributing a modified MPL-covered *file* obliges you to
+copyleft (§3.1–§3.3): distributing a modified MPL-covered _file_ obliges you to
 publish that file's source under MPL. It does not reach the code that merely
 uses the library, whether linked or bundled. This project does not modify
 lightningcss.
 
 **One correction.** License scanners frequently list "network use clause" among
 MPL-2.0's concerning terms. MPL-2.0 has no network-use or SaaS provision —
-that is AGPL-3.0 §13. MPL-2.0 obligations trigger on *distribution* of covered
+that is AGPL-3.0 §13. MPL-2.0 obligations trigger on _distribution_ of covered
 files, and nothing here distributes any.
 
 **Disposition: accepted, no action required.** No attribution obligation

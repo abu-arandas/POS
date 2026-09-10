@@ -1448,7 +1448,7 @@ and port 9100 only.
 | `format` / `format:check` | Prettier                                                              |
 | `test` / `test:coverage`  | Vitest                                                                |
 | `test:e2e`                | Playwright                                                            |
-| `perf:check`              | `node src/build/check-bundle-budget.mjs`                                |
+| `perf:check`              | `node src/build/check-bundle-budget.mjs`                              |
 | `electron:dev`            | `concurrently` Vite + Electron with `wait-on`                         |
 | `electron:build`          | `vite build && electron-builder --config electron-builder.config.cjs` |
 | `clean`                   | `rm -rf dist`                                                         |
@@ -1578,13 +1578,13 @@ lcov up.
 
 ## 19. Scripts and developer tooling
 
-| Script                                | Purpose                                                                                                                                                                                                                                                            |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Script                               | Purpose                                                                                                                                                                                                                                                            |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/db/schema.sql`                  | Base Supabase DDL, RLS, `verify_login`, realtime publication                                                                                                                                                                                                       |
 | `src/db/multi-store-schema.sql`      | Additive store dimension, fleet RPCs, access predicates                                                                                                                                                                                                            |
 | `src/db/multi-store-rls-enforce.sql` | Opt-in store-scoped RLS enforcement (+ rollback)                                                                                                                                                                                                                   |
 | `src/db/seed.mjs`                    | Seeds a Supabase project with a demo catalog. Needs `SUPABASE_SERVICE_ROLE_KEY` (the anon key cannot insert once RLS is on). Reproduces the app's PBKDF2 hash format with `node:crypto`. Its catalogue is deliberately **not** the same as `src/data/seedData.ts`. |
-| `src/build/check-bundle-budget.mjs`     | Gzips the hashed Vite entry assets and fails past budget                                                                                                                                                                                                           |
+| `src/build/check-bundle-budget.mjs`  | Gzips the hashed Vite entry assets and fails past budget                                                                                                                                                                                                           |
 
 `src/data/seedData.ts` holds the development fixture: 31 categories and 74 products with
 Arabic names (a café menu), 4 demo customers, and `INITIAL_SETTINGS`. `productThumb` builds a
@@ -1737,9 +1737,9 @@ barrel), `settings/` (7 panels + `UserModal` + `usePrinterDiscovery` + barrel), 
 
 ### Related documents
 
-| File                                 | Contents                                                       |
-| ------------------------------------ | -------------------------------------------------------------- |
-| `README.md`                          | User-facing setup, features, cloud sync, signing, tests        |
-| `PERF.md`                            | Performance/quality ledger and enforced budgets                |
-| `docs/security-and-performance.md`   | Security-report disposition, dependency advisory, perf changes |
-| `docs/PROJECT.md`                    | This document                                                  |
+| File                               | Contents                                                       |
+| ---------------------------------- | -------------------------------------------------------------- |
+| `README.md`                        | User-facing setup, features, cloud sync, signing, tests        |
+| `PERF.md`                          | Performance/quality ledger and enforced budgets                |
+| `docs/security-and-performance.md` | Security-report disposition, dependency advisory, perf changes |
+| `docs/PROJECT.md`                  | This document                                                  |
