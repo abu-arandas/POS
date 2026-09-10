@@ -10,8 +10,9 @@ interface LogoProps {
 /**
  * The Arandas mark, inlined so it renders without a network/asset fetch (the
  * terminal runs offline) and inherits crisp scaling at any size. Kept in sync
- * with src/assets/logo-mark.svg, which is the source the app/favicon PNGs are
- * generated from — edit that file and re-run scripts/generate-icons.mjs.
+ * with src/assets/logo-mark.svg, which is the source the committed app and
+ * favicon rasters in buildResources/ and public/ were cut from — edit that
+ * file and re-cut them to match.
  *
  * Gradients use userSpaceOnUse: an objectBoundingBox gradient renders nothing on
  * a shape whose bbox has zero height, which the horizontal crossbar does.

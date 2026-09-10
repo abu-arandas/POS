@@ -66,7 +66,7 @@ jobs:
           node --check electron/validation.cjs
           node --check electron/windowsSigning.cjs
           node --check electron/menuServer.cjs
-          node --check scripts/seed.mjs
+          node --check src/db/seed.mjs
 
       # A broken packaging config only shows up on the Windows runner otherwise,
       # after a full Electron toolchain download. Loading it here catches a

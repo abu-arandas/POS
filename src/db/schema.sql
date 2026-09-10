@@ -355,7 +355,7 @@ ALTER TABLE transactions  ENABLE ROW LEVEL SECURITY;
 -- (re)created once multi-store RLS is enforced — Postgres ORs permissive
 -- policies together, so a blanket policy silently reopens cross-store access and
 -- makes the store-scoped policies meaningless. The guard below detects the
--- enforced setup (scripts/multi-store-rls-enforce.sql creates products_read) and
+-- enforced setup (src/db/multi-store-rls-enforce.sql creates products_read) and
 -- leaves it alone, so re-running this script stays safe on a fleet deployment.
 DO $$
 DECLARE

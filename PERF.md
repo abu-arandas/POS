@@ -28,7 +28,7 @@ Coverage is recorded as a baseline rather than raised to an artificial threshold
 
 ## Enforced initial bundle budgets
 
-The `scripts/check-bundle-budget.mjs` guard measures the hashed Vite entry assets after a production build. The current budgets are:
+The `src/build/check-bundle-budget.mjs` guard measures the hashed Vite entry assets after a production build. The current budgets are:
 
 | Artifact                 | Maximum gzip size |
 | ------------------------ | ----------------: |

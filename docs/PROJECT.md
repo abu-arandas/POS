@@ -156,11 +156,12 @@ POS/
 │   ├── services/                cross-store operations (sale, refund, stock)
 │   ├── lib/                     domain logic + I/O adapters (~55 modules)
 │   ├── locales/{en,ar}/         20 translation namespaces each
-│   └── components/              screens + register/ inventory/ settings/ history/ shared/
+│   ├── components/              screens + register/ inventory/ settings/ history/ shared/
+│   ├── db/                      SQL schemas and the Supabase seeder
+│   ├── build/                   bundle-budget guard
+│   └── e2e/                     Playwright end-to-end suite
 ├── electron/                    main, preload, and 4 pure decision modules + menu.html
-├── scripts/                     SQL schemas, seeder, icon/font generators, bundle budget
 ├── test/                        63 Vitest files (lib, stores, components, a11y, i18n, styles)
-├── e2e/checkout.spec.ts         Playwright end-to-end suite
 ├── docs/                        security notes and this file
 ├── public/                      favicons
 ├── buildResources/              Electron app icons
@@ -1252,7 +1253,7 @@ with nothing actually checking who built the installer.
 Three scripts, run in order. Each is idempotent and safe to re-run — re-running is the
 documented upgrade path.
 
-### 14.1 `scripts/schema.sql` — base, secure by default
+### 14.1 `src/db/schema.sql` — base, secure by default
 
 **Tables:** `user_accounts`, `categories`, `products`, `customers`, `transactions`,
 `login_attempts`.
@@ -1311,7 +1312,7 @@ remaining tables are silently skipped, leaving live sync half-configured.
 **No default account is inserted.** Production terminals create their first administrator
 through the lock-screen setup flow.
 
-### 14.2 `scripts/multi-store-schema.sql` — additive store dimension
+### 14.2 `src/db/multi-store-schema.sql` — additive store dimension
 
 Adds `stores` and `memberships`, stamps a nullable `store_id` on all five synced tables,
 backfills everything to a single `store-default` store, and replaces `verify_login` with a
@@ -1349,7 +1350,7 @@ its callers are not the only thing that can reach it.
 `fleet_daily` buckets days with `date_trunc('day', t.date AT TIME ZONE s.timezone)` so each
 store's "day" matches its local books.
 
-### 14.3 `scripts/multi-store-rls-enforce.sql` — opt-in enforcement
+### 14.3 `src/db/multi-store-rls-enforce.sql` — opt-in enforcement
 
 Turns the store dimension from advisory into **enforced**. Its header lists three
 preconditions and warns that running it early will lock terminals out of their own data:
@@ -1447,7 +1448,7 @@ and port 9100 only.
 | `format` / `format:check` | Prettier                                                              |
 | `test` / `test:coverage`  | Vitest                                                                |
 | `test:e2e`                | Playwright                                                            |
-| `perf:check`              | `node scripts/check-bundle-budget.mjs`                                |
+| `perf:check`              | `node src/build/check-bundle-budget.mjs`                                |
 | `electron:dev`            | `concurrently` Vite + Electron with `wait-on`                         |
 | `electron:build`          | `vite build && electron-builder --config electron-builder.config.cjs` |
 | `clean`                   | `rm -rf dist`                                                         |
@@ -1519,7 +1520,7 @@ tested** — CI otherwise only reaches `main.cjs` through `node --check`.
 
 ### End-to-end — Playwright
 
-`e2e/checkout.spec.ts` drives the real app across Chromium, Firefox and WebKit: PIN login,
+`src/e2e/checkout.spec.ts` drives the real app across Chromium, Firefox and WebKit: PIN login,
 adding to the cart, card checkout, cash checkout with change, and role-based navigation. The
 config boots the Vite dev server automatically, retries twice in CI, records a trace on
 first retry and a screenshot on failure.
@@ -1579,13 +1580,11 @@ lcov up.
 
 | Script                                | Purpose                                                                                                                                                                                                                                                            |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `scripts/schema.sql`                  | Base Supabase DDL, RLS, `verify_login`, realtime publication                                                                                                                                                                                                       |
-| `scripts/multi-store-schema.sql`      | Additive store dimension, fleet RPCs, access predicates                                                                                                                                                                                                            |
-| `scripts/multi-store-rls-enforce.sql` | Opt-in store-scoped RLS enforcement (+ rollback)                                                                                                                                                                                                                   |
-| `scripts/seed.mjs`                    | Seeds a Supabase project with a demo catalog. Needs `SUPABASE_SERVICE_ROLE_KEY` (the anon key cannot insert once RLS is on). Reproduces the app's PBKDF2 hash format with `node:crypto`. Its catalogue is deliberately **not** the same as `src/data/seedData.ts`. |
-| `scripts/check-bundle-budget.mjs`     | Gzips the hashed Vite entry assets and fails past budget                                                                                                                                                                                                           |
-| `scripts/generate-icons.mjs`          | Regenerates every raster icon from `src/assets/logo-mark.svg` (needs one-off `sharp` + `png-to-ico`, not project deps)                                                                                                                                             |
-| `scripts/fetch-fonts.mjs`             | Re-downloads the self-hosted woff2 faces and prints the `@font-face` block. Only the subsets the app renders, and only upright faces — exactly one label in the UI is italic, so the browser synthesises an oblique instead of shipping another 221 KB.            |
+| `src/db/schema.sql`                  | Base Supabase DDL, RLS, `verify_login`, realtime publication                                                                                                                                                                                                       |
+| `src/db/multi-store-schema.sql`      | Additive store dimension, fleet RPCs, access predicates                                                                                                                                                                                                            |
+| `src/db/multi-store-rls-enforce.sql` | Opt-in store-scoped RLS enforcement (+ rollback)                                                                                                                                                                                                                   |
+| `src/db/seed.mjs`                    | Seeds a Supabase project with a demo catalog. Needs `SUPABASE_SERVICE_ROLE_KEY` (the anon key cannot insert once RLS is on). Reproduces the app's PBKDF2 hash format with `node:crypto`. Its catalogue is deliberately **not** the same as `src/data/seedData.ts`. |
+| `src/build/check-bundle-budget.mjs`     | Gzips the hashed Vite entry assets and fails past budget                                                                                                                                                                                                           |
 
 `src/data/seedData.ts` holds the development fixture: 31 categories and 74 products with
 Arabic names (a café menu), 4 demo customers, and `INITIAL_SETTINGS`. `productThumb` builds a
@@ -1598,7 +1597,7 @@ assets in the repo. All of it is gated behind `import.meta.env.DEV || MODE === '
 
 ## 20. Performance budgets
 
-Enforced by `scripts/check-bundle-budget.mjs`, run locally with `npm run perf:check` and in
+Enforced by `src/build/check-bundle-budget.mjs`, run locally with `npm run perf:check` and in
 CI immediately after the production build.
 
 | Artifact                 |      Max gzip |

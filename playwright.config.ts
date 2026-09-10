@@ -6,7 +6,7 @@ import process from 'node:process';
 const CI = Boolean(process.env.CI);
 
 export default defineConfig({
-  testDir: './e2e',
+  testDir: './src/e2e',
   fullyParallel: true,
   forbidOnly: CI,
   retries: CI ? 2 : 0,

@@ -34,7 +34,7 @@ interface SettingsState {
   // brings back whatever was already set.
   showProductImages: boolean;
   // This terminal's store id for multi-store cloud scoping (see
-  // scripts/multi-store-schema.sql). Empty = single-store mode: sync behaves exactly
+  // src/db/multi-store-schema.sql). Empty = single-store mode: sync behaves exactly
   // as before (no store_id stamped or filtered).
   storeId: string;
   darkMode: boolean;
@@ -205,7 +205,7 @@ export const useSettingsStore = create<SettingsState>()(
         // terminal that had signed in with a device account came back up still
         // badged "Connected" while signInDevice() saw an empty password and
         // quietly fell through to its anonymous path. Under the secure-by-
-        // default RLS in scripts/schema.sql `anon` is denied every row, so
+        // default RLS in src/db/schema.sql `anon` is denied every row, so
         // realtime sync, the fleet heartbeat and every push and pull silently
         // did nothing — while Settings and the Dashboard both reported the
         // cloud as live. Sales stopped replicating and nothing said so.

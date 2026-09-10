@@ -12,7 +12,8 @@
    Inter's italics are deliberately absent: exactly one label in the app is
    italic, so the browser synthesizes an oblique rather than shipping 221 KB.
 
-   Regenerate with scripts/fetch-fonts.mjs after changing a family or subset. */
+   Changing a family or subset means re-fetching the woff2 files into
+   src/assets/fonts/ and updating the @font-face blocks below by hand. */
 @font-face {
   font-family: 'Inter';
   font-style: normal;

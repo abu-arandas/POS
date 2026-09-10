@@ -9,7 +9,7 @@
 --
 -- DO NOT run this until ALL of the following are true, or you WILL lock terminals
 -- out of their own data:
---   1. scripts/multi-store-schema.sql has been applied (stores, memberships,
+--   1. src/db/multi-store-schema.sql has been applied (stores, memberships,
 --      store_id columns, is_superadmin / has_store_access predicates exist).
 --   2. Every row in every data table has a non-null store_id (the schema script
 --      backfills existing rows to 'store-default'; verify no NULLs remain).
@@ -52,7 +52,7 @@ ALTER TABLE user_accounts ALTER COLUMN store_id SET NOT NULL;
 --    for a member of that store and for an org-wide super-admin.
 --
 --    The blanket "staff full access" / "staff manage users" policies from
---    scripts/schema.sql MUST be dropped here. Postgres combines PERMISSIVE
+--    src/db/schema.sql MUST be dropped here. Postgres combines PERMISSIVE
 --    policies with OR, so leaving a `USING (TRUE)` policy in place means every
 --    authenticated terminal keeps full cross-store read/write and the
 --    store-scoped policies below have no effect whatsoever.
@@ -101,7 +101,7 @@ END $$;
 
 -- ============================================================
 -- ROLLBACK (uncomment and run to undo, returning to advisory mode: RLS stays on
--- exactly as scripts/schema.sql leaves it, but the store dimension stops being
+-- exactly as src/db/schema.sql leaves it, but the store dimension stops being
 -- enforced). This restores the blanket staff policies that section 2 dropped —
 -- without them, dropping the store-scoped policies would lock every terminal
 -- out of its own data rather than opening access back up.

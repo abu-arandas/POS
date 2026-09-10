@@ -473,7 +473,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
           <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
             {t('storeAdmin.rlsBody')}{' '}
             <code className="font-mono text-slate-600 dark:text-slate-300">
-              scripts/multi-store-rls-enforce.sql
+              src/db/multi-store-rls-enforce.sql
             </code>
           </p>
         </div>

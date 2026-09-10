@@ -5,7 +5,7 @@ import { fetchAllPages, keyset, stampStoreId } from './sync-utils';
 
 /**
  * Validates a staff login against the cloud via the SECURITY DEFINER
- * verify_login RPC (see scripts/schema.sql). Returns the account's non-secret
+ * verify_login RPC (see src/db/schema.sql). Returns the account's non-secret
  * fields on success, or null. The PIN hash never leaves the database on the
  * return path — only the caller's versioned PBKDF2-derived candidate is sent.
  */

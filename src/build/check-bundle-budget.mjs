@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-const root = path.resolve(new URL('..', import.meta.url).pathname);
+const root = path.resolve(new URL('../..', import.meta.url).pathname);
 const assetsDir = path.join(root, 'dist', 'assets');
 const budgets = [
   {

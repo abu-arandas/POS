@@ -59,7 +59,7 @@ export const settings = {
   statusConnected: 'Connected',
   statusDisconnected: 'Disconnected',
   statusError: 'Error',
-  syncSetupHint: 'Run scripts/schema.sql in your Supabase SQL editor before syncing.',
+  syncSetupHint: 'Run src/db/schema.sql in your Supabase SQL editor before syncing.',
   deviceAuthHint:
     'Optional device sign-in. Required once Row Level Security is enabled: the terminal signs in with this Supabase Auth account so sync works. Leave blank for an open demo database.',
   deviceEmail: 'Device Email',
@@ -67,7 +67,7 @@ export const settings = {
   storeIdLabel: 'Store ID',
   storeIdPlaceholder: 'e.g. store-downtown (leave blank for a single store)',
   storeIdHint:
-    'Scopes this terminal to one store in a multi-store organization. Leave blank unless you have run scripts/multi-store-schema.sql.',
+    'Scopes this terminal to one store in a multi-store organization. Leave blank unless you have run src/db/multi-store-schema.sql.',
   usersTab: 'Users',
   printerTab: 'Printer',
   staffAccounts: 'Staff Accounts',

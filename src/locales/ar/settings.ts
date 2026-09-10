@@ -59,7 +59,7 @@ export const settings = {
   statusConnected: 'متصل',
   statusDisconnected: 'غير متصل',
   statusError: 'خطأ',
-  syncSetupHint: 'شغّل scripts/schema.sql في محرر SQL الخاص بـ Supabase قبل المزامنة.',
+  syncSetupHint: 'شغّل src/db/schema.sql في محرر SQL الخاص بـ Supabase قبل المزامنة.',
   deviceAuthHint:
     'تسجيل دخول اختياري للجهاز. مطلوب عند تفعيل أمان مستوى الصفوف: يسجّل الطرفية الدخول بهذا الحساب لتعمل المزامنة. اتركه فارغًا لقاعدة بيانات تجريبية مفتوحة.',
   deviceEmail: 'بريد الجهاز',
@@ -67,7 +67,7 @@ export const settings = {
   storeIdLabel: 'معرّف المتجر',
   storeIdPlaceholder: 'مثال: store-downtown (اتركه فارغاً لمتجر واحد)',
   storeIdHint:
-    'يحصر هذه النقطة بمتجر واحد ضمن مؤسسة متعددة المتاجر. اتركه فارغاً ما لم تكن قد نفّذت scripts/multi-store-schema.sql.',
+    'يحصر هذه النقطة بمتجر واحد ضمن مؤسسة متعددة المتاجر. اتركه فارغاً ما لم تكن قد نفّذت src/db/multi-store-schema.sql.',
   usersTab: 'المستخدمون',
   printerTab: 'الطابعة',
   staffAccounts: 'حسابات الموظفين',

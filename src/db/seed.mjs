@@ -1,7 +1,7 @@
 /**
  * Supabase Seeder Script
- * Seeds all initial data (run scripts/schema.sql in the SQL editor first).
- * Run with: node scripts/seed.mjs
+ * Seeds all initial data (run src/db/schema.sql in the SQL editor first).
+ * Run with: node src/db/seed.mjs
  *
  * Requires SUPABASE_URL and a key, provided via environment variables or a
  * local .env file (see .env.example). The recommended schema enables Row

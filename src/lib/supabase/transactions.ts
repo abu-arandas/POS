@@ -68,7 +68,7 @@ export async function pushTransactions(
     if (!error) return true;
 
     // The app updates itself; the schema does not. Between an install picking
-    // up tax_rate and an operator running scripts/schema.sql, PostgREST rejects
+    // up tax_rate and an operator running src/db/schema.sql, PostgREST rejects
     // the whole row for the one column it does not know — so every sale would
     // stop syncing, silently, over a field that is only a receipt label.
     // Dropping it and retrying keeps the money flowing and leaves a warning
@@ -76,7 +76,7 @@ export async function pushTransactions(
     if (!isUnknownColumn(error, 'tax_rate')) throw error;
     console.warn(
       'transactions.tax_rate is missing in Supabase — pushing without it. ' +
-        'Run the ALTER TABLE in scripts/schema.sql so reprinted receipts can ' +
+        'Run the ALTER TABLE in src/db/schema.sql so reprinted receipts can ' +
         'show the rate each sale was charged at.',
     );
     const withoutRate = records.map(({ tax_rate: _rate, ...rest }) => rest);

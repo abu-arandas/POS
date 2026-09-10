@@ -334,7 +334,7 @@ export async function fetchStoreCategories(storeId: string): Promise<Category[]>
  * Applies a catalog to one store: categories first (so the product category FK
  * resolves), then products, both stamped with the target store_id.
  *
- * Goes through the push_store_catalog RPC (see scripts/multi-store-schema.sql)
+ * Goes through the push_store_catalog RPC (see src/db/multi-store-schema.sql)
  * rather than two upserts, so the whole push shares one transaction. That is
  * what makes `false` mean "nothing was written" — as two requests, a product
  * failure left behind categories the caller was never told about. Requires the

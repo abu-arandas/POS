@@ -1,6 +1,6 @@
 -- ============================================================
 -- Multi-store / super-admin foundations  (Phase 0 — additive)
--- Run AFTER scripts/schema.sql, in the Supabase SQL Editor.
+-- Run AFTER src/db/schema.sql, in the Supabase SQL Editor.
 --
 -- This is additive and backward compatible: it introduces a store dimension,
 -- backfills every existing row into a single "default" store, and leaves the
@@ -72,7 +72,7 @@ ALTER TABLE login_attempts ADD CONSTRAINT login_attempts_pkey PRIMARY KEY (scope
 
 -- Replace the single-store login routine with a compatible three-argument form.
 --
--- This body deliberately restates the throttle from scripts/schema.sql §7 rather
+-- This body deliberately restates the throttle from src/db/schema.sql §7 rather
 -- than sharing it. Postgres has no way to patch a function body, and both files
 -- are standalone scripts pasted whole into the SQL editor, so there is nothing
 -- to factor out without breaking that workflow. The cost is that the two can

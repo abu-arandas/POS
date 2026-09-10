@@ -230,7 +230,7 @@ export interface UserAccount {
   createdAt: string;
 }
 
-// ── Multi-store / super-admin foundations (scripts/multi-store-schema.sql) ──
+// ── Multi-store / super-admin foundations (src/db/multi-store-schema.sql) ──
 // These describe the cloud/fleet dimension. They are deliberately separate from
 // the per-store UserAccount above: a super-admin is an org-level MEMBERSHIP, not
 // a terminal login. Nothing in the single-store terminal flow depends on them.
@@ -319,7 +319,7 @@ export interface SupabaseConfig {
   anonKey: string;
   // Optional Supabase Auth "device" account. When set, the sync client signs in
   // with it so the terminal operates as an authenticated role — required once
-  // RLS is enabled (see scripts/schema.sql). Left blank = anonymous (demo mode).
+  // RLS is enabled (see src/db/schema.sql). Left blank = anonymous (demo mode).
   authEmail?: string;
   authPassword?: string;
   // Whether a device account was configured when this config was last saved.

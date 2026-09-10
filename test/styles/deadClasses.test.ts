@@ -81,7 +81,7 @@ function definedClasses(): Set<string> {
  * menu.html's own stylesheet.
  */
 function referencedNames(): Set<string> {
-  const roots = 'src e2e test electron scripts index.html';
+  const roots = 'src test electron index.html';
   // Tracked AND untracked, matching keyCoverage.test.ts. Listing only tracked
   // files means a component added but not yet committed contributes no
   // references, so every class only IT uses reads as dead — the check then

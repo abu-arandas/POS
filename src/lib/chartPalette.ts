@@ -19,8 +19,8 @@
 //   light, adjacent : CVD ΔE 9.1 · normal ΔE 19.6 · 3 slots warn on contrast
 //   dark,  adjacent : CVD ΔE 8.4 · normal ΔE 19.3 · all clear 3:1
 //
-// Regenerate with the validator rather than editing a hex by eye:
-//   node scripts/validate_palette.js "<hex,...>" --mode dark --surface "#0f172a"
+// Re-derive these with a contrast/CVD validator rather than editing a hex by
+// eye; the numbers above are what such a run has to reproduce.
 
 /**
  * Which surface a chart is drawn on. The dark steps are the same hues restepped

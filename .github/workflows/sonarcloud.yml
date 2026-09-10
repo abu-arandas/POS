@@ -98,5 +98,6 @@ jobs:
           args: >
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
-            -Dsonar.sources=src,electron,scripts
-            -Dsonar.tests=test,e2e
+            -Dsonar.sources=src,electron
+            -Dsonar.tests=test,src/e2e
+            -Dsonar.exclusions=src/e2e/**
