@@ -103,12 +103,29 @@ jobs:
       - name: Verify Authenticode signature
         if: steps.signing.outputs.signed == 'true'
         shell: pwsh
+        env:
+          WINDOWS_PUBLISHER_NAME: ${{ secrets.WINDOWS_PUBLISHER_NAME }}
         run: |
           $installer = Get-ChildItem release/EA-POS-Setup-*.exe | Select-Object -First 1
           if ($null -eq $installer) { throw "Installer was not produced." }
           $signature = Get-AuthenticodeSignature -FilePath $installer.FullName
           if ($signature.Status -ne 'Valid') {
             throw "Installer signature is not valid: $($signature.Status)"
+          }
+
+          # A valid signature is not enough. electron-builder writes
+          # WINDOWS_PUBLISHER_NAME into app-update.yml, and `verifyUpdateCodeSignature`
+          # makes electron-updater compare it against the signer of the downloaded
+          # installer. If the two disagree the release still publishes and still
+          # verifies here, but every installed terminal silently refuses the
+          # update -- a failure that only shows up in the field. Catch it on the
+          # runner instead, where the fix is one secret.
+          $expected = $env:WINDOWS_PUBLISHER_NAME
+          $signer = $signature.SignerCertificate.GetNameInfo(
+            [System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false)
+          if (-not [string]::IsNullOrWhiteSpace($expected) -and $signer -ne $expected) {
+            $detail = "electron-updater compares these, so installed terminals would reject this installer."
+            throw "Certificate signer '$signer' does not match WINDOWS_PUBLISHER_NAME '$expected'. $detail"
           }
           Write-Host "Verified publisher: $($signature.SignerCertificate.Subject)"
 
@@ -153,11 +170,18 @@ jobs:
           if-no-files-found: error
 
   publish-release:
-    # Every non-PR run publishes the generated installer. Signed builds are
-    # normal releases; unsigned builds are explicitly marked as pre-releases so
-    # electron-updater does not offer them to installed terminals. This keeps a
-    # push to main useful even before the repository's signing secrets exist.
-    if: github.event_name != 'pull_request'
+    # Every non-PR run on main publishes the generated installer. Signed builds
+    # are normal releases; unsigned builds are explicitly marked as pre-releases
+    # so electron-updater does not offer them to installed terminals. This keeps
+    # a push to main useful even before the repository's signing secrets exist.
+    #
+    # The ref check is what keeps `workflow_dispatch` from turning any branch or
+    # tag into a customer-visible installer. Dispatch stays enabled -- it is the
+    # signal that a human wants a build published -- but only from main, so a
+    # release always corresponds to reviewed code. Without it, dispatching on a
+    # feature branch publishes a release under the same version tag, and
+    # electron-updater offers it to every installed terminal.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build-windows
     runs-on: ubuntu-latest
     # Downloads one artifact and calls `gh release create`; minutes, not tens.
