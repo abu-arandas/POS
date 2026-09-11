@@ -251,12 +251,34 @@ export async function peekOutbox(): Promise<OutboxEntry[]> {
  * Drops queued entries. `kind` narrows it to one operation type — a successful
  * full push makes every queued incremental push redundant (it sent the same
  * rows, in their newest form), while queued deletes still have to run.
+ *
+ * Prefer `dropOutboxEntries` for that case: by the time a full push finishes,
+ * the queue may hold entries that were added while it was uploading, whose rows
+ * the snapshot never contained.
  */
 export async function clearOutbox(kind?: OutboxOperation['type']): Promise<void> {
   return exclusive(async () => {
     const entries = kind
       ? (await readEntries()).filter((entry) => entry.operation.type !== kind)
       : [];
+    await writeEntries(entries);
+  });
+}
+
+/**
+ * Drops exactly these entries by id, leaving everything else queued.
+ *
+ * This is how work is retired as superseded without a race. A full push takes
+ * as long as it takes, and the register keeps trading throughout: clearing
+ * every queued push when it finishes would also throw away the sale rung up
+ * while it was uploading, whose rows were never in the snapshot it sent.
+ * Naming the ids observed before the upload started cannot do that.
+ */
+export async function dropOutboxEntries(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const dropping = new Set(ids);
+  return exclusive(async () => {
+    const entries = (await readEntries()).filter((entry) => !dropping.has(entry.id));
     await writeEntries(entries);
   });
 }

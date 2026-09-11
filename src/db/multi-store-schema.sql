@@ -121,6 +121,20 @@ BEGIN
 
   -- Caller-scoped row first, name-scoped second, always: a consistent lock order
   -- is what keeps two callers guessing the same name from deadlocking.
+  -- Make sure both ledger rows exist before trying to lock them. A
+  -- SELECT ... FOR UPDATE that matches no row locks nothing: N concurrent
+  -- first-ever failures against a fresh key would each read "no row", each
+  -- compute failures = 1, and the last write would win — so a burst against a
+  -- name nobody has failed against yet counts as a single attempt, which is
+  -- exactly the burst the name-scoped backstop exists to catch. The INSERT
+  -- takes the primary-key lock instead, so the losers block here and then read
+  -- the winner's count. DO NOTHING leaves any existing counter untouched, and a
+  -- successful login deletes both rows again.
+  INSERT INTO login_attempts AS la (scope_key, name, failures, last_failure)
+  VALUES (attempt_key, p_name, 0, NOW()),
+         (global_key,  p_name, 0, NOW())
+  ON CONFLICT ON CONSTRAINT login_attempts_pkey DO NOTHING;
+
   SELECT * INTO att  FROM login_attempts la WHERE la.scope_key = attempt_key FOR UPDATE;
   SELECT * INTO glob FROM login_attempts la WHERE la.scope_key = global_key  FOR UPDATE;
 

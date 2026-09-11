@@ -276,6 +276,19 @@ REVOKE ALL ON FUNCTION public.login_client_key() FROM PUBLIC;
 --     deliberately, but it now costs an attacker ~50 requests per 15 minutes
 --     instead of 5, and a successful login for that name clears it.
 --
+-- The caller key is forgeable, so an attacker who varies the header gets a
+-- fresh per-caller bucket every request and only this backstop stands in the
+-- way. Measured on Postgres 16, that buys them a one-off burst of 50 guesses
+-- instead of 5 — and nothing after it: the name counter keeps climbing while
+-- the attack continues, so it never falls back below the threshold, and the
+-- guess that follows each expired cool-off immediately re-locks for another 15
+-- minutes. The sustained rate is therefore 4 guesses an hour, exactly what the
+-- old name-only ladder converged to, or roughly 2,500 hours to walk a 4-digit
+-- PIN. The trade is 45 extra guesses once, against a lockout that used to be
+-- aimable at a named account with five requests. Retune `global_attempts` if
+-- you would rather have the burst back: lower it and the backstop trips sooner
+-- for an attacker and for the honest tills of a busy store alike.
+--
 -- Residual, and worth stating plainly: an attacker willing to spend those
 -- requests can still suspend CLOUD login for one named account. It degrades
 -- rather than denies — PIN login continues to work offline against the locally
@@ -318,6 +331,20 @@ BEGIN
   -- the same name would otherwise be able to take the two locks in opposite
   -- orders and deadlock, which Postgres resolves by aborting one — turning a
   -- routine login into an error.
+  -- Make sure both ledger rows exist before trying to lock them. A
+  -- SELECT ... FOR UPDATE that matches no row locks nothing: N concurrent
+  -- first-ever failures against a fresh key would each read "no row", each
+  -- compute failures = 1, and the last write would win — so a burst against a
+  -- name nobody has failed against yet counts as a single attempt, which is
+  -- exactly the burst the name-scoped backstop exists to catch. The INSERT
+  -- takes the primary-key lock instead, so the losers block here and then read
+  -- the winner's count. DO NOTHING leaves any existing counter untouched, and a
+  -- successful login deletes both rows again.
+  INSERT INTO login_attempts AS la (scope_key, name, failures, last_failure)
+  VALUES (attempt_key, p_name, 0, NOW()),
+         (global_key,  p_name, 0, NOW())
+  ON CONFLICT ON CONSTRAINT login_attempts_pkey DO NOTHING;
+
   SELECT * INTO att  FROM login_attempts la WHERE la.scope_key = attempt_key FOR UPDATE;
   SELECT * INTO glob FROM login_attempts la WHERE la.scope_key = global_key  FOR UPDATE;
 
@@ -499,6 +526,7 @@ ALTER TABLE transactions  ENABLE ROW LEVEL SECURITY;
 DO $$
 DECLARE
   tbl            text;
+  pol            text;
   store_enforced boolean;
   scoped_policy  boolean;
 BEGIN
@@ -512,6 +540,42 @@ BEGIN
   store_enforced := public.pos_rls_mode() = 'store-scoped' OR scoped_policy;
 
   IF store_enforced THEN
+    -- Not creating them is not enough: one may already be there. An older copy
+    -- of this script, run after the fleet migration, would have recreated them;
+    -- so would a hand-run statement. Postgres ORs permissive policies together,
+    -- so a single survivor makes every store-scoped policy on that table
+    -- decorative, and nothing surfaces it until a terminal reads another
+    -- store's rows. Re-running this script is the documented upgrade path, so
+    -- let it be the thing that cleans that up.
+    --
+    -- Per table, and only where the store-scoped policies are actually present:
+    -- dropping a table's blanket policy when it has nothing to fall back on
+    -- would lock every terminal out of its own data mid-trade, which is a worse
+    -- failure than the one being closed. A table in that state is reported
+    -- instead, because it needs multi-store-rls-enforce.sql re-run, not this.
+    FOREACH tbl IN ARRAY ARRAY['categories', 'products', 'customers', 'transactions', 'user_accounts']
+    LOOP
+      IF EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public' AND tablename = tbl
+          AND policyname LIKE tbl || '\_%' ESCAPE '\'
+      ) THEN
+        FOREACH pol IN ARRAY ARRAY['staff full access', 'staff manage users', 'staff read users',
+                                   'staff insert users', 'staff update users', 'staff delete users']
+        LOOP
+          IF EXISTS (
+            SELECT 1 FROM pg_policies
+            WHERE schemaname = 'public' AND tablename = tbl AND policyname = pol
+          ) THEN
+            EXECUTE format('DROP POLICY IF EXISTS %I ON %I', pol, tbl);
+            RAISE NOTICE 'Removed blanket policy "%" from % — it reopened cross-store access.', pol, tbl;
+          END IF;
+        END LOOP;
+      ELSE
+        RAISE WARNING 'Store-scoped mode, but % has no store-scoped policy. Leaving its blanket policy in place so terminals keep working — re-run src/db/multi-store-rls-enforce.sql.', tbl;
+      END IF;
+    END LOOP;
+
     RAISE NOTICE 'Store-scoped RLS detected — leaving the blanket staff policies out.';
     RETURN;
   END IF;

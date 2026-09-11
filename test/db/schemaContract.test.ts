@@ -166,6 +166,19 @@ describe('the login throttle cannot be aimed at one account', () => {
     }
   });
 
+  it('creates both ledger rows before locking them', () => {
+    // SELECT ... FOR UPDATE on a row that does not exist locks nothing, so a
+    // burst of first-ever failures against a fresh key would each read "no
+    // row", each compute failures = 1, and the last write would win. Measured
+    // on Postgres 16 before this insert: 9 of 16 concurrent attempts counted.
+    for (const text of [schemaSql, multiStoreSql]) {
+      const preInsert = text.indexOf('ON CONFLICT ON CONSTRAINT login_attempts_pkey DO NOTHING');
+      const firstLock = text.indexOf('la.scope_key = attempt_key FOR UPDATE');
+      expect(preInsert).toBeGreaterThan(-1);
+      expect(preInsert).toBeLessThan(firstLock);
+    }
+  });
+
   it('keeps the attempt ledger unreachable from any client', () => {
     expect(schemaSql).toMatch(/ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY/);
     expect(schemaSql).toMatch(/REVOKE ALL ON TABLE login_attempts FROM anon, authenticated/);
@@ -192,6 +205,24 @@ describe('a store-scoped database never gets the blanket policies back', () => {
     for (const name of new Set(blanketPolicyNames)) {
       expect(enforceSql, `multi-store-rls-enforce.sql must drop "${name}"`).toContain(`'${name}'`);
     }
+  });
+
+  it('removes a blanket policy that survived onto a store-scoped database', () => {
+    // Not creating them is not enough. An older copy of this script, run after
+    // the fleet migration, recreates them — and one survivor ORs with the
+    // store-scoped policies and makes them decorative.
+    const guard = schemaSql.slice(schemaSql.indexOf('IF store_enforced THEN'));
+    expect(guard).toMatch(/DROP POLICY IF EXISTS %I ON %I/);
+    expect(guard).toMatch(/Removed blanket policy/);
+  });
+
+  it('leaves a table with no store-scoped policy alone, loudly', () => {
+    // Dropping a blanket policy from a table with nothing to fall back on locks
+    // every terminal out of its own data mid-trade — a worse failure than the
+    // one being closed. That table is reported instead.
+    const guard = schemaSql.slice(schemaSql.indexOf('IF store_enforced THEN'));
+    expect(guard).toMatch(/RAISE WARNING/);
+    expect(guard).toMatch(/multi-store-rls-enforce\.sql/);
   });
 
   it('records the mode as a fact rather than leaving it to be inferred', () => {

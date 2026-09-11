@@ -195,6 +195,64 @@ describe('cloud writes survive a failed push', () => {
     expect(ok).toBe(true);
     expect(await pendingCloudWrites()).toBe(0);
   });
+
+  // The register keeps trading while "Push All" uploads. A sale rung up during
+  // it queues a push whose rows the snapshot never contained, so retiring every
+  // queued push at the end would throw that sale away — the exact loss the
+  // outbox exists to prevent.
+  it('keeps a push queued during the full upload, whose rows were not in it', async () => {
+    let releaseUpload: () => void = () => {};
+    const uploading = new Promise<void>((resolve) => {
+      releaseUpload = resolve;
+    });
+    let uploadStarted: () => void = () => {};
+    const started = new Promise<void>((resolve) => {
+      uploadStarted = resolve;
+    });
+
+    vi.mocked(supabaseLib.pushTransactions).mockImplementation(async () => {
+      uploadStarted();
+      await uploading;
+      return true;
+    });
+
+    const fullPush = pushAllToCloud('https://example.supabase.co', 'key', {
+      products: [product],
+      categories: [],
+      customers: [],
+      users: [],
+      transactions: [transaction],
+    });
+
+    await started;
+    // A sale lands mid-upload. Offline, so it stays queued rather than racing
+    // the drain — what matters is that the full push does not discard it.
+    vi.mocked(supabaseLib.signInDevice).mockResolvedValue(false);
+    await syncToCloudIfEnabled(undefined, undefined, undefined, [
+      { ...transaction, id: 'TX-during-upload' },
+    ]);
+
+    releaseUpload();
+    expect(await fullPush).toBe(true);
+
+    expect(await pendingCloudWrites()).toBe(1);
+    const [remaining] = await peekOutbox();
+    expect((remaining.operation as { transactions: SaleTransaction[] }).transactions[0].id).toBe(
+      'TX-during-upload',
+    );
+  });
+
+  // The comment on sendOperation claims an ordering guarantee; continuing past
+  // a refused table would send a transaction whose product rows never landed.
+  it('stops at the first table the server refuses', async () => {
+    vi.mocked(supabaseLib.pushProducts).mockResolvedValue(false);
+
+    await syncToCloudIfEnabled([product], undefined, undefined, [transaction]);
+
+    expect(supabaseLib.pushProducts).toHaveBeenCalled();
+    expect(supabaseLib.pushTransactions).not.toHaveBeenCalled();
+    expect(await pendingCloudWrites()).toBe(1);
+  });
 });
 
 // A pull replaces local data with the server's copy, so anything this terminal
@@ -243,6 +301,30 @@ describe('pulling while writes are still owed', () => {
     // Still owed — the caller reads pendingCloudWrites() and warns before
     // replacing anything.
     expect(await pendingCloudWrites()).toBe(1);
+  });
+
+  // Settings pulls with whatever is typed in the form, which need not be what
+  // is saved. Draining against the saved config would skip the drain entirely
+  // and then replace local data anyway.
+  it('drains with the credentials the pull itself is using, not the saved ones', async () => {
+    vi.mocked(supabaseLib.signInDevice).mockResolvedValue(false);
+    await syncToCloudIfEnabled([product]);
+    expect(await pendingCloudWrites()).toBe(1);
+
+    // The operator has since switched sync off / cleared the saved project.
+    setState({ supabaseConfig: { enabled: false, url: '', anonKey: '' }, storeId: '' });
+    vi.mocked(supabaseLib.signInDevice).mockResolvedValue(true);
+    vi.setSystemTime(Date.now() + 60_000);
+
+    await pullAllFromCloud('https://typed-in-the-form.supabase.co', 'typed-key');
+
+    expect(supabaseLib.pushProducts).toHaveBeenCalled();
+    expect(await pendingCloudWrites()).toBe(0);
+    // And it used the credentials it was handed.
+    expect(supabaseLib.getSupabaseClient).toHaveBeenCalledWith(
+      'https://typed-in-the-form.supabase.co',
+      'typed-key',
+    );
   });
 });
 

@@ -224,6 +224,26 @@ describe('buildSaleTransaction — money is recomputed, never accepted', () => {
     expect(tx.total).toBe(0);
   });
 
+  it('rounds a fixed discount to the cent it is actually applied at', () => {
+    // The discount box is a text field. An unrounded discount leaves
+    // `subtotal - discount` disagreeing with the cent-rounded taxable amount
+    // that tax and total are derived from, so the record contradicts itself.
+    const tx = ok(
+      buildSaleTransaction({
+        ...baseReq,
+        discountType: 'fixed',
+        discountValue: 1.234,
+        cashPaidText: '100',
+      }),
+    );
+    expect(tx.discount).toBe(1.23);
+    expect(tx.discountValue).toBe(1.23);
+    // 20 - 1.23 = 18.77 taxable, 10% = 1.88, total 20.65.
+    expect(tx.tax).toBe(1.88);
+    expect(tx.total).toBe(20.65);
+    expect(Number((tx.subtotal - tx.discount + tx.tax).toFixed(2))).toBe(tx.total);
+  });
+
   it('records a percentage discount clamped to 100', () => {
     const tx = ok(
       buildSaleTransaction({
@@ -235,6 +255,40 @@ describe('buildSaleTransaction — money is recomputed, never accepted', () => {
     );
     expect(tx.discountValue).toBe(100);
     expect(tx.discount).toBe(20);
+  });
+});
+
+// Loyalty points are a currency the customer can spend, so a settings value
+// that has gone bad must not be able to mint or destroy them.
+describe('buildSaleTransaction — loyalty points earned', () => {
+  const ok = (r: ReturnType<typeof buildSaleTransaction>) => {
+    if (!r.success) throw new Error(`expected a sale, got ${r.error}`);
+    return r;
+  };
+
+  it('awards points at the configured rate', () => {
+    const res = ok(buildSaleTransaction(baseReq));
+    expect(res.transaction.pointsEarned).toBe(22);
+    expect(res.pointsDelta).toBe(22);
+  });
+
+  it.each([-1, Number.NaN, Number.POSITIVE_INFINITY])(
+    'awards nothing rather than corrupting the balance when the rate is %s',
+    (loyaltyPointsRate) => {
+      const res = ok(
+        buildSaleTransaction({ ...baseReq, settings: { ...mockSettings, loyaltyPointsRate } }),
+      );
+      // A negative rate would deduct points the customer never spent; a NaN one
+      // poisons every sum it later reaches, silently.
+      expect(res.transaction.pointsEarned).toBe(0);
+      expect(res.pointsDelta).toBe(0);
+    },
+  );
+
+  it('awards nothing when no customer is linked', () => {
+    const res = ok(buildSaleTransaction({ ...baseReq, selectedCustomerId: null }));
+    expect(res.transaction.pointsEarned).toBeUndefined();
+    expect(res.pointsDelta).toBe(0);
   });
 });
 

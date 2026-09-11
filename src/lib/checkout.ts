@@ -206,8 +206,12 @@ export function buildSaleTransaction(req: CheckoutRequest): CheckoutOutcome {
 
   const nextId = `TX-${shortId().toUpperCase()}`;
 
+  // The rate is clamped like taxRate and loyaltyPointValue are. A negative or
+  // non-finite setting would otherwise award negative or NaN points — which
+  // reach both the transaction and the customer's balance, and NaN compares
+  // false against everything it later touches.
   const pointsEarned = req.selectedCustomerId
-    ? Math.floor(totalAmount * req.settings.loyaltyPointsRate)
+    ? Math.floor(totalAmount * nonNegative(req.settings.loyaltyPointsRate))
     : undefined;
 
   // For a loyalty discount this IS the point count redeemed, which is why the
