@@ -70,6 +70,31 @@ ALTER TABLE login_attempts ALTER COLUMN scope_key SET NOT NULL;
 ALTER TABLE login_attempts DROP CONSTRAINT IF EXISTS login_attempts_pkey;
 ALTER TABLE login_attempts ADD CONSTRAINT login_attempts_pkey PRIMARY KEY (scope_key);
 
+-- How many stores this deployment has.
+--
+-- The one question that decides whether "no store configured" is a legitimate
+-- single-store install or a misconfigured terminal, and it is asked in both
+-- halves of the system: here, by verify_login below, and by the client before
+-- it issues a pull. Keeping one definition means the two cannot disagree about
+-- which deployments are scoped.
+--
+-- SECURITY DEFINER because the caller is by definition not yet scoped to a
+-- store, so it cannot pass the RLS predicate on `stores`. It returns a count and
+-- nothing else — no id, no name, no org — so it discloses only the single fact
+-- the decision needs. Granted to anon as well as authenticated: a terminal with
+-- no device account still has to find out that it must not pull the fleet.
+CREATE OR REPLACE FUNCTION public.pos_store_count()
+RETURNS INTEGER
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT count(*)::INTEGER FROM stores;
+$$;
+REVOKE ALL ON FUNCTION public.pos_store_count() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.pos_store_count() TO anon, authenticated;
+
 -- Replace the single-store login routine with a compatible three-argument form.
 --
 -- This body deliberately restates the throttle from src/db/schema.sql §7 rather
@@ -152,15 +177,40 @@ BEGIN
     glob.failures := 0;
   END IF;
 
-  SELECT * INTO matched
-  FROM user_accounts ua
-  WHERE ua.name = p_name
-    AND ua.pin = p_pin_hash
-    AND ua.active = TRUE
-    AND (p_store_id IS NULL OR ua.store_id = p_store_id)
-  LIMIT 1;
+  -- An unscoped call used to match an account in ANY store, because
+  -- `p_store_id IS NULL OR ...` reads as "no store named, so every store will
+  -- do". On a database holding more than one store that is a cross-store
+  -- authentication hole: store B's manager name and PIN opened store A's till,
+  -- and it compounds with the unscoped pull that put B's staff on A's terminal
+  -- in the first place.
+  --
+  -- "No store named" now means "only if there is no ambiguity": one store in
+  -- the database and the match is unambiguous, which keeps single-store installs
+  -- and the upgrade path (a terminal whose Store ID is not set yet, against a
+  -- database backfilled to one 'store-default') working exactly as before. Two
+  -- or more stores and the caller has to say which one it is.
+  --
+  -- Refusing here is safe for a terminal's own staff: the lockscreen checks the
+  -- local PIN first and only falls back to this RPC, so the people who work in
+  -- the store still sign in. What stops working is signing in to a store you do
+  -- not belong to.
+  IF p_store_id IS NULL AND public.pos_store_count() > 1 THEN
+    matched := NULL;
+  ELSE
+    SELECT * INTO matched
+    FROM user_accounts ua
+    WHERE ua.name = p_name
+      AND ua.pin = p_pin_hash
+      AND ua.active = TRUE
+      AND (p_store_id IS NULL OR ua.store_id = p_store_id)
+    LIMIT 1;
+  END IF;
 
-  IF FOUND THEN
+  -- Tested on `matched`, not on FOUND. FOUND reports whether the LAST SQL
+  -- statement touched a row, and the refusal branch above runs no SQL at all —
+  -- so FOUND would still be carrying the result of the attempt-ledger query and
+  -- this would return a row of NULLs as a successful login.
+  IF matched.id IS NOT NULL THEN
     DELETE FROM login_attempts la WHERE la.scope_key IN (attempt_key, global_key);
     RETURN QUERY SELECT matched.id, matched.name, matched.role, matched.active, matched.created_at;
     RETURN;

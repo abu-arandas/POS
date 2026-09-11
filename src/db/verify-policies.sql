@@ -149,6 +149,42 @@ BEGIN
     END LOOP;
   END IF;
 
+  -- A database holding several stores must not authenticate across them. This
+  -- is checked by CALLING verify_login rather than by reading its source: the
+  -- routine is redefined by multi-store-schema.sql, and a database still
+  -- carrying the older two-argument form would read as fine while an unscoped
+  -- call matched a staff account in an arbitrary store.
+  IF (SELECT count(*) FROM stores) > 1 THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.proname = 'pos_store_count'
+    ) THEN
+      problems := problems || 'pos_store_count() is missing: re-run src/db/multi-store-schema.sql'::text;
+    ELSE
+      -- Structural first, and separately, because the two failures have
+      -- different fixes and the behavioural probe below cannot even run while
+      -- the overload exists: a two-argument call against both candidates is
+      -- ambiguous, and Postgres raises that instead of answering.
+      IF EXISTS (
+        SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname = 'verify_login' AND p.pronargs = 2
+      ) THEN
+        problems := problems ||
+          'the unscoped two-argument verify_login is present on a multi-store database (re-run src/db/schema.sql)'::text;
+      ELSE
+        -- A real account's own credentials, offered WITHOUT naming its store.
+        -- Three arguments so the call is unambiguous whatever else is defined.
+        IF EXISTS (
+          SELECT 1 FROM user_accounts ua
+          WHERE (SELECT count(*) FROM public.verify_login(ua.name, ua.pin, NULL)) > 0
+        ) THEN
+          problems := problems ||
+            'verify_login authenticates without a store id on a multi-store database'::text;
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
   IF array_length(problems, 1) > 0 THEN
     RAISE EXCEPTION E'Access-control contract violated:\n  - %', array_to_string(problems, E'\n  - ');
   END IF;

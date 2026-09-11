@@ -53,7 +53,8 @@ import {
   syncToCloudIfEnabled,
   deleteUsersCloudIfEnabled,
 } from '../lib/sync';
-import { resolveDeviceAuthConfigured } from '../lib/supabase';
+import { getSupabaseClient, resolveDeviceAuthConfigured } from '../lib/supabase';
+import { storeScopeWarning } from '../lib/supabase/storeScope';
 
 type SettingsTab =
   'profile' | 'printer' | 'kitchen_printer' | 'scanner' | 'supabase' | 'users' | 'danger';
@@ -401,14 +402,27 @@ export default function Settings() {
     return false;
   };
 
-  const handleSaveConfig = () => {
+  const handleSaveConfig = async () => {
     persistConfig(supabaseConfig.status);
     // The store scope is what stamps store_id on every synced row. Without a
     // way to set it, multi-store mode was documented but unreachable, and
     // running multi-store-rls-enforce.sql would have locked terminals out of
     // their own data.
-    setStoreId(sbStoreId.trim());
+    const trimmed = sbStoreId.trim();
+    setStoreId(trimmed);
     notify(t('settings.configSaved'));
+
+    // Say so here rather than letting the operator discover it as a silent
+    // failure later. Leaving this blank against a database holding several
+    // stores is the misconfiguration that used to pull the whole fleet onto one
+    // till; sync now refuses instead, which is safe but looks like nothing
+    // happening unless somebody explains it.
+    if (!trimmed && sbUrl.trim() && sbKey.trim()) {
+      const client = getSupabaseClient(sbUrl.trim(), sbKey.trim());
+      if (client && (await storeScopeWarning(client, trimmed))) {
+        notify(t('settings.storeIdRequired'), 'error');
+      }
+    }
   };
 
   const handleToggleEnabled = (value: boolean) => {

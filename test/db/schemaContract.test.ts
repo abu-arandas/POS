@@ -296,3 +296,93 @@ describe('the variant columns survive an upgrade in place', () => {
     expect(push).toMatch(/variants\s*=\s*EXCLUDED\.variants/i);
   });
 });
+
+describe('one database, several stores, no crossing between them', () => {
+  // The store dimension is only worth anything if "no store named" stops
+  // meaning "any store will do". It meant exactly that in two places at once:
+  // the client omitted its `.eq('store_id', …)` filter, so an unscoped terminal
+  // pulled every shop's rows — staff accounts included — and verify_login then
+  // matched a PIN against an account in ANY store, so those imported staff could
+  // sign in. Either alone is a leak; together they hand every store's staff a
+  // working login on every other store's till.
+
+  it('publishes the store count through a definer function, not a table read', () => {
+    // The caller is by definition not yet scoped to a store, so it cannot pass
+    // the RLS predicate on `stores`. SECURITY DEFINER with a pinned search_path
+    // is what lets it answer at all without opening the table itself.
+    expect(multiStoreSql).toMatch(/CREATE OR REPLACE FUNCTION public\.pos_store_count\(\)/i);
+    const fn = multiStoreSql
+      .split('$$')
+      .find((chunk) => /SELECT count\(\*\)::INTEGER FROM stores/i.test(chunk));
+    expect(fn).toBeDefined();
+    const declaration = multiStoreSql.slice(
+      multiStoreSql.indexOf('CREATE OR REPLACE FUNCTION public.pos_store_count'),
+      multiStoreSql.indexOf('$$'),
+    );
+    expect(declaration).toMatch(/SECURITY DEFINER/i);
+    expect(declaration).toMatch(/SET search_path = public/i);
+  });
+
+  it('lets an unscoped terminal ask, without letting it read the store list', () => {
+    // Granted to anon too: a terminal with no device account still has to be
+    // able to find out that it must not pull the fleet. It returns a count and
+    // nothing else — no id, no name, no org.
+    expect(multiStoreSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.pos_store_count\(\) FROM PUBLIC/i,
+    );
+    expect(multiStoreSql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.pos_store_count\(\) TO anon, authenticated/i,
+    );
+  });
+
+  it('refuses an unscoped login once the database holds more than one store', () => {
+    expect(multiStoreSql).toMatch(
+      /IF p_store_id IS NULL AND public\.pos_store_count\(\) > 1 THEN\s+matched := NULL;/i,
+    );
+  });
+
+  it('decides the login on the matched row, never on FOUND', () => {
+    // FOUND reports whether the LAST SQL statement touched a row, and the
+    // refusal branch runs no SQL at all — so a FOUND left true by the
+    // attempt-ledger query above would return a row of NULLs as a successful
+    // login, on exactly the path that is supposed to be refusing one.
+    const body = multiStoreSql.slice(
+      multiStoreSql.indexOf('CREATE OR REPLACE FUNCTION public.verify_login'),
+    );
+    expect(body).toMatch(/IF matched\.id IS NOT NULL THEN/);
+    expect(body.slice(0, body.indexOf('IF matched.id IS NOT NULL'))).not.toMatch(/IF FOUND THEN/);
+  });
+});
+
+describe('re-running the base schema cannot restore the unscoped login', () => {
+  // Re-running schema.sql is the documented upgrade path, and its CREATE put the
+  // two-argument verify_login — the one that matches a staff name and PIN in ANY
+  // store — straight back onto a migrated database. Postgres overloads on the
+  // signature, so it landed BESIDE the store-scoped three-argument form rather
+  // than replacing it, leaving the database carrying both a scoped login and the
+  // unscoped one it had been migrated away from.
+
+  it('drops the two-argument form when the store-scoped one exists', () => {
+    expect(schemaSql).toMatch(/DROP FUNCTION IF EXISTS public\.verify_login\(TEXT, TEXT\)/i);
+  });
+
+  it('detects the scoped form by argument count, not by a formatted signature', () => {
+    // pg_get_function_identity_arguments spells the parameter NAMES out too
+    // ('p_name text, p_pin_hash text, p_store_id text'), so comparing it against
+    // a bare 'text, text, text' silently never matches and the guard quietly
+    // does nothing — which is exactly how this was first written.
+    const guard = schemaSql.slice(
+      schemaSql.indexOf('GRANT EXECUTE ON FUNCTION public.verify_login(TEXT, TEXT)'),
+    );
+    expect(guard).toMatch(/p\.proname = 'verify_login' AND p\.pronargs = 3/);
+    expect(guard).not.toMatch(/pg_get_function_identity_arguments\(p\.oid\) = 'text, text, text'/);
+  });
+
+  it('still creates it for a fresh single-store install', () => {
+    // The guard only fires when the three-argument form is present, so a
+    // database that never took the store dimension is untouched.
+    expect(schemaSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.verify_login\(p_name TEXT, p_pin_hash TEXT\)/i,
+    );
+  });
+});

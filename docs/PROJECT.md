@@ -856,6 +856,46 @@ snapshot that never contained it. Settings asks for confirmation naming the coun
 queue will not drain. A successful `pushAllToCloud` drops queued _pushes_ (it has just sent
 the same rows in their newest form) and keeps queued deletes, which a push does not cover.
 
+### 8.3a Store scope — `supabase/storeScope.ts`
+
+One Supabase project can hold several shops, and every store-scoping decision
+used to read the same way: `if (storeId)`. An **empty** store id therefore meant
+"do not filter", so a terminal whose Store ID had never been set
+
+- pulled **every** store's products, categories, customers, transactions and
+  **staff accounts** — and because Pull From Cloud _replaces_ local data, another
+  shop's catalogue and staff landed on this till;
+- had its cloud login accept those imported staff members' PINs, because
+  `verify_login` read an absent store the same way (`p_store_id IS NULL OR …`);
+- pushed rows with `store_id` NULL, invisible to every scoped pull and enough to
+  block `multi-store-rls-enforce.sql`'s NOT NULL guard.
+
+Absence is no longer a wildcard. "No store configured" is a legitimate
+single-store install _and_ a misconfiguration on a database holding several
+stores; the only thing that separates them is how many stores there are, which
+is what `pos_store_count()` answers. `SECURITY DEFINER`, because the caller is by
+definition not yet scoped and cannot pass the RLS predicate on `stores`; it
+returns a count and nothing else. The same function decides it in both halves of
+the system — here, and inside `verify_login` — so the client and the database
+cannot disagree about which deployments are scoped.
+
+`isSyncBlocked(client, storeId, operation)` applies it:
+
+| Situation                                            | Pull        | Push        |
+| ---------------------------------------------------- | ----------- | ----------- |
+| A store id is configured                             | allowed     | allowed     |
+| No store id, one store (or a pre-migration database) | allowed     | allowed     |
+| No store id, several stores                          | **refused** | **refused** |
+| Scope could not be established                       | **refused** | allowed     |
+
+A pull is the strict one because it **replaces** local data and has no undo. A
+push is additive and the outbox retries it, so an unestablished scope lets it
+through — whatever stopped the scope check will stop the write too. A refused
+push stays queued, so the sale is not lost: it goes as soon as the Store ID is
+set. The count is cached per client for five minutes — keyed by client, not
+module-global, so a terminal repointed at a different project cannot answer out
+of the old one's cache.
+
 ### 8.4a The outbox — `outbox.ts`
 
 | Function                      | Purpose                                                                 |

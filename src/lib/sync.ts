@@ -16,6 +16,7 @@ import {
   verifyLoginCloud,
   SyncTable,
 } from './supabase';
+import { isSyncBlocked } from './supabase/storeScope';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useSettingsStore } from '../stores/settingsStore';
 import { notify } from './utils/ui';
@@ -102,6 +103,13 @@ const sendOperation = async (
   // continuing past a failed table sends exactly that. The whole entry is
   // retried from the top either way, and every push is an idempotent upsert, so
   // stopping costs nothing and keeps the ordering the comment claims.
+  // A terminal with no Store ID against a database holding several stores must
+  // not write unscoped rows: store_id lands NULL, every scoped pull is then
+  // blind to them, and they block multi-store-rls-enforce.sql's NOT NULL guard.
+  // Refusing keeps the entry queued, so the rows are not lost — they go as soon
+  // as the Store ID is set.
+  if (await isSyncBlocked(client, storeId, 'push')) return 'rejected';
+
   const { products, categories, customers, transactions, users } = operation;
   const tables: Array<() => Promise<boolean>> = [];
   if (products?.length) tables.push(() => pushProducts(client, products, storeId));
@@ -225,6 +233,12 @@ export const cloudLogin = async (name: string, pinHash: string): Promise<UserAcc
   try {
     await ensureDeviceSession(client);
     const { storeId } = useSettingsStore.getState();
+    // verify_login refuses an unscoped call on a multi-store database by itself,
+    // so this is belt-and-braces rather than the guard — but it saves a round
+    // trip, and it keeps the client's rule and the database's rule visibly the
+    // same one. Treated as a pull: a login that cannot establish its scope is
+    // refused, and the lockscreen's local PIN check has already run.
+    if (await isSyncBlocked(client, storeId, 'pull')) return null;
     return storeId
       ? await verifyLoginCloud(client, name, pinHash, storeId)
       : await verifyLoginCloud(client, name, pinHash);
@@ -291,6 +305,8 @@ export const pushAllToCloud = async (
   }
 
   const { storeId } = useSettingsStore.getState();
+  if (await isSyncBlocked(client, storeId, 'push')) return false;
+
   const results = await Promise.all([
     pushCategories(client, data.categories, storeId),
     pushProducts(client, data.products, storeId),
@@ -342,6 +358,12 @@ export const pullAllFromCloud = async (
   await retryPendingCloudWrites({ url, anonKey });
 
   const { storeId } = useSettingsStore.getState();
+  // The strictest of the three. A pull REPLACES local data, so an unscoped pull
+  // against a multi-store database does not merely read too much — it puts
+  // another shop's catalogue, customers and staff on this till, and there is no
+  // undo. Refused unless the scope is positively established.
+  if (await isSyncBlocked(client, storeId, 'pull')) return null;
+
   const [categories, products, customers, users, transactions] = await Promise.all([
     pullCategories(client, storeId),
     pullProducts(client, storeId),
