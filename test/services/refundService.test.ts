@@ -160,3 +160,114 @@ describe('commitRefund', () => {
     );
   });
 });
+
+const tee = (): Product =>
+  product({
+    id: 'p2',
+    name: 'Tee',
+    sku: 'TEE',
+    stock: 3,
+    variantTypes: [
+      {
+        id: 'vt-size',
+        name: 'Size',
+        options: [
+          { id: 'o-s', name: 'Small' },
+          { id: 'o-l', name: 'Large' },
+        ],
+      },
+    ],
+    variants: [
+      { id: 'v-s', options: { 'vt-size': 'o-s' }, sku: 'TEE-S', stock: 2 },
+      { id: 'v-l', options: { 'vt-size': 'o-l' }, sku: 'TEE-L', price: 25, stock: 1 },
+    ],
+  });
+
+const variantSale = (): SaleTransaction =>
+  sale({
+    id: 'TX-V',
+    items: [
+      {
+        productId: 'p2',
+        productName: 'Tee',
+        variantId: 'v-s',
+        variantName: 'Small',
+        price: 20,
+        cost: 8,
+        quantity: 1,
+        total: 20,
+      },
+      {
+        productId: 'p2',
+        productName: 'Tee',
+        variantId: 'v-l',
+        variantName: 'Large',
+        price: 25,
+        cost: 8,
+        quantity: 1,
+        total: 25,
+      },
+    ],
+    subtotal: 45,
+    tax: 4.5,
+    total: 49.5,
+  });
+
+const liveTee = () => useProductStore.getState().products.find((p) => p.id === 'p2')!;
+const stockOf = (variantId: string) => liveTee().variants!.find((v) => v.id === variantId)!.stock;
+
+describe('commitRefund with variants', () => {
+  beforeEach(() => {
+    syncToCloudIfEnabled.mockClear();
+    useProductStore.setState({ products: [tee()], categories: [] });
+    useCustomerStore.setState({ customers: [] });
+    useTransactionStore.setState({ transactions: [variantSale()] });
+  });
+
+  it('restocks the variant that came back, not the product', () => {
+    const result = commitRefund('TX-V', { 'p2::v-l': 1 }, 'Ada (manager)', 1, 0.05);
+
+    expect(result).not.toBeNull();
+    expect(stockOf('v-l')).toBe(2);
+    expect(stockOf('v-s')).toBe(2);
+    expect(liveTee().stock).toBe(4);
+  });
+
+  it('accumulates a return of two variants onto one product record', () => {
+    // Applied one at a time against the catalogue, the second credit would be
+    // computed from the pre-restock record and undo the first.
+    commitRefund('TX-V', { 'p2::v-s': 1, 'p2::v-l': 1 }, 'Ada (manager)', 1, 0.05);
+
+    expect(stockOf('v-s')).toBe(3);
+    expect(stockOf('v-l')).toBe(2);
+    expect(liveTee().stock).toBe(5);
+
+    const [pushed] = syncToCloudIfEnabled.mock.calls.at(-1)! as [Product[]];
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0].stock).toBe(5);
+  });
+
+  it('returns the money for a variant that has since been deleted, without inventing stock', () => {
+    // The customer handed the goods over, so the refund stands. There is just
+    // nowhere honest to put the unit back — crediting the parent would
+    // overstate a size the shop does not have.
+    useProductStore.setState({
+      products: [{ ...tee(), variants: tee().variants!.filter((v) => v.id !== 'v-l') }],
+    });
+
+    const result = commitRefund('TX-V', { 'p2::v-l': 1 }, 'Ada (manager)', 1, 0.05);
+
+    expect(result).not.toBeNull();
+    expect(result!.computation.refundAmount).toBeGreaterThan(0);
+    expect(stockOf('v-s')).toBe(2);
+    expect(useTransactionStore.getState().transactions[0].status).toBe('partial');
+  });
+
+  it('persists the variant on the refunded-items row', () => {
+    commitRefund('TX-V', { 'p2::v-s': 1 }, 'Ada (manager)', 1, 0.05);
+
+    expect(useTransactionStore.getState().transactions[0].refundedItems).toEqual([
+      { productId: 'p2', variantId: 'v-s', quantity: 1 },
+    ]);
+  });
+});

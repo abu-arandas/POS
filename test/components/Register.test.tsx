@@ -302,3 +302,111 @@ describe('Register — checkout printing', () => {
     expect(order).toEqual(['receipt:start', 'receipt:end', 'ticket:start']);
   });
 });
+
+// One varianted product: 2 Small @ $4 (inherited) and 1 Large @ $6.
+const VARIANTED = (): Product =>
+  product({
+    id: 'p-v',
+    name: 'Juice',
+    price: 4,
+    stock: 3,
+    variantTypes: [
+      {
+        id: 'vt-size',
+        name: 'Size',
+        options: [
+          { id: 'o-s', name: 'Small' },
+          { id: 'o-l', name: 'Large' },
+        ],
+      },
+    ],
+    variants: [
+      { id: 'v-s', options: { 'vt-size': 'o-s' }, sku: 'JCE-S', stock: 2 },
+      { id: 'v-l', options: { 'vt-size': 'o-l' }, sku: 'JCE-L', price: 6, stock: 1 },
+    ],
+  });
+
+const picker = () => document.querySelector('#variant-picker-modal') as HTMLElement;
+
+describe('Register — variants', () => {
+  beforeEach(() => {
+    useProductStore.setState({
+      products: [product({ id: 'p-1' }), VARIANTED()],
+      categories: [{ id: 'cat-1', name: 'Drinks', color: '' }],
+    });
+  });
+
+  it('opens a picker instead of adding a varianted product straight to the cart', async () => {
+    render(<Register />);
+    await addToCart('Juice');
+
+    await waitFor(() => expect(picker()).toBeTruthy());
+    expect(within(cart()).queryByText('Juice')).not.toBeInTheDocument();
+  });
+
+  it('adds the chosen variant at the variant’s own price', async () => {
+    const user = userEvent.setup();
+    render(<Register />);
+    await addToCart('Juice');
+    await waitFor(() => expect(picker()).toBeTruthy());
+
+    await user.click(within(picker()).getByRole('button', { name: 'Large' }));
+    await user.click(within(picker()).getByRole('button', { name: /Add to Cart/i }));
+
+    await waitFor(() => expect(document.querySelector('#variant-picker-modal')).toBeNull());
+    // $6.00 + 10% tax = $6.60, not the product's $4.
+    await waitFor(() => expect(within(cart()).getByText('$6.60')).toBeInTheDocument());
+    expect(within(cart()).getByText('Large')).toBeInTheDocument();
+  });
+
+  it('keeps two variants of one product as two cart lines', async () => {
+    const user = userEvent.setup();
+    render(<Register />);
+
+    await addToCart('Juice');
+    await waitFor(() => expect(picker()).toBeTruthy());
+    await user.click(within(picker()).getByRole('button', { name: 'Small' }));
+    await user.click(within(picker()).getByRole('button', { name: /Add to Cart/i }));
+
+    await addToCart('Juice');
+    await waitFor(() => expect(picker()).toBeTruthy());
+    await user.click(within(picker()).getByRole('button', { name: 'Large' }));
+    await user.click(within(picker()).getByRole('button', { name: /Add to Cart/i }));
+
+    await waitFor(() => expect(within(cart()).getByText('Small')).toBeInTheDocument());
+    expect(within(cart()).getByText('Large')).toBeInTheDocument();
+    // 4 + 6 = 10, +10% tax.
+    await waitFor(() => expect(within(cart()).getByText('$11.00')).toBeInTheDocument());
+  });
+
+  it('sells through to the right variant’s stock', async () => {
+    const user = userEvent.setup();
+    render(<Register />);
+    await addToCart('Juice');
+    await waitFor(() => expect(picker()).toBeTruthy());
+    await user.click(within(picker()).getByRole('button', { name: 'Large' }));
+    await user.click(within(picker()).getByRole('button', { name: /Add to Cart/i }));
+
+    await checkout();
+    await complete();
+
+    await waitFor(() => {
+      const live = useProductStore.getState().products.find((p) => p.id === 'p-v')!;
+      expect(live.variants!.find((v) => v.id === 'v-l')!.stock).toBe(0);
+      expect(live.variants!.find((v) => v.id === 'v-s')!.stock).toBe(2);
+      // Derived, so it follows without being written.
+      expect(live.stock).toBe(2);
+    });
+
+    const [tx] = useTransactionStore.getState().transactions;
+    expect(tx.items[0]).toMatchObject({ variantId: 'v-l', variantName: 'Large', price: 6 });
+  });
+
+  it('shows a from-price on a card whose variants do not share one price', async () => {
+    render(<Register />);
+    const grid = document.querySelector('#products-grid') as HTMLElement;
+    const card = within(grid).getByRole('button', { name: /Juice/ });
+    // The cheapest variant, not the product's own price, and marked as a floor.
+    expect(card).toHaveAttribute('aria-label', expect.stringContaining('from $4.00'));
+  });
+});

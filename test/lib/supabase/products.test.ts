@@ -66,6 +66,8 @@ describe('product sync', () => {
       stock: 24,
       min_stock: 6,
       image: 'https://example.com/fw.png',
+      variant_types: null,
+      variants: null,
     });
   });
 
@@ -174,5 +176,103 @@ describe('how the category pull walks the table', () => {
     const unscoped = makePagedClient([{ data: [] }]);
     await pullCategories(unscoped.client);
     expect(unscoped.eq).not.toHaveBeenCalled();
+  });
+});
+
+describe('variant columns', () => {
+  const varianted = {
+    ...product,
+    variantTypes: [{ id: 'vt-size', name: 'Size', options: [{ id: 'o-l', name: 'Large' }] }],
+    variants: [{ id: 'v-l', options: { 'vt-size': 'o-l' }, sku: 'FW-L', stock: 24 }],
+  };
+
+  it('sends the matrix as JSON columns', () => {
+    const row = toProductRow(varianted);
+    expect(row.variant_types).toEqual(varianted.variantTypes);
+    expect(row.variants).toEqual(varianted.variants);
+  });
+
+  it('writes NULL for a plain product rather than omitting the columns', () => {
+    // PostgREST drops an undefined key from the payload, so a product that HAD
+    // variants and no longer does would keep its old matrix in the cloud row
+    // and get it back on the next pull.
+    const row = toProductRow(product);
+    expect(row.variant_types).toBeNull();
+    expect(row.variants).toBeNull();
+  });
+});
+
+describe('pushing to a database whose variant migration has not run', () => {
+  /** Refuses the first upsert for an unknown column, then accepts the retry. */
+  function preMigrationClient(column: string) {
+    const attempts: Record<string, unknown>[][] = [];
+    const client = {
+      from: () => ({
+        upsert: (rows: Record<string, unknown>[]) => {
+          attempts.push(rows);
+          return attempts.length === 1
+            ? {
+                error: {
+                  code: 'PGRST204',
+                  message: `Could not find the '${column}' column of 'products' in the schema cache`,
+                },
+              }
+            : { error: null };
+        },
+      }),
+    } as unknown as SupabaseClient;
+    return { client, attempts };
+  }
+
+  it('still syncs the catalogue, without the variant columns', async () => {
+    // The app updates itself and the schema does not. Failing outright here
+    // would stop prices, stock levels and every sale's decrement from syncing
+    // over a feature the store may not even use.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { client, attempts } = preMigrationClient('variant_types');
+
+    expect(await pushProducts(client, [product])).toBe(true);
+    expect(attempts).toHaveLength(2);
+    expect(attempts[0][0]).toHaveProperty('variant_types');
+    expect(attempts[1][0]).not.toHaveProperty('variant_types');
+    expect(attempts[1][0]).not.toHaveProperty('variants');
+    // Everything else still goes.
+    expect(attempts[1][0]).toMatchObject({ id: 'PROD-1', stock: 24 });
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('handles the underlying Postgres code too', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const attempts: Record<string, unknown>[][] = [];
+    const client = {
+      from: () => ({
+        upsert: (rows: Record<string, unknown>[]) => {
+          attempts.push(rows);
+          return attempts.length === 1
+            ? { error: { code: '42703', message: 'column "variants" does not exist' } }
+            : { error: null };
+        },
+      }),
+    } as unknown as SupabaseClient;
+
+    expect(await pushProducts(client, [product])).toBe(true);
+    expect(attempts).toHaveLength(2);
+    warn.mockRestore();
+  });
+
+  it('does not swallow an unrelated failure as a missing column', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await pushProducts(rejectingClient(), [product])).toBe(false);
+    error.mockRestore();
+  });
+
+  it('does not treat a missing-column error for another column as this one', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { client, attempts } = preMigrationClient('min_stock');
+
+    expect(await pushProducts(client, [product])).toBe(false);
+    expect(attempts).toHaveLength(1); // no blind retry
+    error.mockRestore();
   });
 });

@@ -128,7 +128,11 @@ export function TransactionDetailPanel({
             </div>
             {transaction.items.map((item, idx) => (
               <div key={idx} className="grid grid-cols-12">
-                <span className="col-span-8 truncate pe-2">{item.productName}</span>
+                <span className="col-span-8 truncate pe-2">
+                  {item.variantName
+                    ? `${item.productName} — ${item.variantName}`
+                    : item.productName}
+                </span>
                 <span className="col-span-2 text-center">{item.quantity}</span>
                 <span className="col-span-2 text-end">
                   {settings.currency}

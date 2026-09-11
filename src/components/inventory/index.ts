@@ -21,3 +21,5 @@ export { ReceiveStockModal } from './ReceiveStockModal';
 export type { ReceiveStockModalProps } from './ReceiveStockModal';
 export { SupplierFormModal } from './SupplierFormModal';
 export type { SupplierFormModalProps } from './SupplierFormModal';
+export { VariantsEditor } from './VariantsEditor';
+export type { VariantsEditorProps } from './VariantsEditor';

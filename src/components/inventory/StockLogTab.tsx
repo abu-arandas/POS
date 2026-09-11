@@ -53,7 +53,7 @@ export function InventoryStockLogTab({ t, adjustments }: InventoryStockLogTabPro
                   </td>
                   <td className="p-4">
                     <span className="font-bold text-slate-900 dark:text-white block">
-                      {a.productName}
+                      {a.variantName ? `${a.productName} — ${a.variantName}` : a.productName}
                     </span>
                     {a.supplierName && (
                       <span className="text-xs text-slate-500 font-mono mt-1 flex items-center gap-1">

@@ -264,3 +264,35 @@ describe('the demo escape hatch stays shut', () => {
     }
   });
 });
+
+describe('the variant columns survive an upgrade in place', () => {
+  // Re-running schema.sql is the documented upgrade path, so the columns have
+  // to arrive by ALTER TABLE as well as by CREATE TABLE. An install that
+  // predates variants never re-creates `products` — it only re-runs the script
+  // — and without these two statements its terminals would keep pushing a
+  // matrix into columns that do not exist.
+  it('adds both columns to an existing products table', () => {
+    expect(schemaSql).toMatch(/ALTER TABLE products ADD COLUMN IF NOT EXISTS variant_types JSONB/i);
+    expect(schemaSql).toMatch(/ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB/i);
+  });
+
+  it('creates them on a fresh products table too', () => {
+    const createProducts = schemaSql
+      .split(';')
+      .find((statement) => /CREATE TABLE IF NOT EXISTS products/i.test(statement))!;
+    expect(createProducts).toMatch(/variant_types\s+JSONB/i);
+    expect(createProducts).toMatch(/variants\s+JSONB/i);
+  });
+
+  it('carries them through the fleet catalog push, on insert and on update', () => {
+    // A catalogue push that dropped them would land a varianted product in the
+    // target store as a single unsellable SKU — and the DO UPDATE half is the
+    // easy one to forget, which would silently freeze the matrix of every
+    // product the push has already created.
+    const push = multiStoreSql.split('$$').find((chunk) => /INSERT INTO products/i.test(chunk))!;
+    expect(push).toMatch(/INSERT INTO products[\s\S]*?variant_types,\s*variants/i);
+    expect(push).toMatch(/variant_types JSONB, variants JSONB/i);
+    expect(push).toMatch(/variant_types\s*=\s*EXCLUDED\.variant_types/i);
+    expect(push).toMatch(/variants\s*=\s*EXCLUDED\.variants/i);
+  });
+});

@@ -2,7 +2,8 @@ import type { FormEvent, RefObject } from 'react';
 import { ModalShell } from '../shared/ModalShell';
 import type { TFunction } from 'i18next';
 import { Check, Edit2, Image as ImageIcon, Layers, PackagePlus, Plus, X } from 'lucide-react';
-import type { Category, Product, StoreSettings } from '../../types';
+import type { Category, Product, ProductVariant, StoreSettings, VariantType } from '../../types';
+import { VariantsEditor } from './VariantsEditor';
 
 export interface ProductFormModalProps {
   t: TFunction;
@@ -19,6 +20,8 @@ export interface ProductFormModalProps {
   prodMinStock: string;
   prodImage: string;
   productPreviewUrl: string;
+  prodVariantTypes: VariantType[];
+  prodVariants: ProductVariant[];
   onNameChange(value: string): void;
   onSkuChange(value: string): void;
   onCategoryChange(value: string): void;
@@ -27,13 +30,14 @@ export interface ProductFormModalProps {
   onStockChange(value: string): void;
   onMinStockChange(value: string): void;
   onImageChange(value: string): void;
+  onVariantsChange(variantTypes: VariantType[], variants: ProductVariant[]): void;
   onClose(): void;
   onSubmit(event: FormEvent): void;
 }
 
 /**
- * Dialog for creating or editing a product: identity, pricing, stock levels
- * and image. Fully controlled — every field's state lives in Inventory.
+ * Dialog for creating or editing a product: identity, pricing, stock levels,
+ * variants and image. Fully controlled — every field's state lives in Inventory.
  */
 export function ProductFormModal({
   t,
@@ -50,6 +54,8 @@ export function ProductFormModal({
   prodMinStock,
   prodImage,
   productPreviewUrl,
+  prodVariantTypes,
+  prodVariants,
   onNameChange,
   onSkuChange,
   onCategoryChange,
@@ -58,9 +64,14 @@ export function ProductFormModal({
   onStockChange,
   onMinStockChange,
   onImageChange,
+  onVariantsChange,
   onClose,
   onSubmit,
 }: ProductFormModalProps) {
+  // On a varianted product the stock box is the read-only sum of the matrix
+  // below it. Leaving it editable would offer the operator a number that the
+  // next variant edit silently overwrites.
+  const stockIsDerived = prodVariants.length > 0;
   return (
     <ModalShell
       id="product-form-modal"
@@ -217,9 +228,21 @@ export function ProductFormModal({
                   required
                   placeholder="0"
                   value={prodStock}
+                  readOnly={stockIsDerived}
+                  aria-describedby={stockIsDerived ? 'form-prod-stock-derived' : undefined}
                   onChange={(e) => onStockChange(e.target.value)}
-                  className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-mono focus:outline-none focus:border-emerald-500 transition-colors"
+                  className={`w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
+                    stockIsDerived ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
                 />
+                {stockIsDerived && (
+                  <p
+                    id="form-prod-stock-derived"
+                    className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5"
+                  >
+                    {t('inventory.variantStockHint')}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -241,6 +264,16 @@ export function ProductFormModal({
               </div>
             </div>
           </div>
+
+          {/* Variants */}
+          <VariantsEditor
+            t={t}
+            settings={settings}
+            baseSku={prodSku}
+            variantTypes={prodVariantTypes}
+            variants={prodVariants}
+            onChange={onVariantsChange}
+          />
 
           {/* Asset settings */}
           <div>

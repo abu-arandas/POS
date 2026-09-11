@@ -1,3 +1,46 @@
+/**
+ * One axis a product varies along — "Size", "Colour", "Grind". A product can
+ * carry several, and its sellable variants are combinations across all of them.
+ */
+export interface VariantType {
+  id: string;
+  name: string;
+  options: VariantOption[];
+}
+
+/** One value on a variant type: "Large", "Red", "Coarse". */
+export interface VariantOption {
+  id: string;
+  name: string;
+}
+
+/**
+ * One sellable combination of options — "Large / Oat", say.
+ *
+ * `options` holds one option id per variant type, keyed by the type's id, so a
+ * variant stays addressable when types are reordered or renamed.
+ *
+ * Money is optional and absolute where present: a variant with no `price` sells
+ * at the parent's price, and one with a `price` sells at exactly that, never a
+ * delta applied to the parent. Deltas look tidier in a form and drift the
+ * moment the parent's price moves — a receipt reprint would then show a price
+ * the customer never paid.
+ *
+ * `stock` is not optional. A variant that shares its parent's stock pool is not
+ * a variant anybody can count, and every stock path in the app needs one number
+ * to decrement.
+ */
+export interface ProductVariant {
+  id: string;
+  /** One option id per variant type, keyed by variant type id. */
+  options: Record<string, string>;
+  sku: string;
+  price?: number;
+  cost?: number;
+  stock: number;
+  image?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -5,9 +48,20 @@ export interface Product {
   cost: number;
   category: string;
   sku: string;
+  /**
+   * Units on hand. For a product with variants this is DERIVED — the sum of
+   * every variant's stock — and kept that way by the helpers in lib/variants.
+   * Dashboards, low-stock alerts, the inventory table, purchase orders and the
+   * cloud row all read this one number, and none of them should have to know
+   * whether the product happens to be varianted.
+   */
   stock: number;
   minStock: number;
   image: string; // Tailwind bg-color or direct URL
+  /** The axes this product varies along. Absent or empty = a plain product. */
+  variantTypes?: VariantType[];
+  /** The sellable combinations. Absent or empty = a plain product. */
+  variants?: ProductVariant[];
 }
 
 export interface Category {
@@ -30,6 +84,14 @@ export type PaymentMethod = 'cash' | 'card' | 'mobile' | 'gift' | 'loyalty';
 export interface OrderItem {
   productId: string;
   productName: string;
+  /** Which variant was sold, when the product has any. */
+  variantId?: string;
+  /**
+   * The variant's option names as they read at sale time — "Large / Oat".
+   * Stored rather than looked up so a receipt reprinted after the variant was
+   * renamed or deleted still shows what the customer bought.
+   */
+  variantName?: string;
   price: number; // Purchase price
   cost: number; // Product cost at purchase time
   quantity: number;
@@ -46,6 +108,8 @@ export interface Payment {
 // Cumulative quantity of a line returned across one or more partial refunds.
 export interface RefundedItem {
   productId: string;
+  /** Present when the returned line was a variant; absent on plain products. */
+  variantId?: string;
   quantity: number;
 }
 
@@ -97,6 +161,9 @@ export interface Supplier {
 export interface PurchaseOrderLine {
   productId: string;
   productName: string;
+  /** Which variant was ordered, on a product that sells through variants. */
+  variantId?: string;
+  variantName?: string;
   quantity: number;
   unitCost: number;
 }
@@ -125,6 +192,9 @@ export interface StockAdjustment {
   id: string;
   productId: string;
   productName: string;
+  /** Which variant moved, on a product that sells through variants. */
+  variantId?: string;
+  variantName?: string;
   delta: number; // +received, -waste/correction
   newStock: number;
   reason: 'received' | 'correction' | 'waste' | 'other';
@@ -153,6 +223,9 @@ export interface Shift {
 export interface HeldOrderItem {
   productId: string;
   productName: string;
+  /** The variant held, on a product that sells through variants. */
+  variantId?: string;
+  variantName?: string;
   price: number;
   cost: number;
   quantity: number;

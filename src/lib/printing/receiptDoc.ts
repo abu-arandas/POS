@@ -6,7 +6,13 @@
 // of ReceiptLayout toggles, what the totals read, how a split payment breaks
 // down — is unit-testable without a canvas.
 
-import { SaleTransaction, StoreSettings, PrinterConfig, ReceiptLayout } from '../../types';
+import {
+  OrderItem,
+  SaleTransaction,
+  StoreSettings,
+  PrinterConfig,
+  ReceiptLayout,
+} from '../../types';
 import i18n from '../i18n';
 import {
   formatDateTime,
@@ -143,11 +149,23 @@ function pushSaleMeta(rows: DocRow[], { tx, layout: L, date: d }: ReceiptContext
     });
 }
 
+/**
+ * What a sold line is called on paper. The variant is part of the item's
+ * identity, not decoration: a receipt reading "1x Tee" against three sizes on
+ * the shelf tells neither the customer nor the returns desk which one was sold.
+ *
+ * Read off the transaction, never looked up in the catalogue — a receipt
+ * reprinted after the variant was renamed has to show what was bought.
+ */
+function itemLabel(item: OrderItem): string {
+  return item.variantName ? `${item.productName} — ${item.variantName}` : item.productName;
+}
+
 /** One row per line item, with the unit price under any multi-unit line. */
 function pushItems(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptContext): void {
   const S = L.show;
   for (const item of tx.items) {
-    const name = `${item.quantity}x ${item.productName}`;
+    const name = `${item.quantity}x ${itemLabel(item)}`;
     if (!S.priceColumn) {
       rows.push({ kind: 'line', text: name });
       continue;
@@ -365,7 +383,7 @@ export function buildKitchenDoc(
   rows.push({ kind: 'divider' });
 
   for (const item of tx.items) {
-    rows.push({ kind: 'line', text: `${item.quantity}x ${item.productName}`, style: 'large' });
+    rows.push({ kind: 'line', text: `${item.quantity}x ${itemLabel(item)}`, style: 'large' });
   }
 
   rows.push({ kind: 'divider' });

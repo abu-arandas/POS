@@ -4,6 +4,7 @@ import { ModalFooter } from '../shared/ModalFooter';
 import type { TFunction } from 'i18next';
 import { PackagePlus, X } from 'lucide-react';
 import type { Product, StockAdjustment, Supplier } from '../../types';
+import { availableStock, variantLabel } from '../../lib/variants';
 
 type ReceiveReason = StockAdjustment['reason'];
 export interface ReceiveStockModalProps {
@@ -12,11 +13,13 @@ export interface ReceiveStockModalProps {
   products: Product[];
   suppliers: Supplier[];
   recvProductId: string;
+  recvVariantId: string;
   recvQty: string;
   recvSupplierId: string;
   recvNote: string;
   recvReason: ReceiveReason;
   onProductIdChange(value: string): void;
+  onVariantIdChange(value: string): void;
   onQuantityChange(value: string): void;
   onSupplierIdChange(value: string): void;
   onNoteChange(value: string): void;
@@ -35,11 +38,13 @@ export function ReceiveStockModal({
   products,
   suppliers,
   recvProductId,
+  recvVariantId,
   recvQty,
   recvSupplierId,
   recvNote,
   recvReason,
   onProductIdChange,
+  onVariantIdChange,
   onQuantityChange,
   onSupplierIdChange,
   onNoteChange,
@@ -47,6 +52,10 @@ export function ReceiveStockModal({
   onClose,
   onSubmit,
 }: ReceiveStockModalProps) {
+  // On a varianted product the movement has to name one variant: `stock` there
+  // is the sum of the rows, not a pool anything can be added to.
+  const selectedProduct = products.find((p) => p.id === recvProductId);
+  const variants = selectedProduct?.variants ?? [];
   return (
     <ModalShell modalRef={modalRef} titleId="receive-stock-title" className="max-w-md w-full">
       <div className="px-8 py-6 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 flex items-center justify-between">
@@ -86,6 +95,35 @@ export function ReceiveStockModal({
             ))}
           </select>
         </div>
+
+        {variants.length > 0 && selectedProduct && (
+          <div>
+            <label
+              htmlFor="receive-variant-select"
+              className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+            >
+              {t('inventory.variant')}
+            </label>
+            <select
+              id="receive-variant-select"
+              value={recvVariantId}
+              onChange={(e) => onVariantIdChange(e.target.value)}
+              aria-label={t('inventory.variant')}
+              className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 font-bold"
+            >
+              <option value="">{t('inventory.variantRequired')}</option>
+              {variants.map((variant) => (
+                <option key={variant.id} value={variant.id}>
+                  {variantLabel(selectedProduct, variant) || variant.sku} (
+                  {t('inventory.currentStockShort', {
+                    count: availableStock(selectedProduct, variant.id),
+                  })}
+                  )
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">

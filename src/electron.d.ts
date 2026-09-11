@@ -9,6 +9,15 @@ export interface PublicMenuProduct {
   category: string;
   image: string;
   inStock: boolean;
+  /**
+   * True when `price` is the cheapest of several variants rather than the one
+   * price of the item. The menu says "from" in front of it; a flat figure would
+   * have a customer read the small latte's price and be charged for a large.
+   *
+   * Variant names themselves are deliberately NOT sent: this payload is served
+   * to any phone on the LAN, and the menu is a price list, not a stock report.
+   */
+  priceFrom?: boolean;
 }
 
 export interface PublicMenuCategory {

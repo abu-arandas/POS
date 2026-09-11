@@ -19,6 +19,7 @@ A modern, high-performance, cross-platform Point of Sale (POS) system built with
 - **QR Menu Generator:** Automatically generate and print digital QR codes so customers can browse your menu on their phones.
 - **Customer Loyalty System:** Link customers to transactions to award or deduct loyalty points directly at checkout.
 - **Analytics Dashboard:** Date-range KPIs (today / 7d / 30d / all), revenue & profit trend, best-sellers, category and payment breakdowns, and a per-operator sales report — all exportable to CSV.
+- **Product Variants:** Sell one product in several option types at once — Size × Colour, Size × Flavour — where each combination is its own SKU, price and stock count. The register offers a picker, barcodes scan straight to a variant, shelf labels print one tag per combination, and the product's stock is simply the sum of its variants'.
 - **Inventory Depth:** Suppliers, a lightweight "receive stock" purchase-order flow, and a full stock-adjustment audit log.
 - **Live Multi-Terminal Sync:** Optional Supabase cloud sync with realtime subscriptions, so a second register's changes appear automatically; cloud PIN login keeps staff accounts consistent across terminals.
 - **Cross-Platform & Standalone:** Runs perfectly in the browser (via Vite) or as a native downloadable `.exe` via Electron without the standard browser toolbars.

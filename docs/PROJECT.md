@@ -178,19 +178,21 @@ field exists where that is not obvious.
 
 ### Catalog
 
-| Type       | Notes                                                                                                                                             |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Product`  | `id, name, price, cost, category, sku, stock, minStock, image`. `image` is a Tailwind class **or** a URL **or** a `data:image/svg+xml` thumbnail. |
-| `Category` | `id, name, color` — `color` is a Tailwind class string.                                                                                           |
+| Type             | Notes                                                                                                                                                                                                                                                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Product`        | `id, name, price, cost, category, sku, stock, minStock, image`, plus optional `variantTypes` / `variants`. `image` is a Tailwind class **or** a URL **or** a `data:image/svg+xml` thumbnail. On a varianted product `stock` is **derived** — the sum of `variants[].stock` — and every write goes through `lib/variants`. |
+| `VariantType`    | One axis the product varies along (`Size`, `Colour`), with its `options`. A product may carry several.                                                                                                                                                                                                                    |
+| `ProductVariant` | One sellable combination: `options` (one option id per type id), its own `sku` and `stock`, and optional `price` / `cost` / `image` that fall back to the product's when absent. An absent price means "inherit"; `0` is a real price.                                                                                    |
+| `Category`       | `id, name, color` — `color` is a Tailwind class string.                                                                                                                                                                                                                                                                   |
 
 ### Sales
 
 | Type              | Notes                                                                                                                                                                                                                                                                                 |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PaymentMethod`   | `'cash' \| 'card' \| 'mobile' \| 'gift' \| 'loyalty'`                                                                                                                                                                                                                                 |
-| `OrderItem`       | Line snapshot: includes `cost` **at purchase time**, so profit reporting is historically accurate.                                                                                                                                                                                    |
+| `OrderItem`       | Line snapshot: includes `cost` **at purchase time**, so profit reporting is historically accurate, and `variantId` / `variantName` where one was sold — the name is stored, not looked up, so a reprint after a rename still shows what was bought.                                   |
 | `Payment`         | One tender line. A single-method sale has one; a split sale has several.                                                                                                                                                                                                              |
-| `RefundedItem`    | Cumulative quantity returned per product across one or more partial refunds.                                                                                                                                                                                                          |
+| `RefundedItem`    | Cumulative quantity returned per **line** (product + variant) across one or more partial refunds.                                                                                                                                                                                     |
 | `SaleTransaction` | The full sale record. `paymentMethod` is the _dominant_ (largest) tender; `payments` is present only when `length > 1`. `pointsEarned` is stored so a refund reverses exactly what was earned even if the loyalty rate changed since. `status` is `completed \| partial \| refunded`. |
 
 ### Inventory operations
@@ -370,6 +372,34 @@ coversTotal }`. Change is derived from the whole overpayment but attributed to c
 `cashTendered` excludes card/mobile/gift so the receipt's "cash paid" and the Z-report
 drawer math stay correct. `coversTotal` uses a half-cent tolerance.
 
+**`variants.ts` — product variants**
+The one module that knows a product may sell through variants, so nothing else has to
+branch on it. Two ideas carry the whole feature:
+
+- **A line key is a product _and_ a variant.** `lineKey(productId, variantId?)` returns the
+  bare product id for a plain product and a composite otherwise, and `orderItemKey` /
+  `refundedItemKey` read it off a sold or returned line. Everything that keys a map by
+  "which line is this" — the cart, `requiredUnits`, `refundableQuantities`,
+  `normalizePoLines` — keys by that. Because a plain product's key _is_ its id, every
+  transaction, `refundedItems` row and held order written before variants existed keeps
+  resolving untouched.
+- **`product.stock` stays the truth, and stays derived.** For a varianted product it is the
+  sum of `variants[].stock`, maintained by `withDerivedStock` on every write through
+  `applyStockDelta`. Dashboards, low-stock alerts, the inventory table, purchase orders and
+  the cloud row keep reading the single number they always read.
+
+`availableStock(product, variantId)` returns 0 — never the parent's total — for a variant
+the product no longer has, so a sale for a deleted variant cannot draw on the units of the
+ones that remain. Money falls back on `undefined`, never on falsiness, so a variant priced
+at `0` is a free item rather than one that inherits. `rebuildVariants` regenerates the
+matrix when an option is added or removed, carrying each surviving combination's stock
+across by option signature — in a shop that is a routine edit, so rebuilding from scratch
+would be an inventory loss, not a refresh.
+
+Both the sale decrement and the refund restock accumulate per product before writing:
+several lines of one product in different variants would otherwise each be computed from
+the pre-write record, and the last write would undo the others.
+
 **`refunds.ts` — `refundableQuantities(tx)` and `computeRefund(...)`**
 A refund is a _proportional share of the total_, so discount and tax are prorated and a
 full return refunds exactly `tx.total`. The rounding strategy is the interesting part:
@@ -395,8 +425,10 @@ optional window filters on the _activity_ timestamp appropriate to each status.
 
 **`purchaseOrders.ts`** — `PO_TRANSITIONS`, `canTransition`, `poTotal`, `poUnitCount`, and
 `normalizePoLines`, which drops empty/invalid lines and merges duplicates of the same
-product using a weighted-average unit cost, so the merged line's total value equals the
-sum of the originals instead of silently discarding all but the last cost.
+line — product **and** variant — using a weighted-average unit cost, so the merged line's
+total value equals the sum of the originals instead of silently discarding all but the
+last cost. Two sizes of one shirt stay two lines; merging them would receive both
+quantities into whichever size came first.
 
 ### 6.2 Authentication and throttling
 
@@ -1317,6 +1349,17 @@ accumulate across versions, hand-run statements and half-applied migrations.
 
 **Tables:** `user_accounts`, `categories`, `products`, `customers`, `transactions`,
 `login_attempts`, `pos_schema_state`.
+
+`products.variant_types` and `products.variants` are `JSONB`, added by `ALTER TABLE … ADD
+COLUMN IF NOT EXISTS` so an existing install migrates by re-running the script. JSONB rather
+than two side tables because a variant is only ever read as part of its product (the till
+pulls the whole catalogue and works offline against a local copy), it is written whole by
+the product form, and nothing queries across variants of different products — two tables
+would buy referential integrity this app cannot use and cost every catalogue read a pair of
+joins plus a client-side regroup. Both stay `NULL` on existing rows, which is exactly what a
+product with no variants is. `pushProducts` retries without the pair when PostgREST reports
+the columns missing, so a terminal that has updated ahead of its database keeps syncing
+prices and stock instead of failing every catalogue write.
 
 **Indexes:** `idx_transactions_date`, `idx_products_category`. Postgres creates an index for
 a PRIMARY KEY and a UNIQUE constraint and for nothing else — notably **not** for a foreign

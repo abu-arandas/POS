@@ -1,4 +1,11 @@
 import { Customer, Product, SaleTransaction } from '../types';
+import {
+  applyStockDelta,
+  availableStock,
+  findVariant,
+  lineKey,
+  parseLineKey,
+} from '../lib/variants';
 import { buildSaleTransaction, CheckoutOutcome, CheckoutRequest } from '../lib/checkout';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
@@ -23,6 +30,9 @@ export interface CommittedSale {
  */
 export interface StockShortfall {
   productId: string;
+  /** Which variant fell short, on a product that sells through variants. */
+  variantId?: string;
+  /** Includes the variant's options — "Tee — Large / Red" — where there is one. */
   productName: string;
   requested: number;
   /** Units the live catalogue actually holds; 0 for a product that is gone. */
@@ -46,17 +56,22 @@ export type CommitSaleResult =
 /**
  * Totals the units each product is being sold, across every line.
  *
- * Summed rather than taken per line because a product must be checked and
+ * Summed rather than taken per line because a line must be checked and
  * decremented once for the whole sale. The register merges repeat taps into one
  * cart line, so two lines for one product is not something it produces today —
  * but a per-line check would pass two lines of 3 against 4 in stock, and a
  * per-line decrement would write the second line's result over the first and
  * take 3 units off instead of 6. Neither is a risk worth leaving to the caller.
+ *
+ * Keyed by product AND variant: two sizes of one shirt draw on two separate
+ * counts, so summing them together would check six units against whichever
+ * size happened to have them.
  */
 function requiredUnits(transaction: SaleTransaction): Map<string, number> {
   const required = new Map<string, number>();
   for (const item of transaction.items) {
-    required.set(item.productId, (required.get(item.productId) ?? 0) + item.quantity);
+    const key = lineKey(item.productId, item.variantId);
+    required.set(key, (required.get(key) ?? 0) + item.quantity);
   }
   return required;
 }
@@ -76,27 +91,43 @@ function findShortfalls(
 ): { shortfalls: StockShortfall[]; anyMissing: boolean } {
   const shortfalls: StockShortfall[] = [];
   let anyMissing = false;
-  // Named from the transaction so a missing product still has a name to show.
-  const namedBy = new Map(transaction.items.map((item) => [item.productId, item.productName]));
+  // Named from the transaction so a missing product still has a name to show,
+  // and named per LINE so the operator is told which size to fix, not just
+  // which product.
+  const namedBy = new Map(
+    transaction.items.map((item) => [
+      lineKey(item.productId, item.variantId),
+      item.variantName ? `${item.productName} — ${item.variantName}` : item.productName,
+    ]),
+  );
 
-  for (const [productId, quantity] of required) {
+  for (const [key, quantity] of required) {
+    const { productId, variantId } = parseLineKey(key);
     const live = liveById.get(productId);
-    if (!live) {
+    // A variant deleted from the catalogue since the line was added is as
+    // unsellable as a deleted product, and for the same reason: there is no
+    // count to take the units from. Falling back to the parent's stock would
+    // sell one variant's units out of another's.
+    const gone = !live || (variantId !== undefined && !findVariant(live, variantId));
+    if (gone) {
       anyMissing = true;
       shortfalls.push({
         productId,
-        productName: namedBy.get(productId) ?? productId,
+        variantId,
+        productName: namedBy.get(key) ?? productId,
         requested: quantity,
         available: 0,
       });
       continue;
     }
-    if (live.stock < quantity) {
+    const available = availableStock(live, variantId);
+    if (available < quantity) {
       shortfalls.push({
         productId,
-        productName: live.name,
+        variantId,
+        productName: namedBy.get(key) ?? live.name,
         requested: quantity,
-        available: Math.max(0, live.stock),
+        available: Math.max(0, available),
       });
     }
   }
@@ -172,11 +203,20 @@ export function commitSale(request: CheckoutRequest): CommitSaleResult {
     };
   }
 
+  // Accumulated per product before anything is written. A sale can hold several
+  // lines of one product in different variants, and applying each against the
+  // catalogue in turn would have the second line's write — computed from the
+  // record as it was BEFORE the first — put the first variant's units back.
+  const workingByProduct = new Map<string, Product>();
+  for (const [key, quantity] of required) {
+    const { productId, variantId } = parseLineKey(key);
+    // Non-null: findShortfalls above refused the sale if any line was gone.
+    const base = workingByProduct.get(productId) ?? liveById.get(productId)!;
+    workingByProduct.set(productId, applyStockDelta(base, variantId, -quantity)!);
+  }
+
   const updatedProducts: Product[] = [];
-  for (const [productId, quantity] of required) {
-    // Non-null: findShortfalls above refused the sale if any product was gone.
-    const live = liveById.get(productId)!;
-    const updated = { ...live, stock: live.stock - quantity };
+  for (const updated of workingByProduct.values()) {
     productStore.handleUpdateProduct(updated);
     updatedProducts.push(updated);
   }

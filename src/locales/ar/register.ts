@@ -90,4 +90,10 @@ export const register = {
   removePayment: 'إزالة الدفعة',
   removeDiscount: 'إزالة الخصم',
   cancelDiscount: 'إلغاء الخصم',
+  chooseVariant: 'اختر خياراً',
+  closeVariantPicker: 'إغلاق الخيارات',
+  addToCart: 'إضافة إلى السلة',
+  variantUnavailable: 'هذه التركيبة غير متوفرة',
+  variantOptionsCount: '{{count}} خيارات',
+  priceFrom: 'من',
 };

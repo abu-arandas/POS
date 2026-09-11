@@ -1,20 +1,40 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { Product, StoreSettings } from '../../types';
+import type { Product, ProductVariant, StoreSettings } from '../../types';
 import { calculateOrderTotals } from '../../lib/pricing';
+import {
+  availableStock,
+  lineKey,
+  variantCost,
+  variantLabel,
+  variantPrice,
+} from '../../lib/variants';
 
 export type RegisterDiscountType = 'none' | 'percentage' | 'fixed' | 'loyalty';
 
 export interface RegisterCartLine {
   product: Product;
+  /** The chosen variant, on a product that sells through variants. */
+  variant?: ProductVariant;
   quantity: number;
 }
 
 export interface RegisterCartItem {
   productId: string;
   productName: string;
+  variantId?: string;
+  variantName?: string;
   price: number;
   cost: number;
   quantity: number;
+}
+
+/**
+ * What a cart line is addressed by: the product for a plain item, the product
+ * and the variant together for a varianted one. Two sizes of the same shirt are
+ * two lines, and everything that edits the cart names one of them.
+ */
+export function cartLineKey(line: Pick<RegisterCartLine, 'product' | 'variant'>): string {
+  return lineKey(line.product.id, line.variant?.id);
 }
 
 export interface RegisterCartResult {
@@ -38,9 +58,9 @@ export interface RegisterCartResult {
   totalAmount: number;
   cashSuggestions: number[];
   cashChangeDue(cashPaidText: string): number;
-  addToCart(product: Product): void;
-  updateCartQty(productId: string, delta: number): void;
-  removeFromCart(productId: string): void;
+  addToCart(product: Product, variant?: ProductVariant): void;
+  updateCartQty(key: string, delta: number): void;
+  removeFromCart(key: string): void;
   clearCart(): void;
 }
 
@@ -59,11 +79,16 @@ export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
 
   const cartItems = useMemo<RegisterCartItem[]>(
     () =>
-      cart.map(({ product, quantity }) => ({
+      cart.map(({ product, variant, quantity }) => ({
         productId: product.id,
         productName: product.name,
-        price: product.price,
-        cost: product.cost,
+        variantId: variant?.id,
+        // Resolved now, not at checkout: the variant's name has to be what the
+        // operator saw on the screen when they rang it up, even if the catalogue
+        // is edited (or synced over) while the sale is still open.
+        variantName: variant ? variantLabel(product, variant) || undefined : undefined,
+        price: variantPrice(product, variant),
+        cost: variantCost(product, variant),
         quantity,
       })),
     [cart],
@@ -103,29 +128,34 @@ export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
     [totalAmount],
   );
 
-  const addToCart = useCallback((product: Product) => {
-    if (product.stock <= 0) return;
+  const addToCart = useCallback((product: Product, variant?: ProductVariant) => {
+    // Stock is read for the line being added, not for the product as a whole: a
+    // shirt with forty smalls and no larges has plenty of stock and still
+    // cannot sell a large.
+    const stock = availableStock(product, variant?.id);
+    if (stock <= 0) return;
+    const key = lineKey(product.id, variant?.id);
     setCart((previous) => {
-      const existingIndex = previous.findIndex((item) => item.product.id === product.id);
+      const existingIndex = previous.findIndex((item) => cartLineKey(item) === key);
       if (existingIndex >= 0) {
         const existing = previous[existingIndex];
-        if (existing.quantity >= product.stock) return previous;
+        if (existing.quantity >= stock) return previous;
         const next = [...previous];
         next[existingIndex] = { ...existing, quantity: existing.quantity + 1 };
         return next;
       }
-      return [...previous, { product, quantity: 1 }];
+      return [...previous, { product, variant, quantity: 1 }];
     });
   }, []);
 
-  const updateCartQty = useCallback((productId: string, delta: number) => {
+  const updateCartQty = useCallback((key: string, delta: number) => {
     setCart((previous) =>
       previous
         .map((item) => {
-          if (item.product.id !== productId) return item;
+          if (cartLineKey(item) !== key) return item;
           const quantity = item.quantity + delta;
           if (quantity <= 0) return null;
-          if (quantity > item.product.stock) return item;
+          if (quantity > availableStock(item.product, item.variant?.id)) return item;
           return { ...item, quantity };
         })
         .filter((item): item is RegisterCartLine => item !== null),
@@ -133,8 +163,7 @@ export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
   }, []);
 
   const removeFromCart = useCallback(
-    (productId: string) =>
-      setCart((previous) => previous.filter((item) => item.product.id !== productId)),
+    (key: string) => setCart((previous) => previous.filter((item) => cartLineKey(item) !== key)),
     [],
   );
 

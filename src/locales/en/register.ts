@@ -91,4 +91,10 @@ export const register = {
   removePayment: 'Remove payment',
   removeDiscount: 'Remove discount',
   cancelDiscount: 'Cancel discount',
+  chooseVariant: 'Choose an option',
+  closeVariantPicker: 'Close options',
+  addToCart: 'Add to Cart',
+  variantUnavailable: 'That combination is not stocked',
+  variantOptionsCount: '{{count}} options',
+  priceFrom: 'from',
 };

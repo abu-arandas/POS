@@ -1009,6 +1009,91 @@ export const INITIAL_PRODUCTS: Product[] = [
     minStock: 0,
     image: productThumb('cat-31', '🍽️'),
   },
+  // One varianted demo product, so a fresh install shows the feature working
+  // rather than only describing it in the product form. Two axes rather than
+  // one on purpose: a single-axis product would leave the more interesting
+  // half — a matrix, per-combination stock — unexercised until an operator
+  // builds one by hand.
+  //
+  // `stock` is 96, the sum of the six rows below, because that is the
+  // invariant the whole feature rests on: for a varianted product the
+  // product-level count is derived, never independently set.
+  {
+    id: 'prod-76',
+    name: 'عصير طازج',
+    price: 2,
+    cost: 0.7,
+    category: 'cat-1',
+    sku: 'SKU-76',
+    stock: 96,
+    minStock: 6,
+    image: productThumb('cat-1', '🥤'),
+    variantTypes: [
+      {
+        id: 'vt-size',
+        name: 'الحجم',
+        options: [
+          { id: 'vo-small', name: 'صغير' },
+          { id: 'vo-large', name: 'كبير' },
+        ],
+      },
+      {
+        id: 'vt-flavour',
+        name: 'النكهة',
+        options: [
+          { id: 'vo-orange', name: 'برتقال' },
+          { id: 'vo-mango', name: 'مانجو' },
+          { id: 'vo-lemon', name: 'ليمون' },
+        ],
+      },
+    ],
+    variants: [
+      {
+        id: 'pv-76-1',
+        options: { 'vt-size': 'vo-small', 'vt-flavour': 'vo-orange' },
+        sku: 'SKU-76-01',
+        stock: 20,
+      },
+      {
+        id: 'pv-76-2',
+        options: { 'vt-size': 'vo-small', 'vt-flavour': 'vo-mango' },
+        sku: 'SKU-76-02',
+        stock: 18,
+      },
+      {
+        id: 'pv-76-3',
+        options: { 'vt-size': 'vo-small', 'vt-flavour': 'vo-lemon' },
+        sku: 'SKU-76-03',
+        stock: 14,
+      },
+      // The large rows carry their own price and cost; the small ones inherit
+      // the product's, which is what an absent price means.
+      {
+        id: 'pv-76-4',
+        options: { 'vt-size': 'vo-large', 'vt-flavour': 'vo-orange' },
+        sku: 'SKU-76-04',
+        price: 3,
+        cost: 1,
+        stock: 16,
+      },
+      {
+        id: 'pv-76-5',
+        options: { 'vt-size': 'vo-large', 'vt-flavour': 'vo-mango' },
+        sku: 'SKU-76-05',
+        price: 3,
+        cost: 1,
+        stock: 28,
+      },
+      {
+        id: 'pv-76-6',
+        options: { 'vt-size': 'vo-large', 'vt-flavour': 'vo-lemon' },
+        sku: 'SKU-76-06',
+        price: 3,
+        cost: 1,
+        stock: 0,
+      },
+    ],
+  },
 ];
 
 /**

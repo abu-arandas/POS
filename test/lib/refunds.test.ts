@@ -242,3 +242,99 @@ describe('computeRefund', () => {
     });
   });
 });
+
+// The same sale rung up as two sizes of one product: 2x Small @4.50 and
+// 1x Large @6.00. Subtotal 15.00, 10% tax 1.50, total 16.50.
+const variantTx: SaleTransaction = {
+  ...baseTx,
+  id: 'TX-V',
+  items: [
+    {
+      productId: 'latte',
+      productName: 'Latte',
+      variantId: 'v-small',
+      variantName: 'Small',
+      price: 4.5,
+      cost: 0.9,
+      quantity: 2,
+      total: 9,
+    },
+    {
+      productId: 'latte',
+      productName: 'Latte',
+      variantId: 'v-large',
+      variantName: 'Large',
+      price: 6,
+      cost: 1.2,
+      quantity: 1,
+      total: 6,
+    },
+  ],
+  subtotal: 15,
+  tax: 1.5,
+  total: 16.5,
+  pointsEarned: 16,
+};
+
+describe('refunds of a varianted sale', () => {
+  it('keeps two variants of one product as two returnable lines', () => {
+    // Keyed by productId alone these two collapse into one entry, and a sale of
+    // three units looks like a sale of one.
+    expect(refundableQuantities(variantTx)).toEqual({
+      'latte::v-small': 2,
+      'latte::v-large': 1,
+    });
+  });
+
+  it('returns the variant that was selected, at that variant’s price', () => {
+    const result = computeRefund(variantTx, { 'latte::v-large': 1 }, 1)!;
+
+    expect(result.appliedItems).toEqual({ 'latte::v-large': 1 });
+    // 6.00 of a 15.00 subtotal, prorated over a 16.50 total.
+    expect(result.refundAmount).toBe(6.6);
+    expect(result.status).toBe('partial');
+    expect(result.refundedItems).toEqual([
+      { productId: 'latte', variantId: 'v-large', quantity: 1 },
+    ]);
+  });
+
+  it('does not call a sale fully refunded while one variant is unreturned', () => {
+    // Both lines are the same productId. Keyed by product, returning all three
+    // units of either line would satisfy "every line covered" for both.
+    const result = computeRefund(variantTx, { 'latte::v-small': 2 }, 1)!;
+    expect(result.fullyRefunded).toBe(false);
+    expect(result.status).toBe('partial');
+  });
+
+  it('trues a piecewise full return up to exactly the sale total', () => {
+    const first = computeRefund(variantTx, { 'latte::v-small': 2 }, 1)!;
+    const afterFirst: SaleTransaction = {
+      ...variantTx,
+      status: first.status,
+      refundedItems: first.refundedItems,
+      refundedAmount: first.refundedAmount,
+    };
+    const second = computeRefund(afterFirst, { 'latte::v-large': 1 }, 1)!;
+
+    expect(second.fullyRefunded).toBe(true);
+    expect(second.status).toBe('refunded');
+    expect(Number((first.refundAmount + second.refundAmount).toFixed(2))).toBe(variantTx.total);
+    expect(second.refundedAmount).toBe(variantTx.total);
+  });
+
+  it('clamps a return to the variant’s own remaining quantity', () => {
+    // Three units of "latte" were sold, but only one of them was a Large.
+    const result = computeRefund(variantTx, { 'latte::v-large': 3 }, 1)!;
+    expect(result.appliedItems).toEqual({ 'latte::v-large': 1 });
+  });
+
+  it('still reads a pre-variant sale keyed by bare product id', () => {
+    expect(refundableQuantities(baseTx)).toEqual({ latte: 2, muffin: 1 });
+    const result = computeRefund(baseTx, { latte: 2, muffin: 1 }, 1)!;
+    expect(result.fullyRefunded).toBe(true);
+    expect(result.refundedItems).toEqual([
+      { productId: 'latte', quantity: 2 },
+      { productId: 'muffin', quantity: 1 },
+    ]);
+  });
+});

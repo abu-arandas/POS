@@ -89,3 +89,32 @@ describe('normalizePoLines', () => {
     expect(out[0].unitCost).toBe(0);
   });
 });
+
+describe('normalizePoLines with variants', () => {
+  it('keeps two variants of one product as two lines', () => {
+    // Merged by product alone, both quantities would be received into
+    // whichever size came first.
+    const out = normalizePoLines([
+      line({ variantId: 'v-s', quantity: 10 }),
+      line({ variantId: 'v-l', quantity: 6 }),
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out.map((l) => l.quantity)).toEqual([10, 6]);
+  });
+
+  it('still merges repeats of the same variant', () => {
+    const out = normalizePoLines([
+      line({ variantId: 'v-s', quantity: 4, unitCost: 5 }),
+      line({ variantId: 'v-s', quantity: 6, unitCost: 10 }),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].quantity).toBe(10);
+    // Order value preserved: 4x5 + 6x10 = 80 over 10 units.
+    expect(out[0].unitCost).toBe(8);
+  });
+
+  it('does not merge a variant line into a plain one', () => {
+    const out = normalizePoLines([line({ quantity: 2 }), line({ variantId: 'v-s', quantity: 3 })]);
+    expect(out).toHaveLength(2);
+  });
+});

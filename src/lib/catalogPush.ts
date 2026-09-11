@@ -10,11 +10,12 @@
 //    internal id, which is store-scoped.
 //  - Category references are remapped from source ids to the target store's own
 //    category ids (matched by name, created on demand).
-//  - Stock is per-store inventory and is NEVER pushed (new products land at 0).
+//  - Stock is per-store inventory and is NEVER pushed (new products land at 0,
+//    and so does every variant of one — the shape travels, the counts do not).
 //  - The plan only ADDS products/categories and UPDATES prices — it never
 //    deletes, so a push can't wipe a store's catalog.
 
-import { Product, Category } from '../types';
+import { Product, Category, ProductVariant } from '../types';
 
 /**
  * Which parts of the source catalog a push is allowed to change in the target.
@@ -40,6 +41,16 @@ export interface CatalogPushPlan {
     metadataUpdated: number;
     unchanged: number;
   };
+}
+
+/**
+ * The source product's variants with every count cleared. The target store gets
+ * the same sizes and colours to sell; what it has on its own shelves is its own
+ * business, and copying the source's counts would invent inventory.
+ */
+function emptiedVariants(variants: ProductVariant[] | undefined): ProductVariant[] | undefined {
+  if (!variants || variants.length === 0) return undefined;
+  return variants.map((variant) => ({ ...variant, stock: 0 }));
 }
 
 function norm(s: string): string {
@@ -145,6 +156,8 @@ export function planCatalogPush(
           stock: 0, // inventory is per-store; never carried over
           minStock: sp.minStock,
           image: sp.image,
+          variantTypes: sp.variantTypes,
+          variants: emptiedVariants(sp.variants),
         });
         productsAdded += 1;
       }

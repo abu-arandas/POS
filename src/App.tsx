@@ -31,6 +31,8 @@ const FleetView = lazy(() => import('./components/FleetView'));
 import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
+import type { Product } from './types';
+import { variantPrice } from './lib/variants';
 import { ScreenId, isScreenAllowed } from './lib/access';
 import { startRealtimeSync, stopRealtimeSync } from './lib/realtimeSync';
 import { startOutboxReplay, stopOutboxReplay } from './lib/sync';
@@ -53,6 +55,22 @@ function ScreenLoader() {
  * direction, cloud sync, the barcode scanner, and the fleet heartbeat.
  * Renders the lock screen until an operator signs in.
  */
+/**
+ * The one price a menu card can show for a product, and whether it is a floor
+ * rather than the price. A varianted product has no single price, so the menu
+ * shows the cheapest variant a customer could actually buy, prefixed "from".
+ */
+function menuPrice(product: Product): { price: number; priceFrom?: boolean } {
+  const variants = product.variants ?? [];
+  if (variants.length === 0) return { price: product.price };
+  const prices = variants
+    .filter((variant) => variant.stock > 0)
+    .map((variant) => variantPrice(product, variant));
+  const candidates = prices.length > 0 ? prices : variants.map((v) => variantPrice(product, v));
+  const cheapest = Math.min(...candidates);
+  return { price: cheapest, priceFrom: candidates.some((price) => price !== cheapest) };
+}
+
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentScreen, setScreen] = useState<ScreenId>('register');
@@ -148,13 +166,16 @@ export default function App() {
       products.map((p) => ({
         id: p.id,
         name: p.name,
-        price: p.price,
         category: p.category,
         // The customer-facing menu follows the same switch as the till: with
         // product images off, sending them anyway would put back on a stranger's
         // phone exactly what the operator turned off in the shop. menu.html
         // falls back to the product's initial when this is empty.
         image: showProductImages ? p.image : '',
+        // Sellable variants only: a "from £2.50" that names a size nobody can
+        // buy is worse than the next price up. With none left the cheapest
+        // variant's price is still shown, beside the SOLD OUT badge.
+        ...menuPrice(p),
         inStock: p.stock > 0,
       })),
     [products, showProductImages],

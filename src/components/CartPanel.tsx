@@ -17,16 +17,17 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, Customer } from '../types';
+import { Product, ProductVariant, Customer } from '../types';
 import { useCustomerStore } from '../stores/customerStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useTranslation } from 'react-i18next';
 import { safeImageUrl } from '../lib/imageUrl';
+import { availableStock, lineKey, variantImage, variantLabel, variantPrice } from '../lib/variants';
 
 interface CartPanelProps {
-  cart: Array<{ product: Product; quantity: number }>;
-  updateCartQty: (productId: string, delta: number) => void;
-  removeFromCart: (productId: string) => void;
+  cart: Array<{ product: Product; variant?: ProductVariant; quantity: number }>;
+  updateCartQty: (key: string, delta: number) => void;
+  removeFromCart: (key: string) => void;
   clearCart: () => void;
   activeCustomer: Customer | null;
   selectedCustomerId: string | null;
@@ -220,77 +221,88 @@ const CartPanel = ({
               <p className="text-slate-700 text-[10px] mt-1">{t('register.tapToAdd')}</p>
             </motion.div>
           ) : (
-            cart.map((item) => (
-              <motion.div
-                key={item.product.id}
-                layoutId={`cart-item-${item.product.id}`}
-                initial={{ opacity: 0, x: 20, height: 0 }}
-                animate={{ opacity: 1, x: 0, height: 'auto' }}
-                exit={{ opacity: 0, x: -20, height: 0 }}
-                transition={{ duration: 0.22 }}
-                className="flex items-center gap-2.5 p-2.5 rounded-xl group bg-slate-100/70 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700/40 hover:bg-slate-800/50 transition-colors"
-              >
-                {/* Product thumbnail */}
-                {showProductImages && safeImageUrl(item.product.image) && (
-                  <div className="size-9 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
-                    <img
-                      src={safeImageUrl(item.product.image)}
-                      alt={item.product.name}
-                      className="size-full object-cover"
-                    />
-                  </div>
-                )}
+            cart.map((item) => {
+              // Two sizes of the same product are two lines, so every edit,
+              // every animation identity and every React key is the composite.
+              const key = lineKey(item.product.id, item.variant?.id);
+              const label = item.variant ? variantLabel(item.product, item.variant) : '';
+              const unitPrice = variantPrice(item.product, item.variant);
+              const lineStock = availableStock(item.product, item.variant?.id);
+              const displayName = label ? `${item.product.name} — ${label}` : item.product.name;
+              const thumbnail = safeImageUrl(variantImage(item.product, item.variant));
+              return (
+                <motion.div
+                  key={key}
+                  layoutId={`cart-item-${key}`}
+                  initial={{ opacity: 0, x: 20, height: 0 }}
+                  animate={{ opacity: 1, x: 0, height: 'auto' }}
+                  exit={{ opacity: 0, x: -20, height: 0 }}
+                  transition={{ duration: 0.22 }}
+                  className="flex items-center gap-2.5 p-2.5 rounded-xl group bg-slate-100/70 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700/40 hover:bg-slate-800/50 transition-colors"
+                >
+                  {/* Product thumbnail */}
+                  {showProductImages && thumbnail && (
+                    <div className="size-9 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
+                      <img src={thumbnail} alt={displayName} className="size-full object-cover" />
+                    </div>
+                  )}
 
-                {/* Name + price */}
-                <div className="min-w-0 flex-1">
-                  <p className="text-slate-800 dark:text-slate-100 text-xs font-semibold truncate leading-tight">
-                    {item.product.name}
-                  </p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="font-mono text-[10px] text-emerald-400 font-medium">
-                      {settings.currency}
-                      {item.product.price.toFixed(2)}
-                    </span>
-                    <span className="text-slate-700 text-[10px]">×</span>
-                    <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                      = {settings.currency}
-                      {(item.product.price * item.quantity).toFixed(2)}
-                    </span>
+                  {/* Name + price */}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-slate-800 dark:text-slate-100 text-xs font-semibold truncate leading-tight">
+                      {item.product.name}
+                    </p>
+                    {label && (
+                      <p className="text-[10px] font-medium text-sky-500 dark:text-sky-400 truncate leading-tight mt-0.5">
+                        {label}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="font-mono text-[10px] text-emerald-400 font-medium">
+                        {settings.currency}
+                        {unitPrice.toFixed(2)}
+                      </span>
+                      <span className="text-slate-700 text-[10px]">×</span>
+                      <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400">
+                        = {settings.currency}
+                        {(unitPrice * item.quantity).toFixed(2)}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Qty controls */}
-                <div className="flex items-center shrink-0">
-                  <div className="flex items-center rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700/60">
+                  {/* Qty controls */}
+                  <div className="flex items-center shrink-0">
+                    <div className="flex items-center rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700/60">
+                      <button
+                        onClick={() => updateCartQty(key, -1)}
+                        aria-label={`${t('register.decreaseQty')} — ${displayName}`}
+                        className="size-6 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 transition-colors"
+                      >
+                        <Minus size={11} />
+                      </button>
+                      <span className="font-mono text-xs font-bold text-slate-900 dark:text-white px-2 min-w-[1.5rem] text-center bg-slate-100 dark:bg-slate-800/40">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => updateCartQty(key, 1)}
+                        disabled={item.quantity >= lineStock}
+                        aria-label={`${t('register.increaseQty')} — ${displayName}`}
+                        className="size-6 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 disabled:opacity-25 transition-colors"
+                      >
+                        <Plus size={11} />
+                      </button>
+                    </div>
                     <button
-                      onClick={() => updateCartQty(item.product.id, -1)}
-                      aria-label={`${t('register.decreaseQty')} — ${item.product.name}`}
-                      className="size-6 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 transition-colors"
+                      onClick={() => removeFromCart(key)}
+                      aria-label={`${t('register.removeFromCart')} — ${displayName}`}
+                      className="ms-1.5 size-6 flex items-center justify-center text-slate-700 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                     >
-                      <Minus size={11} />
-                    </button>
-                    <span className="font-mono text-xs font-bold text-slate-900 dark:text-white px-2 min-w-[1.5rem] text-center bg-slate-100 dark:bg-slate-800/40">
-                      {item.quantity}
-                    </span>
-                    <button
-                      onClick={() => updateCartQty(item.product.id, 1)}
-                      disabled={item.quantity >= item.product.stock}
-                      aria-label={`${t('register.increaseQty')} — ${item.product.name}`}
-                      className="size-6 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 disabled:opacity-25 transition-colors"
-                    >
-                      <Plus size={11} />
+                      <Trash2 size={11} />
                     </button>
                   </div>
-                  <button
-                    onClick={() => removeFromCart(item.product.id)}
-                    aria-label={`${t('register.removeFromCart')} — ${item.product.name}`}
-                    className="ms-1.5 size-6 flex items-center justify-center text-slate-700 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                  >
-                    <Trash2 size={11} />
-                  </button>
-                </div>
-              </motion.div>
-            ))
+                </motion.div>
+              );
+            })
           )}
         </AnimatePresence>
       </div>

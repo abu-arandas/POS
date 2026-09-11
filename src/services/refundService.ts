@@ -1,5 +1,6 @@
 import { Customer, Product, SaleTransaction } from '../types';
 import { computeRefund, RefundComputation } from '../lib/refunds';
+import { applyStockDelta, parseLineKey } from '../lib/variants';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { RefundPatch, useTransactionStore } from '../stores/transactionStore';
@@ -44,12 +45,26 @@ export function commitRefund(
 
   const productStore = useProductStore.getState();
   const liveById = new Map(productStore.products.map((product) => [product.id, product]));
-  const updatedProducts: Product[] = [];
-  for (const [productId, quantity] of Object.entries(computation.appliedItems)) {
+  // Accumulated per product before anything is written, for the same reason the
+  // sale decrement is: a return of two variants of one product would otherwise
+  // have the second credit, computed from the pre-restock record, undo the first.
+  const workingByProduct = new Map<string, Product>();
+  for (const [key, quantity] of Object.entries(computation.appliedItems)) {
     if (quantity <= 0) continue;
-    const live = liveById.get(productId);
-    if (!live) continue; // product deleted since the sale; nothing to restock
-    const updated = { ...live, stock: live.stock + quantity };
+    const { productId, variantId } = parseLineKey(key);
+    const base = workingByProduct.get(productId) ?? liveById.get(productId);
+    if (!base) continue; // product deleted since the sale; nothing to restock
+    // A variant deleted since the sale has nowhere to put the units back. The
+    // money is still returned — the customer handed the goods over — but the
+    // count is not invented onto the parent, where it would overstate a size
+    // the shop does not have.
+    const restocked = applyStockDelta(base, variantId, quantity);
+    if (!restocked) continue;
+    workingByProduct.set(productId, restocked);
+  }
+
+  const updatedProducts: Product[] = [];
+  for (const updated of workingByProduct.values()) {
     productStore.handleUpdateProduct(updated);
     updatedProducts.push(updated);
   }

@@ -137,3 +137,21 @@ export async function deleteRowsSupabase(
   }
   return failedRows === 0;
 }
+
+/**
+ * Whether an error is PostgREST refusing a column the table does not have.
+ *
+ * PostgREST answers a write naming an unknown column with PGRST204 and the
+ * column in the message; the underlying Postgres code is 42703. Both are
+ * matched, and the column name is checked too, so this never swallows some
+ * other schema error as a missing-column case.
+ *
+ * Shared because the app updates itself and the schema does not: every column
+ * added here lands on installs whose operator has not yet run the migration,
+ * and each pusher needs the same "drop it and keep syncing" fallback.
+ */
+export function isUnknownColumn(error: unknown, column: string): boolean {
+  const { code, message } = (error ?? {}) as { code?: string; message?: string };
+  if (code !== 'PGRST204' && code !== '42703') return false;
+  return typeof message === 'string' && message.includes(column);
+}

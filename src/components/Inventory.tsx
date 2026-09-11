@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Plus, Layers, PackagePlus, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, PurchaseOrder, PurchaseOrderStatus } from '../types';
+import { Product, ProductVariant, PurchaseOrder, PurchaseOrderStatus, VariantType } from '../types';
+import { hasVariants, totalVariantStock, variantCost, variantLabel } from '../lib/variants';
 import { normalizePoLines } from '../lib/purchaseOrders';
 import { type InventoryTabId, allowedInventoryTabs, isInventoryTabAllowed } from '../lib/access';
 import { printProductLabels } from '../lib/printing/productLabels';
@@ -26,6 +27,7 @@ import {
   InventorySuppliersTab,
   ProductFormModal,
   PurchaseOrderFormModal,
+  type PurchaseOrderDraftLine,
   ReceiveStockModal,
   SupplierFormModal,
 } from './inventory/index';
@@ -83,6 +85,7 @@ export default function Inventory() {
   // Receive-stock (lightweight purchase order) modal
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [recvProductId, setRecvProductId] = useState('');
+  const [recvVariantId, setRecvVariantId] = useState('');
   const [recvQty, setRecvQty] = useState('');
   const [recvSupplierId, setRecvSupplierId] = useState('');
   const [recvNote, setRecvNote] = useState('');
@@ -102,9 +105,7 @@ export default function Inventory() {
   const [poModalOpen, setPoModalOpen] = useState(false);
   const [poSupplierId, setPoSupplierId] = useState('');
   const [poNote, setPoNote] = useState('');
-  const [poLines, setPoLines] = useState<
-    Array<{ productId: string; quantity: string; unitCost: string }>
-  >([]);
+  const [poLines, setPoLines] = useState<PurchaseOrderDraftLine[]>([]);
 
   const handleOpenPoModal = useCallback(() => {
     const [first] = products;
@@ -121,10 +122,7 @@ export default function Inventory() {
    * that line's unit cost from the catalog, which the operator may then
    * override with what the supplier actually charged.
    */
-  const handlePoLineChange = (
-    idx: number,
-    patch: Partial<{ productId: string; quantity: string; unitCost: string }>,
-  ) => {
+  const handlePoLineChange = (idx: number, patch: Partial<PurchaseOrderDraftLine>) => {
     setPoLines((prev) =>
       prev.map((l, i) => {
         if (i !== idx) return l;
@@ -134,18 +132,40 @@ export default function Inventory() {
           const prod = products.find((p) => p.id === patch.productId);
           if (prod) next.unitCost = String(prod.cost);
         }
+        // Picking a variant refines it: a large costs what the large costs, and
+        // a variant with no cost of its own falls back to the product's.
+        if (patch.variantId) {
+          const prod = products.find((p) => p.id === next.productId);
+          const variant = prod?.variants?.find((v) => v.id === patch.variantId);
+          if (prod) next.unitCost = String(variantCost(prod, variant));
+        }
         return next;
       }),
     );
   };
 
   const handleSavePoDraft = useCallback(() => {
+    // A line against a varianted product has to name one: receiving credits a
+    // variant's count, and a line that names none is silently skipped there
+    // rather than quietly crediting the product total.
+    const missingVariant = poLines.some((l) => {
+      const prod = products.find((p) => p.id === l.productId);
+      return prod && hasVariants(prod) && !l.variantId;
+    });
+    if (missingVariant) {
+      notify(t('inventory.variantRequired'));
+      return;
+    }
+
     const lines = normalizePoLines(
       poLines.map((l) => {
         const prod = products.find((p) => p.id === l.productId);
+        const variant = prod?.variants?.find((v) => v.id === l.variantId);
         return {
           productId: prod?.id ?? '',
           productName: prod?.name ?? '',
+          variantId: variant?.id,
+          variantName: variant && prod ? variantLabel(prod, variant) || undefined : undefined,
           quantity: parseInt(l.quantity, 10) || 0,
           unitCost: parseFloat(l.unitCost) || 0,
         };
@@ -184,6 +204,7 @@ export default function Inventory() {
     // so the service, not this screen, decides what is refusable.
     const result = adjustStock({
       productId: recvProductId,
+      variantId: recvVariantId || null,
       delta: qty,
       reason: recvReason,
       note: recvNote || null,
@@ -193,17 +214,30 @@ export default function Inventory() {
     });
     if (!result.success) {
       if (result.error === 'negative-stock') notify(t('inventory.stockCannotBeNegative'));
+      if (result.error === 'variant-required') notify(t('inventory.variantRequired'));
+      if (result.error === 'unknown-variant') notify(t('inventory.unknownVariant'));
       // 'zero-delta' and 'unknown-product' mean the form is incomplete, which
       // the disabled submit already communicates; nothing to say twice.
       return;
     }
     setReceiveOpen(false);
     setRecvProductId('');
+    setRecvVariantId('');
     setRecvQty('');
     setRecvSupplierId('');
     setRecvNote('');
     setRecvReason('received');
-  }, [recvProductId, recvQty, suppliers, recvSupplierId, recvReason, recvNote, currentUser, t]);
+  }, [
+    recvProductId,
+    recvVariantId,
+    recvQty,
+    suppliers,
+    recvSupplierId,
+    recvReason,
+    recvNote,
+    currentUser,
+    t,
+  ]);
 
   const handleAddSupplier = useCallback(
     (e: React.FormEvent) => {
@@ -257,6 +291,24 @@ export default function Inventory() {
   const [prodStock, setProdStock] = useState('');
   const [prodMinStock, setProdMinStock] = useState('');
   const [prodImage, setProdImage] = useState('');
+  const [prodVariantTypes, setProdVariantTypes] = useState<VariantType[]>([]);
+  const [prodVariants, setProdVariants] = useState<ProductVariant[]>([]);
+
+  /**
+   * Types and matrix move together — the editor rebuilds one from the other —
+   * so they are set in one call, and the stock box follows the matrix's sum
+   * while the form is open rather than only once it is saved.
+   */
+  const handleVariantsChange = useCallback(
+    (nextTypes: VariantType[], nextVariants: ProductVariant[]) => {
+      setProdVariantTypes(nextTypes);
+      setProdVariants(nextVariants);
+      if (nextVariants.length > 0) {
+        setProdStock(String(totalVariantStock({ variants: nextVariants, stock: 0 })));
+      }
+    },
+    [],
+  );
 
   // Open Add Product Dialog
   const handleOpenAddProduct = useCallback(() => {
@@ -269,6 +321,8 @@ export default function Inventory() {
     setProdStock('');
     setProdMinStock('5');
     setProdImage('');
+    setProdVariantTypes([]);
+    setProdVariants([]);
     setProductModalOpen(true);
   }, [categories]);
 
@@ -285,6 +339,8 @@ export default function Inventory() {
     setProdStock(prod.stock.toString());
     setProdMinStock(prod.minStock.toString());
     setProdImage(prod.image);
+    setProdVariantTypes(prod.variantTypes ?? []);
+    setProdVariants(prod.variants ?? []);
     setProductModalOpen(true);
   };
 
@@ -310,23 +366,84 @@ export default function Inventory() {
       return;
     }
 
+    // A half-built matrix is not savable: an option type with no name or no
+    // options produces variants nothing can label, and the register would show
+    // the operator a picker of blanks.
+    const incompleteType = prodVariantTypes.find(
+      (type) =>
+        !type.name.trim() ||
+        type.options.length === 0 ||
+        type.options.some((option) => !option.name.trim()),
+    );
+    if (incompleteType) {
+      notify(t('inventory.variantNeedsOptions'));
+      return;
+    }
+
+    // Variant SKUs are what the barcode scanner resolves, so a repeat anywhere
+    // in the catalogue — within this product or across it — is as ambiguous as
+    // a repeated product SKU.
+    const seenSkus = new Set<string>([prodSku]);
+    const otherSkus = new Set<string>();
+    for (const product of products) {
+      if (product.id === editingProduct?.id) continue;
+      otherSkus.add(product.sku);
+      for (const variant of product.variants ?? []) otherSkus.add(variant.sku);
+    }
+    for (const variant of prodVariants) {
+      if (seenSkus.has(variant.sku) || otherSkus.has(variant.sku)) {
+        notify(t('inventory.duplicateVariantSku', { sku: variant.sku }));
+        return;
+      }
+      seenSkus.add(variant.sku);
+    }
+
     const productPayload = {
       name: prodName,
       sku: prodSku,
       category: prodCategory,
       price: parseFloat(prodPrice),
       cost: parseFloat(prodCost),
-      stock: parseInt(prodStock, 10),
+      // Derived, never taken from the box, on a varianted product: the box is
+      // read-only there and the matrix is the only count that exists.
+      stock:
+        prodVariants.length > 0
+          ? totalVariantStock({ variants: prodVariants, stock: 0 })
+          : parseInt(prodStock, 10),
       minStock: parseInt(prodMinStock, 10) || 0,
       image: prodImage || '',
+      variantTypes: prodVariantTypes.length > 0 ? prodVariantTypes : undefined,
+      variants: prodVariants.length > 0 ? prodVariants : undefined,
     };
 
     if (editingProduct) {
       const updated = { ...productPayload, id: editingProduct.id };
       handleUpdateProduct(updated);
       syncToCloudIfEnabled([updated]);
-      // Record a manual stock correction in the audit log when it changed.
-      if (updated.stock !== editingProduct.stock) {
+      // Record manual stock corrections in the audit log. On a varianted
+      // product that is one row per changed variant, not one for the total:
+      // "+6" against a product says nothing about which size was recounted,
+      // and the total can be unchanged while two variants moved in opposite
+      // directions — a correction the log would otherwise never show.
+      if (hasVariants(updated) || hasVariants(editingProduct)) {
+        const before = new Map(
+          (editingProduct.variants ?? []).map((variant) => [variant.id, variant.stock]),
+        );
+        for (const variant of updated.variants ?? []) {
+          const delta = variant.stock - (before.get(variant.id) ?? 0);
+          if (delta === 0) continue;
+          logAdjustment({
+            productId: updated.id,
+            productName: updated.name,
+            variantId: variant.id,
+            variantName: variantLabel(updated, variant) || undefined,
+            delta,
+            newStock: variant.stock,
+            reason: 'correction',
+            operatorName: currentUser?.name ?? null,
+          });
+        }
+      } else if (updated.stock !== editingProduct.stock) {
         logAdjustment({
           productId: updated.id,
           productName: updated.name,
@@ -618,6 +735,9 @@ export default function Inventory() {
             onStockChange={setProdStock}
             onMinStockChange={setProdMinStock}
             onImageChange={setProdImage}
+            prodVariantTypes={prodVariantTypes}
+            prodVariants={prodVariants}
+            onVariantsChange={handleVariantsChange}
             onClose={() => setProductModalOpen(false)}
             onSubmit={handleSubmitProduct}
           />
@@ -650,11 +770,19 @@ export default function Inventory() {
             products={products}
             suppliers={suppliers}
             recvProductId={recvProductId}
+            recvVariantId={recvVariantId}
             recvQty={recvQty}
             recvSupplierId={recvSupplierId}
             recvNote={recvNote}
             recvReason={recvReason}
-            onProductIdChange={setRecvProductId}
+            onProductIdChange={(id) => {
+              setRecvProductId(id);
+              // A variant id only means anything against the product it belongs
+              // to, so switching products clears it rather than carrying a
+              // stale one that the service would then refuse.
+              setRecvVariantId('');
+            }}
+            onVariantIdChange={setRecvVariantId}
             onQuantityChange={setRecvQty}
             onSupplierIdChange={setRecvSupplierId}
             onNoteChange={setRecvNote}

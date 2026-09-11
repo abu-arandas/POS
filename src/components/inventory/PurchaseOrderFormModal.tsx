@@ -4,9 +4,12 @@ import { ModalFooter } from '../shared/ModalFooter';
 import type { TFunction } from 'i18next';
 import { ClipboardList, X } from 'lucide-react';
 import type { Product, StoreSettings, Supplier } from '../../types';
+import { availableStock, variantLabel } from '../../lib/variants';
 
 export interface PurchaseOrderDraftLine {
   productId: string;
+  /** Which variant is being ordered; required once the product has any. */
+  variantId?: string;
   quantity: string;
   unitCost: string;
 }
@@ -113,52 +116,80 @@ export function PurchaseOrderFormModal({
         </div>
 
         <div className="space-y-3">
-          {poLines.map((lineRow, idx) => (
-            <div key={idx} className="flex items-center gap-2">
-              <select
-                value={lineRow.productId}
-                onChange={(e) => onLineChange(idx, { productId: e.target.value })}
-                aria-label={t('inventory.products')}
-                className="flex-1 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 min-w-0"
-              >
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="number"
-                min="1"
-                value={lineRow.quantity}
-                onChange={(e) => onLineChange(idx, { quantity: e.target.value })}
-                aria-label={t('inventory.poQty')}
-                placeholder={t('inventory.poQty')}
-                className="w-24 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl p-3 text-slate-900 dark:text-white font-mono text-center focus:outline-none focus:border-emerald-500"
-              />
-              <div className="w-32 flex items-center bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden focus-within:border-emerald-500">
-                <span className="ps-3 text-slate-500 font-mono text-sm">{settings.currency}</span>
+          {poLines.map((lineRow, idx) => {
+            const lineProduct = products.find((p) => p.id === lineRow.productId);
+            const lineVariants = lineProduct?.variants ?? [];
+            return (
+              <div key={idx} className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={lineRow.productId}
+                  onChange={(e) =>
+                    // Clearing the variant with the product: an id from the old
+                    // product means nothing against the new one, and receiving
+                    // would silently skip the line.
+                    onLineChange(idx, { productId: e.target.value, variantId: '' })
+                  }
+                  aria-label={t('inventory.products')}
+                  className="flex-1 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 min-w-0"
+                >
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                {lineVariants.length > 0 && lineProduct && (
+                  <select
+                    value={lineRow.variantId ?? ''}
+                    onChange={(e) => onLineChange(idx, { variantId: e.target.value })}
+                    aria-label={t('inventory.variant')}
+                    className="flex-1 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 min-w-0"
+                  >
+                    <option value="">{t('inventory.variantRequired')}</option>
+                    {lineVariants.map((variant) => (
+                      <option key={variant.id} value={variant.id}>
+                        {variantLabel(lineProduct, variant) || variant.sku} (
+                        {t('inventory.currentStockShort', {
+                          count: availableStock(lineProduct, variant.id),
+                        })}
+                        )
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <input
                   type="number"
-                  min="0"
-                  step="0.01"
-                  value={lineRow.unitCost}
-                  onChange={(e) => onLineChange(idx, { unitCost: e.target.value })}
-                  aria-label={t('inventory.poUnitCost')}
-                  placeholder="0.00"
-                  className="w-full bg-transparent px-2 py-3 text-slate-900 dark:text-white font-mono focus:outline-none"
+                  min="1"
+                  value={lineRow.quantity}
+                  onChange={(e) => onLineChange(idx, { quantity: e.target.value })}
+                  aria-label={t('inventory.poQty')}
+                  placeholder={t('inventory.poQty')}
+                  className="w-24 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl p-3 text-slate-900 dark:text-white font-mono text-center focus:outline-none focus:border-emerald-500"
                 />
+                <div className="w-32 flex items-center bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden focus-within:border-emerald-500">
+                  <span className="ps-3 text-slate-500 font-mono text-sm">{settings.currency}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={lineRow.unitCost}
+                    onChange={(e) => onLineChange(idx, { unitCost: e.target.value })}
+                    aria-label={t('inventory.poUnitCost')}
+                    placeholder="0.00"
+                    className="w-full bg-transparent px-2 py-3 text-slate-900 dark:text-white font-mono focus:outline-none"
+                  />
+                </div>
+                <button
+                  onClick={() => onRemoveLine(idx)}
+                  disabled={poLines.length <= 1}
+                  aria-label={t('inventory.poRemoveLine')}
+                  className="btn-icon-outline p-2.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl disabled:opacity-25 transition-colors shrink-0"
+                >
+                  <X size={14} />
+                </button>
               </div>
-              <button
-                onClick={() => onRemoveLine(idx)}
-                disabled={poLines.length <= 1}
-                aria-label={t('inventory.poRemoveLine')}
-                className="btn-icon-outline p-2.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl disabled:opacity-25 transition-colors shrink-0"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
+            );
+          })}
           <button
             onClick={onAddLine}
             className="btn-dashed-add text-xs font-bold px-3 py-2 rounded-lg"

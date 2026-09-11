@@ -48,9 +48,11 @@ CREATE TABLE IF NOT EXISTS products (
   cost NUMERIC NOT NULL,
   category TEXT REFERENCES categories(id) ON DELETE SET NULL,
   sku TEXT NOT NULL,
-  stock INTEGER NOT NULL,
+  stock INTEGER NOT NULL,               -- for a varianted product: the sum of variants.stock
   min_stock INTEGER NOT NULL,
-  image TEXT NOT NULL
+  image TEXT NOT NULL,
+  variant_types JSONB,                  -- the axes the product varies along (Size, Colour, …)
+  variants JSONB                        -- the sellable combinations, each with its own sku/stock
 );
 
 -- 5. Create Customers Table
@@ -107,6 +109,19 @@ ALTER TABLE transactions ADD COLUMN IF NOT EXISTS shift_id TEXT;
 -- amount), and those receipts reprint without a percentage rather than with a
 -- guessed one.
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS tax_rate NUMERIC;
+-- Product variants. JSONB rather than two side tables: a variant is only ever
+-- read as part of its product (the register pulls the whole catalogue, the till
+-- works offline against a local copy), it is written whole by the product form,
+-- and nothing queries across variants of different products. Two tables would
+-- buy referential integrity this app cannot use and cost every catalogue read a
+-- pair of joins plus a client-side regroup.
+--
+-- Both stay NULL on existing rows, which is exactly what a product with no
+-- variants is — no backfill, and no behaviour change for a store that never
+-- adds one.
+ALTER TABLE products ADD COLUMN IF NOT EXISTS variant_types JSONB;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB;
+
 -- Allow the new 'partial' refund status (the CHECK is recreated to include it):
 ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_status_check;
 ALTER TABLE transactions ADD CONSTRAINT transactions_status_check

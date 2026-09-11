@@ -386,3 +386,136 @@ describe('commitSale — live stock is the authority', () => {
     expect(useCustomerStore.getState().customers[0].points).toBe(10);
   });
 });
+
+// A product sold in two sizes, each with its own count: 4 small, 3 large.
+const tee = (): Product =>
+  product({
+    id: 'p2',
+    name: 'Tee',
+    sku: 'TEE',
+    price: 20,
+    cost: 8,
+    stock: 7,
+    variantTypes: [
+      {
+        id: 'vt-size',
+        name: 'Size',
+        options: [
+          { id: 'o-s', name: 'Small' },
+          { id: 'o-l', name: 'Large' },
+        ],
+      },
+    ],
+    variants: [
+      { id: 'v-s', options: { 'vt-size': 'o-s' }, sku: 'TEE-S', stock: 4 },
+      { id: 'v-l', options: { 'vt-size': 'o-l' }, sku: 'TEE-L', price: 25, stock: 3 },
+    ],
+  });
+
+const teeLine = (variantId: string, variantName: string, quantity: number, price = 20) => ({
+  productId: 'p2',
+  productName: 'Tee',
+  variantId,
+  variantName,
+  price,
+  cost: 8,
+  quantity,
+});
+
+const liveTee = () => useProductStore.getState().products.find((p) => p.id === 'p2')!;
+const stockOf = (variantId: string) => liveTee().variants!.find((v) => v.id === variantId)!.stock;
+
+describe('commitSale with variants', () => {
+  beforeEach(() => {
+    syncToCloudIfEnabled.mockClear();
+    useProductStore.setState({ products: [tee()], categories: [] });
+    useCustomerStore.setState({ customers: [] });
+    useTransactionStore.setState({ transactions: [] });
+  });
+
+  it('takes the units off the variant that was sold', () => {
+    const result = commitSale(request({ cartItems: [teeLine('v-l', 'Large', 2, 25)] }));
+
+    expect(result.success).toBe(true);
+    expect(stockOf('v-l')).toBe(1);
+    expect(stockOf('v-s')).toBe(4);
+    // The product total is derived, so it follows without being written.
+    expect(liveTee().stock).toBe(5);
+  });
+
+  it('accumulates two variants of one product instead of overwriting', () => {
+    // Each line is computed from the catalogue record. Applied one at a time
+    // against the live product, the second write would be built on the state
+    // BEFORE the first and put the first variant's units back.
+    const result = commitSale(
+      request({ cartItems: [teeLine('v-s', 'Small', 2), teeLine('v-l', 'Large', 1, 25)] }),
+    );
+
+    expect(result.success).toBe(true);
+    expect(stockOf('v-s')).toBe(2);
+    expect(stockOf('v-l')).toBe(2);
+    expect(liveTee().stock).toBe(4);
+    if (!result.success) return;
+    // One product row pushed, carrying both decrements — not two rows racing.
+    expect(result.sale.updatedProducts).toHaveLength(1);
+    expect(result.sale.updatedProducts[0].stock).toBe(4);
+  });
+
+  it('refuses a line the variant cannot fill, even when the product could', () => {
+    // 5 larges against 3 in stock. The product holds 7 units, so a check
+    // against the product total would wave this through and sell two smalls
+    // as larges.
+    const result = commitSale(request({ cartItems: [teeLine('v-l', 'Large', 5, 25)] }));
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toBe('insufficient-stock');
+    expect(result.shortfalls).toEqual([
+      {
+        productId: 'p2',
+        variantId: 'v-l',
+        productName: 'Tee — Large',
+        requested: 5,
+        available: 3,
+      },
+    ]);
+    expect(stockOf('v-l')).toBe(3);
+    expect(useTransactionStore.getState().transactions).toEqual([]);
+  });
+
+  it('treats a variant deleted since the line was added as unavailable', () => {
+    const result = commitSale(request({ cartItems: [teeLine('v-gone', 'Medium', 1)] }));
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toBe('product-unavailable');
+    expect(result.shortfalls?.[0]).toMatchObject({ variantId: 'v-gone', available: 0 });
+    // Nothing came off the variants that do still exist.
+    expect(stockOf('v-s')).toBe(4);
+    expect(stockOf('v-l')).toBe(3);
+  });
+
+  it('refuses the whole sale when one of its lines is short', () => {
+    const result = commitSale(
+      request({ cartItems: [teeLine('v-s', 'Small', 1), teeLine('v-l', 'Large', 9, 25)] }),
+    );
+
+    expect(result.success).toBe(false);
+    expect(stockOf('v-s')).toBe(4);
+    expect(stockOf('v-l')).toBe(3);
+    expect(syncToCloudIfEnabled).not.toHaveBeenCalled();
+  });
+
+  it('records the variant on the persisted line', () => {
+    const result = commitSale(request({ cartItems: [teeLine('v-l', 'Large', 1, 25)] }));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.sale.transaction.items[0]).toMatchObject({
+      productId: 'p2',
+      variantId: 'v-l',
+      variantName: 'Large',
+      price: 25,
+      total: 25,
+    });
+  });
+});
