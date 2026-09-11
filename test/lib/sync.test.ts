@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { cloudLogin, deleteTransactionsCloudIfEnabled } from '../../src/lib/sync';
-import { clearOutbox } from '../../src/lib/outbox';
+import { clearOutbox, enqueueOperation, peekOutbox } from '../../src/lib/outbox';
 import { useSettingsStore } from '../../src/stores/settingsStore';
 import * as supabaseLib from '../../src/lib/supabase';
 import { notify } from '../../src/lib/utils/ui';
@@ -16,6 +16,11 @@ vi.mock('../../src/lib/supabase', () => ({
   signInDevice: vi.fn(),
   verifyLoginCloud: vi.fn(),
   deleteRowsSupabase: vi.fn(),
+  pushProducts: vi.fn(),
+  pushCategories: vi.fn(),
+  pushCustomers: vi.fn(),
+  pushTransactions: vi.fn(),
+  pushUserAccounts: vi.fn(),
 }));
 
 vi.mock('../../src/lib/utils/ui', () => ({
@@ -189,5 +194,24 @@ describe('deleteTransactionsCloudIfEnabled', () => {
     await expect(deleteTransactionsCloudIfEnabled(['t1'])).resolves.toBe(false);
     expect(supabaseLib.deleteRowsSupabase).not.toHaveBeenCalled();
     expect(notify).not.toHaveBeenCalled();
+  });
+
+  it('reports success when its own delete landed, even if a later write did not', async () => {
+    // The queue is shared. Something enqueued behind this delete can fail and
+    // stop the drain, which says nothing about whether this delete was taken.
+    (useSettingsStore.getState as any).mockReturnValue(enabled);
+    vi.mocked(supabaseLib.deleteRowsSupabase).mockResolvedValue(true);
+    vi.mocked(supabaseLib.pushProducts).mockResolvedValue(false);
+
+    const landed = deleteTransactionsCloudIfEnabled(['t1']);
+    // Queued behind the delete, and doomed.
+    await enqueueOperation({ type: 'push', products: [{ id: 'p1' } as never] });
+
+    await expect(landed).resolves.toBe(true);
+    expect(notify).not.toHaveBeenCalled();
+    // The failed push is still owed; the delete is not.
+    const remaining = await peekOutbox();
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].operation).toMatchObject({ type: 'push' });
   });
 });

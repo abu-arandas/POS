@@ -369,7 +369,7 @@ const deleteFromCloudIfEnabled = async (table: SyncTable, ids: string[]): Promis
   if (!queued) return true;
 
   let rejected = false;
-  const summary = await drainOutbox((entry, outcome) => {
+  await drainOutbox((entry, outcome) => {
     if (entry.id === queued.id && outcome === 'rejected') rejected = true;
   });
 
@@ -385,9 +385,15 @@ const deleteFromCloudIfEnabled = async (table: SyncTable, ids: string[]): Promis
       'error',
     );
   }
-  // Our entry is only gone from the queue once the server took it, and the
-  // drain runs in order, so a blocked drain means ours did not land either.
-  return !summary.blocked;
+
+  // Asked of the queue rather than inferred from the drain. An entry leaves the
+  // queue only once the server has taken it, so this is the fact itself —
+  // whereas the drain's `blocked` flag answers a different question and gets
+  // this one wrong twice over: it reports failure when our delete landed and
+  // something queued behind it did not, and it would report success when a
+  // concurrent drain sent ours and this one found nothing to do.
+  const stillOwed = (await peekOutbox()).some((entry) => entry.id === queued.id);
+  return !stillOwed;
 };
 
 /**
