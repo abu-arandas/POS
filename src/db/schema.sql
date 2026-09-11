@@ -133,6 +133,48 @@ CREATE INDEX IF NOT EXISTS idx_products_category ON products (category);
 -- index on the referencing column that is a full scan of products. Deleting a
 -- category is a normal operator action in Inventory, not a rare migration.
 
+-- 6d. Deployment state
+-- ============================================================
+-- Which access model this database is running under. Section 8 below installs
+-- blanket `USING (TRUE)` policies that are correct for a single-store install
+-- and catastrophic for a fleet one — Postgres ORs permissive policies together,
+-- so re-creating a blanket policy on a store-scoped database silently restores
+-- cross-store access to every terminal.
+--
+-- Re-running this script is the documented upgrade path, so "do not re-create
+-- them" has to survive a re-run. That used to be decided by probing for a policy
+-- by name (`products_read`), which couples this file to one identifier inside
+-- another migration: rename it, apply that migration partially, or apply it in a
+-- different order, and this script quietly concludes "single store" and reopens
+-- the fleet. The mode is recorded as a fact instead, by the migration that
+-- changes it.
+CREATE TABLE IF NOT EXISTS pos_schema_state (
+  id         BOOLEAN PRIMARY KEY DEFAULT TRUE CONSTRAINT pos_schema_state_single_row CHECK (id),
+  rls_mode   TEXT NOT NULL DEFAULT 'single-store'
+             CHECK (rls_mode IN ('single-store', 'store-scoped')),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+INSERT INTO pos_schema_state (id) VALUES (TRUE) ON CONFLICT (id) DO NOTHING;
+
+-- Deployment state is server-side bookkeeping, not application data: no client
+-- role may read it and none may change it. RLS with zero policies denies every
+-- client; the REVOKE removes Supabase's default table grants.
+ALTER TABLE pos_schema_state ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE pos_schema_state FROM anon, authenticated;
+
+-- Reads the recorded mode, treating a database upgraded from before this table
+-- existed as single-store (section 8's caller ORs in the legacy policy probe, so
+-- such a database is still detected correctly).
+CREATE OR REPLACE FUNCTION public.pos_rls_mode()
+RETURNS TEXT
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  SELECT COALESCE((SELECT rls_mode FROM pos_schema_state WHERE id), 'single-store');
+$$;
+REVOKE ALL ON FUNCTION public.pos_rls_mode() FROM PUBLIC;
+
 -- 7. Login RPC
 -- ============================================================
 -- SECURITY DEFINER so it can validate credentials even when RLS hides
@@ -159,10 +201,57 @@ ALTER TABLE login_attempts DROP CONSTRAINT IF EXISTS login_attempts_pkey;
 ALTER TABLE login_attempts ADD CONSTRAINT login_attempts_pkey PRIMARY KEY (scope_key);
 ALTER TABLE login_attempts ALTER COLUMN name SET NOT NULL;
 ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
+-- RLS with no policies already denies every client, but Supabase's default
+-- privileges hand new public-schema tables to anon and authenticated, so the
+-- grant exists until it is taken away. Two independent denials, because this
+-- table records exactly when each account's cool-off expires.
+REVOKE ALL ON TABLE login_attempts FROM anon, authenticated;
 -- Backs the opportunistic prune inside verify_login() below.
 CREATE INDEX IF NOT EXISTS idx_login_attempts_last_failure ON login_attempts (last_failure);
 -- No policies: RLS with zero policies denies every client. verify_login()
 -- reaches it as SECURITY DEFINER (the owner bypasses RLS).
+
+-- Who is asking. PostgREST publishes the request's headers to the function it
+-- calls, which is the only caller identity this database gets: Supabase
+-- terminates TLS at the edge and reaches Postgres through a pooler, so
+-- inet_client_addr() is the pooler, identical for every terminal on earth.
+--
+-- A forwarded-for header is not an authenticated identity and is not treated as
+-- one — nothing is authorized by it. It is used only to decide WHOSE failures
+-- count against WHOSE throttle, which is a strict improvement over counting
+-- them all against the account name: a caller who spoofs the header only moves
+-- their own failures onto another bucket, and a caller who omits it lands in the
+-- shared `unknown` bucket that behaves exactly as the old name-only throttle
+-- did. Real rate limiting belongs at the gateway; see the note below.
+CREATE OR REPLACE FUNCTION public.login_client_key()
+RETURNS TEXT
+LANGUAGE plpgsql
+STABLE
+SET search_path = public
+AS $$
+DECLARE
+  headers JSON;
+  fwd     TEXT;
+BEGIN
+  BEGIN
+    headers := NULLIF(current_setting('request.headers', TRUE), '')::json;
+  EXCEPTION WHEN OTHERS THEN
+    headers := NULL;
+  END;
+
+  IF headers IS NOT NULL THEN
+    -- The left-most entry of x-forwarded-for is the original client as seen by
+    -- the edge. cf-connecting-ip is single-valued and preferred where present.
+    fwd := COALESCE(
+      NULLIF(headers ->> 'cf-connecting-ip', ''),
+      NULLIF(btrim(split_part(COALESCE(headers ->> 'x-forwarded-for', ''), ',', 1)), '')
+    );
+  END IF;
+
+  RETURN COALESCE(fwd, host(inet_client_addr()), 'unknown');
+END;
+$$;
+REVOKE ALL ON FUNCTION public.login_client_key() FROM PUBLIC;
 
 -- verify_login is granted to `anon`, so anyone holding the public key that ships
 -- in the client bundle can call it. A 4-digit PIN is only 10,000 combinations,
@@ -172,14 +261,30 @@ CREATE INDEX IF NOT EXISTS idx_login_attempts_last_failure ON login_attempts (la
 --
 -- These mirror src/lib/pinThrottle.ts, which throttles the on-device keypad.
 --
--- Known trade-off: because a failure is recorded for whatever name was supplied,
--- someone holding the anon key can deliberately lock a named account out of
--- CLOUD login, and staff names are visible on the terminal's lock screen. That
--- is the accepted cost of a per-account throttle without a request identity to
--- key on. It degrades rather than denies — PIN login continues to work offline
--- against the locally persisted users, which is the normal path — and the
--- lockout self-clears on the ladder above. Rotate the anon key if you see it
--- being abused.
+-- Two throttles, because one cannot do both jobs:
+--
+--   * Per (caller, account name), on the escalating ladder below. This is the
+--     one that bites in practice. Keying it on the caller is what stopped a
+--     lockout being weaponisable: failures from whoever is guessing now land on
+--     THEIR bucket, so the shop's own terminal — a different caller — keeps
+--     logging in throughout. Previously five requests naming a staff member
+--     (and staff names are visible on the lock screen) locked that account out
+--     of cloud login for everyone.
+--   * Per account name, ten times more tolerant and with a flat cool-off. This
+--     is the backstop against guessing spread across many callers, which the
+--     per-caller throttle alone cannot see. It can still be tripped
+--     deliberately, but it now costs an attacker ~50 requests per 15 minutes
+--     instead of 5, and a successful login for that name clears it.
+--
+-- Residual, and worth stating plainly: an attacker willing to spend those
+-- requests can still suspend CLOUD login for one named account. It degrades
+-- rather than denies — PIN login continues to work offline against the locally
+-- persisted users, which is the normal path — and the lockout self-clears.
+-- A public anon key is not a meaningful attacker identity, so the real fix for
+-- a store under sustained abuse is a rate limit in front of Postgres: Supabase
+-- gateway limits, or fronting this RPC with an Edge Function. Rotate the anon
+-- key if you see it being abused, and alert on repeated lockouts (the
+-- login_attempts table records them).
 CREATE OR REPLACE FUNCTION public.verify_login(p_name TEXT, p_pin_hash TEXT)
 RETURNS TABLE (id TEXT, name TEXT, role TEXT, active BOOLEAN, created_at TIMESTAMPTZ)
 LANGUAGE plpgsql
@@ -187,14 +292,20 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  free_attempts CONSTANT INTEGER  := 5;
-  streak_reset  CONSTANT INTERVAL := INTERVAL '30 minutes';
-  att           login_attempts%ROWTYPE;
-  matched       user_accounts%ROWTYPE;
-  attempt_key   TEXT;
-  cool_off      INTERVAL;
+  free_attempts   CONSTANT INTEGER  := 5;
+  global_attempts CONSTANT INTEGER  := 50;
+  global_cool_off CONSTANT INTERVAL := INTERVAL '15 minutes';
+  streak_reset    CONSTANT INTERVAL := INTERVAL '30 minutes';
+  att             login_attempts%ROWTYPE;
+  glob            login_attempts%ROWTYPE;
+  matched         user_accounts%ROWTYPE;
+  attempt_key     TEXT;
+  global_key      TEXT;
+  cool_off        INTERVAL;
+  global_lock     TIMESTAMPTZ;
 BEGIN
-  attempt_key := '__single__:' || p_name;
+  attempt_key := '__single__:' || public.login_client_key() || '|' || p_name;
+  global_key  := '__name__:' || p_name;
   -- FOR UPDATE serializes concurrent guesses against the same account. Without
   -- the lock, N parallel calls all read the same `failures` and all write
   -- back the same +1, so a scripted attacker firing requests concurrently
@@ -202,11 +313,20 @@ BEGIN
   -- really bites. Losers of the race block here until the winner commits, then
   -- read the updated count. (No row yet = nothing to lock; the INSERT below
   -- takes the primary-key lock instead.)
-  SELECT * INTO att FROM login_attempts la WHERE la.scope_key = attempt_key FOR UPDATE;
+  --
+  -- Always caller-scoped row first, name-scoped row second. Two callers guessing
+  -- the same name would otherwise be able to take the two locks in opposite
+  -- orders and deadlock, which Postgres resolves by aborting one — turning a
+  -- routine login into an error.
+  SELECT * INTO att  FROM login_attempts la WHERE la.scope_key = attempt_key FOR UPDATE;
+  SELECT * INTO glob FROM login_attempts la WHERE la.scope_key = global_key  FOR UPDATE;
 
   -- Still inside a cool-off: refuse without even looking at the PIN, so a
   -- locked-out account leaks nothing about which guesses are close.
   IF att.locked_until IS NOT NULL AND att.locked_until > NOW() THEN
+    RETURN;
+  END IF;
+  IF glob.locked_until IS NOT NULL AND glob.locked_until > NOW() THEN
     RETURN;
   END IF;
 
@@ -215,6 +335,9 @@ BEGIN
   IF att.scope_key IS NOT NULL AND att.last_failure < NOW() - streak_reset THEN
     att.failures := 0;
   END IF;
+  IF glob.scope_key IS NOT NULL AND glob.last_failure < NOW() - streak_reset THEN
+    glob.failures := 0;
+  END IF;
 
   SELECT * INTO matched
   FROM user_accounts ua
@@ -222,7 +345,10 @@ BEGIN
   LIMIT 1;
 
   IF FOUND THEN
-    DELETE FROM login_attempts la WHERE la.scope_key = attempt_key;
+    -- A correct PIN is proof a real operator is at a terminal, so it clears the
+    -- name's backstop too — otherwise a burst of guesses would keep the shop
+    -- locked out of cloud login even while staff are signing in successfully.
+    DELETE FROM login_attempts la WHERE la.scope_key IN (attempt_key, global_key);
     RETURN QUERY SELECT matched.id, matched.name, matched.role, matched.active, matched.created_at;
     RETURN;
   END IF;
@@ -235,6 +361,11 @@ BEGIN
     WHEN COALESCE(att.failures, 0) + 1 =  free_attempts + 2 THEN INTERVAL '2 minutes'
     WHEN COALESCE(att.failures, 0) + 1 =  free_attempts + 3 THEN INTERVAL '5 minutes'
     ELSE INTERVAL '15 minutes'
+  END;
+
+  global_lock := CASE
+    WHEN COALESCE(glob.failures, 0) + 1 >= global_attempts THEN NOW() + global_cool_off
+    ELSE NULL
   END;
 
 
@@ -266,8 +397,10 @@ BEGIN
    );
 
   INSERT INTO login_attempts AS la (scope_key, name, failures, locked_until, last_failure)
-  VALUES (attempt_key, p_name, COALESCE(att.failures, 0) + 1,
-          CASE WHEN cool_off IS NULL THEN NULL ELSE NOW() + cool_off END, NOW())
+  VALUES
+    (attempt_key, p_name, COALESCE(att.failures, 0) + 1,
+     CASE WHEN cool_off IS NULL THEN NULL ELSE NOW() + cool_off END, NOW()),
+    (global_key,  p_name, COALESCE(glob.failures, 0) + 1, global_lock, NOW())
   ON CONFLICT ON CONSTRAINT login_attempts_pkey DO UPDATE
     SET failures     = EXCLUDED.failures,
         locked_until = EXCLUDED.locked_until,
@@ -354,18 +487,29 @@ ALTER TABLE transactions  ENABLE ROW LEVEL SECURITY;
 -- touch any row. That is correct for a single-store install, but it must NOT be
 -- (re)created once multi-store RLS is enforced — Postgres ORs permissive
 -- policies together, so a blanket policy silently reopens cross-store access and
--- makes the store-scoped policies meaningless. The guard below detects the
--- enforced setup (src/db/multi-store-rls-enforce.sql creates products_read) and
--- leaves it alone, so re-running this script stays safe on a fleet deployment.
+-- makes the store-scoped policies meaningless.
+--
+-- The guard reads the mode recorded in pos_schema_state (section 6d), which
+-- src/db/multi-store-rls-enforce.sql sets when it enforces store scoping. It
+-- also still honours the original signal — the existence of a store-scoped
+-- policy — so a database enforced before that table existed, or one where the
+-- enforcement migration was applied only in part, is recognised too. Either
+-- signal on its own is enough to keep the blanket policies out: on this
+-- question the safe answer is the sticky one.
 DO $$
 DECLARE
   tbl            text;
   store_enforced boolean;
+  scoped_policy  boolean;
 BEGIN
   SELECT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'products' AND policyname = 'products_read'
-  ) INTO store_enforced;
+    WHERE schemaname = 'public'
+      AND tablename IN ('products', 'categories', 'customers', 'transactions', 'user_accounts')
+      AND policyname LIKE '%\_read' ESCAPE '\'
+  ) INTO scoped_policy;
+
+  store_enforced := public.pos_rls_mode() = 'store-scoped' OR scoped_policy;
 
   IF store_enforced THEN
     RAISE NOTICE 'Store-scoped RLS detected — leaving the blanket staff policies out.';
@@ -380,8 +524,22 @@ BEGIN
       'staff full access', tbl);
   END LOOP;
 
-  -- User accounts: authenticated staff can manage only the explicitly granted
-  -- non-secret columns; the PIN column is used only by verify_login().
+  -- User accounts. These policies decide which ROWS an authenticated terminal
+  -- may touch; which COLUMNS it may touch is decided by the column grants above,
+  -- and the two are ANDed. That is why `USING (TRUE)` here does not expose the
+  -- PIN hash: `pin` is absent from the SELECT grant, so `select pin`,
+  -- `select *`, a `where pin = …` probe and a `returning pin` are each refused
+  -- with "permission denied" no matter what this policy says. Reads go through
+  -- user_accounts_public.
+  --
+  -- `pin` IS in the INSERT/UPDATE grants, because a PIN set on one terminal has
+  -- to reach the others. Every terminal shares one Supabase device account, so
+  -- the database cannot tell an admin's terminal from a cashier's: a device
+  -- credential can therefore overwrite any staff PIN hash, and role enforcement
+  -- for that is in the app (only admins reach the user editor). Treat the device
+  -- account as the store's credential, scope it per store, and rotate it when a
+  -- terminal is lost. src/db/verify-policies.sql checks these grants against a
+  -- live database.
   DROP POLICY IF EXISTS "staff manage users" ON user_accounts;
   DROP POLICY IF EXISTS "staff read users" ON user_accounts;
   DROP POLICY IF EXISTS "staff insert users" ON user_accounts;

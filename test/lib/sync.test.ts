@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { cloudLogin, deleteTransactionsCloudIfEnabled } from '../../src/lib/sync';
+import { clearOutbox } from '../../src/lib/outbox';
 import { useSettingsStore } from '../../src/stores/settingsStore';
 import * as supabaseLib from '../../src/lib/supabase';
 import { notify } from '../../src/lib/utils/ui';
@@ -141,8 +142,11 @@ describe('deleteTransactionsCloudIfEnabled', () => {
     },
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    // A failed delete now stays queued for replay, so each case starts from an
+    // empty queue rather than inheriting the previous one's backlog.
+    await clearOutbox();
     vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue({ auth: {} } as any);
     vi.mocked(supabaseLib.signInDevice).mockResolvedValue(true);
   });

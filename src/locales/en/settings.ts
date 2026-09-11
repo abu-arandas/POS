@@ -41,6 +41,8 @@ export const settings = {
   pushToCloud: 'Push All to Cloud',
   pullFromCloud: 'Pull From Cloud',
   pullWarning: 'Pulling replaces ALL local data with the cloud copy. Continue?',
+  pullWarningPending:
+    '{{count}} change(s) made here have not reached the cloud yet. Pulling now replaces ALL local data with the cloud copy and those changes are lost. Continue anyway?',
   saveConfig: 'Save Configuration',
   configSaved: 'Supabase configuration saved.',
   missingCreds: 'Enter a Project URL and anon key first.',

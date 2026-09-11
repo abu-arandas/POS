@@ -99,6 +99,24 @@ BEGIN
   END LOOP;
 END $$;
 
+-- 3. Record the mode, so a later re-run of src/db/schema.sql knows not to
+--    re-create the blanket policies section 2 just dropped.
+--
+--    This is the whole point of pos_schema_state. schema.sql used to infer the
+--    mode by probing for one policy name created above, which made a rename or a
+--    half-applied migration enough to make it conclude "single store" and
+--    reinstate `USING (TRUE)` on every table — an outcome nobody would see until
+--    a terminal read another store's data. A recorded fact does not depend on
+--    the spelling of a policy.
+--
+--    Written last on purpose: if anything above fails, the script aborts and the
+--    mode is not claimed. The table is created by schema.sql §6d; the guard
+--    there also still honours the policy probe, so a database enforced before
+--    this line existed stays protected.
+INSERT INTO pos_schema_state (id, rls_mode, updated_at)
+VALUES (TRUE, 'store-scoped', NOW())
+ON CONFLICT (id) DO UPDATE SET rls_mode = 'store-scoped', updated_at = NOW();
+
 -- ============================================================
 -- ROLLBACK (uncomment and run to undo, returning to advisory mode: RLS stays on
 -- exactly as src/db/schema.sql leaves it, but the store dimension stops being
@@ -125,5 +143,6 @@ END $$;
 --   DROP POLICY IF EXISTS "staff manage users" ON user_accounts;
 --   CREATE POLICY "staff manage users" ON user_accounts
 --     FOR ALL TO authenticated USING (TRUE) WITH CHECK (TRUE);
+--   UPDATE pos_schema_state SET rls_mode = 'single-store', updated_at = NOW() WHERE id;
 -- END $$;
 -- ============================================================

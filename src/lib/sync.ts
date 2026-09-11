@@ -21,6 +21,14 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { notify } from './utils/ui';
 import i18n from './i18n';
 import { Product, Category, Customer, SaleTransaction, UserAccount } from '../types';
+import {
+  clearOutbox,
+  enqueueOperation,
+  flushOutbox,
+  OutboxEntry,
+  OutboxOperation,
+  pendingOperationCount,
+} from './outbox';
 
 // Signs the client in with the configured device account (no-op when none is
 // set). Call before any read/write so sync works once RLS is enabled.
@@ -34,12 +42,78 @@ const ensureDeviceSession = async (client: SupabaseClient): Promise<void> => {
   if (!signedIn) throw new Error('Supabase device authentication failed');
 };
 
+/** Whether this terminal has a cloud to sync with at all. */
+const cloudConfigured = (): boolean => {
+  const { supabaseConfig } = useSettingsStore.getState();
+  return Boolean(supabaseConfig.enabled && supabaseConfig.url && supabaseConfig.anonKey);
+};
+
 /**
- * Pushes the given changed records to Supabase, if cloud sync is configured.
+ * How an attempted cloud write ended. `unreachable` is ordinary offline
+ * behaviour and stays quiet; `rejected` means the request reached a server that
+ * refused it, which is worth telling the operator about for a delete.
+ */
+type SendOutcome = 'sent' | 'rejected' | 'unreachable';
+
+/**
+ * Performs one queued operation against Supabase. The only place in this module
+ * that talks to the network on the write path — everything else queues work and
+ * lets the outbox decide when this runs.
+ */
+const sendOperation = async (operation: OutboxOperation): Promise<SendOutcome> => {
+  const { supabaseConfig, storeId } = useSettingsStore.getState();
+  const client = getSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
+  if (!client) return 'unreachable';
+
+  try {
+    await ensureDeviceSession(client);
+  } catch (err) {
+    // Not being able to reach Supabase at all is ordinary offline behaviour
+    // that the rest of the app already tolerates quietly.
+    console.warn('Cloud write postponed:', err);
+    return 'unreachable';
+  }
+
+  if (operation.type === 'delete') {
+    return (await deleteRowsSupabase(client, operation.table, operation.ids)) ? 'sent' : 'rejected';
+  }
+
+  // Ordered, and every table awaited: a transaction that lands before the
+  // product rows it refers to is a row the reports cannot explain.
+  const { products, categories, customers, transactions, users } = operation;
+  const results: boolean[] = [];
+  if (products?.length) results.push(await pushProducts(client, products, storeId));
+  if (categories?.length) results.push(await pushCategories(client, categories, storeId));
+  if (customers?.length) results.push(await pushCustomers(client, customers, storeId));
+  if (transactions?.length) results.push(await pushTransactions(client, transactions, storeId));
+  if (users?.length) results.push(await pushUserAccounts(client, users, storeId));
+  return results.every(Boolean) ? 'sent' : 'rejected';
+};
+
+/**
+ * Drains the outbox. `onEntryOutcome` observes each attempt, which is how the
+ * delete wrappers tell a server rejection from an unreachable server.
+ */
+const drainOutbox = (onEntryOutcome?: (entry: OutboxEntry, outcome: SendOutcome) => void) =>
+  flushOutbox(async (entry) => {
+    const outcome = await sendOperation(entry.operation);
+    onEntryOutcome?.(entry, outcome);
+    return outcome === 'sent';
+  });
+
+/**
+ * Queues the given changed records for Supabase and tries to send them now, if
+ * cloud sync is configured.
  *
- * Every argument is optional and only non-empty lists are sent, which makes
- * this an incremental upsert rather than a full push. A failure is logged and
- * swallowed: sync is best-effort and must never block a sale.
+ * Every argument is optional and only non-empty lists are queued, which makes
+ * this an incremental upsert rather than a full push.
+ *
+ * The queue is the point. This used to try the network once and swallow the
+ * error, so a sale rung up during a thirty-second outage was simply never
+ * pushed and nothing ever noticed. Now the rows are written to the outbox in
+ * IndexedDB first and removed only once the server has taken them, so the worst
+ * a failed push costs is a delay. Callers still need not await it: a slow
+ * network must not hold up a receipt.
  */
 export const syncToCloudIfEnabled = async (
   prods?: Product[],
@@ -48,24 +122,62 @@ export const syncToCloudIfEnabled = async (
   txs?: SaleTransaction[],
   accts?: UserAccount[],
 ) => {
-  const { supabaseConfig } = useSettingsStore.getState();
-  if (!supabaseConfig.enabled || !supabaseConfig.url || !supabaseConfig.anonKey) return;
+  // With no cloud configured there is nothing to reconcile against later, so
+  // queueing would only grow a backlog for a server that does not exist.
+  if (!cloudConfigured()) return;
 
-  const client = getSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
-  if (!client) return;
+  const queued = await enqueueOperation({
+    type: 'push',
+    products: prods,
+    categories: cats,
+    customers: custs,
+    transactions: txs,
+    users: accts,
+  });
+  if (!queued) return;
 
-  const { storeId } = useSettingsStore.getState();
-  try {
-    await ensureDeviceSession(client);
-    // By passing only modified items as arrays to these functions, we do an incremental upsert!
-    if (prods && prods.length > 0) await pushProducts(client, prods, storeId);
-    if (cats && cats.length > 0) await pushCategories(client, cats, storeId);
-    if (custs && custs.length > 0) await pushCustomers(client, custs, storeId);
-    if (txs && txs.length > 0) await pushTransactions(client, txs, storeId);
-    if (accts && accts.length > 0) await pushUserAccounts(client, accts, storeId);
-  } catch (err) {
-    console.warn('Background live sync push postponed:', err);
+  await drainOutbox();
+};
+
+/**
+ * Replays anything the outbox still owes the cloud. Safe to call at any time:
+ * an empty queue costs one IndexedDB read.
+ */
+export const retryPendingCloudWrites = async (): Promise<void> => {
+  if (!cloudConfigured()) return;
+  await drainOutbox();
+};
+
+/** How many cloud writes this terminal has not yet had accepted. */
+export const pendingCloudWrites = (): Promise<number> => pendingOperationCount();
+
+const REPLAY_INTERVAL_MS = 30_000;
+let replayTimer: ReturnType<typeof setInterval> | null = null;
+let replayOnline: (() => void) | null = null;
+
+/**
+ * Starts the background replay loop: on reconnect, and on a slow timer for the
+ * outages the browser never reports (a captive portal, a server that is up but
+ * refusing). Idempotent.
+ */
+export const startOutboxReplay = (): void => {
+  if (replayTimer !== null) return;
+  replayTimer = setInterval(() => void retryPendingCloudWrites(), REPLAY_INTERVAL_MS);
+  replayOnline = () => void retryPendingCloudWrites();
+  if (typeof window !== 'undefined') window.addEventListener('online', replayOnline);
+  void retryPendingCloudWrites();
+};
+
+/** Stops the background replay loop. The queue itself survives — it is on disk. */
+export const stopOutboxReplay = (): void => {
+  if (replayTimer !== null) {
+    clearInterval(replayTimer);
+    replayTimer = null;
   }
+  if (replayOnline && typeof window !== 'undefined') {
+    window.removeEventListener('online', replayOnline);
+  }
+  replayOnline = null;
 };
 
 /**
@@ -144,13 +256,25 @@ export const pushAllToCloud = async (
     pushUserAccounts(client, data.users, storeId),
     pushTransactions(client, data.transactions, storeId),
   ]);
-  return results.every(Boolean);
+  const pushed = results.every(Boolean);
+  // A successful full push has just sent every local row in its newest form, so
+  // the incremental pushes still queued behind it are redundant — and replaying
+  // them would re-upsert older copies of rows this push has already settled.
+  // Queued deletes are not covered by a push and stay put.
+  if (pushed) await clearOutbox('push');
+  return pushed;
 };
 
 /**
  * Pulls the full dataset from the cloud (manual "Pull From Cloud" action).
  * Returns null if the client cannot be created; individual entities are null
  * only if that specific table failed to load.
+ *
+ * The outbox is drained first. A pull replaces local data with the server's
+ * copy, so anything this terminal has not managed to push yet would be erased
+ * by a snapshot that never contained it. Sending first turns that into a
+ * no-op; when the queue will not drain, `pendingCloudWrites()` is non-zero and
+ * the caller is expected to warn before replacing anything.
  */
 export const pullAllFromCloud = async (
   url: string,
@@ -171,6 +295,8 @@ export const pullAllFromCloud = async (
     return null;
   }
 
+  await retryPendingCloudWrites();
+
   const { storeId } = useSettingsStore.getState();
   const [categories, products, customers, users, transactions] = await Promise.all([
     pullCategories(client, storeId),
@@ -186,26 +312,24 @@ export const pullAllFromCloud = async (
  * Propagates a local delete to the cloud, so the rows do not come back on
  * the next pull. A no-op that reports success when sync is off — there is
  * nothing to keep in step.
+ *
+ * Returns whether the server accepted the delete during this call. A `false`
+ * no longer means the delete is lost: it is queued in the outbox like every
+ * other cloud write and replayed until it lands.
  */
 const deleteFromCloudIfEnabled = async (table: SyncTable, ids: string[]): Promise<boolean> => {
-  const { supabaseConfig } = useSettingsStore.getState();
-  if (!supabaseConfig.enabled || !supabaseConfig.url || !supabaseConfig.anonKey) return true;
+  if (!cloudConfigured()) return true;
   if (!ids || ids.length === 0) return true;
 
-  const client = getSupabaseClient(supabaseConfig.url, supabaseConfig.anonKey);
-  if (!client) return false;
+  const queued = await enqueueOperation({ type: 'delete', table, ids });
+  if (!queued) return true;
 
-  try {
-    await ensureDeviceSession(client);
-  } catch (err) {
-    // Not being able to reach Supabase at all is ordinary offline behaviour
-    // that the rest of the app already tolerates quietly.
-    console.warn('Background live sync delete postponed:', err);
-    return false;
-  }
+  let rejected = false;
+  const summary = await drainOutbox((entry, outcome) => {
+    if (entry.id === queued.id && outcome === 'rejected') rejected = true;
+  });
 
-  const deleted = await deleteRowsSupabase(client, table, ids);
-  if (!deleted) {
+  if (rejected) {
     // The local rows are already gone. If the cloud copy survives, the next
     // Pull From Cloud silently brings them back and the user has no idea why —
     // so a rejected delete is worth saying out loud instead of swallowing.
@@ -217,7 +341,9 @@ const deleteFromCloudIfEnabled = async (table: SyncTable, ids: string[]): Promis
       'error',
     );
   }
-  return deleted;
+  // Our entry is only gone from the queue once the server took it, and the
+  // drain runs in order, so a blocked drain means ours did not land either.
+  return !summary.blocked;
 };
 
 /**

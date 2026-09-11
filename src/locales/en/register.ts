@@ -12,6 +12,10 @@ export const register = {
   clearCart: 'Clear entire cart',
   insufficientCash: 'Insufficient cash paid!',
   invalidQuantity: 'Cart quantities must be positive whole numbers.',
+  insufficientStock:
+    'Not enough stock for {{items}} — another till may have sold them. Adjust the cart and try again.',
+  productUnavailable:
+    'No longer in the catalogue: {{items}}. Remove those lines to complete the sale.',
   hold: 'Hold',
   holdOrder: 'Hold this order for later',
   holdLabelPrompt: 'Name this parked order (e.g. a table or customer):',

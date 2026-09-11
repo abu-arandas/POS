@@ -53,9 +53,10 @@ runs in three shapes from one codebase:
 
 The design centre is **offline correctness**. Every screen works with no network: the
 catalog, customers, sales history, shifts, held orders and settings all persist to
-IndexedDB via Zustand's `persist` middleware. Supabase cloud sync is strictly optional
-and always best-effort — a sync failure is logged and swallowed, never allowed to block a
-sale.
+IndexedDB via Zustand's `persist` middleware. Supabase cloud sync is strictly optional and
+never allowed to block a sale — but "never blocks" is not "may be lost": every cloud write
+goes into a durable outbox (`src/lib/outbox.ts`) before it is attempted and stays there
+until the server accepts it.
 
 ### Feature surface
 
@@ -291,12 +292,12 @@ result to the cloud. That orchestration used to sit inline in `Register`, `Histo
 clicking through a modal, and three screens each carried their own copy of the ordering
 rules.
 
-| Function                                                         | Does                                                                                                                                                                       |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `commitSale(request)`                                            | Validates the tender, decrements stock on the **live** product records, moves loyalty points, persists the transaction, pushes. Returns the transaction plus `isCashSale`. |
-| `commitRefund(txId, selection, authorizedBy, rate, pointValue?)` | Re-reads the transaction from the store, computes the refund, restocks, reverses points proportionally, patches the sale, pushes.                                          |
-| `adjustStock(request)`                                           | One signed stock movement plus its audit entry. Refuses `negative-stock`, `zero-delta`, `unknown-product`.                                                                 |
-| `receivePurchaseOrder(poId, operator?)`                          | Claims the status transition **first**, then credits every line and logs it.                                                                                               |
+| Function                                                         | Does                                                                                                                                                                                                                                                                                   |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `commitSale(request)`                                            | Validates the tender **and the live stock**, decrements stock on the **live** product records, moves loyalty points, persists the transaction, queues the push. Returns the transaction plus `isCashSale`, or `insufficient-stock` / `product-unavailable` with the short lines named. |
+| `commitRefund(txId, selection, authorizedBy, rate, pointValue?)` | Re-reads the transaction from the store, computes the refund, restocks, reverses points proportionally, patches the sale, pushes.                                                                                                                                                      |
+| `adjustStock(request)`                                           | One signed stock movement plus its audit entry. Refuses `negative-stock`, `zero-delta`, `unknown-product`.                                                                                                                                                                             |
+| `receivePurchaseOrder(poId, operator?)`                          | Claims the status transition **first**, then credits every line and logs it.                                                                                                                                                                                                           |
 
 Two rules define the boundary:
 
@@ -307,7 +308,13 @@ Two rules define the boundary:
 
 `commitSale` reads quantities off the transaction it just built rather than taking the cart
 as a second argument: both describe the same lines, but two arguments can disagree and one
-cannot. `receivePurchaseOrder` claims the transition before touching stock because the
+cannot. It validates every line against the live catalogue **before the first write**, and
+refuses the whole sale if any line is short or its product is gone. It used to clamp
+instead — `Math.max(0, stock - quantity)` as it decremented — so a line for 5 against 2 in
+stock recorded a sale of 5, drove stock to 0 rather than −3, and a deleted product recorded
+a sale of goods the catalogue no longer had. The receipt, the day's revenue, the loyalty
+award and the cloud row then all asserted a quantity inventory never contained. Refusing
+halfway through would be its own bug, which is why validation is a separate pass. `receivePurchaseOrder` claims the transition before touching stock because the
 stock movement is not idempotent — crediting first and asking afterwards let a double-click
 add the same shipment twice while the refused status change was discarded.
 
@@ -324,24 +331,38 @@ mistyped `150%` therefore cannot produce a negative total. Returns
 `{ subtotal, discountAmount, taxableAmount, taxAmount, totalAmount }`.
 
 **`checkout.ts` — `buildSaleTransaction(req): CheckoutOutcome`**
-The authoritative sale boundary. It returns a failure outcome rather than throwing, so the
-register can show the reason inline. The four rejections:
+The authoritative sale boundary. It **recomputes** every monetary field from the cart, the
+discount and the settings — `calculateOrderTotals` again, on the way in — rather than
+persisting the totals the register computed for the screen. Those were caller-supplied, so
+any caller could hand over a cart of $20 and a total of $2 and the transaction, the receipt,
+the day's revenue and the cloud row would all agree on the wrong number. `CheckoutRequest`
+therefore carries no totals and no `cashChangeDue` at all: change is derived from the
+validated tender and the recomputed total, so the two cannot disagree. The register's
+figures are display state.
+
+It returns a failure outcome rather than throwing, so the register can show the reason
+inline. The four rejections:
 
 | Error                    | Meaning                                                                                                                        |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
 | `invalid-quantity`       | A line quantity is not a positive safe integer. Checked **before** tenders or money data are assembled.                        |
 | `split-incomplete`       | Split tenders do not cover the total.                                                                                          |
 | `split-non-cash-overpay` | A card/mobile/gift tender exceeds the total — that would record phantom money with no way to return it. Only cash may overpay. |
-| `insufficient-cash`      | Cash tendered is below a non-zero total.                                                                                       |
+| `insufficient-cash`      | Cash tendered is below a non-zero total, or is negative or non-finite at any total.                                            |
 
-Two details that matter for correctness:
+Three details that matter for correctness:
 
 - A `$0` total settled entirely by redeemed points is recorded as a `loyalty` sale, not a
   `$0` card charge. Any _other_ `$0` total (a 100 % promo) keeps its chosen method.
-- `discountValue` for a loyalty sale stores the **redeemable** point count derived from
-  `discountAmount / loyaltyPointValue`, not the requested count. The request can exceed
-  what the order absorbs; a refund reverses `tx.discountValue`, so storing the inflated
-  request would hand back points that were never taken.
+- `discountValue` stores what was **applied**, not what was asked for: the redeemable point
+  count (`discountAmount / loyaltyPointValue`) for a loyalty sale, a percentage capped at
+  100, the clamped amount for a fixed discount. The request can exceed what the order
+  absorbs, and a refund reverses `tx.discountValue` — so storing the inflated request would
+  hand back points that were never taken, and would let a receipt print "150% off" beside a
+  discount worth 100%.
+- The tender bound is checked independently of the total. A `$0` sale covers any amount, so
+  "does the tender cover the total?" alone let a negative or infinite `cashPaid` onto a
+  permanent record; a non-finite split tender line is dropped for the same reason.
 
 **`payments.ts` — `summarizeTenders(payments, total)`**
 Reduces split tender lines to `{ paidTotal, cashTendered, cashChange, dominantMethod,
@@ -782,7 +803,9 @@ configured, and is a no-op in single-store mode.
 
 | Function                                                    | Purpose                                                                                         |
 | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `syncToCloudIfEnabled(prods?, cats?, custs?, txs?, accts?)` | Incremental upsert — only non-empty lists are sent. Failures are logged and swallowed.          |
+| `syncToCloudIfEnabled(prods?, cats?, custs?, txs?, accts?)` | Incremental upsert — only non-empty lists are queued. Durably queued first, then sent.          |
+| `retryPendingCloudWrites()` / `pendingCloudWrites()`        | Drain the outbox now; how many writes the server has not yet accepted.                          |
+| `startOutboxReplay()` / `stopOutboxReplay()`                | The replay loop: on `online`, and on a 30s timer for outages the browser never reports.         |
 | `cloudLogin(name, pinHash)`                                 | Lock-screen fallback via `verify_login`, so a PIN changed on another terminal still works here. |
 | `testCloudConnection(url, key)`                             | Sign in + lightweight query.                                                                    |
 | `pushAllToCloud(url, key, snapshot)`                        | Manual "Push All"; true only if every table succeeded.                                          |
@@ -791,9 +814,44 @@ configured, and is a no-op in single-store mode.
 
 A rejected delete raises a **visible** toast rather than being swallowed: the local rows are
 already gone, so if the cloud copy survives the next pull silently brings them back and the
-operator has no idea why.
+operator has no idea why. It is queued for replay all the same.
 
 `ensureDeviceSession` runs before every read/write, so sync works once RLS is enabled.
+
+`pullAllFromCloud` drains the outbox before reading, because a pull replaces local data with
+the server's copy — anything this terminal has not managed to push would be erased by a
+snapshot that never contained it. Settings asks for confirmation naming the count when the
+queue will not drain. A successful `pushAllToCloud` drops queued _pushes_ (it has just sent
+the same rows in their newest form) and keeps queued deletes, which a push does not cover.
+
+### 8.4a The outbox — `outbox.ts`
+
+| Function                      | Purpose                                                                 |
+| ----------------------------- | ----------------------------------------------------------------------- |
+| `enqueueOperation(op)`        | Records a push or delete as owed, in IndexedDB, before it is attempted. |
+| `flushOutbox(send, now?)`     | Replays due entries in submission order, stopping at the first failure. |
+| `pendingOperationCount()`     | How many operations are still owed.                                     |
+| `clearOutbox(kind?)`          | Drops entries; `kind` narrows it to one operation type.                 |
+| `subscribeToOutbox(listener)` | Pending-count changes, for the UI.                                      |
+
+Three properties carry the design:
+
+- **Durable before attempted.** A push used to be tried once and, on failure, logged to the
+  console and dropped, so a sale rung up during a thirty-second outage was never pushed and
+  nothing knew. Now the worst a failed push costs is a delay.
+- **Ordered, stopping at the first failure.** These operations are not independent: a refund
+  that reaches the server before the sale it refunds is a row the server rejects or, worse,
+  accepts against nothing.
+- **Idempotent by construction.** Every entry is an upsert keyed by primary key or a delete
+  by id, so replaying one twice is the same as replaying it once — which is what makes a
+  crash between "server accepted" and "entry removed" harmless, and why there is no separate
+  idempotency token.
+
+Retries back off along `5s → 15s → 1m → 5m → 15m → 30m`, the last rung repeating for as long
+as the outage lasts. Every read-modify-write of the queue is serialized through one promise
+chain: two sales a second apart would otherwise both read the array, both append, and the
+slower write would land last — losing the first sale's push, which is the exact failure the
+file exists to prevent.
 
 ### 8.5 Realtime — `realtimeSync.ts`
 
@@ -1250,13 +1308,15 @@ with nothing actually checking who built the installer.
 
 ## 14. Database schema and SQL migrations
 
-Three scripts, run in order. Each is idempotent and safe to re-run — re-running is the
-documented upgrade path.
+Three scripts, run in order, plus a fourth that only reads. Each is idempotent and safe to
+re-run — re-running is the documented upgrade path. Finish with `src/db/verify-policies.sql`:
+reading the scripts is not the same as checking the database, because grants and policies
+accumulate across versions, hand-run statements and half-applied migrations.
 
 ### 14.1 `src/db/schema.sql` — base, secure by default
 
 **Tables:** `user_accounts`, `categories`, `products`, `customers`, `transactions`,
-`login_attempts`.
+`login_attempts`, `pos_schema_state`.
 
 **Indexes:** `idx_transactions_date`, `idx_products_category`. Postgres creates an index for
 a PRIMARY KEY and a UNIQUE constraint and for nothing else — notably **not** for a foreign
@@ -1269,9 +1329,18 @@ non-secret fields; the PIN hash never leaves the database. It is granted to `ano
 anyone holding the public key that ships in the client bundle can call it — and a 4-digit
 PIN is only 10,000 combinations. It therefore mirrors `pinThrottle.ts` server-side:
 
+- Failures are counted per **(caller, account name)** on the escalating ladder, plus a far
+  more tolerant per-name backstop (50 failures, a flat 15-minute cool-off, cleared by any
+  successful login) for guessing spread across many callers. The caller comes from
+  `login_client_key()`, which reads the forwarded-for headers PostgREST publishes — the only
+  caller identity Postgres gets behind Supabase's pooler. It authorizes nothing, so spoofing
+  it only moves an attacker onto a different bucket; a caller that sends no header lands in
+  a shared `unknown` bucket that behaves exactly as the old name-only throttle did.
 - `SELECT … FOR UPDATE` serialises concurrent guesses. Without the lock, N parallel calls
   all read the same `failures` and all write back the same +1, so a scripted attacker firing
-  concurrently burns far more than five attempts per rung and the ladder never bites.
+  concurrently burns far more than five attempts per rung and the ladder never bites. The
+  caller-scoped row is always locked before the name-scoped one: opposite orders across two
+  callers guessing the same name is a deadlock, which Postgres resolves by aborting one.
 - Inside a cool-off it returns without looking at the PIN, so a locked-out account leaks
   nothing about which guesses are close.
 - Before writing a failure it **prunes** stale rows. The name is caller-supplied and
@@ -1282,13 +1351,27 @@ PIN is only 10,000 combinations. It therefore mirrors `pinThrottle.ts` server-si
   trying to delete the other's and **deadlock**, which Postgres resolves by aborting one —
   turning a routine login into an error.
 
-The known trade-off is documented in the file: because a failure is recorded for whatever
-name was supplied, someone holding the anon key can deliberately lock a named account out of
-_cloud_ login. It degrades rather than denies — PIN login continues offline against the
-locally persisted users, which is the normal path — and the lockout self-clears.
+The residual is documented in the file. Keying the ladder on the caller removed the case
+that mattered — five requests naming a staff member no longer suspend that account's cloud
+login for the shop's own terminal — but an attacker willing to spend ~50 requests per 15
+minutes across many callers can still trip the per-name backstop. It degrades rather than
+denies: PIN login continues offline against the locally persisted users, which is the normal
+path, and the lockout self-clears. A public anon key is not a meaningful attacker identity,
+so a store under sustained abuse wants a rate limit in front of Postgres (Supabase gateway
+limits, or an Edge Function around this RPC).
 
 **`user_accounts_public`** — a `security_invoker` view projecting the non-secret columns.
-`user_accounts` itself is REVOKEd from `anon`/`authenticated` and re-granted per column.
+`user_accounts` itself is REVOKEd from `anon`/`authenticated` and re-granted **per column**.
+That column grant, not the policy, is what keeps the PIN hash private: RLS filters rows, not
+columns, so the blanket `USING (TRUE)` policy on `user_accounts` does not expose `pin` —
+`select pin`, `select *`, a `where pin = …` probe and a `returning pin` are each refused with
+_permission denied_, whatever the policy says. `pin` **is** in the INSERT/UPDATE grants,
+because a PIN set on one terminal has to reach the others; since every terminal shares one
+Supabase device account, the database cannot tell an admin's terminal from a cashier's, and
+role enforcement for that lives in the app. Treat the device account as the store's
+credential, scope it per store, rotate it when a terminal is lost.
+`test/db/schemaContract.test.ts` locks the grant shape down in CI and
+`src/db/verify-policies.sql` checks it against a live database.
 
 Both the view and the grants are built inside a `DO` block that detects whether `store_id`
 exists, because re-running this file on a fleet deployment broke twice over:
@@ -1300,10 +1383,23 @@ COLUMN` statements that are the entire point of re-running it.
 **RLS.** Enabled on all five tables, granted only to `authenticated`. The public `anon` key
 therefore cannot read or write any row on its own — a terminal must establish an
 authenticated device session first. The blanket `USING (TRUE)` staff policies are created
-inside a guard that detects the enforced multi-store setup (by looking for the
-`products_read` policy) and skips them: Postgres ORs permissive policies together, so a
-blanket policy would silently reopen cross-store access and make the store-scoped policies
-meaningless.
+inside a guard that skips them on a store-scoped deployment: Postgres ORs permissive
+policies together, so one blanket policy silently reopens cross-store access and makes every
+store-scoped policy meaningless.
+
+The guard reads `pos_schema_state.rls_mode`, a single row that `multi-store-rls-enforce.sql`
+writes as its last statement. It used to infer the mode by probing for one policy **by
+name** (`products_read`), which coupled this file to an identifier inside another migration:
+rename it, apply that migration partially, or apply it in a different order, and re-running
+`schema.sql` — the documented upgrade path — quietly concluded "single store" and reinstated
+`USING (TRUE)` on every table, an outcome nobody would see until a terminal read another
+store's data. The recorded mode does not depend on the spelling of a policy. The old probe
+is still ORed in (widened to any `*_read` policy) so a database enforced before that row
+existed is still recognised; on this question the safe answer is the sticky one.
+
+`pos_schema_state` and `login_attempts` are both RLS-enabled with **zero** policies and
+REVOKEd from `anon`/`authenticated` — server-side bookkeeping, denied twice over.
+`src/db/verify-policies.sql` asserts all of this against a live database.
 
 **Realtime.** Each `ALTER PUBLICATION … ADD TABLE` gets its own exception block. With a
 single block around all five, the first already-published table aborts the block and the
@@ -1363,9 +1459,11 @@ preconditions and warns that running it early will lock terminals out of their o
 It then sets `store_id NOT NULL`, drops the blanket policies (mandatory — leaving a
 `USING (TRUE)` policy in place means the store-scoped policies have no effect whatsoever),
 and creates per-table `_read`/`_insert`/`_update`/`_delete` policies gated on
-`has_store_access(store_id)`. A commented rollback block at the bottom restores the blanket
-policies — and it restores them _before_ dropping the scoped ones, because doing it the
-other way round would lock every terminal out rather than opening access back up.
+`has_store_access(store_id)`. Last, it records `rls_mode = 'store-scoped'` in
+`pos_schema_state` — last on purpose, so a script that aborts part-way has not claimed a mode
+it did not reach. A commented rollback block at the bottom restores the blanket policies and
+puts the mode back — and it restores them _before_ dropping the scoped ones, because doing it
+the other way round would lock every terminal out rather than opening access back up.
 
 ---
 
@@ -1583,6 +1681,7 @@ lcov up.
 | `src/db/schema.sql`                  | Base Supabase DDL, RLS, `verify_login`, realtime publication                                                                                                                                                                                                       |
 | `src/db/multi-store-schema.sql`      | Additive store dimension, fleet RPCs, access predicates                                                                                                                                                                                                            |
 | `src/db/multi-store-rls-enforce.sql` | Opt-in store-scoped RLS enforcement (+ rollback)                                                                                                                                                                                                                   |
+| `src/db/verify-policies.sql`         | Read-only access-control contract check, run against a live database                                                                                                                                                                                               |
 | `src/db/seed.mjs`                    | Seeds a Supabase project with a demo catalog. Needs `SUPABASE_SERVICE_ROLE_KEY` (the anon key cannot insert once RLS is on). Reproduces the app's PBKDF2 hash format with `node:crypto`. Its catalogue is deliberately **not** the same as `src/data/seedData.ts`. |
 | `src/build/check-bundle-budget.mjs`  | Gzips the hashed Vite entry assets and fails past budget                                                                                                                                                                                                           |
 
@@ -1700,6 +1799,7 @@ A budget failure should trigger a fresh bundle analysis, not an arbitrary limit 
 | `i18n.ts`                                        | i18next init                                        |
 | `idbStorage.ts`                                  | Zustand ↔ idb-keyval adapter                        |
 | `imageUrl.ts`                                    | Image URL sanitiser                                 |
+| `outbox.ts`                                      | Durable queue of cloud writes still owed            |
 | `kitchenRouting.ts`                              | Category → station routing                          |
 | `payments.ts`                                    | Tender summarisation                                |
 | `pinThrottle.ts`                                 | Lockout ladder                                      |
@@ -1717,7 +1817,7 @@ A budget failure should trigger a fresh bundle analysis, not an arbitrary limit 
 | `shiftReport.ts`                                 | Z-report tallies                                    |
 | `storeForm.ts`                                   | Store form validation + slugs                       |
 | `supabase/*`                                     | Cloud client, paging, per-table push/pull           |
-| `sync.ts`                                        | Sync orchestration                                  |
+| `sync.ts`                                        | Sync orchestration + outbox replay loop             |
 | `useBarcodeScanner.ts`                           | Wedge-scanner hook                                  |
 | `useModalA11y.ts`                                | Dialog focus trap                                   |
 | `utils/*`                                        | validation, formatting, ids, ui, dom                |

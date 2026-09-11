@@ -33,6 +33,7 @@ import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
 import { ScreenId, isScreenAllowed } from './lib/access';
 import { startRealtimeSync, stopRealtimeSync } from './lib/realtimeSync';
+import { startOutboxReplay, stopOutboxReplay } from './lib/sync';
 import { startFleetHeartbeat, stopFleetHeartbeat, fetchSuperadminOrg } from './lib/fleetClient';
 import NotificationCenter from './components/NotificationCenter';
 import DialogCenter from './components/DialogCenter';
@@ -70,6 +71,16 @@ export default function App() {
     startRealtimeSync();
     return () => stopRealtimeSync();
   }, [syncEnabled, syncConnected]);
+
+  // Replay of cloud writes this terminal still owes. Deliberately NOT gated on
+  // `connected`: the queue exists precisely because the connection drops, and
+  // waiting for the status to say otherwise is waiting for the thing that is
+  // broken to announce it is fixed.
+  useEffect(() => {
+    if (!syncEnabled) return;
+    startOutboxReplay();
+    return () => stopOutboxReplay();
+  }, [syncEnabled]);
 
   // Multi-store (super-admin) plumbing. While sync is connected: send this
   // terminal's store heartbeat, and resolve whether the device account is a

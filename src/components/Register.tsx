@@ -311,19 +311,16 @@ export default function Register() {
   );
 
   const handleCompletePayment = useCallback(() => {
+    // Carries the cart and the discount the operator chose, not the totals on
+    // screen: buildSaleTransaction recomputes the money it is about to persist.
     const req: CheckoutRequest = {
       cartItems,
-      subtotal,
       discountType,
       discountValue,
-      discountAmount,
-      taxAmount,
-      totalAmount,
       paymentMethod,
       splitMode,
       splitPayments,
       cashPaidText,
-      cashChangeDue,
       selectedCustomerId,
       activeCustomerName: activeCustomer?.name || null,
       currentUser,
@@ -339,6 +336,23 @@ export default function Register() {
       else if (result.error === 'split-incomplete') notify(t('register.splitIncomplete'));
       else if (result.error === 'split-non-cash-overpay') notify(t('register.splitNonCashOverpay'));
       else if (result.error === 'insufficient-cash') notify(t('register.insufficientCash'));
+      else if (result.error === 'insufficient-stock' || result.error === 'product-unavailable') {
+        // Name the lines, because the fix is per-line: the cart was capped
+        // against stock read when each item went in, and something has sold or
+        // removed those units since — usually another till.
+        const items = (result.shortfalls ?? [])
+          .map((short) => `${short.productName} (${short.available}/${short.requested})`)
+          .join(', ');
+        notify(
+          t(
+            result.error === 'product-unavailable'
+              ? 'register.productUnavailable'
+              : 'register.insufficientStock',
+            { items },
+          ),
+          'error',
+        );
+      }
       return;
     }
 
@@ -400,17 +414,12 @@ export default function Register() {
     })();
   }, [
     cartItems,
-    subtotal,
     discountType,
     discountValue,
-    discountAmount,
-    taxAmount,
-    totalAmount,
     paymentMethod,
     splitMode,
     splitPayments,
     cashPaidText,
-    cashChangeDue,
     selectedCustomerId,
     activeCustomer,
     currentUser,

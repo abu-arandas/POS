@@ -76,9 +76,10 @@ ALTER TABLE login_attempts ADD CONSTRAINT login_attempts_pkey PRIMARY KEY (scope
 -- than sharing it. Postgres has no way to patch a function body, and both files
 -- are standalone scripts pasted whole into the SQL editor, so there is nothing
 -- to factor out without breaking that workflow. The cost is that the two can
--- drift: a change to the escalation ladder, the FOR UPDATE lock, or the streak
--- reset has to be made in BOTH, and schema.sql carries the comments explaining
--- why each of those is there.
+-- drift: a change to the escalation ladder, the FOR UPDATE lock and its
+-- ordering, the caller-scoped and name-scoped keys, or the streak reset has to
+-- be made in BOTH, and schema.sql carries the comments explaining why each of
+-- those is there. test/db/schemaContract.test.ts asserts the two stay in step.
 -- The third argument has a default, so existing two-argument callers continue to
 -- work until a terminal is configured with a store id; scoped callers must match
 -- the account's store_id. The old two-argument routine is removed so it cannot be
@@ -95,22 +96,46 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  free_attempts CONSTANT INTEGER  := 5;
-  streak_reset  CONSTANT INTERVAL := INTERVAL '30 minutes';
-  att           login_attempts%ROWTYPE;
-  matched       user_accounts%ROWTYPE;
-  attempt_key   TEXT;
-  cool_off      INTERVAL;
+  free_attempts   CONSTANT INTEGER  := 5;
+  global_attempts CONSTANT INTEGER  := 50;
+  global_cool_off CONSTANT INTERVAL := INTERVAL '15 minutes';
+  streak_reset    CONSTANT INTERVAL := INTERVAL '30 minutes';
+  att             login_attempts%ROWTYPE;
+  glob            login_attempts%ROWTYPE;
+  matched         user_accounts%ROWTYPE;
+  scope_prefix    TEXT;
+  attempt_key     TEXT;
+  global_key      TEXT;
+  cool_off        INTERVAL;
+  global_lock     TIMESTAMPTZ;
 BEGIN
-  attempt_key := COALESCE('__store__:' || p_store_id, '__unscoped__:') || p_name;
-  SELECT * INTO att FROM login_attempts la WHERE la.scope_key = attempt_key FOR UPDATE;
+  -- Per caller AND per account name, for the reasons set out in schema.sql §7:
+  -- the caller-scoped ladder is what actually throttles a guesser, and keying it
+  -- on the caller is what stops a lockout being aimable at a named account. The
+  -- name-scoped backstop catches guessing spread across callers. Both stay
+  -- inside the store scope, so two stores that happen to share a staff name
+  -- cannot lock each other out.
+  scope_prefix := COALESCE('__store__:' || p_store_id, '__unscoped__:');
+  attempt_key  := scope_prefix || public.login_client_key() || '|' || p_name;
+  global_key   := scope_prefix || '__name__|' || p_name;
+
+  -- Caller-scoped row first, name-scoped second, always: a consistent lock order
+  -- is what keeps two callers guessing the same name from deadlocking.
+  SELECT * INTO att  FROM login_attempts la WHERE la.scope_key = attempt_key FOR UPDATE;
+  SELECT * INTO glob FROM login_attempts la WHERE la.scope_key = global_key  FOR UPDATE;
 
   IF att.locked_until IS NOT NULL AND att.locked_until > NOW() THEN
+    RETURN;
+  END IF;
+  IF glob.locked_until IS NOT NULL AND glob.locked_until > NOW() THEN
     RETURN;
   END IF;
 
   IF att.scope_key IS NOT NULL AND att.last_failure < NOW() - streak_reset THEN
     att.failures := 0;
+  END IF;
+  IF glob.scope_key IS NOT NULL AND glob.last_failure < NOW() - streak_reset THEN
+    glob.failures := 0;
   END IF;
 
   SELECT * INTO matched
@@ -122,7 +147,7 @@ BEGIN
   LIMIT 1;
 
   IF FOUND THEN
-    DELETE FROM login_attempts la WHERE la.scope_key = attempt_key;
+    DELETE FROM login_attempts la WHERE la.scope_key IN (attempt_key, global_key);
     RETURN QUERY SELECT matched.id, matched.name, matched.role, matched.active, matched.created_at;
     RETURN;
   END IF;
@@ -134,6 +159,11 @@ BEGIN
     WHEN COALESCE(att.failures, 0) + 1 =  free_attempts + 2 THEN INTERVAL '2 minutes'
     WHEN COALESCE(att.failures, 0) + 1 =  free_attempts + 3 THEN INTERVAL '5 minutes'
     ELSE INTERVAL '15 minutes'
+  END;
+
+  global_lock := CASE
+    WHEN COALESCE(glob.failures, 0) + 1 >= global_attempts THEN NOW() + global_cool_off
+    ELSE NULL
   END;
 
 
@@ -165,8 +195,10 @@ BEGIN
    );
 
   INSERT INTO login_attempts AS la (scope_key, name, failures, locked_until, last_failure)
-  VALUES (attempt_key, p_name, COALESCE(att.failures, 0) + 1,
-          CASE WHEN cool_off IS NULL THEN NULL ELSE NOW() + cool_off END, NOW())
+  VALUES
+    (attempt_key, p_name, COALESCE(att.failures, 0) + 1,
+     CASE WHEN cool_off IS NULL THEN NULL ELSE NOW() + cool_off END, NOW()),
+    (global_key,  p_name, COALESCE(glob.failures, 0) + 1, global_lock, NOW())
   ON CONFLICT ON CONSTRAINT login_attempts_pkey DO UPDATE
     SET failures     = EXCLUDED.failures,
         locked_until = EXCLUDED.locked_until,
