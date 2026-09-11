@@ -1,16 +1,29 @@
 import { SaleTransaction, RefundedItem } from '../types';
+import { orderItemKey, parseLineKey, refundedItemKey } from './variants';
 
 /**
- * Remaining refundable quantity per product line (original minus already returned).
+ * Remaining refundable quantity per sold line (original minus already returned).
+ *
+ * Keyed by product AND variant, like everything else that treats a line as an
+ * identity. A sale of two smalls and one large is three units of one product
+ * and two distinct lines; keying by product alone would let a return of "two"
+ * come back against whichever line the map happened to hold, restock the wrong
+ * size, and — once both lines were folded into one entry — report a sale as
+ * fully refunded while one of its lines had never been returned at all.
+ *
+ * For a plain product the key IS the product id, which is why sales, refund
+ * rows and held orders written before variants existed keep working unchanged.
  */
 export function refundableQuantities(tx: SaleTransaction): Record<string, number> {
   const already: Record<string, number> = {};
   for (const r of tx.refundedItems ?? []) {
-    already[r.productId] = (already[r.productId] ?? 0) + r.quantity;
+    const key = refundedItemKey(r);
+    already[key] = (already[key] ?? 0) + r.quantity;
   }
   const remaining: Record<string, number> = {};
   for (const item of tx.items) {
-    remaining[item.productId] = Math.max(0, item.quantity - (already[item.productId] ?? 0));
+    const key = orderItemKey(item);
+    remaining[key] = Math.max(0, item.quantity - (already[key] ?? 0));
   }
   return remaining;
 }
@@ -26,7 +39,7 @@ export interface RefundComputation {
   refundedAmount: number; // NEW cumulative refunded currency to persist
   fullyRefunded: boolean; // true once every line has been fully returned
   status: 'partial' | 'refunded';
-  appliedItems: Record<string, number>; // The exact clamped quantities refunded in this operation
+  appliedItems: Record<string, number>; // The exact clamped quantities refunded in this operation, by line key
 }
 
 /**
@@ -42,10 +55,11 @@ function clampToRefundable(
   const accepted: Record<string, number> = {};
   let lineSubtotal = 0;
   for (const item of tx.items) {
-    const want = Math.max(0, Math.floor(selection[item.productId] ?? 0));
-    const qty = Math.min(want, remaining[item.productId] ?? 0);
+    const key = orderItemKey(item);
+    const want = Math.max(0, Math.floor(selection[key] ?? 0));
+    const qty = Math.min(want, remaining[key] ?? 0);
     if (qty > 0) {
-      accepted[item.productId] = qty;
+      accepted[key] = qty;
       lineSubtotal += item.price * qty;
     }
   }
@@ -53,7 +67,7 @@ function clampToRefundable(
 }
 
 /**
- * This return folded into everything already returned, as a productId -> total
+ * This return folded into everything already returned, as a line key -> total
  * quantity map. That cumulative view is what decides whether the sale is now
  * fully refunded, and what gets persisted on the transaction.
  */
@@ -62,9 +76,11 @@ function mergeReturnedQuantities(
   accepted: Record<string, number>,
 ): Record<string, number> {
   const merged: Record<string, number> = {};
-  for (const r of tx.refundedItems ?? [])
-    merged[r.productId] = (merged[r.productId] ?? 0) + r.quantity;
-  for (const [pid, qty] of Object.entries(accepted)) merged[pid] = (merged[pid] ?? 0) + qty;
+  for (const r of tx.refundedItems ?? []) {
+    const key = refundedItemKey(r);
+    merged[key] = (merged[key] ?? 0) + r.quantity;
+  }
+  for (const [key, qty] of Object.entries(accepted)) merged[key] = (merged[key] ?? 0) + qty;
   return merged;
 }
 
@@ -117,7 +133,7 @@ function computePointsReversal(
 }
 
 /**
- * Computes the effect of returning `selection` (productId -> qty) from a sale.
+ * Computes the effect of returning `selection` (line key -> qty) from a sale.
  * The refund is a proportional share of the *total* so discount and tax are
  * prorated; a full return therefore refunds exactly the total. Earned points
  * are reversed proportionally; redeemed loyalty points are returned only on a
@@ -138,13 +154,15 @@ export function computeRefund(
   if (refundLineSubtotal <= 0) return null; // nothing to refund
 
   const merged = mergeReturnedQuantities(tx, clean);
-  const refundedItems: RefundedItem[] = Object.entries(merged).map(([productId, quantity]) => ({
-    productId,
-    quantity,
-  }));
+  const refundedItems: RefundedItem[] = Object.entries(merged).map(([key, quantity]) => {
+    const { productId, variantId } = parseLineKey(key);
+    return variantId ? { productId, variantId, quantity } : { productId, quantity };
+  });
 
   // Fully refunded once every original line is covered.
-  const fullyRefunded = tx.items.every((item) => (merged[item.productId] ?? 0) >= item.quantity);
+  const fullyRefunded = tx.items.every(
+    (item) => (merged[orderItemKey(item)] ?? 0) >= item.quantity,
+  );
 
   // Refund currency as the delta between the prorated total for everything
   // refunded so far (this op included) and the prorated total already refunded.
@@ -158,7 +176,7 @@ export function computeRefund(
   };
   const priorRefundedSubtotal = tx.items.reduce(
     (sum, item) =>
-      sum + item.price * (item.quantity - (remaining[item.productId] ?? item.quantity)),
+      sum + item.price * (item.quantity - (remaining[orderItemKey(item)] ?? item.quantity)),
     0,
   );
   const cumulativeBefore = prorate(priorRefundedSubtotal);

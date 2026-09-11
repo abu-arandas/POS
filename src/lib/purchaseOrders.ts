@@ -1,5 +1,6 @@
 import { PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus } from '../types';
 import { nonNegative } from './utils/validation';
+import { lineKey } from './variants';
 
 /**
  * The only legal status moves. Received and cancelled are terminal — a
@@ -39,9 +40,13 @@ export function poUnitCount(po: Pick<PurchaseOrder, 'lines'>): number {
 }
 
 /**
- * Drops empty/invalid lines and merges duplicates of the same product so a
- * PO can never receive the same product twice from one order. Quantities are
- * whole units; costs can't go negative.
+ * Drops empty/invalid lines and merges duplicates of the same line so a PO can
+ * never receive the same thing twice from one order. Quantities are whole
+ * units; costs can't go negative.
+ *
+ * "The same thing" is a product AND a variant: two sizes of one shirt are two
+ * orders against two counts, and merging them would receive both quantities
+ * into whichever size came first.
  */
 export function normalizePoLines(lines: PurchaseOrderLine[]): PurchaseOrderLine[] {
   const merged = new Map<string, PurchaseOrderLine>();
@@ -49,7 +54,8 @@ export function normalizePoLines(lines: PurchaseOrderLine[]): PurchaseOrderLine[
     const quantity = Math.floor(nonNegative(line.quantity));
     if (!line.productId || quantity <= 0) continue;
     const unitCost = nonNegative(line.unitCost);
-    const existing = merged.get(line.productId);
+    const key = lineKey(line.productId, line.variantId);
+    const existing = merged.get(key);
     if (existing) {
       const previousCost = existing.unitCost * existing.quantity;
       existing.quantity += quantity;
@@ -59,7 +65,7 @@ export function normalizePoLines(lines: PurchaseOrderLine[]): PurchaseOrderLine[
         ((previousCost + unitCost * quantity) / existing.quantity).toFixed(2),
       );
     } else {
-      merged.set(line.productId, { ...line, quantity, unitCost });
+      merged.set(key, { ...line, quantity, unitCost });
     }
   }
   return Array.from(merged.values());

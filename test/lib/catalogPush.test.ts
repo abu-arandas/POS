@@ -142,3 +142,64 @@ describe('planCatalogPush', () => {
     expect(plan.categoriesToUpsert).toHaveLength(1);
   });
 });
+
+describe('pushing a varianted product to another store', () => {
+  const varianted = P({
+    id: 'sp9',
+    name: 'Tee',
+    sku: 'T1',
+    price: 20,
+    category: 'sc1',
+    stock: 7,
+    variantTypes: [
+      {
+        id: 'vt-size',
+        name: 'Size',
+        options: [
+          { id: 'o-s', name: 'Small' },
+          { id: 'o-l', name: 'Large' },
+        ],
+      },
+    ],
+    variants: [
+      { id: 'v-s', options: { 'vt-size': 'o-s' }, sku: 'T1-S', stock: 4 },
+      { id: 'v-l', options: { 'vt-size': 'o-l' }, sku: 'T1-L', price: 25, stock: 3 },
+    ],
+  });
+
+  const source = {
+    categories: [C({ id: 'sc1', name: 'Apparel', color: 'bg-blue-500' })],
+    products: [varianted],
+  };
+
+  it('carries the option types and the matrix across', () => {
+    // Without them the target store lands a varianted item as a single
+    // unsellable SKU at the parent's price.
+    const plan = planCatalogPush(source, { categories: [], products: [] }, ALL, counter());
+    const [pushed] = plan.productsToUpsert;
+
+    expect(pushed.variantTypes).toEqual(varianted.variantTypes);
+    expect(pushed.variants?.map((v) => v.sku)).toEqual(['T1-S', 'T1-L']);
+    expect(pushed.variants?.[1].price).toBe(25);
+  });
+
+  it('zeroes every variant’s stock, like the product’s', () => {
+    // Stock is per-store inventory. Copying the source's counts would invent
+    // inventory the target store does not have.
+    const plan = planCatalogPush(source, { categories: [], products: [] }, ALL, counter());
+    const [pushed] = plan.productsToUpsert;
+
+    expect(pushed.stock).toBe(0);
+    expect(pushed.variants?.every((v) => v.stock === 0)).toBe(true);
+  });
+
+  it('leaves a plain product without a matrix', () => {
+    const plain = {
+      categories: source.categories,
+      products: [P({ id: 'sp1', name: 'Latte', sku: 'L1', category: 'sc1' })],
+    };
+    const plan = planCatalogPush(plain, { categories: [], products: [] }, ALL, counter());
+    expect(plan.productsToUpsert[0].variants).toBeUndefined();
+    expect(plan.productsToUpsert[0].variantTypes).toBeUndefined();
+  });
+});

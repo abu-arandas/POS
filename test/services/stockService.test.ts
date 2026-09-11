@@ -162,3 +162,139 @@ describe('receivePurchaseOrder', () => {
     expect(syncToCloudIfEnabled).not.toHaveBeenCalled();
   });
 });
+
+const tee = (): Product =>
+  product({
+    id: 'p2',
+    name: 'Tee',
+    sku: 'TEE',
+    stock: 7,
+    variantTypes: [
+      {
+        id: 'vt-size',
+        name: 'Size',
+        options: [
+          { id: 'o-s', name: 'Small' },
+          { id: 'o-l', name: 'Large' },
+        ],
+      },
+    ],
+    variants: [
+      { id: 'v-s', options: { 'vt-size': 'o-s' }, sku: 'TEE-S', stock: 4 },
+      { id: 'v-l', options: { 'vt-size': 'o-l' }, sku: 'TEE-L', stock: 3 },
+    ],
+  });
+
+const liveTee = () => useProductStore.getState().products.find((p) => p.id === 'p2')!;
+const stockOf = (variantId: string) => liveTee().variants!.find((v) => v.id === variantId)!.stock;
+
+describe('adjustStock on a varianted product', () => {
+  beforeEach(() => {
+    syncToCloudIfEnabled.mockClear();
+    useProductStore.setState({ products: [tee()], categories: [] });
+    useSupplyStore.setState({ suppliers: [], adjustments: [], purchaseOrders: [] });
+  });
+
+  it('moves the named variant and re-derives the product total', () => {
+    const result = adjustStock({ productId: 'p2', variantId: 'v-l', delta: 5, reason: 'received' });
+
+    expect(result.success).toBe(true);
+    expect(stockOf('v-l')).toBe(8);
+    expect(stockOf('v-s')).toBe(4);
+    expect(liveTee().stock).toBe(12);
+  });
+
+  it('names the variant in the audit entry, and logs the variant’s new level', () => {
+    adjustStock({ productId: 'p2', variantId: 'v-s', delta: -1, reason: 'waste' });
+
+    const [entry] = useSupplyStore.getState().adjustments;
+    expect(entry).toMatchObject({
+      productId: 'p2',
+      variantId: 'v-s',
+      variantName: 'Small',
+      delta: -1,
+      // 3 smalls left, not the product's 6: a row reading "waste −1, now 6"
+      // when three smalls remain is worse than no row at all.
+      newStock: 3,
+    });
+  });
+
+  it('refuses a movement that names no variant', () => {
+    // There is no product-level pool to add to — `stock` is the sum of the
+    // rows — so a write to it would leave the total contradicting them.
+    expect(adjustStock({ productId: 'p2', delta: 3, reason: 'received' })).toEqual({
+      success: false,
+      error: 'variant-required',
+    });
+    expect(liveTee().stock).toBe(7);
+    expect(useSupplyStore.getState().adjustments).toEqual([]);
+  });
+
+  it('refuses a movement against a variant that does not exist', () => {
+    expect(
+      adjustStock({ productId: 'p2', variantId: 'v-gone', delta: 1, reason: 'correction' }),
+    ).toEqual({ success: false, error: 'unknown-variant' });
+  });
+
+  it('floors at zero on the variant, not on the product total', () => {
+    // The product holds 7 units, so a product-level floor would allow −4 on a
+    // variant that only has 3.
+    expect(adjustStock({ productId: 'p2', variantId: 'v-l', delta: -4, reason: 'waste' })).toEqual({
+      success: false,
+      error: 'negative-stock',
+    });
+    expect(stockOf('v-l')).toBe(3);
+  });
+});
+
+describe('receivePurchaseOrder with variants', () => {
+  beforeEach(() => {
+    syncToCloudIfEnabled.mockClear();
+    useProductStore.setState({ products: [tee()], categories: [] });
+    useSupplyStore.setState({ suppliers: [], adjustments: [], purchaseOrders: [] });
+  });
+
+  const orderOf = (lines: Array<Record<string, unknown>>) => {
+    const created = useSupplyStore.getState().createPurchaseOrder({
+      supplierId: null,
+      supplierName: null,
+      lines: lines as never,
+      note: null,
+      createdBy: null,
+    });
+    useSupplyStore.getState().setPurchaseOrderStatus(created.id, 'ordered');
+    return created.id;
+  };
+
+  it('credits each line to its own variant', () => {
+    const id = orderOf([
+      { productId: 'p2', productName: 'Tee', variantId: 'v-s', quantity: 10, unitCost: 4 },
+      { productId: 'p2', productName: 'Tee', variantId: 'v-l', quantity: 6, unitCost: 4 },
+    ]);
+
+    expect(receivePurchaseOrder(id, 'Ada')).not.toBeNull();
+    expect(stockOf('v-s')).toBe(14);
+    expect(stockOf('v-l')).toBe(9);
+    expect(liveTee().stock).toBe(23);
+  });
+
+  it('pushes the accumulated product once, not the state after its first line', () => {
+    const id = orderOf([
+      { productId: 'p2', productName: 'Tee', variantId: 'v-s', quantity: 10, unitCost: 4 },
+      { productId: 'p2', productName: 'Tee', variantId: 'v-l', quantity: 6, unitCost: 4 },
+    ]);
+    receivePurchaseOrder(id, 'Ada');
+
+    const [pushed] = syncToCloudIfEnabled.mock.calls.at(-1)! as [Product[]];
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0].stock).toBe(23);
+  });
+
+  it('skips a line that names no variant rather than crediting the total', () => {
+    const id = orderOf([{ productId: 'p2', productName: 'Tee', quantity: 10, unitCost: 4 }]);
+    receivePurchaseOrder(id, 'Ada');
+
+    expect(liveTee().stock).toBe(7);
+    expect(useSupplyStore.getState().adjustments).toEqual([]);
+  });
+});

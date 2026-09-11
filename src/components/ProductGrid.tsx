@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
 import { Search, X, LayoutGrid, GripHorizontal, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, StoreSettings } from '../types';
+import { Product, ProductVariant, StoreSettings } from '../types';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
 import { safeImageUrl } from '../lib/imageUrl';
+import { hasVariants, variantPrice } from '../lib/variants';
+import { VariantPickerModal } from './register/VariantPickerModal';
 import {
   DndContext,
   closestCenter,
@@ -27,13 +29,14 @@ import { useTranslation } from 'react-i18next';
 interface ProductGridProps {
   selectedCategory: string;
   setSelectedCategory: (c: string) => void;
-  cart: Array<{ product: Product; quantity: number }>;
-  addToCart: (product: Product) => void;
+  cart: Array<{ product: Product; variant?: ProductVariant; quantity: number }>;
+  addToCart: (product: Product, variant?: ProductVariant) => void;
 }
 
 interface SortableProductCardProps {
   prod: Product;
   isEditMode: boolean;
+  /** Adds the product outright, or opens the picker when it has variants. */
   addToCart: (product: Product) => void;
   cartQty: number;
   categoryName: string;
@@ -85,11 +88,22 @@ const SortableProductCard = memo(function SortableProductCard({
 
   const isLowStock = prod.stock <= prod.minStock && prod.stock > 0;
   const isOutOfStock = prod.stock <= 0;
+  const variantCount = prod.variants?.length ?? 0;
+  // What the card can honestly show for a product with several prices: the
+  // cheapest variant, marked "from". The product's own price is a fallback for
+  // variants that do not set one, so on a product where every variant does it
+  // is a figure no customer can actually pay.
+  const cardPrices = (prod.variants ?? []).map((variant) => variantPrice(prod, variant));
+  const displayPrice = cardPrices.length > 0 ? Math.min(...cardPrices) : prod.price;
+  const isPriceFrom = cardPrices.some((price) => price !== displayPrice);
   // Every unit is already in the cart, so addToCart would no-op. Treat it like
   // out-of-stock for interaction purposes (no dead taps, correct a11y state)
   // while keeping the out-of-stock badge/greyscale styling to itself.
-  const isLimitReached = cartQty >= prod.stock;
-  const isUnavailable = isOutOfStock || isLimitReached;
+  //
+  // cartQty on a varianted product is the total across its variants, so this
+  // only trips once the whole product is spoken for — exactly the point at
+  // which the picker would have nothing left to offer either.
+  const isUnavailable = isOutOfStock || cartQty >= prod.stock;
   const [imgError, setImgError] = useState(false);
   const imageUrl = safeImageUrl(prod.image);
   const showProductImages = useSettingsStore((s) => s.showProductImages);
@@ -138,7 +152,9 @@ const SortableProductCard = memo(function SortableProductCard({
             // communicates the state without moving the focus target.
             tabIndex: isOutOfStock ? -1 : 0,
             'aria-disabled': isUnavailable || undefined,
-            'aria-label': `${prod.name}, ${settings.currency}${prod.price.toFixed(2)}${
+            'aria-label': `${prod.name}, ${
+              isPriceFrom ? `${t('register.priceFrom')} ` : ''
+            }${settings.currency}${displayPrice.toFixed(2)}${
               isOutOfStock ? ` — ${t('register.outOfStock')}` : ''
             }`,
             onKeyDown: (e: React.KeyboardEvent) => {
@@ -160,6 +176,11 @@ const SortableProductCard = memo(function SortableProductCard({
         {!isOutOfStock && isLowStock && (
           <span className="bg-amber-500 text-slate-950 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
             {t('register.onlyLeft', { count: prod.stock })}
+          </span>
+        )}
+        {variantCount > 0 && (
+          <span className="bg-sky-500/90 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+            {t('register.variantOptionsCount', { count: variantCount })}
           </span>
         )}
         {cartQty > 0 && !isEditMode && (
@@ -223,8 +244,13 @@ const SortableProductCard = memo(function SortableProductCard({
         </div>
         <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-200 dark:border-slate-800/60">
           <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
+            {isPriceFrom && (
+              <span className="font-sans text-[9px] font-semibold uppercase tracking-wider text-slate-500 me-1">
+                {t('register.priceFrom')}
+              </span>
+            )}
             {settings.currency}
-            {prod.price.toFixed(2)}
+            {displayPrice.toFixed(2)}
           </span>
           <span className="text-[9px] font-mono text-slate-600 uppercase tracking-wider">
             {prod.sku.split('-').slice(-1)[0]}
@@ -254,11 +280,46 @@ const ProductGrid = ({
   const isAdmin = currentUser?.role === 'admin';
   const { t } = useTranslation();
 
+  const [pickerProduct, setPickerProduct] = useState<Product | null>(null);
+
+  // Per product, so the card badge and the sold-out rule see the whole product;
+  // per variant, so the picker can stop at each combination's own limit.
   const cartQuantityMap = useMemo(() => {
     const map = new Map<string, number>();
-    cart.forEach((item) => map.set(item.product.id, item.quantity));
+    cart.forEach((item) =>
+      map.set(item.product.id, (map.get(item.product.id) ?? 0) + item.quantity),
+    );
     return map;
   }, [cart]);
+
+  const cartQuantityByVariantId = useMemo(() => {
+    const map = new Map<string, number>();
+    cart.forEach((item) => {
+      if (!item.variant) return;
+      map.set(item.variant.id, (map.get(item.variant.id) ?? 0) + item.quantity);
+    });
+    return map;
+  }, [cart]);
+
+  // A card tap is only an add for a plain product. A varianted one has no
+  // single thing to add, so the tap opens the picker and the add happens there.
+  const handleCardActivate = useCallback(
+    (product: Product) => {
+      if (hasVariants(product)) {
+        setPickerProduct(product);
+        return;
+      }
+      addToCart(product);
+    },
+    [addToCart],
+  );
+
+  // Re-read from the live catalogue while the picker is open: a realtime update
+  // or another sale can move the stock the picker is offering.
+  const livePickerProduct = useMemo(
+    () => (pickerProduct ? (products.find((p) => p.id === pickerProduct.id) ?? null) : null),
+    [pickerProduct, products],
+  );
 
   const categoryMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -285,8 +346,13 @@ const ProductGrid = ({
     const q = search.trim().toLowerCase();
     return products.filter((prod) => {
       const matchesCategory = selectedCategory === 'all' || prod.category === selectedCategory;
+      // Variant SKUs are searchable too — an operator scanning or typing a
+      // variant's barcode is looking for the product that carries it.
       const matchesSearch =
-        q === '' || prod.name.toLowerCase().includes(q) || prod.sku.toLowerCase().includes(q);
+        q === '' ||
+        prod.name.toLowerCase().includes(q) ||
+        prod.sku.toLowerCase().includes(q) ||
+        (prod.variants ?? []).some((variant) => variant.sku.toLowerCase().includes(q));
       return matchesCategory && matchesSearch;
     });
   }, [products, selectedCategory, search]);
@@ -429,7 +495,7 @@ const ProductGrid = ({
                         key={prod.id}
                         prod={prod}
                         isEditMode={isEditMode}
-                        addToCart={addToCart}
+                        addToCart={handleCardActivate}
                         cartQty={cartQuantityMap.get(prod.id) ?? 0}
                         categoryName={categoryMap.get(prod.category) ?? ''}
                         settings={settings}
@@ -443,6 +509,22 @@ const ProductGrid = ({
           )}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {livePickerProduct && (
+          <VariantPickerModal
+            key={livePickerProduct.id}
+            product={livePickerProduct}
+            settings={settings}
+            cartQuantityByVariantId={cartQuantityByVariantId}
+            onPick={(variant) => {
+              addToCart(livePickerProduct, variant);
+              setPickerProduct(null);
+            }}
+            onClose={() => setPickerProduct(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

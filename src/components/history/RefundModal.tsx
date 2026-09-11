@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { SaleTransaction, StoreSettings, UserAccount } from '../../types';
 import { authorizeOverride, authorizerLabel, overrideCandidates } from '../../lib/managerOverride';
 import { computeRefund, refundableQuantities } from '../../lib/refunds';
+import { orderItemKey } from '../../lib/variants';
 import { lockoutStatus, formatRemaining } from '../../lib/pinThrottle';
 import { usePinAttemptStore } from '../../stores/pinAttemptStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -196,9 +197,13 @@ export function RefundModal({
                 {t('history.selectQtyHint')}
               </p>
               {transaction.items.map((item, idx) => {
-                const max = refundableQuantities(transaction)[item.productId] || 0;
+                const lineId = orderItemKey(item);
+                const displayName = item.variantName
+                  ? `${item.productName} — ${item.variantName}`
+                  : item.productName;
+                const max = refundableQuantities(transaction)[lineId] || 0;
                 if (max <= 0) return null;
-                const current = selection[item.productId] || 0;
+                const current = selection[lineId] || 0;
                 return (
                   <div
                     key={idx}
@@ -208,6 +213,11 @@ export function RefundModal({
                       <h4 className="text-slate-900 dark:text-white font-bold truncate">
                         {item.productName}
                       </h4>
+                      {item.variantName && (
+                        <p className="text-[11px] font-medium text-sky-500 dark:text-sky-400 truncate mt-0.5">
+                          {item.variantName}
+                        </p>
+                      )}
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                         {settings.currency}
                         {(item.total / item.quantity).toFixed(2)} {t('history.each')}
@@ -218,10 +228,10 @@ export function RefundModal({
                         onClick={() =>
                           setSelection({
                             ...selection,
-                            [item.productId]: Math.max(0, current - 1),
+                            [lineId]: Math.max(0, current - 1),
                           })
                         }
-                        aria-label={`${t('history.decreaseRefundQty')} — ${item.productName}`}
+                        aria-label={`${t('history.decreaseRefundQty')} — ${displayName}`}
                         className="size-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-rose-500/20 hover:text-rose-400"
                       >
                         <Minus size={14} />
@@ -233,10 +243,10 @@ export function RefundModal({
                         onClick={() =>
                           setSelection({
                             ...selection,
-                            [item.productId]: Math.min(max, current + 1),
+                            [lineId]: Math.min(max, current + 1),
                           })
                         }
-                        aria-label={`${t('history.increaseRefundQty')} — ${item.productName}`}
+                        aria-label={`${t('history.increaseRefundQty')} — ${displayName}`}
                         className="size-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-emerald-500/20 hover:text-emerald-400"
                       >
                         <Plus size={14} />

@@ -12,6 +12,9 @@ export const register = {
   clearCart: 'إفراغ السلة بالكامل',
   insufficientCash: 'المبلغ النقدي المدفوع غير كافٍ!',
   invalidQuantity: 'يجب أن تكون كميات السلة أعدادًا صحيحة موجبة.',
+  insufficientStock:
+    'المخزون غير كافٍ لـ {{items}} — ربما باعتها نقطة بيع أخرى. عدّل السلة ثم أعد المحاولة.',
+  productUnavailable: 'لم تعد موجودة في الكتالوج: {{items}}. احذف هذه الأصناف لإتمام البيع.',
   hold: 'تعليق',
   holdOrder: 'تعليق هذا الطلب لوقت لاحق',
   holdLabelPrompt: 'سمِّ هذا الطلب المعلّق (مثل رقم طاولة أو اسم عميل):',
@@ -87,4 +90,10 @@ export const register = {
   removePayment: 'إزالة الدفعة',
   removeDiscount: 'إزالة الخصم',
   cancelDiscount: 'إلغاء الخصم',
+  chooseVariant: 'اختر خياراً',
+  closeVariantPicker: 'إغلاق الخيارات',
+  addToCart: 'إضافة إلى السلة',
+  variantUnavailable: 'هذه التركيبة غير متوفرة',
+  variantOptionsCount: '{{count}} خيارات',
+  priceFrom: 'من',
 };

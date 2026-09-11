@@ -69,3 +69,50 @@ describe('buildLabelSheetHtml', () => {
     expect(buildLabelSheetHtml([prod()], settings)).toContain('window.print()');
   });
 });
+
+describe('labels for a varianted product', () => {
+  const tee = () =>
+    prod({
+      name: 'Tee',
+      sku: 'TEE',
+      price: 20,
+      variantTypes: [
+        {
+          id: 'vt-size',
+          name: 'Size',
+          options: [
+            { id: 'o-s', name: 'Small' },
+            { id: 'o-l', name: 'Large' },
+          ],
+        },
+      ],
+      variants: [
+        { id: 'v-s', options: { 'vt-size': 'o-s' }, sku: 'TEE-S', stock: 2 },
+        { id: 'v-l', options: { 'vt-size': 'o-l' }, sku: 'TEE-L', price: 25, stock: 1 },
+      ],
+    });
+
+  it('prints one label per variant, not one for the product', () => {
+    // A single tag cannot carry two barcodes, and the shelf needs a scannable
+    // tag for each thing that can actually be sold.
+    const sheet = buildLabelSheetHtml([tee()], settings);
+    expect(sheet).toContain('TEE-S');
+    expect(sheet).toContain('TEE-L');
+    expect(sheet.match(/class="label"/g)).toHaveLength(2);
+  });
+
+  it('gives each label its variant’s own name and price', () => {
+    const sheet = buildLabelSheetHtml([tee()], settings);
+    expect(sheet).toContain('Small');
+    expect(sheet).toContain('Large');
+    // Small inherits the product's price; Large sets its own.
+    expect(sheet).toContain('$20.00');
+    expect(sheet).toContain('$25.00');
+  });
+
+  it('still prints exactly one label for a plain product', () => {
+    const sheet = buildLabelSheetHtml([prod()], settings);
+    expect(sheet.match(/class="label"/g)).toHaveLength(1);
+    expect(sheet).toContain('BEV-FW-01');
+  });
+});

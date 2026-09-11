@@ -6,11 +6,12 @@ const mockSettings = {
   storeAddress: '',
   storePhone: '',
   currency: '$',
-  taxRate: 0.1,
+  taxRate: 10, // per cent
   loyaltyPointsRate: 1, // 1 point per $1
   loyaltyPointValue: 0.05, // 20 points = $1
 };
 
+// One line of 2 × $10 → subtotal 20, tax 2, total 22.
 const baseReq: CheckoutRequest = {
   cartItems: [
     {
@@ -21,18 +22,13 @@ const baseReq: CheckoutRequest = {
       quantity: 2,
     },
   ],
-  subtotal: 20,
   discountType: 'none',
   discountValue: 0,
-  discountAmount: 0,
-  taxAmount: 2,
-  totalAmount: 22,
 
   paymentMethod: 'cash',
   splitMode: false,
   splitPayments: [],
   cashPaidText: '30',
-  cashChangeDue: 8,
 
   selectedCustomerId: 'cust-1',
   activeCustomerName: 'Test Customer',
@@ -62,22 +58,21 @@ describe('buildSaleTransaction', () => {
   });
 
   it('clamps loyalty deduction to the actual discount', () => {
-    // Applied $10 loyalty discount, so we expect 200 points deducted, plus the points earned on the new total.
-    // Let's say subtotal is 20, discount is 10, tax is 1 (on $10), total is 11.
+    // 500 points is worth $25 against a $20 order, so only the $20 the order
+    // can absorb is discounted — 400 points, not the 500 requested.
     const res = buildSaleTransaction({
       ...baseReq,
       discountType: 'loyalty',
-      discountValue: 500, // User typed 500 points
-      discountAmount: 10, // Pricing logic clamped it to $10
-      totalAmount: 11,
+      discountValue: 500,
+      cashPaidText: '0',
     });
     expect(res.success).toBe(true);
     if (!res.success) return;
 
-    // Earned: 11 * 1 = 11 pts.
-    // Redeemed: $10 / $0.05 = 200 pts.
-    // Net: 11 - 200 = -189
-    expect(res.pointsDelta).toBe(-189);
+    expect(res.transaction.discount).toBe(20);
+    expect(res.transaction.total).toBe(0);
+    // Earned: floor(0 * 1) = 0. Redeemed: $20 / $0.05 = 400.
+    expect(res.pointsDelta).toBe(-400);
   });
 
   it('rejects split payment with non-cash overpay', () => {
@@ -88,7 +83,6 @@ describe('buildSaleTransaction', () => {
         { method: 'card', amount: 15 },
         { method: 'mobile', amount: 10 },
       ],
-      totalAmount: 22,
     });
     expect(res.success).toBe(false);
     if (!res.success) expect(res.error).toBe('split-non-cash-overpay');
@@ -102,7 +96,6 @@ describe('buildSaleTransaction', () => {
         { method: 'card', amount: 15 },
         { method: 'cash', amount: 10 },
       ],
-      totalAmount: 22,
     });
     expect(res.success).toBe(true);
     if (!res.success) return;
@@ -115,23 +108,26 @@ describe('buildSaleTransaction', () => {
   it('sets paymentMethod to loyalty if sale is fully covered by points', () => {
     const res = buildSaleTransaction({
       ...baseReq,
-      totalAmount: 0,
       discountType: 'loyalty',
+      discountValue: 400, // 400 × $0.05 = the whole $20 subtotal
+      cashPaidText: '0',
     });
     expect(res.success).toBe(true);
     if (!res.success) return;
+    expect(res.transaction.total).toBe(0);
     expect(res.transaction.paymentMethod).toBe('loyalty');
   });
 
   it('keeps original paymentMethod if sale is fully covered by promo', () => {
     const res = buildSaleTransaction({
       ...baseReq,
-      totalAmount: 0,
-      discountType: 'percentage', // e.g. 100% off promo
+      discountType: 'percentage', // 100% off promo
+      discountValue: 100,
       paymentMethod: 'card', // chosen by cashier before promo applied
     });
     expect(res.success).toBe(true);
     if (!res.success) return;
+    expect(res.transaction.total).toBe(0);
     expect(res.transaction.paymentMethod).toBe('card');
   });
 
@@ -143,14 +139,10 @@ describe('buildSaleTransaction', () => {
   it('persists only the loyalty points the order could actually redeem', () => {
     const res = buildSaleTransaction({
       ...baseReq,
-      subtotal: 5,
+      cartItems: [{ productId: 'p1', productName: 'Item 1', price: 5, cost: 2, quantity: 1 }],
       discountType: 'loyalty',
       discountValue: 1000, // requested
-      discountAmount: 5, // clamped to subtotal by calculateOrderTotals
-      taxAmount: 0,
-      totalAmount: 0,
       cashPaidText: '0',
-      cashChangeDue: 0,
     });
     expect(res.success).toBe(true);
     if (!res.success) return;
@@ -160,16 +152,17 @@ describe('buildSaleTransaction', () => {
     expect(res.pointsDelta).toBe(-100);
   });
 
-  it('leaves discountValue untouched for non-loyalty discounts', () => {
+  it('leaves discountValue untouched for an in-range percentage discount', () => {
     const res = buildSaleTransaction({
       ...baseReq,
       discountType: 'percentage',
       discountValue: 15, // 15% — a rate, not a point count
-      discountAmount: 3,
+      cashPaidText: '100',
     });
     expect(res.success).toBe(true);
     if (!res.success) return;
     expect(res.transaction.discountValue).toBe(15);
+    expect(res.transaction.discount).toBe(3); // 15% of 20
   });
 
   it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
@@ -184,6 +177,172 @@ describe('buildSaleTransaction', () => {
   );
 });
 
+// The register computes totals for the screen; those are display state. What
+// gets written to a permanent financial record is recomputed here, from the
+// cart and the settings, so no caller can persist a transaction whose money
+// contradicts its own line items.
+describe('buildSaleTransaction — money is recomputed, never accepted', () => {
+  const ok = (r: ReturnType<typeof buildSaleTransaction>) => {
+    if (!r.success) throw new Error(`expected a sale, got ${r.error}`);
+    return r.transaction;
+  };
+
+  it('derives subtotal, tax and total from the cart lines', () => {
+    const tx = ok(
+      buildSaleTransaction({
+        ...baseReq,
+        cartItems: [
+          { productId: 'p1', productName: 'A', price: 3.5, cost: 1, quantity: 2 },
+          { productId: 'p2', productName: 'B', price: 1.25, cost: 1, quantity: 4 },
+        ],
+        cashPaidText: '20',
+      }),
+    );
+
+    const lineTotal = tx.items.reduce((sum, item) => sum + item.total, 0);
+    expect(tx.subtotal).toBe(Number(lineTotal.toFixed(2))); // 7 + 5
+    expect(tx.tax).toBe(1.2); // 10% of 12
+    expect(tx.total).toBe(13.2);
+  });
+
+  it('derives cash change from the recomputed total', () => {
+    const tx = ok(buildSaleTransaction({ ...baseReq, cashPaidText: '50' }));
+    expect(tx.cashChange).toBe(28); // 50 tendered - 22 owed
+  });
+
+  it('records the applied fixed discount, not one larger than the order', () => {
+    const tx = ok(
+      buildSaleTransaction({
+        ...baseReq,
+        discountType: 'fixed',
+        discountValue: 500, // a mistyped $500 off a $20 order
+        cashPaidText: '0',
+      }),
+    );
+    expect(tx.discount).toBe(20);
+    expect(tx.discountValue).toBe(20);
+    expect(tx.total).toBe(0);
+  });
+
+  it('rounds a fixed discount to the cent it is actually applied at', () => {
+    // The discount box is a text field. An unrounded discount leaves
+    // `subtotal - discount` disagreeing with the cent-rounded taxable amount
+    // that tax and total are derived from, so the record contradicts itself.
+    const tx = ok(
+      buildSaleTransaction({
+        ...baseReq,
+        discountType: 'fixed',
+        discountValue: 1.234,
+        cashPaidText: '100',
+      }),
+    );
+    expect(tx.discount).toBe(1.23);
+    expect(tx.discountValue).toBe(1.23);
+    // 20 - 1.23 = 18.77 taxable, 10% = 1.88, total 20.65.
+    expect(tx.tax).toBe(1.88);
+    expect(tx.total).toBe(20.65);
+    expect(Number((tx.subtotal - tx.discount + tx.tax).toFixed(2))).toBe(tx.total);
+  });
+
+  it('records a percentage discount clamped to 100', () => {
+    const tx = ok(
+      buildSaleTransaction({
+        ...baseReq,
+        discountType: 'percentage',
+        discountValue: 150,
+        cashPaidText: '0',
+      }),
+    );
+    expect(tx.discountValue).toBe(100);
+    expect(tx.discount).toBe(20);
+  });
+});
+
+// Loyalty points are a currency the customer can spend, so a settings value
+// that has gone bad must not be able to mint or destroy them.
+describe('buildSaleTransaction — loyalty points earned', () => {
+  const ok = (r: ReturnType<typeof buildSaleTransaction>) => {
+    if (!r.success) throw new Error(`expected a sale, got ${r.error}`);
+    return r;
+  };
+
+  it('awards points at the configured rate', () => {
+    const res = ok(buildSaleTransaction(baseReq));
+    expect(res.transaction.pointsEarned).toBe(22);
+    expect(res.pointsDelta).toBe(22);
+  });
+
+  it.each([-1, Number.NaN, Number.POSITIVE_INFINITY])(
+    'awards nothing rather than corrupting the balance when the rate is %s',
+    (loyaltyPointsRate) => {
+      const res = ok(
+        buildSaleTransaction({ ...baseReq, settings: { ...mockSettings, loyaltyPointsRate } }),
+      );
+      // A negative rate would deduct points the customer never spent; a NaN one
+      // poisons every sum it later reaches, silently.
+      expect(res.transaction.pointsEarned).toBe(0);
+      expect(res.pointsDelta).toBe(0);
+    },
+  );
+
+  it('awards nothing when no customer is linked', () => {
+    const res = ok(buildSaleTransaction({ ...baseReq, selectedCustomerId: null }));
+    expect(res.transaction.pointsEarned).toBeUndefined();
+    expect(res.pointsDelta).toBe(0);
+  });
+});
+
+// The tender box is a text field an operator types into, and a $0 sale covers
+// any amount, so "does the tender cover the total?" is not by itself enough to
+// keep an impossible number off a permanent record.
+describe('buildSaleTransaction — tender bounds', () => {
+  it('refuses negative cash even when the sale is fully discounted', () => {
+    const res = buildSaleTransaction({
+      ...baseReq,
+      discountType: 'percentage',
+      discountValue: 100, // total 0
+      cashPaidText: '-40',
+    });
+    expect(res).toEqual({ success: false, error: 'insufficient-cash' });
+  });
+
+  it('refuses negative cash on an ordinary sale', () => {
+    const res = buildSaleTransaction({ ...baseReq, cashPaidText: '-1' });
+    expect(res).toEqual({ success: false, error: 'insufficient-cash' });
+  });
+
+  it('refuses an infinite tender', () => {
+    const res = buildSaleTransaction({ ...baseReq, cashPaidText: 'Infinity' });
+    expect(res).toEqual({ success: false, error: 'insufficient-cash' });
+  });
+
+  it('accepts an empty tender box on a fully discounted sale', () => {
+    const res = buildSaleTransaction({
+      ...baseReq,
+      discountType: 'percentage',
+      discountValue: 100,
+      cashPaidText: '',
+    });
+    expect(res.success).toBe(true);
+    if (!res.success) return;
+    expect(res.transaction.cashPaid).toBe(0);
+    expect(res.transaction.cashChange).toBe(0);
+  });
+
+  it('ignores a non-finite split tender rather than banking it', () => {
+    const res = buildSaleTransaction({
+      ...baseReq,
+      splitMode: true,
+      splitPayments: [
+        { method: 'card', amount: Number.POSITIVE_INFINITY },
+        { method: 'cash', amount: 5 },
+      ],
+    });
+    // Only the $5 cash counts, which does not cover the $22 owed.
+    expect(res).toEqual({ success: false, error: 'split-incomplete' });
+  });
+});
+
 // A sale is taxed once, at the rate in force that day. Recording that rate is
 // what lets a receipt reprinted months later show what was actually charged
 // instead of whatever the setting says by then.
@@ -195,9 +354,14 @@ describe('buildSaleTransaction — recording the tax rate', () => {
 
   it('stamps the rate the sale was charged at', () => {
     const tx = ok(
-      buildSaleTransaction({ ...baseReq, settings: { ...mockSettings, taxRate: 8.5 } }),
+      buildSaleTransaction({
+        ...baseReq,
+        cashPaidText: '100',
+        settings: { ...mockSettings, taxRate: 8.5 },
+      }),
     );
     expect(tx.taxRate).toBe(8.5);
+    expect(tx.tax).toBe(1.7); // 8.5% of 20
   });
 
   it('records zero for a tax-free sale rather than leaving the rate unknown', () => {
@@ -205,6 +369,7 @@ describe('buildSaleTransaction — recording the tax rate', () => {
     // zero-rated sale must be the second, or its receipt loses the distinction.
     const tx = ok(buildSaleTransaction({ ...baseReq, settings: { ...mockSettings, taxRate: 0 } }));
     expect(tx.taxRate).toBe(0);
+    expect(tx.total).toBe(20);
   });
 
   it('stamps the clamped rate, matching the money that was charged', () => {
@@ -216,6 +381,7 @@ describe('buildSaleTransaction — recording the tax rate', () => {
         buildSaleTransaction({ ...baseReq, settings: { ...mockSettings, taxRate: bad } }),
       );
       expect(tx.taxRate).toBe(0);
+      expect(tx.tax).toBe(0);
     }
   });
 });

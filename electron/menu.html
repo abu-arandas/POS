@@ -398,7 +398,9 @@
                   <div>
                     <div class="product-top">
                       <h3 class="product-name">${name}</h3>
-                      <span class="product-price">${esc(formatCurrency(product.price))}</span>
+                      <span class="product-price">${
+                        product.priceFrom ? 'from ' : ''
+                      }${esc(formatCurrency(product.price))}</span>
                     </div>
                     <span class="product-cat">${esc(catName)}</span>
                   </div>

@@ -49,6 +49,7 @@ import {
   testCloudConnection,
   pushAllToCloud,
   pullAllFromCloud,
+  pendingCloudWrites,
   syncToCloudIfEnabled,
   deleteUsersCloudIfEnabled,
 } from '../lib/sync';
@@ -450,7 +451,14 @@ export default function Settings() {
    */
   const handlePull = async () => {
     if (!hasCreds()) return;
-    if (!(await askConfirmation(t('settings.pullWarning')))) return;
+    // A pull overwrites local data with the server's copy. If this terminal is
+    // still carrying writes the server has never accepted, that copy cannot
+    // contain them — so say how many are about to be thrown away rather than
+    // asking the generic question.
+    const owed = await pendingCloudWrites();
+    const warning =
+      owed > 0 ? t('settings.pullWarningPending', { count: owed }) : t('settings.pullWarning');
+    if (!(await askConfirmation(warning))) return;
     setBusy('pull');
     const data = await pullAllFromCloud(sbUrl.trim(), sbKey.trim());
     setBusy(null);

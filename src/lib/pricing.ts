@@ -41,7 +41,11 @@ export function calculateOrderTotals(
     const pct = Math.min(100, safeDiscountValue);
     discountAmount = Number(((subtotal * pct) / 100).toFixed(2));
   } else if (discountType === 'fixed') {
-    discountAmount = Math.min(safeDiscountValue, subtotal);
+    // Rounded like the other two. An operator can type 1.234 into the discount
+    // box, and an unrounded discount leaves `subtotal - discount` disagreeing
+    // with the cent-rounded taxable amount the tax and total are derived from —
+    // so the persisted transaction contradicts its own arithmetic.
+    discountAmount = Number(Math.min(safeDiscountValue, subtotal).toFixed(2));
   } else if (discountType === 'loyalty') {
     discountAmount = Math.min(
       Number((safeDiscountValue * safeLoyaltyPointValue).toFixed(2)),

@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { CheckoutRequest } from '../../src/lib/checkout';
 import type { Product, StoreSettings, UserAccount } from '../../src/types';
 
-// The cloud push is best-effort and fire-and-forget; stub it so these stay
-// local and synchronous. The spy doubles as the assertion that a sale pushes
-// exactly the rows it changed.
+// The cloud push is queued and sent out of band; stub it so these stay local
+// and synchronous. The spy doubles as the assertion that a sale pushes exactly
+// the rows it changed — and, on a refusal, that it pushes nothing at all.
 const syncToCloudIfEnabled = vi.fn();
 vi.mock('../../src/lib/sync', () => ({
   syncToCloudIfEnabled: (...args: unknown[]) => syncToCloudIfEnabled(...args),
@@ -51,20 +51,16 @@ const product = (over: Partial<Product> = {}): Product => ({
   ...over,
 });
 
+// 2 x $10 with 10% tax: subtotal 20, tax 2, total 22.
 function request(over: Partial<CheckoutRequest> = {}): CheckoutRequest {
   return {
     cartItems: [{ productId: 'p1', productName: 'Latte', price: 10, cost: 3, quantity: 2 }],
-    subtotal: 20,
     discountType: 'none',
     discountValue: 0,
-    discountAmount: 0,
-    taxAmount: 2,
-    totalAmount: 22,
     paymentMethod: 'card',
     splitMode: false,
     splitPayments: [],
     cashPaidText: '',
-    cashChangeDue: 0,
     selectedCustomerId: null,
     activeCustomerName: null,
     currentUser: operator,
@@ -128,23 +124,36 @@ describe('commitSale', () => {
     expect(saved.stock).toBe(3);
   });
 
-  it('never drives stock below zero when the catalogue is already short', () => {
+  it('refuses the sale when the catalogue is short, rather than clamping to zero', () => {
     useProductStore.setState({ products: [product({ stock: 1 })] });
 
-    commitSale(request());
+    const result = commitSale(request());
 
-    expect(useProductStore.getState().products[0].stock).toBe(0);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toBe('insufficient-stock');
+    expect(result.shortfalls).toEqual([
+      { productId: 'p1', productName: 'Latte', requested: 2, available: 1 },
+    ]);
+    // Nothing moved: the sale did not happen.
+    expect(useProductStore.getState().products[0].stock).toBe(1);
+    expect(useTransactionStore.getState().transactions).toEqual([]);
+    expect(syncToCloudIfEnabled).not.toHaveBeenCalled();
   });
 
-  it('skips a line whose product was deleted mid-sale', () => {
+  it('refuses a line whose product was deleted mid-sale', () => {
     useProductStore.setState({ products: [] });
 
     const result = commitSale(request());
 
-    expect(result.success).toBe(true);
-    if (!result.success) return;
-    expect(result.sale.updatedProducts).toEqual([]);
-    expect(useTransactionStore.getState().transactions).toHaveLength(1);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toBe('product-unavailable');
+    expect(result.shortfalls).toEqual([
+      { productId: 'p1', productName: 'Latte', requested: 2, available: 0 },
+    ]);
+    expect(useTransactionStore.getState().transactions).toEqual([]);
+    expect(syncToCloudIfEnabled).not.toHaveBeenCalled();
   });
 
   it('awards loyalty points and pushes the updated customer', () => {
@@ -175,10 +184,10 @@ describe('commitSale', () => {
   });
 
   it('reports a cash sale so the caller can kick the drawer', () => {
+    useProductStore.setState({ products: [product({ stock: 4 })] });
     const cash = commitSale(request({ paymentMethod: 'cash', cashPaidText: '25' }));
     expect(cash.success && cash.sale.isCashSale).toBe(true);
 
-    useProductStore.setState({ products: [product()] });
     const card = commitSale(request());
     expect(card.success && card.sale.isCashSale).toBe(false);
   });
@@ -195,5 +204,318 @@ describe('commitSale', () => {
     );
 
     expect(result.success && result.sale.isCashSale).toBe(true);
+  });
+});
+
+// Stock is the one figure the cart cannot be trusted about. It caps each line
+// against the number read when the item went in, and that number is a snapshot:
+// a second till, a stock correction or a delete can land at any point while the
+// sale sits open on this screen.
+describe('commitSale — live stock is the authority', () => {
+  beforeEach(() => {
+    syncToCloudIfEnabled.mockClear();
+    useProductStore.setState({ products: [product()], categories: [] });
+    useCustomerStore.setState({ customers: [] });
+    useTransactionStore.setState({ transactions: [] });
+  });
+
+  it('refuses a sale whose stock another terminal consumed after the cart was built', () => {
+    // The operator added 2 while 5 were on hand; realtime sync then brings the
+    // catalogue down to 1 before they take payment.
+    useProductStore.setState({ products: [product({ stock: 1 })] });
+
+    const result = commitSale(request());
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toBe('insufficient-stock');
+  });
+
+  it('lets the second of two concurrent sales fail rather than overselling', () => {
+    useProductStore.setState({ products: [product({ stock: 3 })] });
+
+    const first = commitSale(request()); // takes 2 of 3
+    const second = commitSale(request()); // wants 2, only 1 left
+
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(false);
+    if (second.success) return;
+    expect(second.error).toBe('insufficient-stock');
+    expect(second.shortfalls?.[0]).toMatchObject({ requested: 2, available: 1 });
+    // Exactly one sale was recorded and stock reflects only that one.
+    expect(useTransactionStore.getState().transactions).toHaveLength(1);
+    expect(useProductStore.getState().products[0].stock).toBe(1);
+  });
+
+  it('refuses a product that is already out of stock', () => {
+    useProductStore.setState({ products: [product({ stock: 0 })] });
+
+    const result = commitSale(
+      request({
+        cartItems: [{ productId: 'p1', productName: 'Latte', price: 10, cost: 3, quantity: 1 }],
+      }),
+    );
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toBe('insufficient-stock');
+    expect(result.shortfalls).toEqual([
+      { productId: 'p1', productName: 'Latte', requested: 1, available: 0 },
+    ]);
+  });
+
+  it('sells exactly the last unit without refusing it', () => {
+    useProductStore.setState({ products: [product({ stock: 2 })] });
+
+    const result = commitSale(request());
+
+    expect(result.success).toBe(true);
+    expect(useProductStore.getState().products[0].stock).toBe(0);
+  });
+
+  it('writes nothing at all when a later line is the short one', () => {
+    useProductStore.setState({
+      products: [product({ id: 'p1', stock: 5 }), product({ id: 'p2', name: 'Bun', stock: 0 })],
+    });
+
+    const result = commitSale(
+      request({
+        cartItems: [
+          { productId: 'p1', productName: 'Latte', price: 10, cost: 3, quantity: 2 },
+          { productId: 'p2', productName: 'Bun', price: 4, cost: 1, quantity: 1 },
+        ],
+      }),
+    );
+
+    expect(result.success).toBe(false);
+    // The first line must not have been decremented on the way to discovering
+    // the second could not be filled.
+    expect(useProductStore.getState().products[0].stock).toBe(5);
+    expect(useTransactionStore.getState().transactions).toEqual([]);
+  });
+
+  it('reports every short line, not just the first', () => {
+    useProductStore.setState({
+      products: [product({ id: 'p1', stock: 1 }), product({ id: 'p2', name: 'Bun', stock: 0 })],
+    });
+
+    const result = commitSale(
+      request({
+        cartItems: [
+          { productId: 'p1', productName: 'Latte', price: 10, cost: 3, quantity: 2 },
+          { productId: 'p2', productName: 'Bun', price: 4, cost: 1, quantity: 3 },
+        ],
+      }),
+    );
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.shortfalls).toHaveLength(2);
+  });
+
+  it('reports a deleted product ahead of a merely short one', () => {
+    // Two different fixes: a short line can be reduced, a vanished one has to
+    // be removed. The operator is told about the one that blocks them.
+    useProductStore.setState({ products: [product({ id: 'p1', stock: 1 })] });
+
+    const result = commitSale(
+      request({
+        cartItems: [
+          { productId: 'p1', productName: 'Latte', price: 10, cost: 3, quantity: 2 },
+          { productId: 'gone', productName: 'Ghost', price: 4, cost: 1, quantity: 1 },
+        ],
+      }),
+    );
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toBe('product-unavailable');
+  });
+
+  it('sums repeated lines for one product rather than checking each alone', () => {
+    // Two lines of 3 against 4 in stock is one sale of 6, not two sales of 3.
+    useProductStore.setState({ products: [product({ stock: 4 })] });
+
+    const result = commitSale(
+      request({
+        cartItems: [
+          { productId: 'p1', productName: 'Latte', price: 10, cost: 3, quantity: 3 },
+          { productId: 'p1', productName: 'Latte', price: 10, cost: 3, quantity: 3 },
+        ],
+      }),
+    );
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.shortfalls).toEqual([
+      { productId: 'p1', productName: 'Latte', requested: 6, available: 4 },
+    ]);
+  });
+
+  it('decrements a repeated product once, by the total', () => {
+    useProductStore.setState({ products: [product({ stock: 10 })] });
+
+    const result = commitSale(
+      request({
+        cartItems: [
+          { productId: 'p1', productName: 'Latte', price: 10, cost: 3, quantity: 3 },
+          { productId: 'p1', productName: 'Latte', price: 10, cost: 3, quantity: 2 },
+        ],
+      }),
+    );
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(useProductStore.getState().products[0].stock).toBe(5);
+    // One row pushed for the product, carrying the combined decrement — not two
+    // rows where the second would overwrite the first in the cloud.
+    expect(result.sale.updatedProducts).toEqual([expect.objectContaining({ id: 'p1', stock: 5 })]);
+  });
+
+  it('leaves loyalty points untouched when the sale is refused', () => {
+    useCustomerStore.setState({
+      customers: [
+        { id: 'c1', name: 'Grace', email: '', phone: '', points: 10, createdAt: '2026-01-01' },
+      ],
+    });
+    useProductStore.setState({ products: [product({ stock: 0 })] });
+
+    const result = commitSale(request({ selectedCustomerId: 'c1', activeCustomerName: 'Grace' }));
+
+    expect(result.success).toBe(false);
+    expect(useCustomerStore.getState().customers[0].points).toBe(10);
+  });
+});
+
+// A product sold in two sizes, each with its own count: 4 small, 3 large.
+const tee = (): Product =>
+  product({
+    id: 'p2',
+    name: 'Tee',
+    sku: 'TEE',
+    price: 20,
+    cost: 8,
+    stock: 7,
+    variantTypes: [
+      {
+        id: 'vt-size',
+        name: 'Size',
+        options: [
+          { id: 'o-s', name: 'Small' },
+          { id: 'o-l', name: 'Large' },
+        ],
+      },
+    ],
+    variants: [
+      { id: 'v-s', options: { 'vt-size': 'o-s' }, sku: 'TEE-S', stock: 4 },
+      { id: 'v-l', options: { 'vt-size': 'o-l' }, sku: 'TEE-L', price: 25, stock: 3 },
+    ],
+  });
+
+const teeLine = (variantId: string, variantName: string, quantity: number, price = 20) => ({
+  productId: 'p2',
+  productName: 'Tee',
+  variantId,
+  variantName,
+  price,
+  cost: 8,
+  quantity,
+});
+
+const liveTee = () => useProductStore.getState().products.find((p) => p.id === 'p2')!;
+const stockOf = (variantId: string) => liveTee().variants!.find((v) => v.id === variantId)!.stock;
+
+describe('commitSale with variants', () => {
+  beforeEach(() => {
+    syncToCloudIfEnabled.mockClear();
+    useProductStore.setState({ products: [tee()], categories: [] });
+    useCustomerStore.setState({ customers: [] });
+    useTransactionStore.setState({ transactions: [] });
+  });
+
+  it('takes the units off the variant that was sold', () => {
+    const result = commitSale(request({ cartItems: [teeLine('v-l', 'Large', 2, 25)] }));
+
+    expect(result.success).toBe(true);
+    expect(stockOf('v-l')).toBe(1);
+    expect(stockOf('v-s')).toBe(4);
+    // The product total is derived, so it follows without being written.
+    expect(liveTee().stock).toBe(5);
+  });
+
+  it('accumulates two variants of one product instead of overwriting', () => {
+    // Each line is computed from the catalogue record. Applied one at a time
+    // against the live product, the second write would be built on the state
+    // BEFORE the first and put the first variant's units back.
+    const result = commitSale(
+      request({ cartItems: [teeLine('v-s', 'Small', 2), teeLine('v-l', 'Large', 1, 25)] }),
+    );
+
+    expect(result.success).toBe(true);
+    expect(stockOf('v-s')).toBe(2);
+    expect(stockOf('v-l')).toBe(2);
+    expect(liveTee().stock).toBe(4);
+    if (!result.success) return;
+    // One product row pushed, carrying both decrements — not two rows racing.
+    expect(result.sale.updatedProducts).toHaveLength(1);
+    expect(result.sale.updatedProducts[0].stock).toBe(4);
+  });
+
+  it('refuses a line the variant cannot fill, even when the product could', () => {
+    // 5 larges against 3 in stock. The product holds 7 units, so a check
+    // against the product total would wave this through and sell two smalls
+    // as larges.
+    const result = commitSale(request({ cartItems: [teeLine('v-l', 'Large', 5, 25)] }));
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toBe('insufficient-stock');
+    expect(result.shortfalls).toEqual([
+      {
+        productId: 'p2',
+        variantId: 'v-l',
+        productName: 'Tee — Large',
+        requested: 5,
+        available: 3,
+      },
+    ]);
+    expect(stockOf('v-l')).toBe(3);
+    expect(useTransactionStore.getState().transactions).toEqual([]);
+  });
+
+  it('treats a variant deleted since the line was added as unavailable', () => {
+    const result = commitSale(request({ cartItems: [teeLine('v-gone', 'Medium', 1)] }));
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toBe('product-unavailable');
+    expect(result.shortfalls?.[0]).toMatchObject({ variantId: 'v-gone', available: 0 });
+    // Nothing came off the variants that do still exist.
+    expect(stockOf('v-s')).toBe(4);
+    expect(stockOf('v-l')).toBe(3);
+  });
+
+  it('refuses the whole sale when one of its lines is short', () => {
+    const result = commitSale(
+      request({ cartItems: [teeLine('v-s', 'Small', 1), teeLine('v-l', 'Large', 9, 25)] }),
+    );
+
+    expect(result.success).toBe(false);
+    expect(stockOf('v-s')).toBe(4);
+    expect(stockOf('v-l')).toBe(3);
+    expect(syncToCloudIfEnabled).not.toHaveBeenCalled();
+  });
+
+  it('records the variant on the persisted line', () => {
+    const result = commitSale(request({ cartItems: [teeLine('v-l', 'Large', 1, 25)] }));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.sale.transaction.items[0]).toMatchObject({
+      productId: 'p2',
+      variantId: 'v-l',
+      variantName: 'Large',
+      price: 25,
+      total: 25,
+    });
   });
 });

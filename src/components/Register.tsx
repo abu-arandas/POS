@@ -11,7 +11,7 @@ import {
   ChefHat,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, SaleTransaction, HeldOrder, Payment } from '../types';
+import { Product, ProductVariant, SaleTransaction, HeldOrder, Payment } from '../types';
 import ProductGrid from './ProductGrid';
 import CartPanel from './CartPanel';
 import { useRegisterCart } from './register/useRegisterCart';
@@ -32,6 +32,7 @@ const PaymentModal = lazy(() =>
   import('./register/PaymentModal').then(({ PaymentModal }) => ({ default: PaymentModal })),
 );
 import { useProductStore } from '../stores/productStore';
+import { availableStock, variantLabel, variantCost, variantPrice } from '../lib/variants';
 import { useCustomerStore } from '../stores/customerStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
@@ -139,19 +140,34 @@ export default function Register() {
 
   const cashChangeDue = calculateCashChangeDue(cashPaidText);
 
-  // Barcode scan: match a product by exact SKU and add it, with brief feedback.
+  // Barcode scan: match an exact SKU and add it, with brief feedback.
+  //
+  // Variant SKUs are matched too, and matched FIRST: on a varianted product the
+  // scanned code identifies one combination, and adding the parent instead
+  // would put an unpriced, uncounted line on the sale. A scan is also the one
+  // add that skips the picker — the operator has already chosen, physically.
   const handleScan = useCallback(
     (code: string) => {
       const norm = code.trim().toLowerCase();
-      const product = useProductStore.getState().products.find((p) => p.sku.toLowerCase() === norm);
+      const products = useProductStore.getState().products;
+      let product = products.find((p) =>
+        (p.variants ?? []).some((variant) => variant.sku.toLowerCase() === norm),
+      );
+      const variant = product?.variants?.find((v) => v.sku.toLowerCase() === norm);
+      if (!product) product = products.find((p) => p.sku.toLowerCase() === norm);
+
       if (!product) {
         setScanFeedback({ ok: false, text: t('register.scanNotFound', { code }) });
-      } else if (product.stock <= 0) {
-        setScanFeedback({ ok: false, text: `${product.name} — ${t('register.outOfStock')}` });
-      } else {
-        addToCart(product);
-        setScanFeedback({ ok: true, text: product.name });
+        return;
       }
+      const label = variant ? variantLabel(product, variant) : '';
+      const name = label ? `${product.name} — ${label}` : product.name;
+      if (availableStock(product, variant?.id) <= 0) {
+        setScanFeedback({ ok: false, text: `${name} — ${t('register.outOfStock')}` });
+        return;
+      }
+      addToCart(product, variant);
+      setScanFeedback({ ok: true, text: name });
     },
     [addToCart, t],
   );
@@ -185,8 +201,10 @@ export default function Register() {
       items: cart.map((i) => ({
         productId: i.product.id,
         productName: i.product.name,
-        price: i.product.price,
-        cost: i.product.cost,
+        variantId: i.variant?.id,
+        variantName: i.variant ? variantLabel(i.product, i.variant) || undefined : undefined,
+        price: variantPrice(i.product, i.variant),
+        cost: variantCost(i.product, i.variant),
         quantity: i.quantity,
       })),
       customerId: selectedCustomerId,
@@ -223,11 +241,26 @@ export default function Register() {
             adjustedItems.push(i.productName);
             return null;
           }
-          const quantity = Math.min(i.quantity, product.stock);
+          // A held line naming a variant the catalogue has since dropped is
+          // dropped with it, rather than resumed as its parent product: the
+          // parent is a different thing at a different price with its own
+          // stock, and silently substituting it is how a customer gets handed
+          // the wrong item.
+          const variant = i.variantId
+            ? product.variants?.find((v) => v.id === i.variantId)
+            : undefined;
+          if (i.variantId && !variant) {
+            adjustedItems.push(i.variantName ? `${product.name} — ${i.variantName}` : product.name);
+            return null;
+          }
+          const quantity = Math.min(i.quantity, availableStock(product, variant?.id));
           if (quantity !== i.quantity) adjustedItems.push(product.name);
-          return { product, quantity };
+          return { product, variant, quantity };
         })
-        .filter((x): x is { product: Product; quantity: number } => x !== null && x.quantity > 0);
+        .filter(
+          (x): x is { product: Product; variant: ProductVariant | undefined; quantity: number } =>
+            x !== null && x.quantity > 0,
+        );
       if (adjustedItems.length > 0) {
         setScanFeedback({
           ok: false,
@@ -311,19 +344,16 @@ export default function Register() {
   );
 
   const handleCompletePayment = useCallback(() => {
+    // Carries the cart and the discount the operator chose, not the totals on
+    // screen: buildSaleTransaction recomputes the money it is about to persist.
     const req: CheckoutRequest = {
       cartItems,
-      subtotal,
       discountType,
       discountValue,
-      discountAmount,
-      taxAmount,
-      totalAmount,
       paymentMethod,
       splitMode,
       splitPayments,
       cashPaidText,
-      cashChangeDue,
       selectedCustomerId,
       activeCustomerName: activeCustomer?.name || null,
       currentUser,
@@ -339,6 +369,23 @@ export default function Register() {
       else if (result.error === 'split-incomplete') notify(t('register.splitIncomplete'));
       else if (result.error === 'split-non-cash-overpay') notify(t('register.splitNonCashOverpay'));
       else if (result.error === 'insufficient-cash') notify(t('register.insufficientCash'));
+      else if (result.error === 'insufficient-stock' || result.error === 'product-unavailable') {
+        // Name the lines, because the fix is per-line: the cart was capped
+        // against stock read when each item went in, and something has sold or
+        // removed those units since — usually another till.
+        const items = (result.shortfalls ?? [])
+          .map((short) => `${short.productName} (${short.available}/${short.requested})`)
+          .join(', ');
+        notify(
+          t(
+            result.error === 'product-unavailable'
+              ? 'register.productUnavailable'
+              : 'register.insufficientStock',
+            { items },
+          ),
+          'error',
+        );
+      }
       return;
     }
 
@@ -400,17 +447,12 @@ export default function Register() {
     })();
   }, [
     cartItems,
-    subtotal,
     discountType,
     discountValue,
-    discountAmount,
-    taxAmount,
-    totalAmount,
     paymentMethod,
     splitMode,
     splitPayments,
     cashPaidText,
-    cashChangeDue,
     selectedCustomerId,
     activeCustomer,
     currentUser,

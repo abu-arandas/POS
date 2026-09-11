@@ -82,6 +82,8 @@ describe('pushStoreCatalog', () => {
         stock: 12,
         min_stock: 3,
         image: '',
+        variant_types: null,
+        variants: null,
       },
     ]);
   });

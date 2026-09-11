@@ -266,3 +266,130 @@ describe('Inventory — editing the catalog', () => {
     expect(useProductStore.getState().products.find((p) => p.id === 'p-2')!.sku).toBe('BEV-02');
   });
 });
+
+const VARIANTED: Product = {
+  ...PRODUCT,
+  id: 'p-2',
+  name: 'Juice',
+  sku: 'JCE',
+  price: 4,
+  stock: 3,
+  variantTypes: [
+    {
+      id: 'vt-size',
+      name: 'Size',
+      options: [
+        { id: 'o-s', name: 'Small' },
+        { id: 'o-l', name: 'Large' },
+      ],
+    },
+  ],
+  variants: [
+    { id: 'v-s', options: { 'vt-size': 'o-s' }, sku: 'JCE-S', stock: 2 },
+    { id: 'v-l', options: { 'vt-size': 'o-l' }, sku: 'JCE-L', price: 6, stock: 1 },
+  ],
+};
+
+describe('Inventory — variants', () => {
+  it('builds a matrix from the option types, and derives the product total', async () => {
+    const user = userEvent.setup();
+    render(<Inventory />);
+    await user.click(screen.getByRole('button', { name: /^Add Product$/i }));
+
+    await user.type(screen.getByLabelText(/Product Name/i), 'Juice');
+    await user.type(screen.getByLabelText(/Sell Price/i), '4');
+    await user.type(screen.getByLabelText(/Cost Price/i), '1');
+
+    await user.click(screen.getByRole('button', { name: /Add option type/i }));
+    await user.type(screen.getByLabelText(/^Option type$/i), 'Size');
+    await user.click(screen.getByRole('button', { name: /^Add option$/i }));
+    await user.type(screen.getByLabelText(/Size — Option/i), 'Small');
+    await user.click(screen.getByRole('button', { name: /^Add option$/i }));
+    await user.type(screen.getAllByLabelText(/Size — Option/i)[1], 'Large');
+
+    // One row per combination, each with its own SKU, price and stock.
+    expect(screen.getByLabelText('Stock — Small')).toBeInTheDocument();
+    expect(screen.getByLabelText('Stock — Large')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Stock — Small'), '7');
+    await user.type(screen.getByLabelText('Stock — Large'), '5');
+
+    // The product's stock box follows the matrix rather than being typed into.
+    await waitFor(() => expect(screen.getByLabelText(/In-Stock Count/i)).toHaveValue(12));
+    expect(screen.getByLabelText(/In-Stock Count/i)).toHaveAttribute('readonly');
+
+    await user.click(document.querySelector('#form-submit-prod-btn') as HTMLElement);
+    await waitFor(() => {
+      const saved = useProductStore.getState().products.find((p) => p.name === 'Juice')!;
+      expect(saved.variants).toHaveLength(2);
+      expect(saved.stock).toBe(12);
+      // Distinct SKUs, seeded from the product's, so each row scans to itself.
+      expect(new Set(saved.variants!.map((v) => v.sku)).size).toBe(2);
+    });
+  });
+
+  it('refuses to save an option type with no options', async () => {
+    const user = userEvent.setup();
+    render(<Inventory />);
+    await user.click(screen.getByRole('button', { name: /^Add Product$/i }));
+
+    await user.type(screen.getByLabelText(/Product Name/i), 'Juice');
+    await user.type(screen.getByLabelText(/Sell Price/i), '4');
+    await user.type(screen.getByLabelText(/Cost Price/i), '1');
+    await user.type(screen.getByLabelText(/In-Stock Count/i), '5');
+    await user.click(screen.getByRole('button', { name: /Add option type/i }));
+
+    await user.click(document.querySelector('#form-submit-prod-btn') as HTMLElement);
+
+    // A half-built matrix would put a picker of blanks on the register.
+    expect(vi.mocked(notify)).toHaveBeenCalledWith(expect.stringContaining('option type a name'));
+    expect(useProductStore.getState().products.some((p) => p.name === 'Juice')).toBe(false);
+  });
+
+  it('adjusts the chosen variant rather than the product total', async () => {
+    const user = userEvent.setup();
+    useProductStore.setState({
+      products: [VARIANTED],
+      categories: [{ id: 'cat-1', name: 'Drinks', color: '' }],
+    });
+    render(<Inventory />);
+    await openReceive();
+
+    await user.selectOptions(
+      document.querySelector('#receive-product-select') as HTMLSelectElement,
+      'p-2',
+    );
+    await user.selectOptions(
+      document.querySelector('#receive-variant-select') as HTMLSelectElement,
+      'v-l',
+    );
+    await user.type(screen.getByLabelText(/Quantity change/i), '4');
+    await user.click(screen.getByRole('button', { name: /^Receive$/i }));
+
+    await waitFor(() => {
+      const live = useProductStore.getState().products[0];
+      expect(live.variants!.find((v) => v.id === 'v-l')!.stock).toBe(5);
+      expect(live.stock).toBe(7);
+    });
+  });
+
+  it('will not adjust a varianted product without naming a variant', async () => {
+    const user = userEvent.setup();
+    useProductStore.setState({
+      products: [VARIANTED],
+      categories: [{ id: 'cat-1', name: 'Drinks', color: '' }],
+    });
+    render(<Inventory />);
+    await openReceive();
+
+    await user.selectOptions(
+      document.querySelector('#receive-product-select') as HTMLSelectElement,
+      'p-2',
+    );
+    await user.type(screen.getByLabelText(/Quantity change/i), '4');
+    await user.click(screen.getByRole('button', { name: /^Receive$/i }));
+
+    expect(useProductStore.getState().products[0].stock).toBe(3);
+    expect(vi.mocked(notify)).toHaveBeenCalledWith(expect.stringContaining('which variant'));
+  });
+});

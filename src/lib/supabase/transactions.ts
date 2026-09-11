@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { OrderItem, SaleTransaction } from '../../types';
-import { fetchAllPages, keyset, stampStoreId } from './sync-utils';
+import { fetchAllPages, isUnknownColumn, keyset, stampStoreId } from './sync-utils';
 
 /**
  * Reads an optional numeric column: a column the row omits, or stores as SQL
@@ -8,20 +8,6 @@ import { fetchAllPages, keyset, stampStoreId } from './sync-utils';
  */
 function optionalNumber(value: unknown): number | undefined {
   return value === null || value === undefined ? undefined : Number(value);
-}
-
-/**
- * Whether an error is PostgREST refusing a column the table does not have.
- *
- * PostgREST answers a write naming an unknown column with PGRST204 and the
- * column in the message; the underlying Postgres code is 42703. Both are
- * matched, and the column name is checked too, so this never swallows some
- * other schema error as a missing-column case.
- */
-function isUnknownColumn(error: unknown, column: string): boolean {
-  const { code, message } = (error ?? {}) as { code?: string; message?: string };
-  if (code !== 'PGRST204' && code !== '42703') return false;
-  return typeof message === 'string' && message.includes(column);
 }
 
 /**

@@ -158,7 +158,9 @@ export function ReceiptModal({
                       <div className="flex justify-between items-start gap-4">
                         <span className="flex-1 pe-2">
                           <span className="opacity-70 me-1">{item.quantity}x</span>
-                          {item.productName}
+                          {item.variantName
+                            ? `${item.productName} — ${item.variantName}`
+                            : item.productName}
                         </span>
                         {show.priceColumn && (
                           <span className="shrink-0 font-bold">

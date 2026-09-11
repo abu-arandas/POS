@@ -19,6 +19,7 @@ A modern, high-performance, cross-platform Point of Sale (POS) system built with
 - **QR Menu Generator:** Automatically generate and print digital QR codes so customers can browse your menu on their phones.
 - **Customer Loyalty System:** Link customers to transactions to award or deduct loyalty points directly at checkout.
 - **Analytics Dashboard:** Date-range KPIs (today / 7d / 30d / all), revenue & profit trend, best-sellers, category and payment breakdowns, and a per-operator sales report — all exportable to CSV.
+- **Product Variants:** Sell one product in several option types at once — Size × Colour, Size × Flavour — where each combination is its own SKU, price and stock count. The register offers a picker, barcodes scan straight to a variant, shelf labels print one tag per combination, and the product's stock is simply the sum of its variants'.
 - **Inventory Depth:** Suppliers, a lightweight "receive stock" purchase-order flow, and a full stock-adjustment audit log.
 - **Live Multi-Terminal Sync:** Optional Supabase cloud sync with realtime subscriptions, so a second register's changes appear automatically; cloud PIN login keeps staff accounts consistent across terminals.
 - **Cross-Platform & Standalone:** Runs perfectly in the browser (via Vite) or as a native downloadable `.exe` via Electron without the standard browser toolbars.
@@ -160,7 +161,21 @@ count against tomorrow.
   reloading the page doesn't reset the lockout.
 - **In the cloud** — the `verify_login` RPC is callable by anyone holding the
   public anon key, so it applies the same ladder server-side and refuses to check
-  the PIN at all while an account is locked out.
+  the PIN at all while an account is locked out. Failures are counted per
+  **caller and account**, not per account alone: a caller hammering a staff name
+  — and staff names are visible on the lock screen — locks out only themselves,
+  while the shop's own terminal keeps signing in. A second, far more tolerant
+  counter per account name (50 failures, 15-minute cool-off, cleared by any
+  successful login) backstops guessing spread across many callers.
+
+  The caller is derived from the request headers PostgREST forwards, which is
+  the only caller identity Postgres gets behind Supabase's pooler. It is never
+  used to authorize anything — only to decide whose failures count against whose
+  throttle — so spoofing it merely moves an attacker onto a different bucket. A
+  store under sustained abuse wants a real rate limit in front of Postgres
+  (Supabase gateway limits, or an Edge Function around this RPC), and cloud login
+  is a fallback in any case: PIN login keeps working offline against the locally
+  persisted staff list.
 
 ## ☁️ Cloud Sync (Supabase, optional)
 
@@ -184,6 +199,30 @@ added to the `supabase_realtime` publication independently). It adds the newer
 transaction columns (operator, points earned, refund authorizer, split payments,
 partial refunds, shift id) and enables live sync, without touching existing data.
 
+Whichever scripts you ran, finish by running `src/db/verify-policies.sql`. It
+changes nothing and asserts that the server actually enforces what the scripts
+intend: that staff PIN hashes are unreadable by any client role, that the anon
+key reaches no application data, that RLS is on everywhere, and — on a fleet —
+that no blanket policy survived to `OR` its way past the store-scoped ones.
+Reading the scripts is not the same as checking the database: grants and
+policies accumulate across versions, hand-run statements and half-applied
+migrations.
+
+### Offline writes and the outbox
+
+Sales are committed locally first and pushed afterwards, so the register keeps
+trading with the internet down. Every cloud write is written to a durable outbox
+in IndexedDB **before** it is attempted and removed only once the server has
+accepted it, then replayed in submission order — on reconnect, and on a slow
+timer for the outages a browser never reports. Every queued operation is an
+upsert by primary key or a delete by id, so replaying one twice is the same as
+replaying it once.
+
+This is what "offline-first" has to mean for money: a push that fails is a
+delay, not a lost sale. "Pull From Cloud" replaces local data with the server's
+copy, so it drains the outbox first and, if anything is still owed, says how
+many changes would be discarded before asking you to confirm.
+
 ### Multi-store / super-admin (optional)
 
 For a fleet of locations, run `src/db/multi-store-schema.sql` after
@@ -199,8 +238,10 @@ set in Settings, and every device account needs a membership row, or you will
 lock terminals out of their own data. That script also drops the permissive
 "staff full access" policies from `schema.sql`; without that they would `OR`
 with the store-scoped policies and leave cross-store access wide open. Re-running
-`schema.sql` later is safe — it detects the enforced setup and skips recreating
-those blanket policies.
+`schema.sql` later is safe — the enforcement script records the mode in a
+`pos_schema_state` row that `schema.sql` reads, so it knows to skip recreating
+those blanket policies (and still falls back to detecting a store-scoped policy,
+for databases enforced before that row existed).
 
 ## 🧪 Tests
 
@@ -210,8 +251,16 @@ npm test
 
 Unit tests (Vitest) cover the pricing engine, the HTML-escaping used for
 printed receipts and the QR menu, the PBKDF2/SHA-256 authentication fallbacks,
-cloud-sync failure modes, printer cleanup, and the major checkout and inventory
-workflows.
+cloud-sync failure modes (including the outbox's offline/restart/replay path),
+printer cleanup, and the major checkout and inventory workflows — among them the
+stale-stock and concurrent-sale cases, which live at the service boundary rather
+than in the browser because that is where the concurrency is.
+
+`test/db/schemaContract.test.ts` reads the SQL scripts and asserts the
+access-control properties that must not regress — the PIN hash never entering a
+SELECT grant, the login throttle staying caller-scoped, the blanket policies
+staying behind their guard. It is the CI half of `src/db/verify-policies.sql`,
+which checks the same properties against a live database.
 
 They also cover the Electron main process's pure modules — IPC payload
 validation, the auto-update policy, the Windows code-signing configuration, and

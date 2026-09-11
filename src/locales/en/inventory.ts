@@ -115,4 +115,28 @@ export const inventory = {
   stockCannotBeNegative: 'Stock cannot go below zero.',
   imageUrlPlaceholder: 'Image URL…',
   deleteCategoryConfirm: 'Delete the category “{{name}}”?',
+  sectionVariants: 'Variants',
+  variantsHint:
+    'Add option types like Size or Colour. Every combination becomes its own sellable variant with its own SKU and stock.',
+  variantStockHint:
+    'Stock is counted per variant. The product total shown elsewhere is the sum of these rows.',
+  addVariantType: 'Add option type',
+  addVariantOption: 'Add option',
+  variantTypeName: 'Option type',
+  variantTypeNamePlaceholder: 'e.g. Size',
+  variantOptionName: 'Option',
+  variantOptionPlaceholder: 'e.g. Large',
+  removeVariantType: 'Remove option type',
+  removeVariantOption: 'Remove option',
+  variantCombinations: '{{count}} variants',
+  variantTotalStock: 'Total stock: {{count}}',
+  variantInherits: 'Same as product',
+  variantUnnamed: 'Unnamed variant',
+  variantLimitReached:
+    'A product can carry at most {{count}} variants; extra combinations were dropped.',
+  variantNeedsOptions: 'Give every option type a name and at least one option.',
+  duplicateVariantSku: 'Every variant needs its own SKU — {{sku}} is used twice.',
+  variantRequired: 'Choose which variant this applies to.',
+  unknownVariant: 'That variant no longer exists.',
+  variant: 'Variant',
 };

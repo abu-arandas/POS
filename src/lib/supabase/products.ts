@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Category, Product } from '../../types';
-import { fetchAllPages, keyset, stampStoreId } from './sync-utils';
+import { fetchAllPages, isUnknownColumn, keyset, stampStoreId } from './sync-utils';
 
 /**
  * One product as the `products` table stores it: camelCase to snake_case, with
@@ -21,6 +21,12 @@ export function toProductRow(p: Product) {
     stock: p.stock,
     min_stock: p.minStock,
     image: p.image,
+    // Null rather than undefined for a plain product: PostgREST omits an
+    // undefined key from the upsert payload, so a product that HAD variants and
+    // no longer does would keep its old matrix in the cloud row and get it back
+    // on the next pull.
+    variant_types: p.variantTypes ?? null,
+    variants: p.variants ?? null,
   };
 }
 
@@ -37,7 +43,26 @@ export async function pushProducts(
     const records = stampStoreId(products.map(toProductRow), storeId);
 
     const { error } = await client.from('products').upsert(records);
-    if (error) throw error;
+    if (!error) return true;
+
+    // The app updates itself; the schema does not. Until the operator runs the
+    // ALTER TABLEs in src/db/schema.sql, PostgREST rejects the whole row for the
+    // one column it does not know — which would stop the catalogue, the stock
+    // levels and every sale's decrement from syncing over a feature the store
+    // may not even use. Dropping the pair and retrying keeps inventory flowing
+    // and leaves a warning pointing at the migration.
+    if (!isUnknownColumn(error, 'variant_types') && !isUnknownColumn(error, 'variants')) {
+      throw error;
+    }
+    console.warn(
+      'products.variant_types/variants are missing in Supabase — pushing without them. ' +
+        'Run the ALTER TABLE in src/db/schema.sql so product variants sync between terminals.',
+    );
+    const withoutVariants = records.map(
+      ({ variant_types: _types, variants: _variants, ...rest }) => rest,
+    );
+    const retry = await client.from('products').upsert(withoutVariants);
+    if (retry.error) throw retry.error;
     return true;
   } catch (err) {
     console.error('Failed pushing products:', err);
@@ -68,6 +93,12 @@ export async function pullProducts(
       stock: Number(r.stock),
       minStock: Number(r.min_stock),
       image: r.image,
+      // Kept off the object entirely when the column is null or the database
+      // predates the migration: `variants: undefined` and no key at all mean
+      // the same thing to every reader, and an empty array would make
+      // hasVariants() disagree with itself across a sync.
+      ...(r.variant_types ? { variantTypes: r.variant_types } : {}),
+      ...(r.variants ? { variants: r.variants } : {}),
     }));
   } catch (err) {
     console.error('Failed pulling products:', err);
