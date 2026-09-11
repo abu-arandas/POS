@@ -124,6 +124,26 @@ function findShortfalls(
  * sale of goods the catalogue no longer had at all. The receipt, the day's
  * revenue, the loyalty award and the cloud row then all asserted a quantity
  * that inventory never contained, and nothing anywhere said so.
+ *
+ * What "live" means, exactly, and what it does not:
+ *
+ *   * Within this terminal it is authoritative. Check and decrement run in one
+ *     synchronous span with no await between them, so nothing — a second
+ *     checkout, a realtime update, an inventory edit — can interleave and read
+ *     the stock this sale is about to take.
+ *   * Across terminals it is not. Each till holds its own catalogue, so two
+ *     tills can both read the last unit as available and both sell it; the
+ *     cloud row then settles on whichever push lands second. Realtime sync
+ *     narrows that window to push-plus-propagation latency, and reopens it
+ *     entirely for a till that is offline.
+ *
+ * Closing the second case needs the decrement to be authoritative in the
+ * database — an RPC updating `stock = stock - q WHERE stock >= q` and recording
+ * the sale in the same transaction. That is not a change that can be made here
+ * alone: a register whose whole premise is trading through an outage cannot
+ * make the server the gate, so it needs a reservation/commit protocol that
+ * degrades to local authority offline, and a decision about what the till does
+ * when the server refuses a sale the customer has already paid for.
  */
 export function commitSale(request: CheckoutRequest): CommitSaleResult {
   const outcome = buildSaleTransaction(request);
