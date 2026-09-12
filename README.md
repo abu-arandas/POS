@@ -80,7 +80,7 @@ Once completed successfully, your executables will be located in the `release/` 
 
 - **Installer:** `release/EA-POS-Setup-<version>.exe` — the version is the one in
   `package.json` (electron-builder names the file from it), so today's build is
-  `EA-POS-Setup-1.0.3.exe`. Distribute this to install on Windows machines.
+  `EA-POS-Setup-1.0.4.exe`. Distribute this to install on Windows machines.
 - **Standalone App:** `release/win-unpacked/EA POS.exe` (Portable version, run directly without installing)
 
 _Troubleshooting: If you get an `EPERM` error during the build, ensure you do not have any File Explorer windows or terminals open inside the `release` folder, as Windows locks files while being viewed._
