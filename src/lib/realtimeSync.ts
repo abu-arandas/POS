@@ -8,6 +8,7 @@ import {
   pullTransactions,
   pullUserAccounts,
 } from './supabase';
+import { isSyncBlocked } from './supabase/storeScope';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
@@ -113,6 +114,13 @@ export async function startRealtimeSync(): Promise<boolean> {
     timers[table] = setTimeout(async () => {
       // Re-read the store scope each pull so it tracks config changes.
       const { storeId } = useSettingsStore.getState();
+      // Realtime is a pull like any other, and the most dangerous one to leave
+      // ungated: it is automatic and continuous, so an unscoped terminal would
+      // keep absorbing every store's products, customers and staff for as long
+      // as the fleet kept trading — no operator ever presses anything. Same
+      // rule, same strictness as Pull From Cloud, because it replaces local
+      // rows the same way.
+      if (await isSyncBlocked(client, storeId, 'pull')) return;
       const apply = await PULL_INTO_STORE[table](client, storeId);
       if (myGeneration !== generation) return; // stopped or restarted mid-pull
       // The store scope can change without restarting sync — App only restarts

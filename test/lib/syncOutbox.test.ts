@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import {
+  deleteProductsCloudIfEnabled,
   syncToCloudIfEnabled,
   retryPendingCloudWrites,
   pendingCloudWrites,
@@ -459,6 +460,33 @@ describe('a terminal with no Store ID against a multi-store database', () => {
 
     expect(supabaseLib.pushTransactions).not.toHaveBeenCalled();
     expect(await pendingCloudWrites()).toBe(1);
+  });
+
+  it('refuses a queued DELETE, which names rows by id', async () => {
+    // The delete branch used to return before the guard ran. On an unscoped
+    // terminal those ids came from local data a fleet-wide pull may have filled
+    // with other stores' rows, so deleting a product here could delete another
+    // shop's. Queued, not dropped.
+    vi.mocked(supabaseLib.deleteRowsSupabase).mockResolvedValue(true);
+
+    await deleteProductsCloudIfEnabled(['p1']);
+
+    expect(supabaseLib.deleteRowsSupabase).not.toHaveBeenCalled();
+    expect(await pendingCloudWrites()).toBe(1);
+  });
+
+  it('sends a queued delete once the Store ID is set', async () => {
+    vi.mocked(supabaseLib.deleteRowsSupabase).mockResolvedValue(true);
+    await deleteProductsCloudIfEnabled(['p1']);
+    expect(await pendingCloudWrites()).toBe(1);
+
+    setState({ ...cloudOn, storeId: 'store-A' });
+    resetStoreCountCache();
+    vi.setSystemTime(Date.now() + 60_000);
+    await retryPendingCloudWrites();
+
+    expect(supabaseLib.deleteRowsSupabase).toHaveBeenCalled();
+    expect(await pendingCloudWrites()).toBe(0);
   });
 
   it('sends everything once the Store ID is set', async () => {

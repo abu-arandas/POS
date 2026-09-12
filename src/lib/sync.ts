@@ -94,6 +94,17 @@ const sendOperation = async (
     return 'unreachable';
   }
 
+  // Ahead of the delete branch, not after it. A delete names rows by id, and on
+  // an unscoped terminal those ids came from local data that a fleet-wide pull
+  // may have filled with other stores' rows — so deleting a product here could
+  // delete another shop's. Refusing keeps the entry queued, so nothing is lost:
+  // both deletes and pushes go as soon as the Store ID is set.
+  //
+  // For a push the harm is the mirror image: store_id lands NULL, every scoped
+  // pull is then blind to those rows, and they block
+  // multi-store-rls-enforce.sql's NOT NULL guard.
+  if (await isSyncBlocked(client, storeId, 'push')) return 'rejected';
+
   if (operation.type === 'delete') {
     return (await deleteRowsSupabase(client, operation.table, operation.ids)) ? 'sent' : 'rejected';
   }
@@ -103,13 +114,6 @@ const sendOperation = async (
   // continuing past a failed table sends exactly that. The whole entry is
   // retried from the top either way, and every push is an idempotent upsert, so
   // stopping costs nothing and keeps the ordering the comment claims.
-  // A terminal with no Store ID against a database holding several stores must
-  // not write unscoped rows: store_id lands NULL, every scoped pull is then
-  // blind to them, and they block multi-store-rls-enforce.sql's NOT NULL guard.
-  // Refusing keeps the entry queued, so the rows are not lost — they go as soon
-  // as the Store ID is set.
-  if (await isSyncBlocked(client, storeId, 'push')) return 'rejected';
-
   const { products, categories, customers, transactions, users } = operation;
   const tables: Array<() => Promise<boolean>> = [];
   if (products?.length) tables.push(() => pushProducts(client, products, storeId));

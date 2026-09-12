@@ -881,12 +881,13 @@ cannot disagree about which deployments are scoped.
 
 `isSyncBlocked(client, storeId, operation)` applies it:
 
-| Situation                                            | Pull        | Push        |
-| ---------------------------------------------------- | ----------- | ----------- |
-| A store id is configured                             | allowed     | allowed     |
-| No store id, one store (or a pre-migration database) | allowed     | allowed     |
-| No store id, several stores                          | **refused** | **refused** |
-| Scope could not be established                       | **refused** | allowed     |
+| Situation                                                     | Pull        | Push        |
+| ------------------------------------------------------------- | ----------- | ----------- |
+| A store id is configured                                      | allowed     | allowed     |
+| No store id, one store, or no `stores` table at all           | allowed     | allowed     |
+| No store id, several stores                                   | **refused** | **refused** |
+| No store id, `stores` exists but `pos_store_count()` does not | **refused** | allowed     |
+| Scope could not be established                                | **refused** | allowed     |
 
 A pull is the strict one because it **replaces** local data and has no undo. A
 push is additive and the outbox retries it, so an unestablished scope lets it
@@ -895,6 +896,24 @@ push stays queued, so the sale is not lost: it goes as soon as the Store ID is
 set. The count is cached per client for five minutes — keyed by client, not
 module-global, so a terminal repointed at a different project cannot answer out
 of the old one's cache.
+
+The fourth row is the upgrade window, and it is why a missing
+`pos_store_count()` is not simply read as "no stores". That function ships
+_with_ this guard, so every deployment already running `multi-store-schema.sql`
+is missing it until the migration is re-run — treating that as zero would hand
+precisely those fleets the leak. A missing function is an answer only when
+`stores` is missing too. The count cannot be read from `stores` directly
+either: it carries RLS (`has_store_access(id)`), so an unscoped terminal sees
+zero rows on a database holding twenty stores. Its _existence_ is the one fact
+RLS does not hide.
+
+Three callers, not one. **Pull From Cloud** and the **outbox** are the obvious
+ones; the third is **realtime**, which calls the same table pulls on every
+change event. That one matters most: it is automatic and continuous, so an
+ungated unscoped terminal absorbs the whole fleet for as long as anyone keeps
+trading, with no operator action at all. Queued **deletes** are gated on the
+push side too — a delete names rows by id, and on a terminal whose local data
+came from a fleet-wide pull those ids can belong to another shop.
 
 ### 8.4a The outbox — `outbox.ts`
 

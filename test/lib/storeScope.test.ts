@@ -14,10 +14,39 @@ import {
 // From Cloud then replaced local data with them. These are the checks that the
 // absent case now fails CLOSED instead.
 
-const clientReturning = (result: unknown) =>
-  ({ rpc: vi.fn().mockResolvedValue(result) }) as unknown as SupabaseClient;
+/**
+ * `storesTable` says what a read of `stores` answers when the RPC is missing:
+ * 'present', 'absent' (the table does not exist), or 'unreadable'.
+ */
+const clientReturning = (
+  result: unknown,
+  storesTable: 'present' | 'absent' | 'unreadable' = 'absent',
+) =>
+  ({
+    rpc: vi.fn().mockResolvedValue(result),
+    from: vi.fn(() => ({
+      select: vi
+        .fn()
+        .mockResolvedValue(
+          storesTable === 'present'
+            ? { error: null }
+            : storesTable === 'absent'
+              ? { error: { code: 'PGRST205', message: 'Could not find the table public.stores' } }
+              : { error: { code: '08006', message: 'no route' } },
+        ),
+    })),
+  }) as unknown as SupabaseClient;
 
 const withStores = (count: number) => clientReturning({ data: count, error: null });
+
+const missingFn = (storesTable: 'present' | 'absent' | 'unreadable') =>
+  clientReturning(
+    {
+      data: null,
+      error: { code: 'PGRST202', message: 'Could not find the function public.pos_store_count' },
+    },
+    storesTable,
+  );
 
 beforeEach(() => resetStoreCountCache());
 
@@ -26,22 +55,38 @@ describe('reading the store count', () => {
     expect(await fetchStoreCount(withStores(3))).toBe(3);
   });
 
-  it('treats a database that never ran the multi-store migration as having none', async () => {
-    // Not a failure — a definite answer. There are no stores, so there is
-    // nothing for a terminal to be scoped to and nothing to leak between.
-    const missing = clientReturning({
-      data: null,
-      error: { code: 'PGRST202', message: 'Could not find the function public.pos_store_count' },
-    });
-    expect(await fetchStoreCount(missing)).toBe(0);
+  it('treats a database with neither the function nor the table as having none', async () => {
+    // A definite answer, not a failure: the store dimension was never taken, so
+    // there is nothing to be scoped to and nothing to leak between.
+    expect(await fetchStoreCount(missingFn('absent'))).toBe(0);
   });
 
   it('handles the underlying Postgres code too', async () => {
-    const missing = clientReturning({
-      data: null,
-      error: { code: '42883', message: 'function pos_store_count() does not exist' },
-    });
+    const missing = clientReturning(
+      {
+        data: null,
+        error: { code: '42883', message: 'function pos_store_count() does not exist' },
+      },
+      'absent',
+    );
     expect(await fetchStoreCount(missing)).toBe(0);
+  });
+
+  it('refuses to read a missing function as "no stores" when the table is there', async () => {
+    // The case that matters most. pos_store_count() ships WITH this guard, so
+    // every deployment already running multi-store-schema.sql is missing it
+    // until the migration is re-run — reading that as zero would hand exactly
+    // those fleets the unscoped, fleet-wide pull this module exists to stop.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await fetchStoreCount(missingFn('present'))).toBeNull();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('multi-store-schema.sql'));
+    warn.mockRestore();
+  });
+
+  it('does not guess when it cannot tell whether the table is there', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await fetchStoreCount(missingFn('unreadable'))).toBeNull();
+    warn.mockRestore();
   });
 
   it('reports an unrelated failure as unknown rather than as zero', async () => {
@@ -144,5 +189,28 @@ describe('the warning the settings screen shows', () => {
   it('stays quiet for a single-store install and for a scoped terminal', async () => {
     expect(await storeScopeWarning(withStores(1), '')).toBeNull();
     expect(await storeScopeWarning(withStores(7), 'store-A')).toBeNull();
+  });
+});
+
+describe('an older multi-store database, mid-upgrade', () => {
+  it('blocks the pull and lets the push through', async () => {
+    // stores exists, pos_store_count does not. The count is unknowable from the
+    // client — `stores` carries RLS (has_store_access(id)), so an unscoped
+    // terminal reads zero rows from a database holding twenty stores — so this
+    // must not be resolved by guessing. Pull refuses; push is additive and the
+    // outbox retries it.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const old = missingFn('present');
+
+    expect(await resolveStoreScope(old, '')).toBe('unknown');
+    expect(await isSyncBlocked(old, '', 'pull')).toBe(true);
+    expect(await isSyncBlocked(old, '', 'push')).toBe(false);
+    warn.mockRestore();
+  });
+
+  it('leaves a terminal that names its store alone', async () => {
+    // It already says which store it is, so nothing about the count matters.
+    const old = missingFn('present');
+    expect(await isSyncBlocked(old, 'store-A', 'pull')).toBe(false);
   });
 });

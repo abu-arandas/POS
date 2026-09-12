@@ -27,19 +27,57 @@ function isMissingFunction(error: unknown): boolean {
   return typeof message === 'string' && message.includes('pos_store_count');
 }
 
+/** PostgREST cannot find the table; the underlying Postgres code is 42P01. */
+function isMissingTable(error: unknown): boolean {
+  const { code } = (error ?? {}) as { code?: string };
+  return code === 'PGRST205' || code === '42P01';
+}
+
+/**
+ * Whether the database has a store dimension at all, used only when
+ * `pos_store_count()` is absent.
+ *
+ * The count itself cannot be taken from here: `stores` carries RLS
+ * (`has_store_access(id)`), so an unscoped terminal reads zero rows from a
+ * database holding twenty stores. Its EXISTENCE is still a fact RLS does not
+ * hide, and that is all this asks.
+ */
+async function storesTableExists(client: SupabaseClient): Promise<boolean | null> {
+  const { error } = await client.from('stores').select('id', { head: true, count: 'exact' });
+  if (!error) return true;
+  if (isMissingTable(error)) return false;
+  return null; // could not tell
+}
+
 /**
  * How many stores the database holds, or null when it cannot be established.
  *
- * A database that never ran multi-store-schema.sql has no such function, and
- * no stores either — that is reported as 0, not as a failure, because it is a
- * definite answer: there is nothing to be scoped to.
+ * The missing-function case is the subtle one, and getting it wrong fails open
+ * in the worst place. `pos_store_count()` is introduced alongside this guard, so
+ * EVERY deployment that already runs multi-store-schema.sql is missing it until
+ * the migration is re-run — reading that as "no stores" would hand precisely
+ * those fleets an unscoped, fleet-wide pull, which is the leak this whole module
+ * exists to close.
+ *
+ * So a missing function is not an answer by itself. It is one only when the
+ * `stores` table is missing too, which means the database never took the store
+ * dimension and there is genuinely nothing to be scoped to. If the table is
+ * there, the count is UNKNOWN — and a pull, which replaces local data, refuses
+ * on unknown.
  */
 export async function fetchStoreCount(client: SupabaseClient): Promise<number | null> {
   try {
     const { data, error } = await client.rpc('pos_store_count');
     if (error) {
-      if (isMissingFunction(error)) return 0; // pre-multi-store database
-      throw error;
+      if (!isMissingFunction(error)) throw error;
+      const hasStores = await storesTableExists(client);
+      if (hasStores === false) return 0; // never took the store dimension
+      console.warn(
+        'pos_store_count() is missing but the stores table is present — this database ran an ' +
+          'older multi-store migration. Re-run src/db/multi-store-schema.sql; until then this ' +
+          'terminal will not pull, because it cannot tell how many stores it would be reading.',
+      );
+      return null;
     }
     const count = Number(data);
     return Number.isFinite(count) ? count : null;

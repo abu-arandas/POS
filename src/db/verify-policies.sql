@@ -22,6 +22,7 @@ DECLARE
   problems  text[] := ARRAY[]::text[];
   mode      text;
   n         bigint;
+  stores_n  bigint;
   tbl       text;
   synced    CONSTANT text[] :=
     ARRAY['products', 'categories', 'customers', 'transactions', 'user_accounts'];
@@ -149,12 +150,22 @@ BEGIN
     END LOOP;
   END IF;
 
-  -- A database holding several stores must not authenticate across them. This
-  -- is checked by CALLING verify_login rather than by reading its source: the
-  -- routine is redefined by multi-store-schema.sql, and a database still
-  -- carrying the older two-argument form would read as fine while an unscoped
-  -- call matched a staff account in an arbitrary store.
-  IF (SELECT count(*) FROM stores) > 1 THEN
+  -- A database holding several stores must not authenticate across them.
+  --
+  -- Guarded on the table EXISTING, not just on its contents: `stores` is created
+  -- by multi-store-schema.sql, and this script is documented to run against a
+  -- base-schema install too — where an unguarded reference aborts the whole
+  -- verifier with "relation \"stores\" does not exist". The nested IF matters as
+  -- much as the test: plpgsql prepares a statement on first execution, so a
+  -- `stores` query in a branch that is never entered is never parsed, whereas
+  -- folding both halves into one condition would parse it every time.
+  IF to_regclass('public.stores') IS NOT NULL THEN
+    SELECT count(*) INTO stores_n FROM stores;
+  ELSE
+    stores_n := 0;
+  END IF;
+
+  IF stores_n > 1 THEN
     IF NOT EXISTS (
       SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'public' AND p.proname = 'pos_store_count'
@@ -171,16 +182,30 @@ BEGIN
       ) THEN
         problems := problems ||
           'the unscoped two-argument verify_login is present on a multi-store database (re-run src/db/schema.sql)'::text;
-      ELSE
-        -- A real account's own credentials, offered WITHOUT naming its store.
-        -- Three arguments so the call is unambiguous whatever else is defined.
-        IF EXISTS (
-          SELECT 1 FROM user_accounts ua
-          WHERE (SELECT count(*) FROM public.verify_login(ua.name, ua.pin, NULL)) > 0
-        ) THEN
-          problems := problems ||
-            'verify_login authenticates without a store id on a multi-store database'::text;
-        END IF;
+      ELSIF NOT EXISTS (
+        -- Read, never called.
+        --
+        -- The obvious check is to offer a real account's own credentials
+        -- without naming its store and see whether a row comes back. It must
+        -- not be done: verify_login records a FAILED attempt on every refusal,
+        -- so a script whose header promises it is read-only would write one
+        -- failure per staff account per run, and five runs would put every
+        -- account's cloud login into cool-off. Worse, it does that damage
+        -- exactly when the database is CORRECT — a broken one returns a row,
+        -- which clears the ledger instead.
+        --
+        -- So the guard is confirmed by the mechanism it is built on rather than
+        -- by its behaviour: a routine whose body never consults
+        -- pos_store_count() cannot be refusing the unscoped case, whatever its
+        -- signature looks like. That also catches the case the two-argument
+        -- check above cannot — a three-argument routine from before this guard
+        -- existed, or one hand-edited since.
+        SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname = 'verify_login' AND p.pronargs = 3
+          AND p.prosrc LIKE '%pos_store_count%'
+      ) THEN
+        problems := problems ||
+          'verify_login does not consult pos_store_count(), so it still authenticates without a store id (re-run src/db/multi-store-schema.sql)'::text;
       END IF;
     END IF;
   END IF;
