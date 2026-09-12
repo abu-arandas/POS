@@ -72,13 +72,17 @@ jobs:
           # free text from the dispatch form, and an unvalidated value would reach
           # `date -d` or `tail -n` and either fail obscurely halfway through or,
           # worse, be read as something other than what was typed.
-          for pair in "OLDER_THAN_DAYS:$OLDER_THAN_DAYS" "KEEP_LATEST:$KEEP_LATEST"; do
-            name=${pair%%:*}
-            value=${pair#*:}
+          for name in OLDER_THAN_DAYS KEEP_LATEST; do
+            value=${!name}
             if [[ ! $value =~ ^[0-9]+$ ]]; then
               echo "::error::$name must be a whole number, got '$value'."
               exit 1
             fi
+            # Then force base 10. A leading zero is a plausible thing to type into
+            # a form field, and `08` and `09` pass the digit test only to be read
+            # as invalid octal by $(( )) — which aborts the whole run with "value
+            # too great for base" rather than deleting anything.
+            printf -v "$name" '%d' "$((10#$value))"
           done
 
           # Only completed runs are eligible. A queued or in-progress run cannot
@@ -90,16 +94,23 @@ jobs:
           # "the newest N" is simply the first N lines. updated_at is compared as
           # a string, which is correct here because every timestamp GitHub
           # returns is UTC in the same fixed-width format.
-          gh api --paginate \
+          # A failed listing must fail the job, never pass for an empty one. A
+          # denied token, a rate limit or an API error all yield no rows, and
+          # swallowing that would print "Nothing to do" and finish green — a
+          # cleanup that reports success having never seen a single run.
+          if ! gh api --paginate \
             "repos/$REPO/actions/runs?status=completed&per_page=100" \
             --jq ".workflow_runs[]
                   | select(.id != ($THIS_RUN|tonumber))
                   | select(.updated_at < \"$cutoff\")
                   | [.id, .name, .run_number, .conclusion, .updated_at]
-                  | @tsv" > all.tsv || true
+                  | @tsv" > all.tsv; then
+            echo "::error::Could not list workflow runs. Check that the workflow token has actions:write and that the API is reachable."
+            exit 1
+          fi
 
           # `tail -n +N` is 1-indexed, so keeping K means starting at line K+1.
-          tail -n "+$((KEEP_LATEST + 1))" all.tsv > doomed.tsv || true
+          tail -n "+$((KEEP_LATEST + 1))" all.tsv > doomed.tsv
 
           total=$(wc -l < all.tsv | tr -d ' ')
           count=$(wc -l < doomed.tsv | tr -d ' ')
