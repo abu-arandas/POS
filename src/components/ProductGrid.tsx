@@ -121,15 +121,19 @@ const SortableProductCard = memo(function SortableProductCard({
       }}
       whileHover={!isEditMode && !isUnavailable ? { y: -4, scale: 1.02 } : {}}
       whileTap={!isEditMode && !isUnavailable ? { scale: 0.96 } : {}}
-      className={`product-card relative rounded-2xl overflow-hidden flex flex-col transition-all duration-200 select-none group ${
-        isDragging ? 'is-dragging' : ''
-      } ${
-        isEditMode
-          ? 'cursor-grab active:cursor-grabbing'
-          : isUnavailable
-            ? 'cursor-not-allowed opacity-50 grayscale'
-            : 'cursor-pointer'
-      }`}
+      className={`product-card relative rounded-panel overflow-hidden flex flex-col select-none group
+        bg-surface border border-line shadow-sm
+        transition-[box-shadow,border-color,transform] duration-150
+        hover:border-control hover:shadow-md
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas ${
+          isDragging ? 'is-dragging' : ''
+        } ${
+          isEditMode
+            ? 'cursor-grab active:cursor-grabbing'
+            : isUnavailable
+              ? 'cursor-not-allowed opacity-50 grayscale'
+              : 'cursor-pointer'
+        }`}
       // dnd-kit rewrites transform (and transition) on every animation frame
       // while a card is being dragged. That is a per-frame value from the
       // library, not styling this project owns, so it is the one thing here
@@ -166,20 +170,31 @@ const SortableProductCard = memo(function SortableProductCard({
           }
         : {})}
     >
-      {/* Status overlays */}
-      <div className="absolute top-2 inset-s-2 z-20 flex flex-col gap-1.5">
+      {/* Status badges.
+          These overlay the product image — but the image is optional, and with
+          it switched off there is nothing beneath them, so an absolutely
+          positioned badge lands squarely on the category and name instead. In
+          RTL that is worse still: the badge and the text share the same corner.
+          With no image they join the flow as a normal row above the text. */}
+      <div
+        className={
+          showProductImages
+            ? 'absolute top-2 inset-s-2 z-20 flex flex-col gap-1.5'
+            : 'flex flex-wrap gap-1.5 px-3 pt-3 empty:hidden'
+        }
+      >
         {isOutOfStock && (
-          <span className="bg-rose-500/90 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+          <span className="bg-danger text-white text-micro font-bold px-2 py-0.5 rounded-full uppercase tracking-wide shadow-sm">
             {t('register.outOfStock')}
           </span>
         )}
         {!isOutOfStock && isLowStock && (
-          <span className="bg-amber-500 text-slate-950 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+          <span className="bg-warning text-white text-micro font-bold px-2 py-0.5 rounded-full uppercase tracking-wide shadow-sm">
             {t('register.onlyLeft', { count: prod.stock })}
           </span>
         )}
         {variantCount > 0 && (
-          <span className="bg-sky-500/90 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+          <span className="bg-info text-white text-micro font-bold px-2 py-0.5 rounded-full uppercase tracking-wide shadow-sm">
             {t('register.variantOptionsCount', { count: variantCount })}
           </span>
         )}
@@ -187,7 +202,7 @@ const SortableProductCard = memo(function SortableProductCard({
           <motion.span
             initial={{ scale: 0, rotate: -10 }}
             animate={{ scale: 1, rotate: 0 }}
-            className="flex items-center gap-1 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-lg shadow-emerald-500/30"
+            className="flex items-center gap-1 bg-primary text-white text-micro font-bold px-2 py-0.5 rounded-full shadow-md"
           >
             <Check size={9} className="stroke-3" />
             {cartQty}
@@ -233,26 +248,33 @@ const SortableProductCard = memo(function SortableProductCard({
       )}
 
       {/* Info */}
+      {/* Every size here comes off the type scale and every colour off a
+          semantic token. What was there before does not survive a light canvas:
+          the category read `text-emerald-400`, which is 2.0:1 on white, and the
+          labels were 9px — under any readable floor, let alone at arm's length
+          under a shop light. */}
       <div className="px-3 pt-2.5 pb-3 flex-1 flex flex-col justify-between pointer-events-none">
         <div>
-          <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-400 block mb-1">
+          <span className="text-micro font-semibold uppercase tracking-wide text-primary block mb-1 truncate">
             {t(`categories.${categoryName.toLowerCase()}`, { defaultValue: categoryName })}
           </span>
-          <h3 className="font-sans font-semibold text-slate-800 dark:text-slate-100 text-[13px] tracking-tight line-clamp-2 leading-snug min-h-[2.4em]">
+          <h3 className="text-small font-semibold text-ink tracking-tight line-clamp-2 leading-snug min-h-[2.4em]">
             {prod.name}
           </h3>
         </div>
-        <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-200 dark:border-slate-800/60">
-          <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
+        <div className="flex items-baseline justify-between gap-2 mt-2.5 pt-2 border-t border-line">
+          <span className="text-body font-bold text-ink tabular-nums">
             {isPriceFrom && (
-              <span className="font-sans text-[9px] font-semibold uppercase tracking-wider text-slate-500 me-1">
+              <span className="text-micro font-semibold uppercase tracking-wide text-ink-faint me-1">
                 {t('register.priceFrom')}
               </span>
             )}
-            {settings.currency}
+            <span className="opacity-55">{settings.currency}</span>
             {displayPrice.toFixed(2)}
           </span>
-          <span className="text-[9px] font-mono text-slate-600 uppercase tracking-wider">
+          {/* The SKU tail earns its place only if it can be read; at 9px slate
+              it was a grey smudge the operator learned to ignore. */}
+          <span className="text-micro font-mono text-ink-faint shrink-0">
             {prod.sku.split('-').slice(-1)[0]}
           </span>
         </div>
@@ -403,7 +425,7 @@ const ProductGrid = ({
                   exit={{ opacity: 0, scale: 0.8 }}
                   onClick={() => setSearch('')}
                   aria-label={t('register.clearSearch')}
-                  className="absolute inset-e-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                  className="absolute inset-e-2 top-1/2 -translate-y-1/2 grid place-items-center size-8 rounded-full text-ink-faint hover:text-ink hover:bg-sunken transition-colors"
                 >
                   <X size={12} />
                 </motion.button>
@@ -433,9 +455,13 @@ const ProductGrid = ({
                   key={catId}
                   onClick={() => setSelectedCategory(catId)}
                   aria-pressed={isActive}
-                  className={`toggle-pill px-3.5 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 duration-200 ${
-                    isActive ? 'is-selected' : ''
-                  }`}
+                  className={`shrink-0 min-h-9 px-3.5 rounded-control text-small font-semibold
+                    transition-colors border
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                      isActive
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-surface text-ink-muted border-line hover:border-control hover:text-ink'
+                    }`}
                 >
                   {label}
                 </button>
@@ -449,9 +475,13 @@ const ProductGrid = ({
               onClick={() => setIsEditMode(!isEditMode)}
               aria-pressed={isEditMode}
               aria-label={isEditMode ? t('register.doneEditing') : t('register.editLayout')}
-              className={`toggle-pill flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 ${
-                isEditMode ? 'is-danger' : ''
-              }`}
+              className={`shrink-0 inline-flex items-center gap-1.5 min-h-9 px-3 rounded-control text-small
+                font-semibold transition-colors border
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                  isEditMode
+                    ? 'bg-danger text-white border-danger'
+                    : 'bg-surface text-ink-muted border-line hover:border-control hover:text-ink'
+                }`}
             >
               <LayoutGrid size={13} />
               <span className="hidden sm:inline">
@@ -463,7 +493,10 @@ const ProductGrid = ({
       </div>
 
       {/* Products Grid */}
-      <div id="products-grid-container" className="flex-1 overflow-y-auto px-4 pb-4">
+      {/* Generous bottom padding below `lg`: the cart bar is fixed over this
+          area, and without the inset the last row of products sits under it and
+          cannot be tapped. */}
+      <div id="products-grid-container" className="flex-1 overflow-y-auto px-4 pb-28 lg:pb-4">
         <AnimatePresence mode="wait">
           {filteredProducts.length === 0 ? (
             <motion.div

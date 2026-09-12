@@ -138,10 +138,15 @@ export const useSettingsStore = create<SettingsState>()(
       autoScanPrinters: true,
       showProductImages: false,
       storeId: '',
-      // Dark-first: the whole UI is designed for a dark canvas. New terminals
-      // start dark and stay cohesive; a saved light preference is restored on
-      // rehydrate and the toggle still switches freely.
-      darkMode: true,
+      // Light-first. A till is read at arm's length under shop lighting, often
+      // at an angle, by someone who is not looking at it carefully — the case a
+      // dark canvas serves worst. The palette is designed for this default:
+      // near-black text on white at 18.96:1, and control borders at 4.76:1
+      // rather than the hairlines that vanish under a ceiling light.
+      //
+      // The choice is persisted, so a terminal already set to dark keeps it and
+      // the toggle still switches freely. Only the starting point moves.
+      darkMode: false,
       language: 'en',
 
       setSettings: (settings) => set({ settings }),

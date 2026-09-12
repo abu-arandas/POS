@@ -101,6 +101,67 @@
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* ─── Semantic colour, light-first ──────────────────────────────────────
+     Each token points at a CSS variable rather than a literal, because a
+     @theme value is static and cannot follow the .dark class. The variables
+     are defined for light in :root and re-pointed in .dark, so `bg-surface`
+     and `text-ink` mean the right thing in both themes and no component ever
+     needs a `dark:` twin again — which is exactly why the old screens looked
+     dark whatever the toggle said.
+
+     Every value here is measured, not chosen by eye. Ratios in comments are
+     against the surface they are meant to sit on. */
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-sunken: var(--c-sunken);
+  --color-raised: var(--c-raised);
+
+  --color-ink: var(--c-ink); /* 18.96:1 — AAA body text */
+  --color-ink-muted: var(--c-ink-muted); /*  7.53:1 — AAA secondary       */
+  --color-ink-faint: var(--c-ink-faint); /*  5.16:1 — AA micro-labels     */
+  --color-ink-inverse: var(--c-ink-inverse);
+
+  --color-line: var(--c-line); /* decorative card hairline      */
+  --color-line-strong: var(--c-line-strong); /* dividers that carry meaning   */
+  --color-control: var(--c-control); /*  4.76:1 — input/control edge  */
+
+  --color-primary: var(--c-primary); /*  5.48:1 both as text and fill */
+  --color-primary-hover: var(--c-primary-hover);
+  --color-primary-tint: var(--c-primary-tint);
+  --color-danger: var(--c-danger); /*  6.29:1                       */
+  --color-danger-tint: var(--c-danger-tint);
+  --color-warning: var(--c-warning); /*  5.02:1                       */
+  --color-warning-tint: var(--c-warning-tint);
+  --color-info: var(--c-info); /*  6.70:1                       */
+  --color-info-tint: var(--c-info-tint);
+
+  /* ─── Type scale ────────────────────────────────────────────────────────
+     Six steps, no more. A till is read at arm's length in bad light, so the
+     smallest step is 12px and never shrinks below it. */
+  --text-micro: 0.75rem; /* 12px — uppercase labels only */
+  --text-micro--line-height: 1rem;
+  --text-small: 0.8125rem; /* 13px — dense table text      */
+  --text-small--line-height: 1.125rem;
+  --text-body: 0.9375rem; /* 15px — default               */
+  --text-body--line-height: 1.375rem;
+  --text-lead: 1.125rem; /* 18px — card titles           */
+  --text-lead--line-height: 1.5rem;
+  --text-title: 1.5rem; /* 24px — screen titles         */
+  --text-title--line-height: 1.875rem;
+  --text-money: 2rem; /* 32px — totals, stat figures  */
+  --text-money--line-height: 2.25rem;
+
+  /* ─── Radius ────────────────────────────────────────────────────────────  */
+  --radius-control: 0.625rem; /* buttons, inputs  */
+  --radius-panel: 1rem; /* cards, sheets    */
+  --radius-sheet: 1.5rem; /* bottom sheets    */
+
+  /* ─── Motion ────────────────────────────────────────────────────────────
+     Two durations and two easings. Anything slower than 260ms on a till
+     feels broken when you are ringing up a queue. */
+  --ease-out-soft: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 /* ─── Arabic Font ─────────────────────────────────────────────────────────── */
@@ -141,6 +202,40 @@
 
 /* ─── CSS Custom Properties ───────────────────────────────────────────────── */
 :root {
+  /* ─── Light theme, the default and the designed-for case ────────────────
+     A till is used under shop lighting, often with the screen at an angle,
+     by someone who is not looking at it carefully. Everything below is sized
+     for that: a canvas the cards can lift off, near-black text, and control
+     borders you can actually see.
+
+     The ratios are checked, and one of them is why this exists: the emerald
+     the app used for text (#10b981) scores 2.54:1 on white, which is not
+     legible. Its replacement scores 5.48:1. Control borders went from
+     rgba(15,23,42,0.12) — about 1.29:1, effectively invisible — to 4.76:1. */
+  --c-canvas: #f4f6f8;
+  --c-surface: #ffffff;
+  --c-sunken: #eef1f5; /* inset wells, table headers   */
+  --c-raised: #ffffff; /* popovers, sheets             */
+
+  --c-ink: #0a1020;
+  --c-ink-muted: #4a5568;
+  --c-ink-faint: #626e82;
+  --c-ink-inverse: #ffffff;
+
+  --c-line: rgba(10, 16, 32, 0.14);
+  --c-line-strong: rgba(10, 16, 32, 0.22);
+  --c-control: #64748b;
+
+  --c-primary: #047857;
+  --c-primary-hover: #065f46;
+  --c-primary-tint: #ecfdf5;
+  --c-danger: #be123c;
+  --c-danger-tint: #fff1f2;
+  --c-warning: #b45309;
+  --c-warning-tint: #fffbeb;
+  --c-info: #1d4ed8;
+  --c-info-tint: #eff6ff;
+
   --color-emerald: #10b981;
   --color-emerald-dim: rgba(16, 185, 129, 0.15);
   --color-emerald-glow: rgba(16, 185, 129, 0.3);
@@ -189,6 +284,35 @@
    either the user's toggle (.dark on <html>) or the dark-first operational
    screens that render on a near-black canvas. */
 .dark {
+  /* The same roles re-pointed, so every component built on the semantic tokens
+     follows the toggle with no `dark:` twin of its own. Accents lighten here
+     because the contrast requirement inverts: on a near-black surface it is the
+     LIGHT end that has to carry the ratio, so emerald-700 (which passes on
+     white) would be unreadable and emerald-400 takes its place. */
+  --c-canvas: #070b14;
+  --c-surface: #101828;
+  --c-sunken: #0b1220;
+  --c-raised: #1a2336;
+
+  --c-ink: #f4f6f8;
+  --c-ink-muted: #aab4c5;
+  --c-ink-faint: #8b96a9;
+  --c-ink-inverse: #0a1020;
+
+  --c-line: rgba(255, 255, 255, 0.12);
+  --c-line-strong: rgba(255, 255, 255, 0.2);
+  --c-control: #8b96a9;
+
+  --c-primary: #34d399;
+  --c-primary-hover: #6ee7b7;
+  --c-primary-tint: rgba(52, 211, 153, 0.14);
+  --c-danger: #fb7185;
+  --c-danger-tint: rgba(251, 113, 133, 0.14);
+  --c-warning: #fbbf24;
+  --c-warning-tint: rgba(251, 191, 36, 0.14);
+  --c-info: #60a5fa;
+  --c-info-tint: rgba(96, 165, 250, 0.14);
+
   --surface-1: #0f172a;
   --surface-2: rgba(255, 255, 255, 0.03);
   --surface-hover: rgba(255, 255, 255, 0.05);
@@ -765,8 +889,12 @@ select {
 /* ─── Toggles & chips ─────────────────────────────────────────────────────── */
 
 /* A pill that switches between two states (split payment on/off, a category
-   filter, edit mode). Base is the resting state; `.is-active` and `.is-danger`
-   are the engaged ones. */
+   filter). Base is the resting state, `.is-active` and `.is-selected` the
+   engaged ones.
+
+   `.is-danger` used to live here for the register's edit-layout toggle. That
+   control now builds its states from the semantic tokens directly, so the rule
+   had no callers left — and the dead-class test is what said so. */
 .toggle-pill {
   background: var(--surface-2);
   border: 1px solid var(--border-subtle);
@@ -787,12 +915,6 @@ select {
   background: linear-gradient(135deg, #059669, var(--color-emerald));
   border-color: transparent;
   color: #ffffff;
-}
-
-.toggle-pill.is-danger {
-  background: rgba(244, 63, 94, 0.12);
-  border-color: rgba(244, 63, 94, 0.3);
-  color: #fb7185;
 }
 
 /* Small square icon badge beside a modal title. */
