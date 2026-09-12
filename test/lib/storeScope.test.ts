@@ -14,32 +14,39 @@ import {
 // From Cloud then replaced local data with them. These are the checks that the
 // absent case now fails CLOSED instead.
 
-/**
- * `storesTable` says what a read of `stores` answers when the RPC is missing:
- * 'present', 'absent' (the table does not exist), or 'unreadable'.
- */
-const clientReturning = (
-  result: unknown,
-  storesTable: 'present' | 'absent' | 'unreadable' = 'absent',
-) =>
+type StoresTable = 'present' | 'absent' | 'absent-bare-404' | 'unreadable';
+
+/** What a read of `stores` answers when the RPC is missing. */
+const storesReply = (kind: StoresTable) => {
+  switch (kind) {
+    case 'present':
+      return { error: null, status: 200 };
+    case 'absent':
+      return {
+        error: { code: 'PGRST205', message: 'Could not find the table public.stores' },
+        status: 404,
+      };
+    // A 404 carrying no usable error code. postgrest-js produces this whenever
+    // it cannot parse an error body — which is ALWAYS the case for a HEAD
+    // request, since a HEAD reply has no body at all.
+    case 'absent-bare-404':
+      return { error: { message: '' }, status: 404 };
+    case 'unreadable':
+      return { error: { code: '08006', message: 'no route' }, status: 503 };
+  }
+};
+
+const clientReturning = (result: unknown, storesTable: StoresTable = 'absent') =>
   ({
     rpc: vi.fn().mockResolvedValue(result),
     from: vi.fn(() => ({
-      select: vi
-        .fn()
-        .mockResolvedValue(
-          storesTable === 'present'
-            ? { error: null }
-            : storesTable === 'absent'
-              ? { error: { code: 'PGRST205', message: 'Could not find the table public.stores' } }
-              : { error: { code: '08006', message: 'no route' } },
-        ),
+      select: vi.fn(() => ({ limit: vi.fn().mockResolvedValue(storesReply(storesTable)) })),
     })),
   }) as unknown as SupabaseClient;
 
 const withStores = (count: number) => clientReturning({ data: count, error: null });
 
-const missingFn = (storesTable: 'present' | 'absent' | 'unreadable') =>
+const missingFn = (storesTable: StoresTable) =>
   clientReturning(
     {
       data: null,
@@ -70,6 +77,28 @@ describe('reading the store count', () => {
       'absent',
     );
     expect(await fetchStoreCount(missing)).toBe(0);
+  });
+
+  it('reads a bare 404 from the stores table as "missing", not as "present"', async () => {
+    // The bug this guards. The probe used `select('id', { head: true })`, and
+    // postgrest-js reads the PostgREST error code out of the response BODY —
+    // which a HEAD reply does not have. On a 404 it lands in
+    // `res.status === 404 && body === ''`, rewrites the result as 204 and
+    // leaves `error` NULL, so a table that had just 404'd came back looking
+    // like a success. Every ordinary single-store install — which has no
+    // `stores` table at all — was then read as an un-countable multi-store one
+    // and had its pulls refused.
+    expect(await fetchStoreCount(missingFn('absent-bare-404'))).toBe(0);
+    expect(await resolveStoreScope(missingFn('absent-bare-404'), '')).toBe('allowed');
+    expect(await isSyncBlocked(missingFn('absent-bare-404'), '', 'pull')).toBe(false);
+  });
+
+  it('asks for the stores table with a body, so the error code can arrive', async () => {
+    const client = missingFn('absent');
+    await fetchStoreCount(client);
+    const select = vi.mocked(client.from).mock.results[0].value.select;
+    // No second argument: `{ head: true }` is what discarded the error body.
+    expect(select.mock.calls[0][1]).toBeUndefined();
   });
 
   it('refuses to read a missing function as "no stores" when the table is there', async () => {

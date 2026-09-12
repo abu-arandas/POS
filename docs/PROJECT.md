@@ -907,6 +907,17 @@ either: it carries RLS (`has_store_access(id)`), so an unscoped terminal sees
 zero rows on a database holding twenty stores. Its _existence_ is the one fact
 RLS does not hide.
 
+That existence check is a plain `select('id').limit(1)`, and deliberately not a
+`{ head: true }` one. postgrest-js reads the PostgREST error code out of the
+response **body**, and a HEAD reply has no body: on a 404 it falls into its
+`status === 404 && body === ''` branch, rewrites the result as "204 No Content"
+and leaves `error` null. A HEAD probe against a table that does not exist
+therefore comes back looking like a success — which inverted this fallback
+exactly backwards, reading an ordinary single-store install (no `stores` table
+at all) as an un-countable multi-store one and refusing its pulls. The status is
+checked alongside the error code for the same reason: on this endpoint a 404
+means PostgREST has no such table, whatever the body turns out to be.
+
 Three callers, not one. **Pull From Cloud** and the **outbox** are the obvious
 ones; the third is **realtime**, which calls the same table pulls on every
 change event. That one matters most: it is automatic and continuous, so an

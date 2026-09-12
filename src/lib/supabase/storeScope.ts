@@ -43,9 +43,24 @@ function isMissingTable(error: unknown): boolean {
  * hide, and that is all this asks.
  */
 async function storesTableExists(client: SupabaseClient): Promise<boolean | null> {
-  const { error } = await client.from('stores').select('id', { head: true, count: 'exact' });
+  // Deliberately NOT a HEAD request, and deliberately checking the status too.
+  //
+  // postgrest-js reads the PostgREST error code out of the response BODY, and a
+  // HEAD reply has no body. On a 404 it therefore lands in
+  // `res.status === 404 && body === ''`, quietly rewrites the result as
+  // "204 No Content" and leaves `error` NULL — so `select('id', { head: true })`
+  // against a table that does not exist comes back looking like a success, and
+  // this reported "the table is there" about a table that had just 404'd. That
+  // inverted the whole fallback: an ordinary single-store install, which has no
+  // `stores` table at all, was read as an un-countable multi-store one and had
+  // its pulls refused.
+  //
+  // A plain GET returns the JSON error body, so the code arrives. The status
+  // check is the belt to that braces: on this endpoint a 404 means PostgREST
+  // has no such table in its schema cache, whatever the body turns out to be.
+  const { error, status } = await client.from('stores').select('id').limit(1);
   if (!error) return true;
-  if (isMissingTable(error)) return false;
+  if (isMissingTable(error) || status === 404) return false;
   return null; // could not tell
 }
 
@@ -72,10 +87,17 @@ export async function fetchStoreCount(client: SupabaseClient): Promise<number | 
       if (!isMissingFunction(error)) throw error;
       const hasStores = await storesTableExists(client);
       if (hasStores === false) return 0; // never took the store dimension
+      // Two different situations, so two different messages — the first version
+      // asserted "the stores table is present" in both, which sent anyone
+      // reading the console after the wrong problem.
       console.warn(
-        'pos_store_count() is missing but the stores table is present — this database ran an ' +
-          'older multi-store migration. Re-run src/db/multi-store-schema.sql; until then this ' +
-          'terminal will not pull, because it cannot tell how many stores it would be reading.',
+        hasStores
+          ? 'pos_store_count() is missing but the stores table is present — this database ran an ' +
+              'older multi-store migration. Re-run src/db/multi-store-schema.sql; until then this ' +
+              'terminal will not pull, because it cannot tell how many stores it would be reading.'
+          : 'Could not establish how many stores this database holds — pos_store_count() is ' +
+              'missing and the stores table could not be read. This terminal will not pull until ' +
+              'that is resolved, because it cannot tell whose rows it would be reading.',
       );
       return null;
     }
