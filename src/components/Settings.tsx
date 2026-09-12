@@ -27,6 +27,7 @@ import {
   UsersPanel,
 } from './settings/index';
 import { serialSupported, networkScanSupported } from '../lib/printing/printerDiscovery';
+import { pullMessages, pullFailed } from './settings/pullOutcome';
 import { usePrinterDiscovery } from './settings/usePrinterDiscovery';
 import type { PrinterDiscovery } from './settings/ConnectedPrinters';
 import { useTranslation } from 'react-i18next';
@@ -486,38 +487,23 @@ export default function Settings() {
     // conflated the two and then reported success either way, so a terminal
     // could be told "pull complete" having silently kept its stale local
     // transactions. Report which tables failed instead.
-    const failed = (
-      [
-        ['categories', data.categories],
-        ['products', data.products],
-        ['customers', data.customers],
-        ['users', data.users],
-        ['transactions', data.transactions],
-      ] as const
-    )
-      .filter(([, rows]) => rows === null)
-      .map(([name]) => name);
+    const messages = pullMessages(data);
+    const failed = pullFailed(data);
 
     if (data.categories) setCategories(data.categories);
     if (data.products) setProducts(data.products);
     if (data.customers) setCustomers(data.customers);
     // Never let a pull leave the terminal with no way back in: an empty
     // user_accounts table would wipe every local login.
-    if (data.users?.length) setUsers(data.users);
+    if (data.users !== 'denied' && data.users?.length) setUsers(data.users);
     if (data.transactions) setTransactions(data.transactions);
 
-    persistConfig(
-      failed.length > 0 ? 'error' : 'connected',
-      failed.length > 0 ? undefined : observedDeviceAuth(),
-    );
-    notify(
-      failed.length > 0
-        ? t('settings.pullPartial', {
-            tables: failed.join(', '),
-            defaultValue: `Pull incomplete — these tables failed to load and were left unchanged: {{tables}}`,
-          })
-        : t('settings.pullSuccess'),
-    );
+    persistConfig(failed ? 'error' : 'connected', failed ? undefined : observedDeviceAuth());
+    // Every line that applies, joined — not the first one that matches. A failed
+    // table and a refused staff read are independent, and an if/else chain let
+    // the first hide the second, so a terminal that hit a blip on transactions
+    // while also running anonymously never learned why its staff list was empty.
+    notify(messages.map((m) => t(m.key, m.params)).join(' '));
   };
 
   /**
@@ -610,7 +596,16 @@ export default function Settings() {
   ] as const;
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950">
+    // `flex-1 min-w-0` is load-bearing, not decoration. This is a flex item of
+    // <main id="desktop-view-container">, and a flex item defaults to
+    // `min-width: auto` — it refuses to shrink below its content's intrinsic
+    // minimum. Measured at a 390px viewport, that minimum was 973px, and since
+    // <main> is `overflow-hidden` the extra 583px was CLIPPED rather than
+    // scrollable: the tab strip ran off one edge, the Pull/Push buttons off the
+    // other, and nothing could reach them. Every sibling screen escapes this by
+    // carrying `overflow-hidden` on its own root, which zeroes its automatic
+    // minimum size; this one does not, so it says so explicitly.
+    <div className="h-full flex-1 min-w-0 flex flex-col bg-slate-50 dark:bg-slate-950">
       <div className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-col gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">

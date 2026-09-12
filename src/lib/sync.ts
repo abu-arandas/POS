@@ -344,7 +344,8 @@ export const pullAllFromCloud = async (
   products: Product[] | null;
   categories: Category[] | null;
   customers: Customer[] | null;
-  users: UserAccount[] | null;
+  /** `'denied'` when the database refused the read — see pullUserAccounts. */
+  users: UserAccount[] | 'denied' | null;
   transactions: SaleTransaction[] | null;
 } | null> => {
   const client = getSupabaseClient(url, anonKey);
