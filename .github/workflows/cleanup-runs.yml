@@ -1,0 +1,168 @@
+# Deletes old workflow run records from the Actions tab.
+#
+# Runs accumulate and never expire on their own: logs and artifacts age out on
+# their retention schedule, but the run ENTRY stays in the list forever, so the
+# Actions tab becomes hundreds of rows deep and the runs worth looking at are
+# buried among superseded ones.
+#
+# Deliberately manual. A scheduled cleanup deletes history without anyone
+# watching, and the mistake it would make — a retention window that turns out to
+# be shorter than intended — is not recoverable: a deleted run is gone, along
+# with its logs, its artifacts and its job timings. Dispatching it is the signal
+# that a human meant it. `dry_run` defaults to TRUE for the same reason: the
+# first press shows what WOULD go, and deleting takes a second, deliberate one.
+#
+# Note that three of this repository's five workflows are GitHub's own dynamic
+# ones — CodeQL, GitHub Advanced Security and Dependabot Updates — which have no
+# file in .github/workflows. Their runs are deleted here like any other, but
+# they will keep producing new ones; this cleans up after them, it does not turn
+# them off.
+
+name: Clean up workflow runs
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'List what would be deleted without deleting it'
+        type: boolean
+        default: true
+      older_than_days:
+        description: 'Keep runs finished within this many days (0 = delete every completed run)'
+        type: string
+        default: '0'
+      keep_latest:
+        description: 'Always keep this many of the most recent runs, whatever their age'
+        type: string
+        default: '0'
+
+# Deleting a run needs actions:write. Nothing here reads the repository's
+# contents, so that permission is dropped rather than left at the default.
+permissions:
+  actions: write
+  contents: none
+
+# One cleanup at a time. Two concurrent passes would race over the same run ids
+# and spend half their calls on 404s for runs the other one already removed.
+concurrency:
+  group: cleanup-runs
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    # Deletion is one API call per run and is paced to stay under the secondary
+    # rate limit, so a few hundred runs take a few minutes. The limit is here to
+    # stop a pathological backlog from running for the 6-hour default.
+    timeout-minutes: 60
+    steps:
+      - name: Select and delete runs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          OLDER_THAN_DAYS: ${{ inputs.older_than_days }}
+          KEEP_LATEST: ${{ inputs.keep_latest }}
+          THIS_RUN: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          # Validate the two numeric inputs before doing anything. They arrive as
+          # free text from the dispatch form, and an unvalidated value would reach
+          # `date -d` or `tail -n` and either fail obscurely halfway through or,
+          # worse, be read as something other than what was typed.
+          for pair in "OLDER_THAN_DAYS:$OLDER_THAN_DAYS" "KEEP_LATEST:$KEEP_LATEST"; do
+            name=${pair%%:*}
+            value=${pair#*:}
+            if [[ ! $value =~ ^[0-9]+$ ]]; then
+              echo "::error::$name must be a whole number, got '$value'."
+              exit 1
+            fi
+          done
+
+          # Only completed runs are eligible. A queued or in-progress run cannot
+          # be deleted (the API answers 409), and one of them is this very run.
+          cutoff=$(date -u -d "$OLDER_THAN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)
+          echo "Deleting completed runs finished before $cutoff (keeping the newest $KEEP_LATEST)."
+
+          # The API returns runs newest first and --paginate preserves that, so
+          # "the newest N" is simply the first N lines. updated_at is compared as
+          # a string, which is correct here because every timestamp GitHub
+          # returns is UTC in the same fixed-width format.
+          gh api --paginate \
+            "repos/$REPO/actions/runs?status=completed&per_page=100" \
+            --jq ".workflow_runs[]
+                  | select(.id != ($THIS_RUN|tonumber))
+                  | select(.updated_at < \"$cutoff\")
+                  | [.id, .name, .run_number, .conclusion, .updated_at]
+                  | @tsv" > all.tsv || true
+
+          # `tail -n +N` is 1-indexed, so keeping K means starting at line K+1.
+          tail -n "+$((KEEP_LATEST + 1))" all.tsv > doomed.tsv || true
+
+          total=$(wc -l < all.tsv | tr -d ' ')
+          count=$(wc -l < doomed.tsv | tr -d ' ')
+          echo "$total run(s) matched; $count selected for deletion."
+
+          {
+            echo "### Workflow run cleanup"
+            echo
+            echo "- Repository: \`$REPO\`"
+            echo "- Cutoff: runs finished before \`$cutoff\`"
+            echo "- Matched: **$total**, selected: **$count** (keeping newest $KEEP_LATEST)"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ $count -eq 0 ]]; then
+            echo "Nothing to do." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [[ $DRY_RUN == 'true' ]]; then
+            {
+              echo "**Dry run — nothing was deleted.** Re-run with \`dry_run\` unchecked to delete these."
+              echo
+              echo '| Run | Workflow | # | Conclusion | Finished |'
+              echo '| --- | --- | --- | --- | --- |'
+              # Capped because a step summary is limited to 1 MiB and a long
+              # backlog would otherwise truncate the numbers above with it.
+              head -n 100 doomed.tsv \
+                | awk -F'\t' '{ printf "| `%s` | %s | %s | %s | %s |\n", $1, $2, $3, $4, $5 }'
+              [[ $count -gt 100 ]] && echo && echo "_…and $((count - 100)) more._"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "Dry run complete; $count run(s) would have been deleted."
+            exit 0
+          fi
+
+          # Each delete is allowed to fail without taking the pass down with it.
+          # A run can disappear between listing and deleting, and GitHub refuses
+          # to delete some runs it manages itself — neither is a reason to
+          # abandon the other three hundred.
+          deleted=0
+          failed=0
+          while IFS=$'\t' read -r id name number conclusion _; do
+            if gh api -X DELETE "repos/$REPO/actions/runs/$id" --silent 2>/tmp/err; then
+              deleted=$((deleted + 1))
+            else
+              failed=$((failed + 1))
+              echo "::warning::Could not delete run $id ($name #$number, $conclusion): $(tr -d '\n' < /tmp/err)"
+            fi
+            # Paced to stay clear of the secondary rate limit, which triggers on
+            # sustained bursts of mutating calls and would start rejecting
+            # everything that follows.
+            sleep 0.4
+          done < doomed.tsv
+
+          {
+            echo "- Deleted: **$deleted**"
+            echo "- Failed: **$failed**"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Deleted $deleted run(s); $failed failed."
+
+          # A handful of refusals is expected and is not a failed cleanup. All of
+          # them failing means the token was denied or the API changed, which is.
+          if [[ $deleted -eq 0 && $failed -gt 0 ]]; then
+            echo "::error::Every deletion failed — check that the workflow token has actions:write."
+            exit 1
+          fi
