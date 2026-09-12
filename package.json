@@ -1,7 +1,7 @@
 {
   "name": "ea-pos",
   "private": true,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "description": "EA POS \u2014 offline-first point-of-sale for retail and caf\u00e9: inventory, checkout, QR digital menu server, and network thermal-printer support.",
   "author": {

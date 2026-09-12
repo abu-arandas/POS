@@ -15,6 +15,10 @@ import { Product, ProductVariant, SaleTransaction, HeldOrder, Payment } from '..
 import ProductGrid from './ProductGrid';
 import CartPanel from './CartPanel';
 import { useRegisterCart } from './register/useRegisterCart';
+import { Sheet } from './ui/Sheet';
+import { Button } from './ui/Button';
+import { Money } from './ui/Money';
+import { GLIDE } from './ui/motion';
 const HeldOrdersModal = lazy(() =>
   import('./register/HeldOrdersModal').then(({ HeldOrdersModal }) => ({
     default: HeldOrdersModal,
@@ -33,6 +37,7 @@ const PaymentModal = lazy(() =>
 );
 import { useProductStore } from '../stores/productStore';
 import { availableStock, variantLabel, variantCost, variantPrice } from '../lib/variants';
+import { useMediaQuery, DESKTOP_QUERY } from '../lib/useMediaQuery';
 import { useCustomerStore } from '../stores/customerStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
@@ -126,6 +131,10 @@ export default function Register() {
   const [splitPayments, setSplitPayments] = useState<Payment[]>([]);
 
   const [heldModalOpen, setHeldModalOpen] = useState(false);
+
+  // The cart, on screens too narrow to carry it as a rail.
+
+  const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<{ ok: boolean; text: string } | null>(null);
 
   const heldModalRef = useModalA11y(heldModalOpen, () => setHeldModalOpen(false));
@@ -575,6 +584,60 @@ export default function Register() {
     ],
   );
 
+  // One set of cart props, rendered twice: as the side rail on a wide till and
+  // inside the bottom sheet on a phone. Duplicating this list was the
+  // alternative, and it is the kind of duplication that drifts.
+  const cartProps = {
+    cart,
+    updateCartQty,
+    removeFromCart,
+    clearCart,
+    activeCustomer,
+    selectedCustomerId,
+    setSelectedCustomerId,
+    setAddCustomerOpen,
+    discountType,
+    setDiscountType,
+    discountInput,
+    setDiscountInput,
+    loyaltyPointsToUse,
+    setLoyaltyPointsToUse,
+    showPromoInput,
+    setShowPromoInput,
+    subtotal,
+    discountAmount,
+    taxAmount,
+    totalAmount,
+    handleCheckoutClick,
+    onHoldOrder: handleHoldOrder,
+    heldCount: heldOrders.length,
+    onOpenHeldOrders: () => setHeldModalOpen(true),
+  };
+
+  const cartCount = cart.reduce((total, line) => total + line.quantity, 0);
+
+  // Which cart surface exists at all. The rail is not merely painted out below
+  // `lg` when it is CSS-hidden — it stays mounted, so rendering it alongside the
+  // sheet put two CartPanels in the DOM and duplicated every id inside them,
+  // `cart-section` included. Exactly one is mounted now, and resizing across the
+  // breakpoint with the sheet open hands the cart back to the rail rather than
+  // leaving both live.
+  const isDesktop = useMediaQuery(DESKTOP_QUERY, true);
+
+  // An open sheet over an emptied cart is a dead end: the bar that reopens it is
+  // gone and the sheet shows nothing. Derived rather than synced in an effect —
+  // the sheet is open when the operator opened it AND there is still something
+  // to check out, which is one expression instead of a state mirror that can
+  // disagree with the cart for a frame.
+  const cartSheetVisible = !isDesktop && cartSheetOpen && cartCount > 0;
+
+  // Clearing the intent, not just hiding the sheet. `cartSheetOpen` survived the
+  // cart emptying, so after a checkout or a hold the next tapped product made
+  // the sheet spring open by itself — the operator asked for a product, not for
+  // the cart. Adjusting state during render is React's documented alternative to
+  // an effect for this, and it converges: the next render sees false and stops.
+  if (cartSheetOpen && cartCount === 0) setCartSheetOpen(false);
+
   return (
     <div id="register-root" className="app-canvas flex flex-1 h-full overflow-hidden">
       <ProductGrid
@@ -583,32 +646,62 @@ export default function Register() {
         cart={cart}
         addToCart={addToCart}
       />
-      <CartPanel
-        cart={cart}
-        updateCartQty={updateCartQty}
-        removeFromCart={removeFromCart}
-        clearCart={clearCart}
-        activeCustomer={activeCustomer}
-        selectedCustomerId={selectedCustomerId}
-        setSelectedCustomerId={setSelectedCustomerId}
-        setAddCustomerOpen={setAddCustomerOpen}
-        discountType={discountType}
-        setDiscountType={setDiscountType}
-        discountInput={discountInput}
-        setDiscountInput={setDiscountInput}
-        loyaltyPointsToUse={loyaltyPointsToUse}
-        setLoyaltyPointsToUse={setLoyaltyPointsToUse}
-        showPromoInput={showPromoInput}
-        setShowPromoInput={setShowPromoInput}
-        subtotal={subtotal}
-        discountAmount={discountAmount}
-        taxAmount={taxAmount}
-        totalAmount={totalAmount}
-        handleCheckoutClick={handleCheckoutClick}
-        onHoldOrder={handleHoldOrder}
-        heldCount={heldOrders.length}
-        onOpenHeldOrders={() => setHeldModalOpen(true)}
-      />
+
+      {/* The rail exists only where there is room for it. Below `lg` the cart
+          moves into a sheet, because a fixed 300px column on a 390px phone left
+          the product grid 90px wide — the register was not merely cramped
+          there, it was unusable. Mounted conditionally rather than CSS-hidden:
+          see the isDesktop comment above. */}
+      {isDesktop && (
+        <div className="flex">
+          <CartPanel {...cartProps} />
+        </div>
+      )}
+
+      {/* Phone: a persistent bar that both reports the cart and opens it. It is
+          the only way back to the total once the cart is not on screen, so it
+          stays put rather than appearing on scroll. */}
+      <AnimatePresence>
+        {cartCount > 0 && (
+          <motion.div
+            initial={{ y: 80 }}
+            animate={{ y: 0 }}
+            exit={{ y: 80 }}
+            transition={GLIDE}
+            className="lg:hidden fixed inset-x-0 bottom-0 z-30 p-3 bg-surface border-t border-line shadow-2xl"
+            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+          >
+            <Button
+              variant="primary"
+              size="lg"
+              block
+              onClick={() => setCartSheetOpen(true)}
+              aria-label={t('register.checkout')}
+            >
+              <span className="flex-1 flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2">
+                  <span className="grid place-items-center min-w-7 h-7 px-2 rounded-full bg-white/20 text-small font-bold tabular-nums">
+                    {cartCount}
+                  </span>
+                  {t('register.checkout')}
+                </span>
+                <Money value={totalAmount} currency={settings.currency} size="lead" />
+              </span>
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <Sheet
+        open={cartSheetVisible}
+        onClose={() => setCartSheetOpen(false)}
+        title={t('register.checkout')}
+        subtitle={`${cartCount} ${cartCount === 1 ? 'item' : 'items'}`}
+      >
+        <div className="-mx-5 h-full">
+          <CartPanel {...cartProps} variant="sheet" />
+        </div>
+      </Sheet>
 
       {/* Barcode scan feedback toast */}
       <AnimatePresence>

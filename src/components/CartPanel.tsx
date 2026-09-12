@@ -23,6 +23,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useTranslation } from 'react-i18next';
 import { safeImageUrl } from '../lib/imageUrl';
 import { availableStock, lineKey, variantImage, variantLabel, variantPrice } from '../lib/variants';
+import { POP } from './ui/motion';
 
 interface CartPanelProps {
   cart: Array<{ product: Product; variant?: ProductVariant; quantity: number }>;
@@ -48,6 +49,13 @@ interface CartPanelProps {
   handleCheckoutClick: () => void;
   onHoldOrder: () => void;
   heldCount: number;
+  /**
+   * Where this cart is being rendered. `rail` is the fixed side column on a
+   * wide till; `sheet` is the same cart inside a bottom sheet on a phone, where
+   * a hard 300px width would leave the product grid 90px to live in — which is
+   * exactly what made the register unusable on a phone.
+   */
+  variant?: 'rail' | 'sheet';
   onOpenHeldOrders: () => void;
 }
 
@@ -81,6 +89,7 @@ const CartPanel = ({
   onHoldOrder,
   heldCount,
   onOpenHeldOrders,
+  variant = 'rail',
 }: CartPanelProps) => {
   const customers = useCustomerStore((s) => s.customers);
   const settings = useSettingsStore((s) => s.settings);
@@ -132,7 +141,11 @@ const CartPanel = ({
     <aside
       id="cart-section"
       aria-label={t('register.checkout')}
-      className="app-panel flex flex-col h-full shrink-0 relative z-10 w-[300px] border-s"
+      className={
+        variant === 'sheet'
+          ? 'flex flex-col h-full w-full bg-surface text-ink'
+          : 'app-panel flex flex-col h-full shrink-0 relative z-10 w-[320px] border-s'
+      }
     >
       {/* ── Customer Header ── */}
       <div
@@ -147,15 +160,15 @@ const CartPanel = ({
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="size-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
-                <User size={14} className="text-emerald-400" />
+                <User size={14} className="text-primary" />
               </div>
               <div className="min-w-0">
                 <p className="text-slate-900 dark:text-white text-xs font-bold truncate leading-tight">
                   {activeCustomer.name}
                 </p>
                 <div className="flex items-center gap-1 mt-0.5">
-                  <Star size={9} className="text-emerald-400 fill-emerald-400" />
-                  <span className="text-[10px] font-mono text-emerald-400 font-bold">
+                  <Star size={9} className="text-primary fill-primary" />
+                  <span className="text-micro font-mono text-primary font-bold">
                     {activeCustomer.points} {t('register.loyaltyPointsLabel')}
                   </span>
                 </div>
@@ -167,7 +180,7 @@ const CartPanel = ({
                 setDiscountType('none');
               }}
               aria-label={t('register.removeCustomer')}
-              className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0"
+              className="grid place-items-center size-9 text-ink-muted hover:text-danger hover:bg-danger-tint rounded-control transition-colors shrink-0"
             >
               <X size={13} />
             </button>
@@ -179,7 +192,7 @@ const CartPanel = ({
                 value={selectedCustomerId || ''}
                 onChange={(e) => setSelectedCustomerId(e.target.value || null)}
                 aria-label={t('register.link')}
-                className="w-full ps-3 pe-8 py-2 rounded-xl text-xs font-medium transition-all focus:outline-none appearance-none bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 text-slate-400"
+                className="w-full ps-3 pe-8 min-h-11 rounded-control text-body font-medium appearance-none bg-surface border border-control text-ink transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <option value="">{t('register.link')}</option>
                 {customers.map((c) => (
@@ -190,13 +203,13 @@ const CartPanel = ({
               </select>
               <ChevronDown
                 size={12}
-                className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+                className="absolute end-2.5 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
               />
             </div>
             <button
               onClick={() => setAddCustomerOpen(true)}
               aria-label={t('register.newCustomer')}
-              className="p-2 rounded-xl shrink-0 transition-all bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
+              className="grid place-items-center size-11 rounded-control shrink-0 transition-colors bg-primary-tint border border-primary/30 text-primary hover:bg-primary hover:text-white"
             >
               <UserPlus size={14} />
             </button>
@@ -214,11 +227,11 @@ const CartPanel = ({
               animate={{ opacity: 1 }}
               className="h-full flex flex-col items-center justify-center text-center py-12"
             >
-              <div className="size-16 rounded-2xl flex items-center justify-center mb-4 bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50">
+              <div className="size-16 rounded-panel grid place-items-center mb-4 bg-sunken border border-line">
                 <ShoppingCart size={28} className="text-slate-600" />
               </div>
-              <p className="text-slate-500 text-xs font-medium">{t('register.cartEmpty')}</p>
-              <p className="text-slate-700 text-[10px] mt-1">{t('register.tapToAdd')}</p>
+              <p className="text-ink-muted text-body font-medium">{t('register.cartEmpty')}</p>
+              <p className="text-ink-faint text-small mt-1">{t('register.tapToAdd')}</p>
             </motion.div>
           ) : (
             cart.map((item) => {
@@ -238,7 +251,7 @@ const CartPanel = ({
                   animate={{ opacity: 1, x: 0, height: 'auto' }}
                   exit={{ opacity: 0, x: -20, height: 0 }}
                   transition={{ duration: 0.22 }}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl group bg-slate-100/70 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700/40 hover:bg-slate-800/50 transition-colors"
+                  className="flex items-center gap-2.5 p-2.5 rounded-panel group bg-surface border border-line hover:border-control transition-colors"
                 >
                   {/* Product thumbnail */}
                   {showProductImages && thumbnail && (
@@ -253,17 +266,17 @@ const CartPanel = ({
                       {item.product.name}
                     </p>
                     {label && (
-                      <p className="text-[10px] font-medium text-sky-500 dark:text-sky-400 truncate leading-tight mt-0.5">
+                      <p className="text-micro font-medium text-info truncate leading-tight mt-0.5">
                         {label}
                       </p>
                     )}
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="font-mono text-[10px] text-emerald-400 font-medium">
+                      <span className="font-mono text-micro text-primary font-semibold">
                         {settings.currency}
                         {unitPrice.toFixed(2)}
                       </span>
-                      <span className="text-slate-700 text-[10px]">×</span>
-                      <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400">
+                      <span className="text-ink-faint text-micro">×</span>
+                      <span className="font-mono text-micro text-ink-muted">
                         = {settings.currency}
                         {(unitPrice * item.quantity).toFixed(2)}
                       </span>
@@ -276,18 +289,18 @@ const CartPanel = ({
                       <button
                         onClick={() => updateCartQty(key, -1)}
                         aria-label={`${t('register.decreaseQty')} — ${displayName}`}
-                        className="size-6 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 transition-colors"
+                        className="size-9 grid place-items-center text-ink-muted hover:text-ink hover:bg-sunken transition-colors"
                       >
                         <Minus size={11} />
                       </button>
-                      <span className="font-mono text-xs font-bold text-slate-900 dark:text-white px-2 min-w-[1.5rem] text-center bg-slate-100 dark:bg-slate-800/40">
+                      <span className="text-body font-bold text-ink px-2 min-w-8 text-center tabular-nums bg-sunken">
                         {item.quantity}
                       </span>
                       <button
                         onClick={() => updateCartQty(key, 1)}
                         disabled={item.quantity >= lineStock}
                         aria-label={`${t('register.increaseQty')} — ${displayName}`}
-                        className="size-6 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 disabled:opacity-25 transition-colors"
+                        className="size-9 grid place-items-center text-ink-muted hover:text-ink hover:bg-sunken disabled:opacity-30 transition-colors"
                       >
                         <Plus size={11} />
                       </button>
@@ -323,12 +336,12 @@ const CartPanel = ({
               className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Star size={13} className="text-emerald-400 shrink-0 fill-emerald-400/30" />
+                <Star size={13} className="text-primary shrink-0 fill-primary/30" />
                 <div className="min-w-0">
-                  <p className="text-emerald-300 text-[11px] font-bold leading-tight">
+                  <p className="text-ink text-small font-bold leading-tight">
                     {t('register.loyaltyPointsAvail')}
                   </p>
-                  <p className="text-emerald-500 text-[10px]">
+                  <p className="text-ink-muted text-micro">
                     {t('register.save')} {settings.currency}
                     {loyaltySavings.toFixed(2)}
                   </p>
@@ -336,7 +349,7 @@ const CartPanel = ({
               </div>
               <button
                 onClick={applyLoyaltyPoints}
-                className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg shrink-0 transition-colors bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+                className="text-small font-bold px-3 min-h-9 rounded-control shrink-0 transition-colors bg-primary text-white hover:bg-primary-hover"
               >
                 {t('register.apply')}
               </button>
@@ -385,7 +398,7 @@ const CartPanel = ({
                     setDiscountType('percentage');
                     setShowPromoInput(true);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 min-h-11 rounded-control text-small font-semibold transition-colors bg-surface border border-control text-ink hover:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <Percent size={12} />
                   <span dir="ltr">{t('register.addPercent')}</span>
@@ -395,7 +408,7 @@ const CartPanel = ({
                     setDiscountType('fixed');
                     setShowPromoInput(true);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold transition-all bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 min-h-11 rounded-control text-small font-semibold transition-colors bg-surface border border-control text-ink hover:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <DollarSign size={12} />
                   {t('register.fixed')}
@@ -419,7 +432,7 @@ const CartPanel = ({
                 />
                 <button
                   onClick={handleApplyPromoCode}
-                  className="text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors shrink-0 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+                  className="text-small font-bold px-3 min-h-9 rounded-control transition-colors shrink-0 bg-primary text-white hover:bg-primary-hover"
                 >
                   {t('register.apply')}
                 </button>
@@ -482,14 +495,18 @@ const CartPanel = ({
             aria-live="polite"
             aria-atomic="true"
           >
-            <span className="text-slate-600 dark:text-slate-300 font-bold text-sm">
-              {t('register.total')}
-            </span>
+            <span className="text-ink-muted font-bold text-body">{t('register.total')}</span>
+            {/* Animates SCALE only. It previously animated `color` to a literal
+                #34d399, and an inline style from a motion value beats any class
+                — so the total rendered the dark-theme green on a white canvas
+                (2.5:1) and no amount of restyling the className could move it.
+                Colour belongs to the token; the animation belongs to the pop. */}
             <motion.span
               key={totalAmount}
-              initial={{ scale: 1.08, color: '#34d399' }}
-              animate={{ scale: 1, color: '#34d399' }}
-              className="font-mono font-bold text-2xl tracking-tight text-emerald-400"
+              initial={{ scale: 1.08 }}
+              animate={{ scale: 1 }}
+              transition={POP}
+              className="text-money font-extrabold tracking-tight text-primary tabular-nums"
             >
               {settings.currency}
               {totalAmount.toFixed(2)}
@@ -523,7 +540,7 @@ const CartPanel = ({
             disabled={cart.length === 0}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-40 ${
               cart.length > 0
-                ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 shadow-lg shadow-emerald-500/25 hover:from-emerald-500 hover:to-emerald-400'
+                ? 'bg-primary text-white shadow-md hover:bg-primary-hover'
                 : 'bg-gradient-to-r from-slate-700 to-slate-800'
             }`}
           >
