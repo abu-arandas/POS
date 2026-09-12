@@ -72,10 +72,27 @@ export async function pushUserAccounts(
 /**
  * Pull user accounts
  */
+/**
+ * Whether the database refused the read outright, rather than failing to serve
+ * it. Postgres raises 42501 (insufficient_privilege) when a role lacks the
+ * grant; PostgREST forwards that code and answers 401/403.
+ */
+function isPermissionDenied(error: unknown): boolean {
+  const { code, message } = (error ?? {}) as { code?: string; message?: string };
+  if (code === '42501' || code === 'PGRST301') return true;
+  return typeof message === 'string' && /permission denied/i.test(message);
+}
+
+/**
+ * Staff accounts from the cloud.
+ *
+ * `'denied'` is a third outcome, distinct from both rows and failure: the
+ * database answered, and the answer was that this client may not read them.
+ */
 export async function pullUserAccounts(
   client: SupabaseClient,
   storeId?: string,
-): Promise<UserAccount[] | null> {
+): Promise<UserAccount[] | 'denied' | null> {
   try {
     const data = await fetchAllPages((afterId, limit) => {
       let query = keyset(client.from('user_accounts_public').select('*'), afterId, limit);
@@ -94,6 +111,20 @@ export async function pullUserAccounts(
       createdAt: r.created_at,
     }));
   } catch (err) {
+    if (isPermissionDenied(err)) {
+      // Not a fault. `user_accounts_public` grants SELECT to `authenticated`
+      // and revokes it from `anon` on purpose, so a terminal running in
+      // anonymous mode — no device account in Settings → Cloud Sync — cannot
+      // read staff accounts however healthy the connection is. Reporting this
+      // as "failed to load" alongside a genuine outage sends the operator
+      // looking for a broken database instead of an unset email and password.
+      console.info(
+        'Staff accounts were not pulled: this terminal is connected anonymously, and ' +
+          'user_accounts_public is readable only by an authenticated device account. Set the ' +
+          'device email and password in Settings → Cloud Sync to sync staff.',
+      );
+      return 'denied';
+    }
     console.error('Failed pulling user accounts:', err);
     return null;
   }

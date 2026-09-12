@@ -60,7 +60,11 @@ const PULL_INTO_STORE = {
   },
   user_accounts: async (client: SupabaseClient, storeId?: string) => {
     const rows = await pullUserAccounts(client, storeId);
-    return rows ? () => useAuthStore.getState().setUsers(rows) : null;
+    // A refused read is not a set of rows. Writing 'denied' into the store
+    // would replace every staff account with a string, and the lockscreen reads
+    // that store — so an anonymous terminal would lose its own way back in.
+    if (rows === 'denied' || !rows) return null;
+    return () => useAuthStore.getState().setUsers(rows);
   },
 } as const;
 

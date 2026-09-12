@@ -26,6 +26,16 @@ const account: UserAccount = {
   createdAt: '2026-01-04',
 };
 
+/**
+ * Narrows a pull result to rows. `pullUserAccounts` has three outcomes — rows,
+ * `'denied'`, and `null` — so the assertions below have to say which one they
+ * expect rather than reaching straight for `[0]`.
+ */
+function rowsOf(result: UserAccount[] | 'denied' | null): UserAccount[] {
+  expect(Array.isArray(result)).toBe(true);
+  return result as UserAccount[];
+}
+
 function capturingClient() {
   const upserted: Record<string, unknown>[] = [];
   const client = {
@@ -79,7 +89,7 @@ describe('user account sync', () => {
         { id: 'u-1', name: 'Ada Lovelace', role: 'admin', active: true, created_at: '2026-01-04' },
       ]).client,
     );
-    expect(pulled?.[0].pin).toBe(account.pin);
+    expect(rowsOf(pulled)[0].pin).toBe(account.pin);
   });
 
   it('leaves an account this terminal has never seen with no PIN', async () => {
@@ -90,7 +100,51 @@ describe('user account sync', () => {
         { id: 'u-9', name: 'New Hire', role: 'cashier', active: true, created_at: '2026-02-01' },
       ]).client,
     );
-    expect(pulled?.[0].pin).toBe('');
+    expect(rowsOf(pulled)[0].pin).toBe('');
+  });
+
+  // `user_accounts_public` grants SELECT to `authenticated` and revokes it from
+  // `anon` on purpose. A terminal with no device account is therefore refused —
+  // correctly — and reporting that as a load failure sent the operator hunting
+  // for a broken database instead of an unset email and password.
+  it('reports a refused read as denied, not as a failure', async () => {
+    const denied = {
+      from: () => ({
+        select: () => ({
+          order: () => ({
+            limit: () =>
+              Promise.resolve({
+                data: null,
+                error: {
+                  code: '42501',
+                  message: 'permission denied for view user_accounts_public',
+                },
+              }),
+          }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+    expect(await pullUserAccounts(denied)).toBe('denied');
+  });
+
+  it('still reports an unrelated failure as a failure', async () => {
+    // Only 42501 is the configuration answer. Anything else is a real fault and
+    // must stay distinguishable from it, or a broken database reads as "just
+    // set a device account".
+    const broken = {
+      from: () => ({
+        select: () => ({
+          order: () => ({
+            limit: () =>
+              Promise.resolve({
+                data: null,
+                error: { code: '08006', message: 'no route to host' },
+              }),
+          }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+    expect(await pullUserAccounts(broken)).toBeNull();
   });
 
   it('reads a deactivated account as inactive rather than truthy', async () => {
@@ -99,7 +153,7 @@ describe('user account sync', () => {
         { id: 'u-1', name: 'Ada', role: 'admin', active: false, created_at: '2026-01-04' },
       ]).client,
     );
-    expect(pulled?.[0].active).toBe(false);
+    expect(rowsOf(pulled)[0].active).toBe(false);
   });
 
   it('sends nothing, and reports success, for an empty list', async () => {
@@ -149,7 +203,7 @@ describe('how the account pull walks the view', () => {
 
     const pulled = await pullUserAccounts(client);
 
-    expect(pulled?.map((u) => u.id)).toEqual(['a', 'b', 'c']);
+    expect(rowsOf(pulled).map((u) => u.id)).toEqual(['a', 'b', 'c']);
     expect(cursors).toEqual([null, 'b', 'c']);
   });
 

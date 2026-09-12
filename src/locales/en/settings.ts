@@ -56,6 +56,8 @@ export const settings = {
   pullSuccess: 'Local data replaced with the cloud copy.',
   pullFailed: 'Pull failed. Check the console for details.',
   pullPartial: 'Pull incomplete — these tables failed to load and were left unchanged: {{tables}}',
+  pullUsersDenied:
+    'Everything synced except staff accounts: this terminal is connected anonymously, and the cloud only releases staff to a signed-in device. Set the device email and password above to include them.',
   cloudDeleteFailed:
     'Deleted here, but the cloud copy could not be removed. Those records may reappear on the next pull.',
   statusConnected: 'Connected',
