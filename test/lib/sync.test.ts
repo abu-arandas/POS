@@ -27,6 +27,15 @@ vi.mock('../../src/lib/utils/ui', () => ({
   notify: vi.fn(),
 }));
 
+/**
+ * A client for a single-store deployment. A real Supabase client always answers
+ * `rpc`, and the store-scope guard asks it how many stores the database holds
+ * before it will sync — a bare `{ auth: {} }` stub reads as "scope unknown",
+ * which the guard refuses on purpose.
+ */
+const singleStoreClient = (stores = 1) =>
+  ({ auth: {}, rpc: vi.fn().mockResolvedValue({ data: stores, error: null }) }) as any;
+
 describe('cloudLogin', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -95,7 +104,7 @@ describe('cloudLogin', () => {
         authPassword: 'wrong-password',
       },
     });
-    const mockClient = { auth: {} } as any;
+    const mockClient = singleStoreClient();
     vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue(mockClient);
     vi.mocked(supabaseLib.signInDevice).mockResolvedValue(false);
 
@@ -116,7 +125,7 @@ describe('cloudLogin', () => {
       },
     });
 
-    const mockClient = { auth: {} } as any;
+    const mockClient = singleStoreClient();
     vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue(mockClient);
 
     const mockUserAccount = { id: '123', name: 'user', pinHash: 'hash', role: 'admin' };

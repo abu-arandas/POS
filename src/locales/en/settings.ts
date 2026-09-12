@@ -69,7 +69,7 @@ export const settings = {
   storeIdLabel: 'Store ID',
   storeIdPlaceholder: 'e.g. store-downtown (leave blank for a single store)',
   storeIdHint:
-    'Scopes this terminal to one store in a multi-store organization. Leave blank unless you have run src/db/multi-store-schema.sql.',
+    'Scopes this terminal to one store in a multi-store organization. Leave blank only for a single store — once the database holds more than one, a terminal without a Store ID refuses to sync rather than mixing stores together.',
   usersTab: 'Users',
   printerTab: 'Printer',
   staffAccounts: 'Staff Accounts',
@@ -169,4 +169,6 @@ export const settings = {
   resetToDefaultsHint: 'Restores store, printer, scanner, and sync settings to their defaults.',
   resetNow: 'Reset',
   logoUrlPlaceholder: 'Image URL…',
+  storeIdRequired:
+    'This database holds several stores. Set this terminal\u2019s Store ID — until you do, syncing is refused so another store\u2019s catalogue and staff cannot land on this till.',
 };

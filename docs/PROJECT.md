@@ -856,6 +856,65 @@ snapshot that never contained it. Settings asks for confirmation naming the coun
 queue will not drain. A successful `pushAllToCloud` drops queued _pushes_ (it has just sent
 the same rows in their newest form) and keeps queued deletes, which a push does not cover.
 
+### 8.3a Store scope — `supabase/storeScope.ts`
+
+One Supabase project can hold several shops, and every store-scoping decision
+used to read the same way: `if (storeId)`. An **empty** store id therefore meant
+"do not filter", so a terminal whose Store ID had never been set
+
+- pulled **every** store's products, categories, customers, transactions and
+  **staff accounts** — and because Pull From Cloud _replaces_ local data, another
+  shop's catalogue and staff landed on this till;
+- had its cloud login accept those imported staff members' PINs, because
+  `verify_login` read an absent store the same way (`p_store_id IS NULL OR …`);
+- pushed rows with `store_id` NULL, invisible to every scoped pull and enough to
+  block `multi-store-rls-enforce.sql`'s NOT NULL guard.
+
+Absence is no longer a wildcard. "No store configured" is a legitimate
+single-store install _and_ a misconfiguration on a database holding several
+stores; the only thing that separates them is how many stores there are, which
+is what `pos_store_count()` answers. `SECURITY DEFINER`, because the caller is by
+definition not yet scoped and cannot pass the RLS predicate on `stores`; it
+returns a count and nothing else. The same function decides it in both halves of
+the system — here, and inside `verify_login` — so the client and the database
+cannot disagree about which deployments are scoped.
+
+`isSyncBlocked(client, storeId, operation)` applies it:
+
+| Situation                                                     | Pull        | Push        |
+| ------------------------------------------------------------- | ----------- | ----------- |
+| A store id is configured                                      | allowed     | allowed     |
+| No store id, one store, or no `stores` table at all           | allowed     | allowed     |
+| No store id, several stores                                   | **refused** | **refused** |
+| No store id, `stores` exists but `pos_store_count()` does not | **refused** | allowed     |
+| Scope could not be established                                | **refused** | allowed     |
+
+A pull is the strict one because it **replaces** local data and has no undo. A
+push is additive and the outbox retries it, so an unestablished scope lets it
+through — whatever stopped the scope check will stop the write too. A refused
+push stays queued, so the sale is not lost: it goes as soon as the Store ID is
+set. The count is cached per client for five minutes — keyed by client, not
+module-global, so a terminal repointed at a different project cannot answer out
+of the old one's cache.
+
+The fourth row is the upgrade window, and it is why a missing
+`pos_store_count()` is not simply read as "no stores". That function ships
+_with_ this guard, so every deployment already running `multi-store-schema.sql`
+is missing it until the migration is re-run — treating that as zero would hand
+precisely those fleets the leak. A missing function is an answer only when
+`stores` is missing too. The count cannot be read from `stores` directly
+either: it carries RLS (`has_store_access(id)`), so an unscoped terminal sees
+zero rows on a database holding twenty stores. Its _existence_ is the one fact
+RLS does not hide.
+
+Three callers, not one. **Pull From Cloud** and the **outbox** are the obvious
+ones; the third is **realtime**, which calls the same table pulls on every
+change event. That one matters most: it is automatic and continuous, so an
+ungated unscoped terminal absorbs the whole fleet for as long as anyone keeps
+trading, with no operator action at all. Queued **deletes** are gated on the
+push side too — a delete names rows by id, and on a terminal whose local data
+came from a fleet-wide pull those ids can belong to another shop.
+
 ### 8.4a The outbox — `outbox.ts`
 
 | Function                      | Purpose                                                                 |

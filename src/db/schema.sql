@@ -454,6 +454,36 @@ $$;
 REVOKE ALL ON FUNCTION public.verify_login(TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.verify_login(TEXT, TEXT) TO anon, authenticated;
 
+-- ...but not on a database that has moved to multi-store.
+--
+-- multi-store-schema.sql DROPs this two-argument routine on purpose: its body
+-- knows nothing about stores, so it matches a staff name and PIN in ANY of them.
+-- Re-running this script is the documented upgrade path, and the CREATE above
+-- put that routine straight back — beside the store-scoped three-argument one
+-- rather than replacing it, because Postgres overloads on the signature. The
+-- database was then carrying both a scoped login and the unscoped one it had
+-- been migrated away from, and which of the two a two-argument call resolves to
+-- is a question nobody should have to ask about an authentication routine.
+--
+-- Keyed on the three-argument form existing, not on pos_schema_state: that row
+-- is written by multi-store-rls-enforce.sql, so a database that has taken the
+-- store dimension but not yet flipped RLS on still reads as 'single-store'
+-- while carrying exactly the overload this removes.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    -- Matched on the argument COUNT. pg_get_function_identity_arguments spells
+    -- the parameter NAMES out too ('p_name text, p_pin_hash text, ...'), so
+    -- comparing it against a bare type list silently never matches and this
+    -- guard quietly does nothing.
+    WHERE n.nspname = 'public' AND p.proname = 'verify_login' AND p.pronargs = 3
+  ) THEN
+    DROP FUNCTION IF EXISTS public.verify_login(TEXT, TEXT);
+    RAISE NOTICE 'Store-scoped verify_login present: removed the unscoped two-argument form.';
+  END IF;
+END $$;
+
 -- Public user-account projection. The PIN hash is intentionally absent; clients
 -- use verify_login() for credential checks and only receive non-secret fields.
 -- security_invoker keeps the caller's RLS and column privileges in force.

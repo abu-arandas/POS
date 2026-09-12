@@ -3,6 +3,7 @@ import { startRealtimeSync, stopRealtimeSync } from '../../src/lib/realtimeSync'
 import { useSettingsStore } from '../../src/stores/settingsStore';
 import { useProductStore } from '../../src/stores/productStore';
 import * as supabaseLib from '../../src/lib/supabase';
+import { resetStoreCountCache } from '../../src/lib/supabase/storeScope';
 
 // Mock the settings store
 vi.mock('../../src/stores/settingsStore', () => ({
@@ -268,5 +269,87 @@ describe('realtimeSync', () => {
       // The old handler must not schedule a pull, nor cancel the live one's.
       expect(supabaseLib.pullProducts).not.toHaveBeenCalled();
     });
+  });
+});
+
+// Realtime is the pull nobody presses. An unscoped terminal against a shared
+// database would keep absorbing every store's products, customers and staff for
+// as long as the fleet kept trading, one change event at a time.
+describe('realtime on a multi-store database', () => {
+  let handlers: Record<string, () => void>;
+  let setProducts: ReturnType<typeof vi.fn>;
+
+  /** A client whose database reports `stores` stores. */
+  function stub(stores: number) {
+    handlers = {};
+    const channel = {
+      on: vi.fn((_e: unknown, filter: { table: string }, cb: () => void) => {
+        handlers[filter.table] = cb;
+        return channel;
+      }),
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+    };
+    vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue({
+      channel: vi.fn().mockReturnValue(channel),
+      rpc: vi.fn().mockResolvedValue({ data: stores, error: null }),
+    } as never);
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stopRealtimeSync();
+    resetStoreCountCache();
+    vi.useFakeTimers();
+    setProducts = vi.fn();
+    vi.mocked(useProductStore.getState).mockReturnValue({ setProducts } as never);
+    vi.mocked(supabaseLib.signInDevice).mockResolvedValue(true);
+    vi.mocked(supabaseLib.pullProducts).mockResolvedValue([] as never);
+  });
+
+  afterEach(() => {
+    stopRealtimeSync();
+    resetStoreCountCache();
+    vi.useRealTimers();
+  });
+
+  const withSettings = (storeId: string) =>
+    vi.mocked(useSettingsStore.getState).mockReturnValue({
+      supabaseConfig: { enabled: true, url: 'https://test.supabase.co', anonKey: 'k' },
+      storeId,
+    } as never);
+
+  it('does not read a single row for an unscoped terminal', async () => {
+    stub(3);
+    withSettings('');
+    await startRealtimeSync();
+
+    handlers.products();
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(supabaseLib.pullProducts).not.toHaveBeenCalled();
+    expect(setProducts).not.toHaveBeenCalled();
+  });
+
+  it('still refreshes a terminal that names its store', async () => {
+    stub(3);
+    withSettings('store-A');
+    await startRealtimeSync();
+
+    handlers.products();
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(supabaseLib.pullProducts).toHaveBeenCalledWith(expect.anything(), 'store-A');
+  });
+
+  it('still refreshes an unscoped terminal on a single-store install', async () => {
+    stub(1);
+    withSettings('');
+    await startRealtimeSync();
+
+    handlers.products();
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(supabaseLib.pullProducts).toHaveBeenCalledWith(expect.anything(), '');
   });
 });

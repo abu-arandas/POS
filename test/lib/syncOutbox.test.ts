@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import {
+  deleteProductsCloudIfEnabled,
   syncToCloudIfEnabled,
   retryPendingCloudWrites,
   pendingCloudWrites,
@@ -9,9 +10,18 @@ import {
   stopOutboxReplay,
 } from '../../src/lib/sync';
 import { clearOutbox, peekOutbox } from '../../src/lib/outbox';
+import { resetStoreCountCache } from '../../src/lib/supabase/storeScope';
 import { useSettingsStore } from '../../src/stores/settingsStore';
 import * as supabaseLib from '../../src/lib/supabase';
 import type { Product, SaleTransaction } from '../../src/types';
+
+/**
+ * A client for a single-store deployment. The store-scope guard asks a real
+ * client how many stores the database holds before it will sync, and a bare
+ * `{ auth: {} }` stub reads as "scope unknown" — which a pull refuses by design.
+ */
+const singleStoreClient = (stores = 1) =>
+  ({ auth: {}, rpc: vi.fn().mockResolvedValue({ data: stores, error: null }) }) as never;
 
 vi.mock('../../src/stores/settingsStore', () => ({
   useSettingsStore: { getState: vi.fn() },
@@ -89,7 +99,7 @@ describe('cloud writes survive a failed push', () => {
     vi.clearAllMocks();
     await clearOutbox();
     setState(cloudOn);
-    vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue({ auth: {} } as never);
+    vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue(singleStoreClient());
     vi.mocked(supabaseLib.signInDevice).mockResolvedValue(true);
     for (const push of [
       supabaseLib.pushProducts,
@@ -262,7 +272,7 @@ describe('pulling while writes are still owed', () => {
     vi.clearAllMocks();
     await clearOutbox();
     setState(cloudOn);
-    vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue({ auth: {} } as never);
+    vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue(singleStoreClient());
     vi.mocked(supabaseLib.signInDevice).mockResolvedValue(true);
     for (const pull of [
       supabaseLib.pullProducts,
@@ -333,7 +343,7 @@ describe('the replay loop', () => {
     vi.clearAllMocks();
     await clearOutbox();
     setState(cloudOn);
-    vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue({ auth: {} } as never);
+    vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue(singleStoreClient());
     vi.mocked(supabaseLib.signInDevice).mockResolvedValue(true);
     vi.mocked(supabaseLib.pushProducts).mockResolvedValue(true);
   });
@@ -378,5 +388,131 @@ describe('the replay loop', () => {
     stopOutboxReplay();
     // Idempotent teardown too, so an unmount that runs twice is harmless.
     expect(() => stopOutboxReplay()).not.toThrow();
+  });
+});
+
+// One Supabase project, several shops. A terminal whose Store ID was never set
+// used to pull every store's rows — and Pull From Cloud REPLACES local data, so
+// another shop's catalogue, customers and staff landed on this till. These are
+// the checks that the unscoped case now refuses instead.
+describe('a terminal with no Store ID against a multi-store database', () => {
+  const fleetClient = () => singleStoreClient(3);
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    resetStoreCountCache();
+    await clearOutbox();
+    setState(cloudOn); // storeId: ''
+    vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue(fleetClient());
+    vi.mocked(supabaseLib.signInDevice).mockResolvedValue(true);
+    for (const push of [
+      supabaseLib.pushProducts,
+      supabaseLib.pushCategories,
+      supabaseLib.pushCustomers,
+      supabaseLib.pushTransactions,
+      supabaseLib.pushUserAccounts,
+    ]) {
+      vi.mocked(push).mockResolvedValue(true);
+    }
+    for (const pull of [
+      supabaseLib.pullProducts,
+      supabaseLib.pullCategories,
+      supabaseLib.pullCustomers,
+      supabaseLib.pullTransactions,
+      supabaseLib.pullUserAccounts,
+    ]) {
+      vi.mocked(pull).mockResolvedValue([] as never);
+    }
+  });
+
+  afterEach(() => {
+    resetStoreCountCache();
+    vi.useRealTimers();
+  });
+
+  it('refuses the pull without reading a single row', async () => {
+    const result = await pullAllFromCloud('https://example.supabase.co', 'key');
+
+    expect(result).toBeNull();
+    expect(supabaseLib.pullProducts).not.toHaveBeenCalled();
+    expect(supabaseLib.pullCustomers).not.toHaveBeenCalled();
+    expect(supabaseLib.pullUserAccounts).not.toHaveBeenCalled();
+  });
+
+  it('refuses the full push rather than writing rows no store owns', async () => {
+    const ok = await pushAllToCloud('https://example.supabase.co', 'key', {
+      products: [product],
+      categories: [],
+      customers: [],
+      users: [],
+      transactions: [transaction],
+    });
+
+    expect(ok).toBe(false);
+    expect(supabaseLib.pushProducts).not.toHaveBeenCalled();
+  });
+
+  it('keeps a sale owed instead of pushing it unscoped', async () => {
+    // store_id would land NULL: invisible to every scoped pull, and enough to
+    // block multi-store-rls-enforce.sql's NOT NULL guard. Queued, so the sale
+    // is not lost — it goes as soon as the Store ID is set.
+    await syncToCloudIfEnabled([product], undefined, undefined, [transaction]);
+
+    expect(supabaseLib.pushTransactions).not.toHaveBeenCalled();
+    expect(await pendingCloudWrites()).toBe(1);
+  });
+
+  it('refuses a queued DELETE, which names rows by id', async () => {
+    // The delete branch used to return before the guard ran. On an unscoped
+    // terminal those ids came from local data a fleet-wide pull may have filled
+    // with other stores' rows, so deleting a product here could delete another
+    // shop's. Queued, not dropped.
+    vi.mocked(supabaseLib.deleteRowsSupabase).mockResolvedValue(true);
+
+    await deleteProductsCloudIfEnabled(['p1']);
+
+    expect(supabaseLib.deleteRowsSupabase).not.toHaveBeenCalled();
+    expect(await pendingCloudWrites()).toBe(1);
+  });
+
+  it('sends a queued delete once the Store ID is set', async () => {
+    vi.mocked(supabaseLib.deleteRowsSupabase).mockResolvedValue(true);
+    await deleteProductsCloudIfEnabled(['p1']);
+    expect(await pendingCloudWrites()).toBe(1);
+
+    setState({ ...cloudOn, storeId: 'store-A' });
+    resetStoreCountCache();
+    vi.setSystemTime(Date.now() + 60_000);
+    await retryPendingCloudWrites();
+
+    expect(supabaseLib.deleteRowsSupabase).toHaveBeenCalled();
+    expect(await pendingCloudWrites()).toBe(0);
+  });
+
+  it('sends everything once the Store ID is set', async () => {
+    await syncToCloudIfEnabled([product], undefined, undefined, [transaction]);
+    expect(await pendingCloudWrites()).toBe(1);
+
+    setState({ ...cloudOn, storeId: 'store-A' });
+    resetStoreCountCache();
+    vi.setSystemTime(Date.now() + 60_000);
+    await retryPendingCloudWrites();
+
+    expect(supabaseLib.pushTransactions).toHaveBeenCalledWith(
+      expect.anything(),
+      [transaction],
+      'store-A',
+    );
+    expect(await pendingCloudWrites()).toBe(0);
+  });
+
+  it('still syncs a single-store install that has no Store ID', async () => {
+    // The documented default. Nothing about it may change.
+    vi.mocked(supabaseLib.getSupabaseClient).mockReturnValue(singleStoreClient(1));
+
+    await syncToCloudIfEnabled([product], undefined, undefined, [transaction]);
+
+    expect(supabaseLib.pushTransactions).toHaveBeenCalledWith(expect.anything(), [transaction], '');
+    expect(await pendingCloudWrites()).toBe(0);
   });
 });
