@@ -94,7 +94,10 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
       </div>
 
       {/* ── Brand ── */}
-      <div id="brand-header" className="relative z-10 p-5 border-b border-slate-800/60">
+      {/* border-line, not a slate literal: the panel behind it is theme-aware
+          (--panel-bg), so a hard-coded slate-800 divider drew a near-black
+          line across a white sidebar as soon as light became the default. */}
+      <div id="brand-header" className="relative z-10 p-5 border-b border-line">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}

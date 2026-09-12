@@ -37,6 +37,7 @@ const PaymentModal = lazy(() =>
 );
 import { useProductStore } from '../stores/productStore';
 import { availableStock, variantLabel, variantCost, variantPrice } from '../lib/variants';
+import { useMediaQuery, DESKTOP_QUERY } from '../lib/useMediaQuery';
 import { useCustomerStore } from '../stores/customerStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
@@ -615,12 +616,27 @@ export default function Register() {
 
   const cartCount = cart.reduce((total, line) => total + line.quantity, 0);
 
+  // Which cart surface exists at all. The rail is not merely painted out below
+  // `lg` when it is CSS-hidden — it stays mounted, so rendering it alongside the
+  // sheet put two CartPanels in the DOM and duplicated every id inside them,
+  // `cart-section` included. Exactly one is mounted now, and resizing across the
+  // breakpoint with the sheet open hands the cart back to the rail rather than
+  // leaving both live.
+  const isDesktop = useMediaQuery(DESKTOP_QUERY, true);
+
   // An open sheet over an emptied cart is a dead end: the bar that reopens it is
   // gone and the sheet shows nothing. Derived rather than synced in an effect —
   // the sheet is open when the operator opened it AND there is still something
   // to check out, which is one expression instead of a state mirror that can
   // disagree with the cart for a frame.
-  const cartSheetVisible = cartSheetOpen && cartCount > 0;
+  const cartSheetVisible = !isDesktop && cartSheetOpen && cartCount > 0;
+
+  // Clearing the intent, not just hiding the sheet. `cartSheetOpen` survived the
+  // cart emptying, so after a checkout or a hold the next tapped product made
+  // the sheet spring open by itself — the operator asked for a product, not for
+  // the cart. Adjusting state during render is React's documented alternative to
+  // an effect for this, and it converges: the next render sees false and stops.
+  if (cartSheetOpen && cartCount === 0) setCartSheetOpen(false);
 
   return (
     <div id="register-root" className="app-canvas flex flex-1 h-full overflow-hidden">
@@ -634,10 +650,13 @@ export default function Register() {
       {/* The rail exists only where there is room for it. Below `lg` the cart
           moves into a sheet, because a fixed 300px column on a 390px phone left
           the product grid 90px wide — the register was not merely cramped
-          there, it was unusable. */}
-      <div className="hidden lg:flex">
-        <CartPanel {...cartProps} />
-      </div>
+          there, it was unusable. Mounted conditionally rather than CSS-hidden:
+          see the isDesktop comment above. */}
+      {isDesktop && (
+        <div className="flex">
+          <CartPanel {...cartProps} />
+        </div>
+      )}
 
       {/* Phone: a persistent bar that both reports the cart and opens it. It is
           the only way back to the total once the cart is not on screen, so it

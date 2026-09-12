@@ -15,7 +15,11 @@ export interface ButtonProps extends Omit<
   block?: boolean;
   /** Shown before the label; omitted from the accessible name. */
   icon?: ReactNode;
-  /** Replaces the label while an action is in flight, and disables the button. */
+  /**
+   * Swaps the icon for a spinner and disables the button. The LABEL stays:
+   * a button that loses its text mid-action leaves the operator unsure what
+   * they pressed, and the width collapse shifts everything beside it.
+   */
   busy?: boolean;
 }
 
@@ -69,7 +73,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={disabled || busy}
       // aria-busy rather than swapping the label for a spinner alone: a screen
       // reader should hear that the same action is in progress, not that the
-      // button became a different control.
+      // button became a different control. Same reason the visible label stays
+      // below — only the icon slot changes.
       aria-busy={busy || undefined}
       className={`inline-flex items-center justify-center rounded-control font-semibold
         transition-colors outline-none

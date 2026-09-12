@@ -410,3 +410,61 @@ describe('Register — variants', () => {
     expect(card).toHaveAttribute('aria-label', expect.stringContaining('from $4.00'));
   });
 });
+
+// ── The cart on a phone ────────────────────────────────────────────────────
+//
+// Below `lg` the cart leaves the rail and becomes a bottom sheet. Both of these
+// guard bugs that CSS alone cannot express, so both need a real viewport switch
+// rather than a class assertion.
+describe('Register — the cart below the lg breakpoint', () => {
+  const setViewport = (width: number) => {
+    (window as unknown as { innerWidth: number }).innerWidth = width;
+    window.dispatchEvent(new Event('resize'));
+  };
+
+  // jsdom defaults to 1024, which is the desktop side of the breakpoint and
+  // what every test above relies on.
+  afterEach(() => setViewport(1024));
+
+  const sheet = () => document.querySelector('[role="dialog"]');
+  const openSheet = async () => {
+    await userEvent.setup().click(screen.getByRole('button', { name: /^Checkout$/i }));
+  };
+
+  it('mounts one cart surface at a time, so no id is ever duplicated', async () => {
+    setViewport(390);
+    render(<Register />);
+    await addToCart('Latte');
+
+    // The rail is gone entirely rather than merely painted out: a CSS-hidden
+    // rail stays in the DOM, and rendering it beside the sheet is what put two
+    // #cart-section elements on the page.
+    expect(document.querySelectorAll('#cart-section')).toHaveLength(0);
+
+    await openSheet();
+    await waitFor(() => expect(sheet()).toBeTruthy());
+    expect(document.querySelectorAll('#cart-section')).toHaveLength(1);
+  });
+
+  it('does not reopen the sheet by itself once the cart has emptied', async () => {
+    setViewport(390);
+    render(<Register />);
+    await addToCart('Latte');
+    await openSheet();
+    await waitFor(() => expect(sheet()).toBeTruthy());
+
+    // Empty the cart from inside the open sheet. The sheet has nothing left to
+    // show, so it goes away.
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: /Remove from cart — Latte/i }));
+    await waitFor(() => expect(sheet()).toBeNull());
+
+    // Adding the next product must NOT bring the sheet back. The operator asked
+    // for a product; reopening the cart is a different request, made with the
+    // bar.
+    await addToCart('Latte');
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Checkout$/i })).toBeTruthy());
+    expect(sheet()).toBeNull();
+  });
+});
