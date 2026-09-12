@@ -27,6 +27,7 @@ import {
   UsersPanel,
 } from './settings/index';
 import { serialSupported, networkScanSupported } from '../lib/printing/printerDiscovery';
+import { pullMessages, pullFailed } from './settings/pullOutcome';
 import { usePrinterDiscovery } from './settings/usePrinterDiscovery';
 import type { PrinterDiscovery } from './settings/ConnectedPrinters';
 import { useTranslation } from 'react-i18next';
@@ -486,19 +487,8 @@ export default function Settings() {
     // conflated the two and then reported success either way, so a terminal
     // could be told "pull complete" having silently kept its stale local
     // transactions. Report which tables failed instead.
-    const failed = (
-      [
-        ['categories', data.categories],
-        ['products', data.products],
-        ['customers', data.customers],
-        // 'denied' is not a failure — it is the database answering that this
-        // client may not read staff accounts, which gets its own message below.
-        ['users', data.users === 'denied' ? [] : data.users],
-        ['transactions', data.transactions],
-      ] as const
-    )
-      .filter(([, rows]) => rows === null)
-      .map(([name]) => name);
+    const messages = pullMessages(data);
+    const failed = pullFailed(data);
 
     if (data.categories) setCategories(data.categories);
     if (data.products) setProducts(data.products);
@@ -508,23 +498,12 @@ export default function Settings() {
     if (data.users !== 'denied' && data.users?.length) setUsers(data.users);
     if (data.transactions) setTransactions(data.transactions);
 
-    persistConfig(
-      failed.length > 0 ? 'error' : 'connected',
-      failed.length > 0 ? undefined : observedDeviceAuth(),
-    );
-    // Three outcomes, not two. A refused staff read is a configuration answer
-    // with a specific remedy, and saying "failed to load" sent the operator
-    // hunting for a broken database instead of an unset device account.
-    notify(
-      failed.length > 0
-        ? t('settings.pullPartial', {
-            tables: failed.join(', '),
-            defaultValue: `Pull incomplete — these tables failed to load and were left unchanged: {{tables}}`,
-          })
-        : data.users === 'denied'
-          ? t('settings.pullUsersDenied')
-          : t('settings.pullSuccess'),
-    );
+    persistConfig(failed ? 'error' : 'connected', failed ? undefined : observedDeviceAuth());
+    // Every line that applies, joined — not the first one that matches. A failed
+    // table and a refused staff read are independent, and an if/else chain let
+    // the first hide the second, so a terminal that hit a blip on transactions
+    // while also running anonymously never learned why its staff list was empty.
+    notify(messages.map((m) => t(m.key, m.params)).join(' '));
   };
 
   /**
