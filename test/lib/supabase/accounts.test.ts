@@ -107,44 +107,51 @@ describe('user account sync', () => {
   // `anon` on purpose. A terminal with no device account is therefore refused —
   // correctly — and reporting that as a load failure sent the operator hunting
   // for a broken database instead of an unset email and password.
-  it('reports a refused read as denied, not as a failure', async () => {
-    const denied = {
+  /**
+   * A client whose read fails with `error`, and which reports a session or not
+   * — which is what separates the two kinds of 42501.
+   */
+  const refusing = (error: { code?: string; message: string }, session: unknown = null) =>
+    ({
       from: () => ({
         select: () => ({
-          order: () => ({
-            limit: () =>
-              Promise.resolve({
-                data: null,
-                error: {
-                  code: '42501',
-                  message: 'permission denied for view user_accounts_public',
-                },
-              }),
-          }),
+          order: () => ({ limit: () => Promise.resolve({ data: null, error }) }),
         }),
       }),
-    } as unknown as SupabaseClient;
-    expect(await pullUserAccounts(denied)).toBe('denied');
+      auth: { getSession: () => Promise.resolve({ data: { session } }) },
+    }) as unknown as SupabaseClient;
+
+  const deniedErr = { code: '42501', message: 'permission denied for view user_accounts_public' };
+
+  it('reports an anonymous refusal as denied, not as a failure', async () => {
+    expect(await pullUserAccounts(refusing(deniedErr))).toBe('denied');
+  });
+
+  it('reports the SAME refusal as a failure when the device is signed in', async () => {
+    // 42501 names no role. Signed in and still refused means the GRANT is
+    // missing — a schema fault. Telling that operator to set a device account
+    // they have already set sends them at the wrong thing, and keeps the stale
+    // staff list instead of reporting the fault.
+    expect(await pullUserAccounts(refusing(deniedErr, { access_token: 'x' }))).toBeNull();
+  });
+
+  it('does not read an expired JWT as a permission denial', async () => {
+    // PGRST301 means the JWT is invalid or expired. The remedy is to sign in
+    // again, not to configure credentials that are already configured.
+    const jwt = { code: 'PGRST301', message: 'JWT expired' };
+    expect(await pullUserAccounts(refusing(jwt))).toBeNull();
+  });
+
+  it('does not classify on message text', async () => {
+    // postgrest-js's own guidance is to branch on `code`, not on `message`. A
+    // substring match on "permission denied" would swallow unrelated privilege
+    // errors carrying the same wording.
+    const other = { code: '2BP01', message: 'permission denied to drop role' };
+    expect(await pullUserAccounts(refusing(other))).toBeNull();
   });
 
   it('still reports an unrelated failure as a failure', async () => {
-    // Only 42501 is the configuration answer. Anything else is a real fault and
-    // must stay distinguishable from it, or a broken database reads as "just
-    // set a device account".
-    const broken = {
-      from: () => ({
-        select: () => ({
-          order: () => ({
-            limit: () =>
-              Promise.resolve({
-                data: null,
-                error: { code: '08006', message: 'no route to host' },
-              }),
-          }),
-        }),
-      }),
-    } as unknown as SupabaseClient;
-    expect(await pullUserAccounts(broken)).toBeNull();
+    expect(await pullUserAccounts(refusing({ code: '08006', message: 'no route' }))).toBeNull();
   });
 
   it('reads a deactivated account as inactive rather than truthy', async () => {

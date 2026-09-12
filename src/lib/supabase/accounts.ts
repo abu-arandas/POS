@@ -70,17 +70,22 @@ export async function pushUserAccounts(
 }
 
 /**
- * Pull user accounts
- */
-/**
- * Whether the database refused the read outright, rather than failing to serve
- * it. Postgres raises 42501 (insufficient_privilege) when a role lacks the
- * grant; PostgREST forwards that code and answers 401/403.
+ * Whether the CURRENT ROLE lacks the grant. Postgres raises 42501
+ * (insufficient_privilege) and PostgREST forwards that SQLSTATE verbatim.
+ *
+ * Only that code, on purpose. Two things it deliberately does not match:
+ *
+ *   PGRST301 is a PostgREST code, not a Postgres one, and it means the JWT is
+ *   invalid or expired. That is a recoverable session problem whose remedy is
+ *   to sign in again — telling the operator to go and configure credentials
+ *   they have already configured would send them at the wrong thing.
+ *
+ *   The message text. postgrest-js's own guidance is to "branch on [code]
+ *   rather than on message text", and a substring match on "permission denied"
+ *   would swallow any other privilege error the wording happens to fit.
  */
 function isPermissionDenied(error: unknown): boolean {
-  const { code, message } = (error ?? {}) as { code?: string; message?: string };
-  if (code === '42501' || code === 'PGRST301') return true;
-  return typeof message === 'string' && /permission denied/i.test(message);
+  return ((error ?? {}) as { code?: string }).code === '42501';
 }
 
 /**
@@ -111,21 +116,48 @@ export async function pullUserAccounts(
       createdAt: r.created_at,
     }));
   } catch (err) {
-    if (isPermissionDenied(err)) {
-      // Not a fault. `user_accounts_public` grants SELECT to `authenticated`
-      // and revokes it from `anon` on purpose, so a terminal running in
-      // anonymous mode — no device account in Settings → Cloud Sync — cannot
-      // read staff accounts however healthy the connection is. Reporting this
-      // as "failed to load" alongside a genuine outage sends the operator
-      // looking for a broken database instead of an unset email and password.
-      console.info(
-        'Staff accounts were not pulled: this terminal is connected anonymously, and ' +
-          'user_accounts_public is readable only by an authenticated device account. Set the ' +
-          'device email and password in Settings → Cloud Sync to sync staff.',
-      );
-      return 'denied';
-    }
+    if (await isAnonymousDenial(client, err)) return 'denied';
+    // Logged whole, not just `.message`: for 42501 Postgres puts the literal
+    // fix in `hint` ("GRANT SELECT ON ... TO <role>"), and that names the role
+    // that was actually refused — which is the one thing the code cannot say.
     console.error('Failed pulling user accounts:', err);
     return null;
+  }
+}
+
+/**
+ * Whether a refusal is the ordinary anonymous-mode one, which has a remedy the
+ * operator can act on, rather than a missing grant, which does not.
+ *
+ * 42501 says a role lacked the privilege. It does NOT say which role, so the
+ * code alone cannot tell "this terminal is signed in as nobody, and staff are
+ * deliberately not released to nobody" apart from "the GRANT in schema.sql was
+ * never run". The client knows: an anonymous client holds no session. Treating
+ * both as the friendly configuration message would tell someone with a broken
+ * schema to set a device account they have already set, and quietly keep the
+ * stale staff list instead of reporting the fault.
+ */
+async function isAnonymousDenial(client: SupabaseClient, err: unknown): Promise<boolean> {
+  if (!isPermissionDenied(err)) return false;
+  if (await hasSession(client)) return false; // signed in and still refused — a real fault
+  console.info(
+    'Staff accounts were not pulled: this terminal is connected anonymously, and ' +
+      'user_accounts_public is readable only by an authenticated device account. Set the ' +
+      'device email and password in Settings → Cloud Sync to sync staff.',
+  );
+  return true;
+}
+
+/**
+ * Whether this client currently holds a session. A client that cannot say is
+ * not holding one, so a failure here reads as anonymous rather than blocking
+ * the diagnosis.
+ */
+async function hasSession(client: SupabaseClient): Promise<boolean> {
+  try {
+    const { data } = await client.auth.getSession();
+    return Boolean(data?.session);
+  } catch {
+    return false;
   }
 }
