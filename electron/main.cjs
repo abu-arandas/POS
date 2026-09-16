@@ -329,7 +329,10 @@ public class EAPosRaw {
     bool ok = false;
     try {
       if(StartDocPrinter(h, 1, ref di)) {
-        if(StartPagePrinter(h)) { int w; ok = WritePrinter(h, bytes, bytes.Length, out w); EndPagePrinter(h); }
+        // WritePrinter can return true having written fewer bytes than asked: the
+        // spooler accepted the call but not all of it. Discarding the count reported a
+        // truncated receipt — one cut short mid-total — to the caller as a success.
+        if(StartPagePrinter(h)) { int w; ok = WritePrinter(h, bytes, bytes.Length, out w) && w == bytes.Length; EndPagePrinter(h); }
         EndDocPrinter(h);
       }
     } finally { ClosePrinter(h); }
