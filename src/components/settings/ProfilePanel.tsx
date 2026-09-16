@@ -179,6 +179,37 @@ export function ProfilePanel({
               </span>
             </label>
           </div>
+
+          {/* Customer-facing display. It is a second browser window on the
+              counter's second screen, mirrored from the register over a
+              BroadcastChannel, so the only thing needed here is a way to open
+              it. Opened with noopener: it must not be able to script this
+              window back. */}
+          <div className="md:col-span-2">
+            <div className="flex items-start justify-between gap-3 p-3.5 bg-secondary/20 border border-border rounded-lg">
+              <span>
+                <span className="block text-xs font-semibold text-foreground">
+                  {t('settings.customerDisplay')}
+                </span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">
+                  {t('settings.customerDisplayHint')}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  window.open(
+                    `${window.location.pathname}?display=customer`,
+                    'ea-pos-customer-display',
+                    'noopener,noreferrer',
+                  )
+                }
+                className="btn-secondary h-8 px-3 rounded-lg text-xs shrink-0"
+              >
+                {t('settings.openCustomerDisplay')}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

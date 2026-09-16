@@ -173,4 +173,8 @@ export const settings = {
   logoUrlPlaceholder: 'Image URL…',
   storeIdRequired:
     'This database holds several stores. Set this terminal\u2019s Store ID — until you do, syncing is refused so another store\u2019s catalogue and staff cannot land on this till.',
+  customerDisplay: 'Customer-facing display',
+  customerDisplayHint:
+    'Opens a second window that mirrors the register for the customer. Move it to your second screen.',
+  openCustomerDisplay: 'Open display',
 };

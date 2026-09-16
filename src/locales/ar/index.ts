@@ -20,6 +20,7 @@ import { customers } from './customers';
 import { categories } from './categories';
 import { kds } from './kds';
 import { tables } from './tables';
+import { cfd } from './cfd';
 
 export const ar = {
   translation: {
@@ -45,5 +46,6 @@ export const ar = {
     categories,
     kds,
     tables,
+    cfd,
   },
 } as const;

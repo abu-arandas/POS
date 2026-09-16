@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, X, Check } from 'lucide-react';
-import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { CashMovementType, StoreSettings } from '../../types';
 import { useShiftStore } from '../../stores/shiftStore';
 import { useAuthStore } from '../../stores/authStore';
 import { playSuccessChime } from '../../lib/audioFeedback';
 import { notify } from '../../lib/utils/ui';
+import { ModalShell } from '../shared/ModalShell';
 
 interface CashMovementModalProps {
   initialType?: CashMovementType;
@@ -36,7 +36,20 @@ export function CashMovementModal({
   const [type, setType] = useState<CashMovementType>(initialType);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  const modalRef = useRef<HTMLDivElement>(null);
   const addCashMovement = useShiftStore((s) => s.addCashMovement);
+
+  useEffect(() => {
+    modalRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
   const currentUser = useAuthStore((s) => s.currentUser);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -66,13 +79,14 @@ export function CashMovementModal({
   const isPayIn = type === 'pay_in';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
-      >
+    <ModalShell
+      id="cash-movement-modal"
+      modalRef={modalRef}
+      titleId="cash-movement-title"
+      className="w-full max-w-md p-6"
+      compactAnimation
+    >
+      <>
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-border">
           <div className="flex items-center gap-2.5">
@@ -86,7 +100,9 @@ export function CashMovementModal({
               {isPayIn ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
             </div>
             <div>
-              <h3 className="font-semibold text-foreground text-base">{t('shift.cashMovement')}</h3>
+              <h3 id="cash-movement-title" className="font-semibold text-foreground text-base">
+                {t('shift.cashMovement')}
+              </h3>
               <p className="text-[11px] text-muted-foreground">{t('shift.cashMovementHint')}</p>
             </div>
           </div>
@@ -201,7 +217,7 @@ export function CashMovementModal({
               onClick={onClose}
               className="btn-secondary h-9 px-4 rounded-xl text-xs font-medium"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -210,11 +226,11 @@ export function CashMovementModal({
               }`}
             >
               <Check size={14} className="stroke-3" />
-              <span>Confirm {isPayIn ? 'Pay-In' : 'Pay-Out'}</span>
+              <span>{isPayIn ? t('shift.confirmPayIn') : t('shift.confirmPayOut')}</span>
             </button>
           </div>
         </form>
-      </motion.div>
-    </div>
+      </>
+    </ModalShell>
   );
 }

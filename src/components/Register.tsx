@@ -51,6 +51,8 @@ import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
 import { askConfirmation, askText, notify } from '../lib/utils/ui';
+import { broadcastCfdUpdate } from '../lib/cfdChannel';
+import { cartLineKey } from './register/useRegisterCart';
 
 /**
  * The register screen: product grid, cart, discounts, held orders, and the
@@ -139,6 +141,56 @@ export default function Register() {
   );
 
   const cashChangeDue = calculateCashChangeDue(cashPaidText);
+
+  // Mirror the sale onto the customer-facing display (see src/lib/cfdChannel and
+  // the ?display=customer entry point in main.tsx). Nothing published this
+  // before, so the display subscribed to a channel no one wrote to and sat on
+  // its idle screen through every transaction.
+  //
+  // The payload is display-only by construction: line names, quantities and
+  // money. No cost, no stock, no customer record — the screen faces the shop.
+  useEffect(() => {
+    broadcastCfdUpdate({
+      status: receiptModalOpen
+        ? 'completed'
+        : checkoutModalOpen
+          ? 'paying'
+          : cart.length > 0
+            ? 'scanning'
+            : 'idle',
+      storeName: settings.storeName,
+      currency: settings.currency,
+      items: cart.map((line) => ({
+        id: cartLineKey(line),
+        name: line.product.name,
+        variantName: line.variant ? variantLabel(line.product, line.variant) : undefined,
+        modifiers: line.modifiers?.map((m) => m.optionName),
+        quantity: line.quantity,
+        unitPrice: variantPrice(line.product, line.variant),
+        totalPrice: Number((variantPrice(line.product, line.variant) * line.quantity).toFixed(2)),
+      })),
+      subtotal,
+      discount: discountAmount,
+      tax: taxAmount,
+      total: receiptModalOpen && activeReceipt ? activeReceipt.total : totalAmount,
+      paidAmount: activeReceipt?.cashPaid,
+      changeDue: receiptModalOpen ? activeReceipt?.cashChange : undefined,
+      paymentMethod: receiptModalOpen ? activeReceipt?.paymentMethod : paymentMethod,
+      orderNumber: receiptModalOpen ? activeReceipt?.id : undefined,
+    });
+  }, [
+    cart,
+    subtotal,
+    discountAmount,
+    taxAmount,
+    totalAmount,
+    settings.storeName,
+    settings.currency,
+    checkoutModalOpen,
+    receiptModalOpen,
+    activeReceipt,
+    paymentMethod,
+  ]);
 
   // Barcode scan: match an exact SKU and add it, with brief feedback.
   //

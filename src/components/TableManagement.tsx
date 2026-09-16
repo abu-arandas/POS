@@ -17,6 +17,8 @@ import { DiningTable, TableStatus } from '../types';
 import { useTableStore } from '../stores/tableStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { notify, askConfirmation } from '../lib/utils/ui';
+import { useModalA11y } from '../lib/useModalA11y';
+import { ModalShell } from './shared/ModalShell';
 
 interface TableManagementProps {
   onSelectTableForRegister?: (table: DiningTable) => void;
@@ -45,6 +47,9 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
     return () => clearInterval(timer);
   }, []);
   const [modalOpen, setModalOpen] = useState(false);
+  // Focus trap, Escape-to-close and the dialog role, the same as every other
+  // form dialog in the app. This one was a bare positioned div.
+  const addTableModalRef = useModalA11y(modalOpen, () => setModalOpen(false));
   const [tableName, setTableName] = useState('');
   const [tableSeats, setTableSeats] = useState('4');
   const [tableSection, setTableSection] = useState('Main Hall');
@@ -349,15 +354,19 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
       {/* Modal: Add Table */}
       <AnimatePresence>
         {modalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-xl"
-            >
+          <ModalShell
+            id="add-table-modal"
+            modalRef={addTableModalRef}
+            titleId="add-table-title"
+            className="w-full max-w-sm p-6"
+            compactAnimation
+          >
+            <>
               <div className="flex items-center justify-between pb-3 border-b border-border">
-                <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                <h3
+                  id="add-table-title"
+                  className="font-semibold text-foreground text-sm flex items-center gap-2"
+                >
                   <Plus size={15} />
                   {t('tables.newTable')}
                 </h3>
@@ -418,7 +427,7 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
                     onClick={() => setModalOpen(false)}
                     className="btn-secondary h-8 px-3 rounded-lg text-xs"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
@@ -429,8 +438,8 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
                   </button>
                 </div>
               </form>
-            </motion.div>
-          </div>
+            </>
+          </ModalShell>
         )}
       </AnimatePresence>
     </div>

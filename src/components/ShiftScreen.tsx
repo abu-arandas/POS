@@ -30,6 +30,8 @@ import { openDetachedPrintWindow } from '../lib/utils/dom';
 import { CashMovementType, Shift } from '../types';
 import { askConfirmation, notify } from '../lib/utils/ui';
 import { CashMovementModal } from './shift/CashMovementModal';
+import { ModalShell } from './shared/ModalShell';
+import { useModalA11y } from '../lib/useModalA11y';
 import {
   generateDailySummaryText,
   shareToWhatsApp,
@@ -58,6 +60,7 @@ export default function ShiftScreen() {
   const [movementModalOpen, setMovementModalOpen] = useState(false);
   const [movementType, setMovementType] = useState<CashMovementType>('pay_out');
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const shareModalRef = useModalA11y(shareMenuOpen, () => setShareMenuOpen(false));
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 60000);
@@ -634,18 +637,19 @@ export default function ShiftScreen() {
         {/* Daily Summary Share Dialog */}
         <AnimatePresence>
           {shareMenuOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
-              >
+            <ModalShell
+              id="daily-summary-modal"
+              modalRef={shareModalRef}
+              titleId="daily-summary-title"
+              className="w-full max-w-lg p-6 flex flex-col max-h-[85vh] overflow-hidden"
+              compactAnimation
+            >
+              <>
                 <div className="flex items-center justify-between pb-3 border-b border-border">
                   <div className="flex items-center gap-2">
                     <Share2 size={16} className="text-primary" />
-                    <h3 className="font-semibold text-foreground text-sm">
-                      Share End-of-Day Daily Executive Summary
+                    <h3 id="daily-summary-title" className="font-semibold text-foreground text-sm">
+                      {t('shift.shareDailySummary')}
                     </h3>
                   </div>
                   <button
@@ -658,7 +662,7 @@ export default function ShiftScreen() {
 
                 <div className="flex-1 overflow-y-auto my-4 p-3.5 rounded-xl border border-border bg-secondary/30 font-mono text-xs whitespace-pre-wrap leading-relaxed select-text text-foreground">
                   {generateDailySummaryText({
-                    storeName: settings.storeName || 'SJ Grill',
+                    storeName: settings.storeName,
                     currency: cur,
                     date: new Date().toLocaleDateString(undefined, {
                       weekday: 'long',
@@ -676,7 +680,7 @@ export default function ShiftScreen() {
                   <button
                     onClick={async () => {
                       const text = generateDailySummaryText({
-                        storeName: settings.storeName || 'SJ Grill',
+                        storeName: settings.storeName,
                         currency: cur,
                         date: new Date().toLocaleDateString(),
                         transactions: shiftTxns,
@@ -695,7 +699,7 @@ export default function ShiftScreen() {
                   <button
                     onClick={() => {
                       const text = generateDailySummaryText({
-                        storeName: settings.storeName || 'SJ Grill',
+                        storeName: settings.storeName,
                         currency: cur,
                         date: new Date().toLocaleDateString(),
                         transactions: shiftTxns,
@@ -713,7 +717,7 @@ export default function ShiftScreen() {
                   <button
                     onClick={() => {
                       const text = generateDailySummaryText({
-                        storeName: settings.storeName || 'SJ Grill',
+                        storeName: settings.storeName,
                         currency: cur,
                         date: new Date().toLocaleDateString(),
                         transactions: shiftTxns,
@@ -728,8 +732,8 @@ export default function ShiftScreen() {
                     <span>WhatsApp</span>
                   </button>
                 </div>
-              </motion.div>
-            </div>
+              </>
+            </ModalShell>
           )}
         </AnimatePresence>
       </div>

@@ -31,4 +31,7 @@ export const shift = {
   payOutRecorded: 'تم تسجيل مصروف بقيمة {{amount}}',
   copiedToClipboard: 'تم نسخ التقرير',
   cashMovementHint: 'تدقيق النثرية وتعديلات رصيد درج النقد',
+  confirmPayIn: 'تأكيد الإيداع',
+  confirmPayOut: 'تأكيد المصروف',
+  shareDailySummary: 'مشاركة ملخص نهاية اليوم',
 };

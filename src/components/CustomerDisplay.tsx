@@ -11,16 +11,18 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { subscribeToCfd, CfdPayload } from '../lib/cfdChannel';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../stores/settingsStore';
 import Logo from './Logo';
 
 export function CustomerDisplay() {
+  const { t } = useTranslation();
   const settings = useSettingsStore((s) => s.settings);
 
   const [cfdData, setCfdData] = useState<CfdPayload>({
     type: 'CFD_UPDATE',
     status: 'idle',
-    storeName: settings.storeName || 'SJ Grill',
+    storeName: settings.storeName,
     currency: settings.currency || '$',
     items: [],
     subtotal: 0,
@@ -72,11 +74,11 @@ export function CustomerDisplay() {
           </div>
           <div>
             <h1 className="font-bold text-lg tracking-tight text-zinc-100 leading-tight">
-              {cfdData.storeName || settings.storeName || 'SJ Grill'}
+              {cfdData.storeName || settings.storeName}
             </h1>
             <p className="text-xs text-zinc-400 font-mono flex items-center gap-1.5">
               <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Customer Screen Active
+              {t('cfd.active')}
             </p>
           </div>
         </div>
@@ -88,7 +90,7 @@ export function CustomerDisplay() {
           </div>
           <button
             onClick={toggleFullscreen}
-            title="Toggle Fullscreen"
+            title={t('cfd.toggleFullscreen')}
             className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-100 flex items-center justify-center transition-colors"
           >
             {isFullscreen ? <Minimize size={15} /> : <Maximize size={15} />}
@@ -112,12 +114,9 @@ export function CustomerDisplay() {
                 <CheckCircle2 size={54} />
               </div>
               <h2 className="text-3xl font-bold tracking-tight text-zinc-100 mb-2">
-                Thank You for Your Order!
+                {t('cfd.thankYouTitle')}
               </h2>
-              <p className="text-zinc-400 text-sm max-w-md mb-8">
-                Your payment was processed successfully. Please collect your receipt and enjoy your
-                meal!
-              </p>
+              <p className="text-zinc-400 text-sm max-w-md mb-8">{t('cfd.thankYouBody')}</p>
 
               <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 min-w-[320px] max-w-sm space-y-3 font-mono">
                 <div className="flex justify-between items-center text-sm text-zinc-400">
@@ -156,14 +155,13 @@ export function CustomerDisplay() {
               <div className="flex-1 space-y-6">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 border border-primary/20 text-primary">
                   <Flame size={13} />
-                  Welcome to {cfdData.storeName || settings.storeName}
+                  {t('cfd.welcome', { store: cfdData.storeName || settings.storeName })}
                 </span>
                 <h2 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-zinc-100 leading-tight">
-                  Fresh Flavors & Artisanal Grills.
+                  {t('cfd.idleHeadline')}
                 </h2>
                 <p className="text-zinc-400 text-base leading-relaxed max-w-lg">
-                  Place your order with our cashier. Scan barcodes, customize doneness & toppings,
-                  and pay via cash, contactless card, or loyalty points.
+                  {t('cfd.idleBody')}
                 </p>
 
                 <div className="flex items-center gap-4 pt-2">
@@ -171,37 +169,33 @@ export function CustomerDisplay() {
                     <QrCode size={24} className="text-zinc-400" />
                     <div>
                       <span className="text-xs font-semibold text-zinc-200 block">
-                        Contactless Ready
+                        {t('cfd.contactlessTitle')}
                       </span>
                       <span className="text-[11px] text-zinc-500 font-mono">
-                        Apple Pay, Google Pay, Cards
+                        {t('cfd.contactlessBody')}
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Promo Card Showcase */}
+              {/* The store's own identity. This panel used to advertise a
+                  specific dish, its description and an 18.50 price as literals,
+                  so every terminal running this build showed one shop's menu
+                  item at a price nobody had set. Nothing here is invented. */}
               <div className="w-full max-w-md rounded-3xl border border-zinc-800 bg-gradient-to-br from-zinc-900/90 to-zinc-950 p-8 shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
                   <Sparkles size={160} />
                 </div>
-                <span className="text-[11px] font-mono uppercase tracking-wider text-amber-400 font-semibold block mb-2">
-                  Today's Chef Recommendation
-                </span>
                 <h3 className="text-2xl font-bold text-zinc-100 mb-2">
-                  Smoked Brisket & Smash Platter
+                  {cfdData.storeName || settings.storeName}
                 </h3>
-                <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
-                  Slow-cooked for 14 hours with SJ signature spice rub, house garlic butter and
-                  fresh toasted brioche.
-                </p>
-                <div className="flex items-center justify-between pt-4 border-t border-zinc-800">
-                  <span className="text-xs font-medium text-zinc-400">Combo Special</span>
-                  <span className="font-mono text-xl font-bold text-zinc-100">
-                    {cfdData.currency}18.50
-                  </span>
-                </div>
+                {settings.storeAddress && (
+                  <p className="text-xs text-zinc-400 leading-relaxed">{settings.storeAddress}</p>
+                )}
+                {settings.storePhone && (
+                  <p className="text-xs text-zinc-500 font-mono mt-1">{settings.storePhone}</p>
+                )}
               </div>
             </motion.div>
           ) : (
@@ -218,7 +212,9 @@ export function CustomerDisplay() {
                 <div className="px-6 py-3 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
                   <span className="text-xs font-mono uppercase text-zinc-400 font-semibold flex items-center gap-2">
                     <ShoppingBag size={14} />
-                    Current Order ({cfdData.items.reduce((s, i) => s + i.quantity, 0)} items)
+                    {t('cfd.currentOrder', {
+                      count: cfdData.items.reduce<number>((sum, i) => sum + i.quantity, 0),
+                    })}
                   </span>
                 </div>
 
@@ -331,18 +327,16 @@ export function CustomerDisplay() {
                       <QrCode size={28} className="text-primary animate-pulse shrink-0" />
                       <div>
                         <span className="text-xs font-semibold text-zinc-100 block">
-                          Please Tap Card or Scan to Pay
+                          {t('cfd.payPromptTitle')}
                         </span>
-                        <span className="text-[11px] text-zinc-400">
-                          Follow cashier terminal instructions
-                        </span>
+                        <span className="text-[11px] text-zinc-400">{t('cfd.payPromptBody')}</span>
                       </div>
                     </motion.div>
                   )}
                 </div>
 
                 <div className="pt-6 text-center text-xs text-zinc-500 font-mono">
-                  Thank you for shopping with us
+                  {t('cfd.footer')}
                 </div>
               </div>
             </motion.div>
