@@ -37,7 +37,9 @@ export interface RegisterCartItem {
  * What a cart line is addressed by: the product for a plain item, the product
  * and the variant together for a varianted one, and their modifier signature.
  */
-export function cartLineKey(line: Pick<RegisterCartLine, 'product' | 'variant' | 'modifiers'>): string {
+export function cartLineKey(
+  line: Pick<RegisterCartLine, 'product' | 'variant' | 'modifiers'>,
+): string {
   const base = lineKey(line.product.id, line.variant?.id);
   const mod = modifierSignature(line.modifiers);
   return mod ? `${base}#${mod}` : base;

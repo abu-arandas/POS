@@ -62,10 +62,7 @@ export function TransactionTable({
           <tbody className="text-sm font-sans text-foreground">
             {filteredTransactions.length === 0 ? (
               <tr>
-                <td
-                  colSpan={7}
-                  className="py-16 text-center text-muted-foreground font-mono"
-                >
+                <td colSpan={7} className="py-16 text-center text-muted-foreground font-mono">
                   <div className="flex flex-col items-center">
                     <HistoryIcon size={32} className="text-muted-foreground mb-2 opacity-40" />
                     <span className="text-xs">{t('history.noHistoricalTransactions')}</span>
@@ -102,9 +99,7 @@ export function TransactionTable({
                         }}
                         tabIndex={0}
                         className={`transition-colors cursor-pointer border-b border-border/50 last:border-0 ${
-                          isSelected
-                            ? 'bg-secondary/80'
-                            : 'hover:bg-muted/30'
+                          isSelected ? 'bg-secondary/80' : 'hover:bg-muted/30'
                         } ${isRefunded ? 'opacity-60' : ''}`}
                       >
                         <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
@@ -127,9 +122,7 @@ export function TransactionTable({
                         </td>
                         <td className="p-3">
                           {tx.customerName ? (
-                            <span className="font-medium text-foreground">
-                              {tx.customerName}
-                            </span>
+                            <span className="font-medium text-foreground">{tx.customerName}</span>
                           ) : (
                             <span className="text-muted-foreground text-xs italic">
                               {t('history.walkIn')}

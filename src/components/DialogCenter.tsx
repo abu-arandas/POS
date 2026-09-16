@@ -48,7 +48,9 @@ function DialogContent({
         }
         className="w-full max-w-sm rounded-xl border border-border bg-card p-5 text-foreground shadow-xl"
       >
-        <p className="whitespace-pre-wrap text-xs sm:text-sm text-foreground leading-relaxed">{dialog.message}</p>
+        <p className="whitespace-pre-wrap text-xs sm:text-sm text-foreground leading-relaxed">
+          {dialog.message}
+        </p>
         {dialog.kind === 'prompt' && (
           <input
             ref={inputRef}

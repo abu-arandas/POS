@@ -31,9 +31,7 @@ export function InventoryTable({ header, children }: InventoryTableProps) {
               {header}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border text-xs text-foreground">
-            {children}
-          </tbody>
+          <tbody className="divide-y divide-border text-xs text-foreground">{children}</tbody>
         </table>
       </div>
     </motion.div>

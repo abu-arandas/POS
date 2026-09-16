@@ -30,7 +30,9 @@ export function CustomerDisplay() {
   });
 
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [time, setTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  const [time, setTime] = useState(() =>
+    new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  );
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -113,7 +115,8 @@ export function CustomerDisplay() {
                 Thank You for Your Order!
               </h2>
               <p className="text-zinc-400 text-sm max-w-md mb-8">
-                Your payment was processed successfully. Please collect your receipt and enjoy your meal!
+                Your payment was processed successfully. Please collect your receipt and enjoy your
+                meal!
               </p>
 
               <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 min-w-[320px] max-w-sm space-y-3 font-mono">
@@ -159,15 +162,20 @@ export function CustomerDisplay() {
                   Fresh Flavors & Artisanal Grills.
                 </h2>
                 <p className="text-zinc-400 text-base leading-relaxed max-w-lg">
-                  Place your order with our cashier. Scan barcodes, customize doneness & toppings, and pay via cash, contactless card, or loyalty points.
+                  Place your order with our cashier. Scan barcodes, customize doneness & toppings,
+                  and pay via cash, contactless card, or loyalty points.
                 </p>
 
                 <div className="flex items-center gap-4 pt-2">
                   <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center gap-3">
                     <QrCode size={24} className="text-zinc-400" />
                     <div>
-                      <span className="text-xs font-semibold text-zinc-200 block">Contactless Ready</span>
-                      <span className="text-[11px] text-zinc-500 font-mono">Apple Pay, Google Pay, Cards</span>
+                      <span className="text-xs font-semibold text-zinc-200 block">
+                        Contactless Ready
+                      </span>
+                      <span className="text-[11px] text-zinc-500 font-mono">
+                        Apple Pay, Google Pay, Cards
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -185,7 +193,8 @@ export function CustomerDisplay() {
                   Smoked Brisket & Smash Platter
                 </h3>
                 <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
-                  Slow-cooked for 14 hours with SJ signature spice rub, house garlic butter and fresh toasted brioche.
+                  Slow-cooked for 14 hours with SJ signature spice rub, house garlic butter and
+                  fresh toasted brioche.
                 </p>
                 <div className="flex items-center justify-between pt-4 border-t border-zinc-800">
                   <span className="text-xs font-medium text-zinc-400">Combo Special</span>

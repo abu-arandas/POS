@@ -137,10 +137,7 @@ const CartPanel = ({
       className="app-panel flex flex-col h-full shrink-0 relative z-10 w-72 border-s border-border bg-card"
     >
       {/* ── Customer Header ── */}
-      <div
-        id="cart-customer-header"
-        className="shrink-0 p-3 border-b border-border"
-      >
+      <div id="cart-customer-header" className="shrink-0 p-3 border-b border-border">
         {activeCustomer ? (
           <motion.div
             initial={{ opacity: 0, y: -6 }}
@@ -220,7 +217,9 @@ const CartPanel = ({
                 <ShoppingCart size={20} className="text-muted-foreground" />
               </div>
               <p className="text-muted-foreground text-xs font-medium">{t('register.cartEmpty')}</p>
-              <p className="text-muted-foreground/70 text-[11px] mt-0.5">{t('register.tapToAdd')}</p>
+              <p className="text-muted-foreground/70 text-[11px] mt-0.5">
+                {t('register.tapToAdd')}
+              </p>
             </motion.div>
           ) : (
             cart.map((item) => {
@@ -315,10 +314,7 @@ const CartPanel = ({
       </div>
 
       {/* ── Discount Section ── */}
-      <div
-        id="cart-promos-box"
-        className="shrink-0 px-3 py-2 space-y-1.5 border-t border-border"
-      >
+      <div id="cart-promos-box" className="shrink-0 px-3 py-2 space-y-1.5 border-t border-border">
         {/* Loyalty points offer */}
         {loyaltyEnabled &&
           activeCustomer &&
@@ -330,7 +326,10 @@ const CartPanel = ({
               className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Star size={12} className="text-muted-foreground shrink-0 fill-muted-foreground/30" />
+                <Star
+                  size={12}
+                  className="text-muted-foreground shrink-0 fill-muted-foreground/30"
+                />
                 <div className="min-w-0">
                   <p className="text-foreground text-[11px] font-medium leading-tight">
                     {t('register.loyaltyPointsAvail')}
@@ -489,9 +488,7 @@ const CartPanel = ({
             aria-live="polite"
             aria-atomic="true"
           >
-            <span className="text-foreground font-semibold text-sm">
-              {t('register.total')}
-            </span>
+            <span className="text-foreground font-semibold text-sm">{t('register.total')}</span>
             <motion.span
               key={totalAmount}
               initial={{ scale: 1.05 }}

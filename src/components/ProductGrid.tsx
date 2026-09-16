@@ -30,7 +30,12 @@ import { useTranslation } from 'react-i18next';
 interface ProductGridProps {
   selectedCategory: string;
   setSelectedCategory: (c: string) => void;
-  cart: Array<{ product: Product; variant?: ProductVariant; modifiers?: SelectedModifier[]; quantity: number }>;
+  cart: Array<{
+    product: Product;
+    variant?: ProductVariant;
+    modifiers?: SelectedModifier[];
+    quantity: number;
+  }>;
   addToCart: (product: Product, variant?: ProductVariant, modifiers?: SelectedModifier[]) => void;
 }
 
@@ -275,7 +280,10 @@ const ProductGrid = ({
   const { t } = useTranslation();
 
   const [pickerProduct, setPickerProduct] = useState<Product | null>(null);
-  const [modifierTarget, setModifierTarget] = useState<{ product: Product; variant?: ProductVariant } | null>(null);
+  const [modifierTarget, setModifierTarget] = useState<{
+    product: Product;
+    variant?: ProductVariant;
+  } | null>(null);
 
   // Per product, so the card badge and the sold-out rule see the whole product;
   // per variant, so the picker can stop at each combination's own limit.

@@ -13,4 +13,6 @@ export const sidebar = {
   lockTerminal: 'Lock Terminal',
   mainNavigation: 'Main navigation',
   menu: 'Menu',
+  tables: 'Tables',
+  kitchen: 'Kitchen',
 };

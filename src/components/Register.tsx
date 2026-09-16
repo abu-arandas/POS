@@ -619,7 +619,9 @@ export default function Register() {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-lg border text-xs font-medium ${
-              scanFeedback.ok ? 'bg-card text-foreground border-border' : 'bg-destructive text-destructive-foreground border-destructive'
+              scanFeedback.ok
+                ? 'bg-card text-foreground border-border'
+                : 'bg-destructive text-destructive-foreground border-destructive'
             }`}
           >
             <ScanLine size={18} className="opacity-90" />

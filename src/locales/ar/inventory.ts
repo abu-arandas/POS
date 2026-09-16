@@ -138,4 +138,12 @@ export const inventory = {
   variantRequired: 'اختر المتغير الذي ينطبق عليه هذا.',
   unknownVariant: 'لم يعد هذا المتغير موجوداً.',
   variant: 'المتغير',
+  itemModifiers: 'إضافات وتعديلات الصنف',
+  addModifierGroup: 'إضافة مجموعة',
+  noModifiersHint: 'لا توجد تعديلات مُعرّفة. أضف مجموعات مثل «درجة النضج» أو «الجبن» أو «الصلصات».',
+  modifierGroupNamePlaceholder: 'اسم المجموعة (مثل: الصلصات)',
+  required: 'مطلوب',
+  multiSelect: 'متعدد',
+  optionNamePlaceholder: 'اسم الخيار',
+  addOption: 'إضافة خيار',
 };

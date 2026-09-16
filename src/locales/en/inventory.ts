@@ -139,4 +139,13 @@ export const inventory = {
   variantRequired: 'Choose which variant this applies to.',
   unknownVariant: 'That variant no longer exists.',
   variant: 'Variant',
+  itemModifiers: 'Item Modifiers & Add-ons',
+  addModifierGroup: 'Add Group',
+  noModifiersHint:
+    'No custom modifiers configured. Add groups like "Doneness", "Cheese", or "Sauces".',
+  modifierGroupNamePlaceholder: 'Group name (e.g. Sauces)',
+  required: 'Required',
+  multiSelect: 'Multi',
+  optionNamePlaceholder: 'Option name',
+  addOption: 'Add Option',
 };

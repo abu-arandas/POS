@@ -132,10 +132,7 @@ export function SupplierFormModal({
           >
             {t('inventory.cancel')}
           </button>
-          <button
-            type="submit"
-            className="btn-primary text-xs h-9 px-4 rounded-lg"
-          >
+          <button type="submit" className="btn-primary text-xs h-9 px-4 rounded-lg">
             {t('inventory.saveSupplier')}
           </button>
         </div>

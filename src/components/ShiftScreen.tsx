@@ -72,12 +72,14 @@ export default function ShiftScreen() {
   );
 
   const totalPayIns = useMemo(
-    () => currentShiftMovements.filter((m) => m.type === 'pay_in').reduce((s, m) => s + m.amount, 0),
+    () =>
+      currentShiftMovements.filter((m) => m.type === 'pay_in').reduce((s, m) => s + m.amount, 0),
     [currentShiftMovements],
   );
 
   const totalPayOuts = useMemo(
-    () => currentShiftMovements.filter((m) => m.type === 'pay_out').reduce((s, m) => s + m.amount, 0),
+    () =>
+      currentShiftMovements.filter((m) => m.type === 'pay_out').reduce((s, m) => s + m.amount, 0),
     [currentShiftMovements],
   );
 
@@ -101,7 +103,7 @@ export default function ShiftScreen() {
   const handleClose = async () => {
     if (!currentShift) return;
     const counted = parseFloat(countedCash) || 0;
-    if (!(await askConfirmation(t('shift.confirmClose', 'Close shift?')))) return;
+    if (!(await askConfirmation(t('shift.confirmClose')))) return;
     closeShift(currentShift.id, counted, closeNote, currentUser?.name ?? 'Unknown');
     setCountedCash('');
     setCloseNote('');
@@ -174,9 +176,7 @@ export default function ShiftScreen() {
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2">
             <Clock className="size-5 text-muted-foreground" /> {t('shift.title')}
           </h2>
-          <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
-            {t('shift.subtitle')}
-          </p>
+          <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">{t('shift.subtitle')}</p>
         </div>
       </div>
 
@@ -196,9 +196,7 @@ export default function ShiftScreen() {
               <h3 className="font-semibold text-base text-foreground mb-1">
                 {t('shift.noOpenShift')}
               </h3>
-              <p className="text-xs text-muted-foreground mb-6">
-                {t('shift.openHint')}
-              </p>
+              <p className="text-xs text-muted-foreground mb-6">{t('shift.openHint')}</p>
 
               <div className="text-start bg-secondary/30 p-4 rounded-xl border border-border">
                 <label
@@ -355,7 +353,8 @@ export default function ShiftScreen() {
                   </div>
                   {currentShiftMovements.length === 0 ? (
                     <p className="text-xs text-muted-foreground py-2">
-                      No petty cash movements recorded this shift. Use Pay-In or Pay-Out to record drawer deposits or expenses.
+                      No petty cash movements recorded this shift. Use Pay-In or Pay-Out to record
+                      drawer deposits or expenses.
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -365,12 +364,18 @@ export default function ShiftScreen() {
                           className="flex items-center justify-between p-2.5 rounded-lg border border-border/70 bg-secondary/30 text-xs"
                         >
                           <div className="flex items-center gap-2.5">
-                            <div className={`size-6 rounded-md flex items-center justify-center ${
-                              m.type === 'pay_in'
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                            }`}>
-                              {m.type === 'pay_in' ? <ArrowDownLeft size={13} /> : <ArrowUpRight size={13} />}
+                            <div
+                              className={`size-6 rounded-md flex items-center justify-center ${
+                                m.type === 'pay_in'
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                              }`}
+                            >
+                              {m.type === 'pay_in' ? (
+                                <ArrowDownLeft size={13} />
+                              ) : (
+                                <ArrowUpRight size={13} />
+                              )}
                             </div>
                             <div>
                               <span className="font-medium text-foreground block">{m.reason}</span>
@@ -379,10 +384,14 @@ export default function ShiftScreen() {
                               </span>
                             </div>
                           </div>
-                          <span className={`font-mono font-bold num ${
-                            m.type === 'pay_in' ? 'text-emerald-500' : 'text-amber-500'
-                          }`}>
-                            {m.type === 'pay_in' ? '+' : '-'}{cur}{m.amount.toFixed(2)}
+                          <span
+                            className={`font-mono font-bold num ${
+                              m.type === 'pay_in' ? 'text-emerald-500' : 'text-amber-500'
+                            }`}
+                          >
+                            {m.type === 'pay_in' ? '+' : '-'}
+                            {cur}
+                            {m.amount.toFixed(2)}
                           </span>
                         </div>
                       ))}
@@ -395,32 +404,27 @@ export default function ShiftScreen() {
               <div className="bg-card border border-border rounded-xl p-5 shadow-2xs flex flex-col justify-between">
                 <div>
                   <h3 className="font-semibold text-xs sm:text-sm text-foreground flex items-center gap-2 mb-4">
-                    <LockKeyhole size={15} className="text-muted-foreground" /> {t('shift.closeReconcile')}
+                    <LockKeyhole size={15} className="text-muted-foreground" />{' '}
+                    {t('shift.closeReconcile')}
                   </h3>
 
                   <div className="space-y-2.5 text-xs font-mono">
                     <div className="flex justify-between items-center border-b border-dashed border-border pb-2">
-                      <span className="text-muted-foreground">
-                        {t('shift.openingFloat')}
-                      </span>
+                      <span className="text-muted-foreground">{t('shift.openingFloat')}</span>
                       <span className="num font-medium text-foreground">
                         {cur}
                         {currentShift.openingFloat.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center border-b border-dashed border-border pb-2">
-                      <span className="text-muted-foreground">
-                        {t('shift.cashSales')}
-                      </span>
+                      <span className="text-muted-foreground">{t('shift.cashSales')}</span>
                       <span className="num font-medium text-foreground">
                         +{cur}
                         {summary.cashSales.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center border-b border-dashed border-border pb-2">
-                      <span className="text-muted-foreground">
-                        {t('shift.cashRefunds')}
-                      </span>
+                      <span className="text-muted-foreground">{t('shift.cashRefunds')}</span>
                       <span className="num font-medium text-destructive">
                         -{cur}
                         {summary.cashRefunds.toFixed(2)}
@@ -536,12 +540,12 @@ export default function ShiftScreen() {
               <table className="w-full text-start text-xs">
                 <thead>
                   <tr className="border-b border-border text-muted-foreground font-mono uppercase text-[10px]">
-                    <th className="pb-2 px-3 text-start">{t('shift.operator', 'Opened By')}</th>
-                    <th className="pb-2 px-3 text-start">{t('shift.closedBy', 'Closed By')}</th>
-                    <th className="pb-2 px-3 text-start">{t('shift.openedAt', 'Opened')}</th>
-                    <th className="pb-2 px-3 text-start">{t('shift.closedAt', 'Closed')}</th>
-                    <th className="pb-2 px-3 text-end">{t('shift.gross', 'Gross')}</th>
-                    <th className="pb-2 px-3 text-end">{t('shift.variance', 'Variance')}</th>
+                    <th className="pb-2 px-3 text-start">{t('shift.operator')}</th>
+                    <th className="pb-2 px-3 text-start">{t('shift.closedBy')}</th>
+                    <th className="pb-2 px-3 text-start">{t('shift.openedAt')}</th>
+                    <th className="pb-2 px-3 text-start">{t('shift.closedAt')}</th>
+                    <th className="pb-2 px-3 text-end">{t('shift.gross')}</th>
+                    <th className="pb-2 px-3 text-end">{t('shift.variance')}</th>
                     <th className="pb-2 px-3 text-center"></th>
                   </tr>
                 </thead>
@@ -560,9 +564,7 @@ export default function ShiftScreen() {
                             <div className="size-6 rounded-full bg-secondary border border-border flex items-center justify-center text-foreground font-mono font-semibold text-[10px]">
                               {shift.openedBy.charAt(0).toUpperCase()}
                             </div>
-                            <span className="font-medium text-foreground">
-                              {shift.openedBy}
-                            </span>
+                            <span className="font-medium text-foreground">{shift.openedBy}</span>
                           </div>
                         </td>
                         <td className="py-2.5 px-3">
@@ -571,9 +573,7 @@ export default function ShiftScreen() {
                               <div className="size-6 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground font-mono font-semibold text-[10px]">
                                 {shift.closedBy.charAt(0).toUpperCase()}
                               </div>
-                              <span className="text-muted-foreground">
-                                {shift.closedBy}
-                              </span>
+                              <span className="text-muted-foreground">{shift.closedBy}</span>
                             </div>
                           ) : (
                             <span className="text-muted-foreground">—</span>
@@ -684,7 +684,7 @@ export default function ShiftScreen() {
                         cashMovements: currentShiftMovements,
                       });
                       const ok = await copyReportToClipboard(text);
-                      if (ok) notify(t('shift.copiedToClipboard', { defaultValue: 'Summary copied to clipboard!' }));
+                      if (ok) notify(t('shift.copiedToClipboard'));
                     }}
                     className="btn-secondary h-9 px-3.5 rounded-xl text-xs flex items-center gap-1.5"
                   >
@@ -702,10 +702,7 @@ export default function ShiftScreen() {
                         shift: currentShift,
                         cashMovements: currentShiftMovements,
                       });
-                      shareViaEmail(
-                        `${settings.storeName || 'POS'} - Daily Summary Report`,
-                        text,
-                      );
+                      shareViaEmail(`${settings.storeName || 'POS'} - Daily Summary Report`, text);
                     }}
                     className="btn-secondary h-9 px-3.5 rounded-xl text-xs flex items-center gap-1.5"
                   >

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   LayoutGrid,
   Users,
@@ -34,6 +34,16 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
   const settings = useSettingsStore((s) => s.settings);
 
   const [selectedSection, setSelectedSection] = useState<string>('all');
+  // "N minutes ago" needs a clock, and reading Date.now() during render does not
+  // give it one: the figure only changed when something else happened to
+  // re-render the screen, so a table's seated time sat frozen while it filled
+  // up. Ticking state is also what makes the render pure, which is what
+  // react-hooks/purity is pointing at. Same 60s cadence as ShiftScreen.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
   const [modalOpen, setModalOpen] = useState(false);
   const [tableName, setTableName] = useState('');
   const [tableSeats, setTableSeats] = useState('4');
@@ -70,7 +80,7 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
     setTableName('');
     setTableSeats('4');
     setModalOpen(false);
-    notify(t('tables.tableAdded', { defaultValue: 'Table added successfully' }));
+    notify(t('tables.tableAdded'));
   };
 
   const getStatusColor = (status: TableStatus) => {
@@ -89,7 +99,8 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
         };
       case 'bill_requested':
         return {
-          badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 animate-pulse',
+          badge:
+            'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 animate-pulse',
           dot: 'bg-amber-500',
           card: 'border-amber-500/40 bg-amber-500/[0.02]',
         };
@@ -112,16 +123,12 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-semibold text-base tracking-tight">
-                {t('tables.title', { defaultValue: 'Floor Plan & Dining Rooms' })}
-              </h1>
+              <h1 className="font-semibold text-base tracking-tight">{t('tables.title')}</h1>
               <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-secondary text-muted-foreground border border-border">
                 {stats.total} tables
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              {t('tables.subtitle', { defaultValue: 'Real-time table occupancy, guest counts, and dining checks' })}
-            </p>
+            <p className="text-[11px] text-muted-foreground">{t('tables.subtitle')}</p>
           </div>
         </div>
 
@@ -154,14 +161,14 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
           className="btn-primary h-9 px-3.5 text-xs rounded-xl flex items-center gap-1.5 active:scale-[0.98]"
         >
           <Plus size={14} />
-          <span>{t('tables.addTable', { defaultValue: 'Add Table' })}</span>
+          <span>{t('tables.addTable')}</span>
         </button>
       </header>
 
       {/* Sections bar */}
       <div className="px-6 py-2.5 border-b border-border/70 bg-card/30 flex items-center gap-2 overflow-x-auto">
         <span className="text-[11px] font-mono uppercase text-muted-foreground me-1">
-          {t('tables.section', { defaultValue: 'Section' })}:
+          {t('tables.section')}:
         </span>
         {sections.map((sec) => (
           <button
@@ -173,7 +180,7 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
                 : 'bg-card border border-border text-muted-foreground hover:text-foreground'
             }`}
           >
-            {sec === 'all' ? t('tables.allSections', { defaultValue: 'All Rooms' }) : sec}
+            {sec === 'all' ? t('tables.allSections') : sec}
           </button>
         ))}
       </div>
@@ -201,7 +208,9 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
                       </h3>
                     </div>
 
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${colors.badge}`}>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${colors.badge}`}
+                    >
                       <span className={`size-1.5 rounded-full ${colors.dot}`} />
                       {table.status.replace('_', ' ').toUpperCase()}
                     </span>
@@ -226,7 +235,7 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
                           <span>Seated:</span>
                         </span>
                         <span className="font-mono font-medium text-foreground">
-                          {Math.floor((Date.now() - new Date(table.activeSince).getTime()) / 60000)}m ago
+                          {Math.floor((now - new Date(table.activeSince).getTime()) / 60000)}m ago
                         </span>
                       </div>
                     )}
@@ -270,7 +279,7 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
                         className="flex-1 btn-secondary h-8 rounded-lg text-xs font-medium flex items-center justify-center gap-1"
                       >
                         <Receipt size={12} />
-                        <span>View / Add Items</span>
+                        <span>{t('tables.viewAddItems')}</span>
                       </button>
                       <button
                         onClick={() => requestBill(table.id)}
@@ -290,13 +299,13 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
                         className="flex-1 btn-primary h-8 rounded-lg text-xs font-medium flex items-center justify-center gap-1"
                       >
                         <Receipt size={12} />
-                        <span>Pay Check</span>
+                        <span>{t('tables.payCheck')}</span>
                       </button>
                       <button
                         onClick={() => releaseTable(table.id)}
                         className="px-2.5 h-8 rounded-lg border border-border hover:bg-secondary text-xs"
                       >
-                        Clear
+                        {t('tables.clear')}
                       </button>
                     </>
                   )}
@@ -315,7 +324,7 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
                       onClick={() => occupyTable(table.id)}
                       className="flex-1 btn-primary h-8 rounded-lg text-xs font-medium"
                     >
-                      Seat Reservation
+                      {t('tables.seatReservation')}
                     </button>
                   )}
 
@@ -350,7 +359,7 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
               <div className="flex items-center justify-between pb-3 border-b border-border">
                 <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
                   <Plus size={15} />
-                  {t('tables.newTable', { defaultValue: 'Add New Dining Table' })}
+                  {t('tables.newTable')}
                 </h3>
                 <button
                   onClick={() => setModalOpen(false)}
@@ -416,7 +425,7 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
                     className="btn-primary h-8 px-4 rounded-lg text-xs flex items-center gap-1.5"
                   >
                     <Check size={13} />
-                    <span>Create Table</span>
+                    <span>{t('tables.createTable')}</span>
                   </button>
                 </div>
               </form>

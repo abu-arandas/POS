@@ -90,15 +90,10 @@ export function VariantPickerModal({
     >
       <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
         <div className="min-w-0">
-          <h3
-            id="variant-picker-title"
-            className="font-semibold text-foreground text-sm truncate"
-          >
+          <h3 id="variant-picker-title" className="font-semibold text-foreground text-sm truncate">
             {product.name}
           </h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            {t('register.chooseVariant')}
-          </p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{t('register.chooseVariant')}</p>
         </div>
         <button
           onClick={onClose}

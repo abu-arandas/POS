@@ -390,129 +390,12 @@ input[type='number'] {
   }
 }
 
-@keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes bounce-in {
-  0% {
-    opacity: 0;
-    transform: scale(0.72);
-  }
-  55% {
-    transform: scale(1.07);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes orb-drift-1 {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  33% {
-    transform: translate(40px, -50px) scale(1.1);
-  }
-  66% {
-    transform: translate(-25px, 25px) scale(0.93);
-  }
-}
-
-@keyframes orb-drift-2 {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  40% {
-    transform: translate(-45px, 35px) scale(1.06);
-  }
-  70% {
-    transform: translate(30px, -25px) scale(0.96);
-  }
-}
-
-@keyframes orb-drift-3 {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(25px, -35px) scale(1.08);
-  }
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
    ANIMATION UTILITY CLASSES
 ═══════════════════════════════════════════════════════════════════════════ */
 
 .animate-float-slow {
   animation: float-slow 9s ease-in-out infinite;
-}
-.animate-fade-up {
-  animation: fade-up 0.4s ease-out forwards;
-}
-.animate-bounce-in {
-  animation: bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-.animate-orb-1 {
-  animation: orb-drift-1 14s ease-in-out infinite;
-}
-.animate-orb-2 {
-  animation: orb-drift-2 18s ease-in-out infinite;
-}
-.animate-orb-3 {
-  animation: orb-drift-3 11s ease-in-out infinite;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   AMBIENT BACKGROUNDS
-═══════════════════════════════════════════════════════════════════════════ */
-
-.mesh-bg {
-  background-color: #f9fafb;
-  background-image:
-    radial-gradient(at 50% 0%, rgba(0, 0, 0, 0.02) 0px, transparent 75%),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.8), rgba(249, 250, 251, 1));
-}
-
-.mesh-bg-dark {
-  background-color: #09090b;
-  background-image:
-    radial-gradient(at 50% 0%, rgba(255, 255, 255, 0.03) 0px, transparent 70%),
-    linear-gradient(to bottom, rgba(17, 17, 20, 0.5), rgba(9, 9, 11, 1));
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   SURFACES  (semantic, token-driven — the app's primary card/panel)
-═══════════════════════════════════════════════════════════════════════════ */
-
-/* Layered so component-level Tailwind utilities (rounded-*, shadow-*, bg-*)
-   still win — .surface only fills in the background/border/elevation that the
-   components assume but never set themselves. */
-@layer components {
-  .surface {
-    background: var(--surface-1);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-card);
-  }
-
-  /* Inset/subtle surface for nested areas (table headers, wells). */
-  .surface-2 {
-    background: var(--surface-2);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-card);
-  }
 }
 
 /* Hide scrollbars but keep scrolling (used in tab strips / rails). */
@@ -522,51 +405,6 @@ input[type='number'] {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   GLASS MORPHISM
-═══════════════════════════════════════════════════════════════════════════ */
-
-.glass {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px) saturate(1.6);
-  -webkit-backdrop-filter: blur(20px) saturate(1.6);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-.glass-dark {
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow:
-    0 4px 32px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-.glass-input {
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  color: inherit;
-  transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast),
-    background var(--transition-fast);
-}
-
-.glass-input:focus,
-.glass-input:focus-within {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
-  outline: none;
-}
-
-.glass-input::placeholder {
-  color: rgba(100, 116, 139, 0.7);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -650,14 +488,18 @@ input[type='number'] {
   border-color: var(--sync-online-border);
   color: var(--sync-online-text);
 }
-.sync-online .sync-dot { background: var(--sync-online-dot); }
+.sync-online .sync-dot {
+  background: var(--sync-online-dot);
+}
 
 .sync-offline {
   background: var(--sync-offline-bg);
   border-color: var(--sync-offline-border);
   color: var(--sync-offline-text);
 }
-.sync-offline .sync-dot { background: var(--sync-offline-dot); }
+.sync-offline .sync-dot {
+  background: var(--sync-offline-dot);
+}
 
 .sync-syncing {
   background: var(--sync-syncing-bg);
@@ -674,18 +516,27 @@ input[type='number'] {
   border-color: var(--sync-error-border);
   color: var(--sync-error-text);
 }
-.sync-error .sync-dot { background: var(--sync-error-dot); }
+.sync-error .sync-dot {
+  background: var(--sync-error-dot);
+}
 
 .sync-queued {
   background: var(--sync-queued-bg);
   border-color: var(--sync-queued-border);
   color: var(--sync-queued-text);
 }
-.sync-queued .sync-dot { background: var(--sync-queued-dot); }
+.sync-queued .sync-dot {
+  background: var(--sync-queued-dot);
+}
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -696,34 +547,6 @@ input[type='number'] {
   background: rgba(2, 6, 23, 0.88);
   backdrop-filter: blur(10px) saturate(0.8);
   -webkit-backdrop-filter: blur(10px) saturate(0.8);
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   INTERACTIVE HELPERS
-═══════════════════════════════════════════════════════════════════════════ */
-
-.card-hover {
-  transition:
-    transform 0.22s ease,
-    box-shadow 0.22s ease,
-    border-color 0.22s ease;
-}
-.card-hover:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-lg);
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   THERMAL RECEIPT STYLES
-═══════════════════════════════════════════════════════════════════════════ */
-
-.receipt-paper {
-  background: #fafafa;
-  color: #111;
-  font-family: 'Courier New', Courier, monospace;
-  box-shadow:
-    0 0 0 1px #e5e7eb,
-    0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -882,39 +705,6 @@ select {
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
 }
 
-/* ─── Buttons ─────────────────────────────────────────────────────────────── */
-
-/* Secondary / dismiss action. */
-.btn-ghost {
-  background: var(--surface-hover);
-  border: 1px solid var(--input-border);
-  color: var(--chip-text);
-  transition: background var(--transition-fast);
-}
-
-.btn-ghost:hover {
-  background: var(--surface-2);
-}
-
-/* Ghost button that warms to emerald on hover (the receipt's print / email /
-   share row). This was a pair of onMouseEnter/onMouseLeave handlers writing
-   `e.currentTarget.style` — which meant the hover state never fired for a
-   keyboard user, since focus is not mouse-enter. As a CSS rule it covers both. */
-.btn-ghost-emerald {
-  background: var(--surface-hover);
-  border: 1px solid var(--border-strong);
-  color: var(--chip-text);
-  transition:
-    color var(--transition-fast),
-    border-color var(--transition-fast);
-}
-
-.btn-ghost-emerald:hover,
-.btn-ghost-emerald:focus-visible {
-  color: #34d399;
-  border-color: rgba(16, 185, 129, 0.3);
-}
-
 /* The single confirming action in a modal or primary trigger */
 .btn-primary {
   background: #09090b;
@@ -951,18 +741,6 @@ select {
 .btn-secondary:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--border-strong);
-}
-
-.btn-emerald {
-  background: #10b981;
-  color: #ffffff;
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  transition: all var(--transition-fast);
-}
-
-.btn-emerald:hover:not(:disabled) {
-  background: #059669;
 }
 
 /* "+ Add payment" / "+ Add line" — an outlined, dashed affordance for
@@ -1032,10 +810,8 @@ select {
   letter-spacing: 0.02em;
 }
 
-
-
 /* A pill that switches between two states (split payment on/off, a category
-   filter, edit mode). Base is the resting state; `.is-active` and `.is-danger`
+   filter, edit mode). Base is the resting state; `.is-active`
    are the engaged ones. */
 .toggle-pill {
   background: var(--surface-2);
@@ -1057,48 +833,6 @@ select {
   background: linear-gradient(135deg, #059669, var(--color-emerald));
   border-color: transparent;
   color: #ffffff;
-}
-
-.toggle-pill.is-danger {
-  background: rgba(244, 63, 94, 0.12);
-  border-color: rgba(244, 63, 94, 0.3);
-  color: #fb7185;
-}
-
-/* Small square icon badge beside a modal title. */
-.chip-emerald {
-  background: var(--color-emerald-dim);
-  color: #34d399;
-}
-
-/* Tinted action buttons in a row (purchase-order "Mark ordered" / "Receive").
-   Distinct from .badge-*, which forces uppercase 10px display type — these
-   carry the surrounding button typography. */
-.btn-chip-emerald {
-  background: var(--color-emerald-dim);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  transition: background var(--transition-fast);
-}
-
-.btn-chip-emerald:hover {
-  background: rgba(16, 185, 129, 0.22);
-}
-
-.btn-chip-blue {
-  background: var(--color-blue-dim);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  transition: background var(--transition-fast);
-}
-
-.btn-chip-blue:hover {
-  background: rgba(59, 130, 246, 0.22);
-}
-
-/* Bordered icon button that sits beside a field-shell row. */
-.btn-icon-outline {
-  border: 1px solid var(--border-strong);
 }
 
 /* ─── Cash tendering ──────────────────────────────────────────────────────── */

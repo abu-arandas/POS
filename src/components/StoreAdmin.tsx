@@ -223,9 +223,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
           <h2 className="font-semibold tracking-tight text-foreground text-lg sm:text-xl flex items-center gap-2">
             <Building2 className="text-foreground" size={20} /> {t('storeAdmin.title')}
           </h2>
-          <p className="text-muted-foreground text-xs mt-0.5">
-            {t('storeAdmin.subtitle')}
-          </p>
+          <p className="text-muted-foreground text-xs mt-0.5">{t('storeAdmin.subtitle')}</p>
         </motion.div>
         <div className="flex items-center gap-2">
           <button
@@ -329,7 +327,10 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
             const roster = membersByStore.get(s.id) ?? [];
             const expanded = expandedId === s.id;
             return (
-              <div key={s.id} className="bg-card border border-border rounded-xl shadow-2xs overflow-hidden">
+              <div
+                key={s.id}
+                className="bg-card border border-border rounded-xl shadow-2xs overflow-hidden"
+              >
                 <div className="px-5 py-3.5 flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">

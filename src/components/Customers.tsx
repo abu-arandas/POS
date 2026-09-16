@@ -139,9 +139,20 @@ export default function Customers() {
   };
 
   const getCustomerTier = (points: number) => {
-    if (points >= 200) return { name: t('customers.tierPlatinum'), badge: 'bg-foreground/10 text-foreground border-foreground/20' };
-    if (points >= 100) return { name: t('customers.tierGold'), badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' };
-    return { name: t('customers.tierSilver'), badge: 'bg-secondary text-muted-foreground border-border' };
+    if (points >= 200)
+      return {
+        name: t('customers.tierPlatinum'),
+        badge: 'bg-foreground/10 text-foreground border-foreground/20',
+      };
+    if (points >= 100)
+      return {
+        name: t('customers.tierGold'),
+        badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+      };
+    return {
+      name: t('customers.tierSilver'),
+      badge: 'bg-secondary text-muted-foreground border-border',
+    };
   };
 
   const getInitials = (name: string) => {
@@ -237,10 +248,7 @@ export default function Customers() {
               <p className="text-muted-foreground text-xs mb-5 max-w-sm">
                 {t('customers.noMatchHint')}
               </p>
-              <button
-                onClick={handleOpenAddCustomer}
-                className="btn-secondary h-8 px-3 text-xs"
-              >
+              <button onClick={handleOpenAddCustomer} className="btn-secondary h-8 px-3 text-xs">
                 + {t('customers.newCustomer')}
               </button>
             </div>
@@ -292,7 +300,8 @@ export default function Customers() {
                           )}
                           {cust.phone && (
                             <span className="flex items-center gap-1 font-mono">
-                              <Phone size={11} className="text-muted-foreground shrink-0" /> {cust.phone}
+                              <Phone size={11} className="text-muted-foreground shrink-0" />{' '}
+                              {cust.phone}
                             </span>
                           )}
                         </div>
@@ -301,7 +310,9 @@ export default function Customers() {
 
                     <div className="flex items-center justify-between mt-auto pt-3 border-t border-border">
                       <div className="flex items-center gap-1.5">
-                        <span className={`text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded border ${tier.badge}`}>
+                        <span
+                          className={`text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded border ${tier.badge}`}
+                        >
                           {tier.name}
                         </span>
                         <div className="flex items-center gap-1 bg-secondary border border-border rounded px-1.5 py-0.5">
@@ -489,10 +500,7 @@ export default function Customers() {
               className="bg-card border border-border rounded-xl shadow-xl max-w-sm w-full overflow-hidden"
             >
               <div className="p-4 border-b border-border flex justify-between items-center bg-secondary/20">
-                <h3
-                  id="crm-form-title"
-                  className="font-semibold text-foreground text-sm"
-                >
+                <h3 id="crm-form-title" className="font-semibold text-foreground text-sm">
                   {editingCustomer
                     ? t('customers.editCustomerRecord')
                     : t('customers.registerNewCustomer')}
@@ -620,10 +628,7 @@ export default function Customers() {
                 <div className="size-11 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-3">
                   <AlertTriangle size={22} />
                 </div>
-                <h3
-                  id="crm-delete-title"
-                  className="text-base font-semibold text-foreground mb-1"
-                >
+                <h3 id="crm-delete-title" className="text-base font-semibold text-foreground mb-1">
                   {t('customers.deleteConfirm', { name: customerToDelete.name })}
                 </h3>
                 <p className="text-xs text-muted-foreground mb-5">

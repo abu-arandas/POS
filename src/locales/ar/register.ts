@@ -96,4 +96,7 @@ export const register = {
   variantUnavailable: 'هذه التركيبة غير متوفرة',
   variantOptionsCount: '{{count}} خيارات',
   priceFrom: 'من',
+  customizeItem: 'اختر الإضافات والتعديلات',
+  maxCount: 'بحد أقصى {{count}}',
+  included: 'مشمول',
 };

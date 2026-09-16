@@ -44,8 +44,6 @@ const NAV_ITEMS: Array<{ id: ScreenId; labelKey: string; icon: typeof ShoppingBa
   { id: 'settings', labelKey: 'sidebar.settings', icon: Settings },
 ];
 
-
-
 function getInitials(name: string) {
   return name
     .split(' ')
@@ -100,7 +98,9 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
   const { t } = useTranslation();
 
   const lowStockCount = products.filter((p) => p.stock <= p.minStock && p.stock > 0).length;
-  const kdsActiveCount = useKdsStore((s) => s.tickets.filter((t) => t.status !== 'completed').length);
+  const kdsActiveCount = useKdsStore(
+    (s) => s.tickets.filter((t) => t.status !== 'completed').length,
+  );
 
   // The Fleet board is additionally gated on a resolved super-admin membership,
   // so it's hidden unless the cloud account is actually a super-admin.

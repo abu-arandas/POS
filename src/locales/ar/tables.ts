@@ -1,0 +1,15 @@
+export const tables = {
+  title: 'إدارة الطاولات',
+  subtitle: 'مخطط الصالة وحالة الجلوس والفواتير المفتوحة',
+  addTable: 'إضافة طاولة',
+  newTable: 'طاولة جديدة',
+  tableAdded: 'تمت إضافة الطاولة {{name}}',
+  section: 'القسم',
+  allSections: 'كل الأقسام',
+  reserve: 'حجز',
+  viewAddItems: 'عرض / إضافة أصناف',
+  payCheck: 'دفع الفاتورة',
+  clear: 'إخلاء',
+  seatReservation: 'إجلاس الحجز',
+  createTable: 'إنشاء طاولة',
+};

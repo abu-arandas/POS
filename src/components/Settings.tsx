@@ -643,7 +643,16 @@ export default function Settings() {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Icon size={14} className={isActive ? (tab.danger ? 'text-destructive' : 'text-foreground') : 'text-muted-foreground'} />
+                <Icon
+                  size={14}
+                  className={
+                    isActive
+                      ? tab.danger
+                        ? 'text-destructive'
+                        : 'text-foreground'
+                      : 'text-muted-foreground'
+                  }
+                />
                 {tab.label}
                 {isActive && (
                   <motion.div

@@ -1,10 +1,5 @@
 import React, { useState } from 'react';
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  X,
-  Check,
-} from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, X, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { CashMovementType, StoreSettings } from '../../types';
@@ -21,7 +16,13 @@ interface CashMovementModalProps {
 
 const COMMON_REASONS: Record<CashMovementType, string[]> = {
   pay_in: ['Drawer Float Top-up', 'Bank Coin Roll', 'Change replenishment', 'Customer Overpayment'],
-  pay_out: ['Supplier CoD Cash', 'Grocery/Ingredient Run', 'Staff Tips Payout', 'Cleaning Supplies', 'Courier Fee'],
+  pay_out: [
+    'Supplier CoD Cash',
+    'Grocery/Ingredient Run',
+    'Staff Tips Payout',
+    'Cleaning Supplies',
+    'Courier Fee',
+  ],
 };
 
 const PRESET_AMOUNTS = [10, 20, 50, 100];
@@ -42,11 +43,11 @@ export function CashMovementModal({
     e.preventDefault();
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      notify(t('shift.invalidAmount', { defaultValue: 'Please enter a valid cash amount.' }));
+      notify(t('shift.invalidAmount'));
       return;
     }
     if (!reason.trim()) {
-      notify(t('shift.reasonRequired', { defaultValue: 'Please provide a reason for this cash movement.' }));
+      notify(t('shift.reasonRequired'));
       return;
     }
 
@@ -58,11 +59,7 @@ export function CashMovementModal({
     });
 
     playSuccessChime();
-    notify(
-      type === 'pay_in'
-        ? t('shift.payInRecorded', { defaultValue: `Recorded deposit of ${settings.currency}${parsedAmount.toFixed(2)}` })
-        : t('shift.payOutRecorded', { defaultValue: `Recorded expense of ${settings.currency}${parsedAmount.toFixed(2)}` }),
-    );
+    notify(type === 'pay_in' ? t('shift.payInRecorded') : t('shift.payOutRecorded'));
     onClose();
   };
 
@@ -79,18 +76,18 @@ export function CashMovementModal({
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className={`size-8 rounded-lg flex items-center justify-center ${
-              isPayIn ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-            }`}>
+            <div
+              className={`size-8 rounded-lg flex items-center justify-center ${
+                isPayIn
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+              }`}
+            >
               {isPayIn ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
             </div>
             <div>
-              <h3 className="font-semibold text-foreground text-base">
-                {t('shift.cashMovement', { defaultValue: 'Drawer Cash Movement' })}
-              </h3>
-              <p className="text-[11px] text-muted-foreground">
-                Petty cash audit & cash drawer float adjustments
-              </p>
+              <h3 className="font-semibold text-foreground text-base">{t('shift.cashMovement')}</h3>
+              <p className="text-[11px] text-muted-foreground">{t('shift.cashMovementHint')}</p>
             </div>
           </div>
           <button
@@ -161,7 +158,8 @@ export function CashMovementModal({
                   onClick={() => setAmount(String(amt))}
                   className="flex-1 py-1 rounded-lg border border-border bg-secondary hover:bg-muted text-xs font-mono font-medium transition-colors"
                 >
-                  +{settings.currency}{amt}
+                  +{settings.currency}
+                  {amt}
                 </button>
               ))}
             </div>

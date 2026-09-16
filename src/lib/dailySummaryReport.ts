@@ -24,15 +24,16 @@ export function generateDailySummaryText(data: DailySummaryData): string {
   const totalSales = summary.grossSales;
   const cashSales = summary.cashSales;
   const cardSales = summary.cardSales;
-  const otherSales = Number(
-    (summary.mobileSales + summary.giftSales).toFixed(2),
-  );
+  const otherSales = Number((summary.mobileSales + summary.giftSales).toFixed(2));
 
   // Product popularity
   const productCountMap = new Map<string, number>();
   transactions.forEach((tx) => {
     tx.items.forEach((item) => {
-      productCountMap.set(item.productName, (productCountMap.get(item.productName) || 0) + item.quantity);
+      productCountMap.set(
+        item.productName,
+        (productCountMap.get(item.productName) || 0) + item.quantity,
+      );
     });
   });
 

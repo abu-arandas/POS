@@ -40,9 +40,7 @@ export function TransactionDetailPanel({
       id="receipt-view-section"
       className="absolute inset-y-6 inset-e-6 w-96 bg-card border border-border rounded-2xl shadow-xl flex flex-col overflow-hidden z-30"
     >
-      <div
-        className="p-4 flex items-center justify-between border-b border-border bg-card"
-      >
+      <div className="p-4 flex items-center justify-between border-b border-border bg-card">
         <div className="flex items-center space-x-2">
           <Check
             size={16}

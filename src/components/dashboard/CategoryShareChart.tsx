@@ -49,7 +49,12 @@ export function CategoryShareChart({ data, currency }: CategoryShareChartProps) 
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" margin={horizontalBarMargin}>
-              <CartesianGrid {...horizontalBarGrid} stroke="var(--border)" strokeDasharray="3 3" opacity={0.5} />
+              <CartesianGrid
+                {...horizontalBarGrid}
+                stroke="var(--border)"
+                strokeDasharray="3 3"
+                opacity={0.5}
+              />
               <XAxis {...barValueAxis} stroke="var(--muted-foreground)" />
               <YAxis {...barCategoryAxis} stroke="var(--muted-foreground)" width={110} />
               <Tooltip content={<ChartTooltip currency={currency} />} />

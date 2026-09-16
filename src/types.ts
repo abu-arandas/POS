@@ -509,4 +509,3 @@ export interface HappyHourRule {
   enabled: boolean;
   categoryIds?: string[];
 }
-

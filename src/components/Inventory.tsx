@@ -1,7 +1,14 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Plus, Layers, PackagePlus, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ModifierGroup, Product, ProductVariant, PurchaseOrder, PurchaseOrderStatus, VariantType } from '../types';
+import {
+  ModifierGroup,
+  Product,
+  ProductVariant,
+  PurchaseOrder,
+  PurchaseOrderStatus,
+  VariantType,
+} from '../types';
 import { hasVariants, totalVariantStock, variantCost, variantLabel } from '../lib/variants';
 import { normalizePoLines } from '../lib/purchaseOrders';
 import { type InventoryTabId, allowedInventoryTabs, isInventoryTabAllowed } from '../lib/access';

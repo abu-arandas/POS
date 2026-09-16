@@ -164,9 +164,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
           <h2 className="font-semibold tracking-tight text-foreground text-lg sm:text-xl flex items-center gap-2">
             <PackageOpen className="text-foreground" size={20} /> {t('catalogPush.title')}
           </h2>
-          <p className="text-muted-foreground text-xs mt-0.5">
-            {t('catalogPush.subtitle')}
-          </p>
+          <p className="text-muted-foreground text-xs mt-0.5">{t('catalogPush.subtitle')}</p>
         </motion.div>
         <button
           onClick={load}
@@ -343,13 +341,8 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                     </thead>
                     <tbody className="divide-y divide-border/60">
                       {preview.map((r) => (
-                        <tr
-                          key={r.storeId}
-                          className="hover:bg-secondary/40 transition-colors"
-                        >
-                          <td className="px-5 py-3 font-semibold text-foreground">
-                            {r.storeName}
-                          </td>
+                        <tr key={r.storeId} className="hover:bg-secondary/40 transition-colors">
+                          <td className="px-5 py-3 font-semibold text-foreground">{r.storeName}</td>
                           <td className="px-4 py-3 text-end font-mono num font-semibold text-emerald-600 dark:text-emerald-400">
                             +{r.summary.productsAdded}
                           </td>
@@ -387,9 +380,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                 <ul className="divide-y divide-border/60">
                   {results.map((r) => (
                     <li key={r.storeId} className="px-5 py-3 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-foreground">
-                        {r.storeName}
-                      </span>
+                      <span className="text-sm font-semibold text-foreground">{r.storeName}</span>
                       {r.ok ? (
                         <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md border text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20 flex items-center gap-1">
                           <Check size={11} /> {t('catalogPush.pushed')}

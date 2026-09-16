@@ -2,7 +2,14 @@ import type { FormEvent, RefObject } from 'react';
 import { ModalShell } from '../shared/ModalShell';
 import type { TFunction } from 'i18next';
 import { Check, Edit2, Image as ImageIcon, Layers, PackagePlus, Plus, X } from 'lucide-react';
-import type { Category, ModifierGroup, Product, ProductVariant, StoreSettings, VariantType } from '../../types';
+import type {
+  Category,
+  ModifierGroup,
+  Product,
+  ProductVariant,
+  StoreSettings,
+  VariantType,
+} from '../../types';
 import { VariantsEditor } from './VariantsEditor';
 import { ModifiersEditor } from './ModifiersEditor';
 
@@ -291,7 +298,8 @@ export function ProductFormModal({
           {/* Asset settings */}
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2 border-b border-border/60 pb-2">
-              <ImageIcon size={14} className="text-muted-foreground" /> {t('inventory.sectionMedia')}
+              <ImageIcon size={14} className="text-muted-foreground" />{' '}
+              {t('inventory.sectionMedia')}
             </h4>
             <label
               htmlFor="form-prod-image"

@@ -306,8 +306,8 @@ export default function App() {
     badge?: number;
   }> = [
     { id: 'register', label: t('sidebar.register'), icon: ShoppingBag },
-    { id: 'tables', label: t('sidebar.tables', { defaultValue: 'Tables' }), icon: Grid3X3 },
-    { id: 'kitchen', label: t('sidebar.kitchen', { defaultValue: 'Kitchen' }), icon: ChefHat },
+    { id: 'tables', label: t('sidebar.tables'), icon: Grid3X3 },
+    { id: 'kitchen', label: t('sidebar.kitchen'), icon: ChefHat },
     { id: 'dashboard', label: t('sidebar.dashboard'), icon: BarChart3 },
     {
       id: 'inventory',
@@ -419,13 +419,20 @@ export default function App() {
                       }`}
                     >
                       <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
-                        <Icon size={15} className={isSel ? 'text-background' : 'text-muted-foreground'} />
+                        <Icon
+                          size={15}
+                          className={isSel ? 'text-background' : 'text-muted-foreground'}
+                        />
                         <span>{item.label}</span>
                       </div>
                       {item.badge !== undefined && (
-                        <span className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
-                          isSel ? 'bg-background/20 text-background' : 'bg-muted text-muted-foreground border border-border'
-                        }`}>
+                        <span
+                          className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                            isSel
+                              ? 'bg-background/20 text-background'
+                              : 'bg-muted text-muted-foreground border border-border'
+                          }`}
+                        >
                           {item.badge}
                         </span>
                       )}

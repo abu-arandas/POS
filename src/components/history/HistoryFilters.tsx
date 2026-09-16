@@ -105,7 +105,8 @@ export function HistoryFilters({
                   : 'bg-background border-border text-muted-foreground hover:text-foreground hover:bg-secondary'
               }`}
             >
-              <PaymentIcon method={method} /> <span className="uppercase text-[11px]">{method}</span>
+              <PaymentIcon method={method} />{' '}
+              <span className="uppercase text-[11px]">{method}</span>
             </button>
           ))}
         </div>

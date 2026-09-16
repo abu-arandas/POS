@@ -44,7 +44,9 @@ function ElapsedTimer({ createdAt }: { createdAt: string }) {
   }
 
   return (
-    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-mono text-xs font-semibold ${colorClass}`}>
+    <div
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-mono text-xs font-semibold ${colorClass}`}
+    >
       <Clock size={12} />
       <span>{timeStr}</span>
     </div>
@@ -66,7 +68,9 @@ export function KitchenDisplay() {
   const kitchenStations = useSettingsStore((s) => s.kitchenStations);
 
   // Status filtering
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'preparing' | 'ready'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'preparing' | 'ready'>(
+    'all',
+  );
 
   // The service chime belongs here, not in the store. addTicket() runs inside
   // commitSale — that is the CASHIER's tab, so ringing it there meant the
@@ -85,7 +89,9 @@ export function KitchenDisplay() {
       if (statusFilter !== 'all' && ticket.status !== statusFilter) return false;
       if (activeStationFilter !== 'all') {
         const hasStationItem = ticket.items.some(
-          (item) => item.stationName?.toLowerCase() === activeStationFilter.toLowerCase() || item.stationId === activeStationFilter,
+          (item) =>
+            item.stationName?.toLowerCase() === activeStationFilter.toLowerCase() ||
+            item.stationId === activeStationFilter,
         );
         if (!hasStationItem) return false;
       }
@@ -103,7 +109,7 @@ export function KitchenDisplay() {
   const handleRecall = () => {
     const restored = recallTicket();
     if (restored) {
-      notify(t('kds.ticketRecalled', { defaultValue: `Recalled ticket ${restored.orderNumber}` }));
+      notify(t('kds.ticketRecalled'));
     }
   };
 
@@ -117,16 +123,12 @@ export function KitchenDisplay() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-semibold text-base tracking-tight">
-                {t('kds.title', { defaultValue: 'Kitchen Display System' })}
-              </h1>
+              <h1 className="font-semibold text-base tracking-tight">{t('kds.title')}</h1>
               <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-secondary text-muted-foreground border border-border">
                 {stats.total} active
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              {t('kds.subtitle', { defaultValue: 'Live ticket management, timer countdowns & station routing' })}
-            </p>
+            <p className="text-[11px] text-muted-foreground">{t('kds.subtitle')}</p>
           </div>
         </div>
 
@@ -140,7 +142,7 @@ export function KitchenDisplay() {
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {t('kds.all', { defaultValue: 'All' })} ({stats.total})
+            {t('kds.all')} ({stats.total})
           </button>
           <button
             onClick={() => setStatusFilter('pending')}
@@ -151,7 +153,7 @@ export function KitchenDisplay() {
             }`}
           >
             <span className="size-2 rounded-full bg-slate-400" />
-            {t('kds.new', { defaultValue: 'New' })} ({stats.pending})
+            {t('kds.new')} ({stats.pending})
           </button>
           <button
             onClick={() => setStatusFilter('preparing')}
@@ -162,7 +164,7 @@ export function KitchenDisplay() {
             }`}
           >
             <span className="size-2 rounded-full bg-blue-500 animate-ping" />
-            {t('kds.cooking', { defaultValue: 'Cooking' })} ({stats.preparing})
+            {t('kds.cooking')} ({stats.preparing})
           </button>
           <button
             onClick={() => setStatusFilter('ready')}
@@ -173,7 +175,7 @@ export function KitchenDisplay() {
             }`}
           >
             <span className="size-2 rounded-full bg-emerald-500" />
-            {t('kds.ready', { defaultValue: 'Ready' })} ({stats.ready})
+            {t('kds.ready')} ({stats.ready})
           </button>
         </div>
 
@@ -181,7 +183,7 @@ export function KitchenDisplay() {
         <div className="flex items-center gap-2">
           <button
             onClick={toggleAutoSound}
-            title={autoSound ? 'Chime sound on' : 'Chime sound off'}
+            title={autoSound ? t('kds.soundOn') : t('kds.soundOff')}
             className={`size-9 rounded-xl border flex items-center justify-center transition-colors ${
               autoSound
                 ? 'bg-primary/10 border-primary/20 text-primary'
@@ -201,7 +203,7 @@ export function KitchenDisplay() {
             }`}
           >
             <RotateCcw size={13} />
-            <span>{t('kds.recall', { defaultValue: 'Recall Last' })}</span>
+            <span>{t('kds.recall')}</span>
             {recentlyBumped.length > 0 && (
               <span className="text-[10px] font-mono opacity-60">({recentlyBumped.length})</span>
             )}
@@ -213,7 +215,7 @@ export function KitchenDisplay() {
       {kitchenStations.length > 0 && (
         <div className="px-6 py-2 border-b border-border/60 bg-muted/20 flex items-center gap-2 overflow-x-auto">
           <span className="text-[11px] font-mono uppercase text-muted-foreground me-1">
-            {t('kds.station', { defaultValue: 'Station' })}:
+            {t('kds.station')}:
           </span>
           <button
             onClick={() => setActiveStationFilter('all')}
@@ -223,7 +225,7 @@ export function KitchenDisplay() {
                 : 'bg-card border border-border text-muted-foreground hover:text-foreground'
             }`}
           >
-            {t('kds.allStations', { defaultValue: 'All Stations' })}
+            {t('kds.allStations')}
           </button>
           {kitchenStations.map((station) => (
             <button
@@ -249,14 +251,9 @@ export function KitchenDisplay() {
               <Utensils size={28} />
             </div>
             <h3 className="font-semibold text-lg text-foreground mb-1">
-              {t('kds.noTicketsTitle', { defaultValue: 'Kitchen All Clear!' })}
+              {t('kds.noTicketsTitle')}
             </h3>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              {t(
-                'kds.noTicketsDesc',
-                { defaultValue: 'No active kitchen tickets in this view. New dine-in, takeaway, and delivery orders will appear here automatically.' },
-              )}
-            </p>
+            <p className="text-sm text-muted-foreground max-w-sm">{t('kds.noTicketsDesc')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-max">
@@ -291,19 +288,21 @@ export function KitchenDisplay() {
                         {ticket.orderType === 'dine_in' && (
                           <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                             <Utensils size={10} />
-                            {ticket.tableNumber ? `Table ${ticket.tableNumber}` : 'Dine-In'}
+                            {ticket.tableNumber
+                              ? t('kds.table', { number: ticket.tableNumber })
+                              : t('kds.dineIn')}
                           </span>
                         )}
                         {ticket.orderType === 'takeaway' && (
                           <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                             <ShoppingBag size={10} />
-                            Takeaway
+                            {t('kds.takeaway')}
                           </span>
                         )}
                         {ticket.orderType === 'delivery' && (
                           <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                             <Truck size={10} />
-                            Delivery
+                            {t('kds.delivery')}
                           </span>
                         )}
                       </div>
@@ -315,10 +314,14 @@ export function KitchenDisplay() {
                     {(ticket.customerName || ticket.serverName) && (
                       <div className="px-3.5 py-1.5 border-b border-border/40 text-[11px] text-muted-foreground flex items-center justify-between">
                         {ticket.customerName && (
-                          <span className="truncate">Guest: {ticket.customerName}</span>
+                          <span className="truncate">
+                            {t('kds.guest', { name: ticket.customerName })}
+                          </span>
                         )}
                         {ticket.serverName && (
-                          <span className="truncate opacity-75">Server: {ticket.serverName}</span>
+                          <span className="truncate opacity-75">
+                            {t('kds.server', { name: ticket.serverName })}
+                          </span>
                         )}
                       </div>
                     )}
@@ -351,9 +354,13 @@ export function KitchenDisplay() {
                                 )}
                               </div>
                             </div>
-                            <div className={`size-5 rounded border flex items-center justify-center transition-colors ${
-                              item.completed ? 'bg-primary border-primary text-primary-foreground' : 'border-border'
-                            }`}>
+                            <div
+                              className={`size-5 rounded border flex items-center justify-center transition-colors ${
+                                item.completed
+                                  ? 'bg-primary border-primary text-primary-foreground'
+                                  : 'border-border'
+                              }`}
+                            >
                               {item.completed && <Check size={12} className="stroke-3" />}
                             </div>
                           </div>
@@ -382,7 +389,7 @@ export function KitchenDisplay() {
 
                       {ticket.notes && (
                         <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs">
-                          <span className="font-semibold">Note:</span> {ticket.notes}
+                          <span className="font-semibold">{t('kds.note')}</span> {ticket.notes}
                         </div>
                       )}
                     </div>
@@ -402,19 +409,19 @@ export function KitchenDisplay() {
                         {isPending && (
                           <>
                             <Flame size={14} />
-                            <span>{t('kds.startCooking', { defaultValue: 'Start Cooking' })}</span>
+                            <span>{t('kds.startCooking')}</span>
                           </>
                         )}
                         {isPreparing && (
                           <>
                             <CheckCircle2 size={14} />
-                            <span>{t('kds.markReady', { defaultValue: 'Mark Ready' })}</span>
+                            <span>{t('kds.markReady')}</span>
                           </>
                         )}
                         {isReady && (
                           <>
                             <Check size={14} className="stroke-3" />
-                            <span>{t('kds.bumpComplete', { defaultValue: 'Bump / Complete' })}</span>
+                            <span>{t('kds.bumpComplete')}</span>
                           </>
                         )}
                       </button>

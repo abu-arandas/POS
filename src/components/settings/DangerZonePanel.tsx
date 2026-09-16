@@ -54,7 +54,9 @@ export function DangerZonePanel({
                 <h4 className="text-xs font-semibold text-foreground">
                   {t('settings.resetToDefaults', 'Reset to Defaults')}
                 </h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{t('settings.resetToDefaultsHint')}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {t('settings.resetToDefaultsHint')}
+                </p>
               </div>
               <button
                 onClick={onResetDefaults}

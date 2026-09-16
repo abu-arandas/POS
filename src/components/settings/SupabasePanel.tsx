@@ -125,9 +125,7 @@ export function SupabasePanel({
         </div>
 
         <div className="rounded-xl border border-border p-4 bg-secondary/15">
-          <p className="text-[11px] text-muted-foreground mb-3">
-            {t('settings.deviceAuthHint')}
-          </p>
+          <p className="text-[11px] text-muted-foreground mb-3">{t('settings.deviceAuthHint')}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label

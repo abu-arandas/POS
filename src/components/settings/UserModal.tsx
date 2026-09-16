@@ -125,9 +125,7 @@ export function UserModal({
             onChange={(e) => onUserActiveChange(e.target.checked)}
             className="size-4 rounded border-border text-foreground focus:ring-foreground accent-foreground"
           />
-          <span className="text-xs font-medium text-foreground">
-            {t('settings.statusActive')}
-          </span>
+          <span className="text-xs font-medium text-foreground">{t('settings.statusActive')}</span>
         </label>
         <div className="flex justify-end gap-2 pt-3 border-t border-border">
           <button

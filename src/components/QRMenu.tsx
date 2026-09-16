@@ -98,9 +98,7 @@ export default function QRMenu() {
           <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-1">
             {t('qrmenu.scanToOrder')}
           </h3>
-          <p className="text-muted-foreground text-xs mb-6">
-            {t('qrmenu.scanHint')}
-          </p>
+          <p className="text-muted-foreground text-xs mb-6">{t('qrmenu.scanHint')}</p>
 
           {!menuHost.running && (
             <p

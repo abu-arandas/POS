@@ -95,9 +95,7 @@ export const useTableStore = create<TableStore>()(
 
       reserveTable: (tableId) => {
         set((state) => ({
-          tables: state.tables.map((t) =>
-            t.id === tableId ? { ...t, status: 'reserved' } : t,
-          ),
+          tables: state.tables.map((t) => (t.id === tableId ? { ...t, status: 'reserved' } : t)),
         }));
       },
 

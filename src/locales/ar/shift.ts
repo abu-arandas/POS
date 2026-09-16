@@ -24,4 +24,11 @@ export const shift = {
   closedBy: 'أغلقها',
   openedAt: 'وقت الفتح',
   closedAt: 'وقت الإغلاق',
+  cashMovement: 'حركة نقدية في الدرج',
+  invalidAmount: 'الرجاء إدخال مبلغ نقدي صالح.',
+  reasonRequired: 'الرجاء إدخال سبب هذه الحركة النقدية.',
+  payInRecorded: 'تم تسجيل إيداع بقيمة {{amount}}',
+  payOutRecorded: 'تم تسجيل مصروف بقيمة {{amount}}',
+  copiedToClipboard: 'تم نسخ التقرير',
+  cashMovementHint: 'تدقيق النثرية وتعديلات رصيد درج النقد',
 };

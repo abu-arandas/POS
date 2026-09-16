@@ -65,12 +65,8 @@ export async function pushProducts(
         'modifiers sync between terminals.',
     );
     const withoutOptional = records.map(
-      ({
-        variant_types: _types,
-        variants: _variants,
-        modifier_groups: _modifiers,
-        ...rest
-      }) => rest,
+      ({ variant_types: _types, variants: _variants, modifier_groups: _modifiers, ...rest }) =>
+        rest,
     );
     const retry = await client.from('products').upsert(withoutOptional);
     if (retry.error) throw retry.error;

@@ -156,9 +156,7 @@ export default function History() {
               <h2 className="font-sans font-semibold tracking-tight text-foreground text-xl">
                 {t('history.transactionLogs')}
               </h2>
-              <p className="text-muted-foreground text-xs mt-0.5">
-                {t('history.auditPastOrders')}
-              </p>
+              <p className="text-muted-foreground text-xs mt-0.5">{t('history.auditPastOrders')}</p>
             </div>
           </div>
           <button

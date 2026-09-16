@@ -309,9 +309,7 @@ export default function Lockscreen() {
           <div className="size-9 flex items-center justify-center">
             <Logo size={36} title="Arandas IT Solutions" />
           </div>
-          <span className="font-mono text-xl font-bold tracking-tight text-foreground">
-            EA POS
-          </span>
+          <span className="font-mono text-xl font-bold tracking-tight text-foreground">EA POS</span>
         </div>
         <p className="text-xs text-muted-foreground font-medium">{t('lockscreen.subtitle')}</p>
       </motion.div>
@@ -407,9 +405,7 @@ export default function Lockscreen() {
                       >
                         <div className="flex items-center gap-3">
                           {/* Avatar */}
-                          <div
-                            className="w-9 h-9 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight shrink-0"
-                          >
+                          <div className="w-9 h-9 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight shrink-0">
                             {getInitials(user.name)}
                           </div>
                           <div>
@@ -454,18 +450,14 @@ export default function Lockscreen() {
                   </button>
                   <div className="flex items-center gap-2">
                     <div className="text-end">
-                      <p className="text-foreground text-xs font-semibold">
-                        {selectedUser.name}
-                      </p>
+                      <p className="text-foreground text-xs font-semibold">{selectedUser.name}</p>
                       <span
                         className={`text-[9px] font-mono uppercase tracking-wider ${roleCfg.badge} px-1.5 py-0.2 rounded border inline-block mt-0.5`}
                       >
                         {selectedUser.role}
                       </span>
                     </div>
-                    <div
-                      className="w-7 h-7 rounded-md bg-foreground text-background flex items-center justify-center font-bold text-[11px] shrink-0"
-                    >
+                    <div className="w-7 h-7 rounded-md bg-foreground text-background flex items-center justify-center font-bold text-[11px] shrink-0">
                       {getInitials(selectedUser.name)}
                     </div>
                   </div>
@@ -590,7 +582,9 @@ export default function Lockscreen() {
           transition={{ delay: 0.5 }}
           className="mt-6 z-10 bg-card/80 border border-border rounded-xl px-4 py-2 text-center"
         >
-          <p className="text-muted-foreground font-mono text-[10px]">{t('lockscreen.defaultPins')}</p>
+          <p className="text-muted-foreground font-mono text-[10px]">
+            {t('lockscreen.defaultPins')}
+          </p>
           <div className="flex gap-3 justify-center mt-1">
             {[
               ['Admin', '1234', 'text-foreground'],

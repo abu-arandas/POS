@@ -8,7 +8,9 @@ let audioCtx: AudioContext | null = null;
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
   if (!audioCtx) {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (AudioCtx) {
       audioCtx = new AudioCtx();
     }
@@ -53,7 +55,11 @@ export function playKeySound(): void {
 
     osc.start();
     osc.stop(ctx.currentTime + 0.04);
-  } catch {}
+  } catch {
+    // Audio is a nicety, never a blocker: a browser that refuses to build an
+    // AudioContext (autoplay policy, no output device, a locked-down kiosk)
+    // must not stop a sale going through.
+  }
 }
 
 /**
@@ -80,7 +86,11 @@ export function playCartSound(): void {
 
     osc.start();
     osc.stop(ctx.currentTime + 0.09);
-  } catch {}
+  } catch {
+    // Audio is a nicety, never a blocker: a browser that refuses to build an
+    // AudioContext (autoplay policy, no output device, a locked-down kiosk)
+    // must not stop a sale going through.
+  }
 }
 
 /**
@@ -111,7 +121,11 @@ export function playKitchenBell(): void {
       osc.start(start);
       osc.stop(start + duration);
     });
-  } catch {}
+  } catch {
+    // Audio is a nicety, never a blocker: a browser that refuses to build an
+    // AudioContext (autoplay policy, no output device, a locked-down kiosk)
+    // must not stop a sale going through.
+  }
 }
 
 /**
@@ -146,7 +160,11 @@ export function playSuccessChime(): void {
       osc.start(time);
       osc.stop(time + 0.4);
     });
-  } catch {}
+  } catch {
+    // Audio is a nicety, never a blocker: a browser that refuses to build an
+    // AudioContext (autoplay policy, no output device, a locked-down kiosk)
+    // must not stop a sale going through.
+  }
 }
 
 /**
@@ -173,5 +191,9 @@ export function playErrorSound(): void {
 
     osc.start();
     osc.stop(ctx.currentTime + 0.15);
-  } catch {}
+  } catch {
+    // Audio is a nicety, never a blocker: a browser that refuses to build an
+    // AudioContext (autoplay policy, no output device, a locked-down kiosk)
+    // must not stop a sale going through.
+  }
 }

@@ -52,14 +52,9 @@ export function InventoryPurchaseOrdersTab({
         </tr>
       ) : (
         purchaseOrders.map((po) => (
-          <tr
-            key={po.id}
-            className="hover:bg-muted/40 transition-colors border-b border-border/50"
-          >
+          <tr key={po.id} className="hover:bg-muted/40 transition-colors border-b border-border/50">
             <td className="py-3 px-4">
-              <span className="font-mono font-medium text-foreground block text-xs">
-                {po.id}
-              </span>
+              <span className="font-mono font-medium text-foreground block text-xs">{po.id}</span>
               <span className="text-[10px] text-muted-foreground font-mono mt-0.5 block">
                 {new Date(po.createdAt).toLocaleString()}
                 {po.createdBy && <> · {po.createdBy}</>}

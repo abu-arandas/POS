@@ -63,10 +63,17 @@ export function ModifierPickerModal({
   const modifierDelta = useMemo(() => calculateModifierPriceDelta(selections), [selections]);
   const totalPrice = basePrice + modifierDelta;
 
-  const toggleOption = (groupId: string, groupName: string, optionId: string, optionName: string, priceDelta: number, maxSelections?: number) => {
+  const toggleOption = (
+    groupId: string,
+    groupName: string,
+    optionId: string,
+    optionName: string,
+    priceDelta: number,
+    maxSelections?: number,
+  ) => {
     setSelections((prev) => {
       const isSelected = prev.some((s) => s.groupId === groupId && s.optionId === optionId);
-      
+
       if (isSelected) {
         return prev.filter((s) => !(s.groupId === groupId && s.optionId === optionId));
       }
@@ -108,9 +115,7 @@ export function ModifierPickerModal({
           <h3 id="modifier-picker-title" className="font-semibold text-foreground text-sm truncate">
             {product.name}
           </h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            {t('register.customizeItem')}
-          </p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{t('register.customizeItem')}</p>
         </div>
         <button
           onClick={onClose}
@@ -132,11 +137,11 @@ export function ModifierPickerModal({
                   {group.name}
                   {group.minSelections && group.minSelections > 0 ? (
                     <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                      {t('common.required', 'Required')}
+                      {t('common.required')}
                     </span>
                   ) : (
                     <span className="text-[10px] font-mono text-muted-foreground">
-                      {t('common.optional', 'Optional')}
+                      {t('common.optional')}
                     </span>
                   )}
                 </span>
@@ -179,7 +184,7 @@ export function ModifierPickerModal({
                           ? `+${settings.currency}${opt.priceDelta.toFixed(2)}`
                           : opt.priceDelta < 0
                             ? `-${settings.currency}${Math.abs(opt.priceDelta).toFixed(2)}`
-                            : t('register.included', 'Included')}
+                            : t('register.included')}
                       </span>
                     </button>
                   );
@@ -193,7 +198,7 @@ export function ModifierPickerModal({
         <div className="pt-4 border-t border-border flex items-center justify-between gap-3">
           <div>
             <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block">
-              {t('register.total', 'Total')}
+              {t('register.total')}
             </span>
             <span className="text-lg font-mono num font-semibold text-foreground">
               {settings.currency}
@@ -202,12 +207,8 @@ export function ModifierPickerModal({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-secondary h-9 px-4 text-xs"
-            >
-              {t('common.cancel', 'Cancel')}
+            <button type="button" onClick={onClose} className="btn-secondary h-9 px-4 text-xs">
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -216,7 +217,7 @@ export function ModifierPickerModal({
               className="btn-primary h-9 px-4 text-xs flex items-center gap-1.5"
             >
               <Plus size={14} />
-              {t('register.addToCart', 'Add to Cart')}
+              {t('register.addToCart')}
             </button>
           </div>
         </div>

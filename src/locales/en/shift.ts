@@ -24,4 +24,11 @@ export const shift = {
   closedBy: 'Closed By',
   openedAt: 'Opened',
   closedAt: 'Closed',
+  cashMovement: 'Drawer Cash Movement',
+  invalidAmount: 'Please enter a valid cash amount.',
+  reasonRequired: 'Please provide a reason for this cash movement.',
+  payInRecorded: 'Recorded deposit of {{amount}}',
+  payOutRecorded: 'Recorded expense of {{amount}}',
+  copiedToClipboard: 'Report copied to clipboard',
+  cashMovementHint: 'Petty cash audit & cash drawer float adjustments',
 };

@@ -6,9 +6,7 @@ import { CashMovement, SaleTransaction } from '../types';
  */
 export function netCashMovements(movements: readonly CashMovement[]): number {
   return Number(
-    movements
-      .reduce((sum, m) => sum + (m.type === 'pay_in' ? m.amount : -m.amount), 0)
-      .toFixed(2),
+    movements.reduce((sum, m) => sum + (m.type === 'pay_in' ? m.amount : -m.amount), 0).toFixed(2),
   );
 }
 

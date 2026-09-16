@@ -18,6 +18,8 @@ import { inventory } from './inventory';
 import { history } from './history';
 import { customers } from './customers';
 import { categories } from './categories';
+import { kds } from './kds';
+import { tables } from './tables';
 
 export const ar = {
   translation: {
@@ -41,5 +43,7 @@ export const ar = {
     history,
     customers,
     categories,
+    kds,
+    tables,
   },
 } as const;
