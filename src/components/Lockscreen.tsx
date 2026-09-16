@@ -10,6 +10,7 @@ import { shortId } from '../lib/utils/ids';
 import { usePinAttemptStore } from '../stores/pinAttemptStore';
 import { lockoutStatus, formatRemaining, FREE_ATTEMPTS } from '../lib/pinThrottle';
 import { useTranslation } from 'react-i18next';
+import { playErrorSound, playKeySound } from '../lib/audioFeedback';
 
 const ROLE_CONFIG = {
   admin: {
@@ -74,6 +75,7 @@ export default function Lockscreen() {
   }, [lockout.locked]);
 
   const rejectPin = useCallback(() => {
+    playErrorSound();
     setError(true);
     setPin('');
     setTimeout(() => setError(false), 900);
@@ -249,6 +251,7 @@ export default function Lockscreen() {
     async (num: string) => {
       if (error || checking || lockout.locked) return;
       if (pin.length >= 4) return;
+      playKeySound();
       const nextPin = pin + num;
       setPin(nextPin);
       if (nextPin.length === 4 && selectedUser) await attemptSignIn(selectedUser, nextPin);

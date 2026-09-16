@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { cashKept, summarizeShift } from '../../src/lib/shiftReport';
-import { SaleTransaction } from '../../src/types';
+import { cashKept, netCashMovements, summarizeShift } from '../../src/lib/shiftReport';
+import { CashMovement, SaleTransaction } from '../../src/types';
 
 const sale = (over: Partial<SaleTransaction>): SaleTransaction => ({
   id: 'TX',
@@ -106,5 +106,49 @@ describe('summarizeShift', () => {
     expect(s.cashSales).toBe(20);
     expect(s.cashRefunds).toBe(10);
     expect(s.expectedCash(0)).toBe(10); // 0 + 20 cash - 10 refund
+  });
+});
+
+const movement = (over: Partial<CashMovement>): CashMovement => ({
+  id: 'cm',
+  shiftId: 'shift-1',
+  type: 'pay_out',
+  amount: 0,
+  reason: 'test',
+  performedBy: 'Ada',
+  createdAt: '2026-07-16T10:00:00.000Z',
+  ...over,
+});
+
+describe('petty cash movements', () => {
+  it('nets pay-ins against pay-outs', () => {
+    expect(
+      netCashMovements([
+        movement({ type: 'pay_in', amount: 100 }),
+        movement({ type: 'pay_out', amount: 30 }),
+        movement({ type: 'pay_out', amount: 12.5 }),
+      ]),
+    ).toBe(57.5);
+  });
+
+  it('counts nothing when there are no movements', () => {
+    expect(netCashMovements([])).toBe(0);
+  });
+
+  /**
+   * The Shift screen added the movements to expectedCash() itself while the
+   * printed Z-report called expectedCash() alone, so the figure on screen and
+   * the figure on the document that reconciles the drawer disagreed by exactly
+   * the net movement. Taking them as a parameter is what stops that recurring:
+   * a caller that forgets them now reads as a caller that has none.
+   */
+  it('moves the expected drawer total, so screen and Z-report cannot disagree', () => {
+    const cashSale = sale({ paymentMethod: 'cash', total: 40, cashPaid: 50, cashChange: 10 });
+    const summary = summarizeShift([cashSale]);
+
+    expect(summary.expectedCash(100)).toBe(140);
+    expect(summary.expectedCash(100, [])).toBe(140);
+    expect(summary.expectedCash(100, [movement({ type: 'pay_out', amount: 25 })])).toBe(115);
+    expect(summary.expectedCash(100, [movement({ type: 'pay_in', amount: 25 })])).toBe(165);
   });
 });

@@ -176,4 +176,6 @@ export const settings = {
   customerDisplay: 'شاشة العميل',
   customerDisplayHint: 'تفتح نافذة ثانية تعرض الطلب للعميل. انقلها إلى الشاشة الثانية.',
   openCustomerDisplay: 'فتح الشاشة',
+  soundEffects: 'المؤثرات الصوتية',
+  soundEffectsHint: 'أصوات إضافة الأصناف ولوحة الأرقام ونغمة إتمام البيع وجرس المطبخ.',
 };

@@ -91,6 +91,41 @@ describe('pullProducts', () => {
     ]);
   });
 
+  it('keeps variant and modifier JSON through the round trip', async () => {
+    // A pull REPLACES local products, so a field the mapper drops is not a
+    // stale read — it is that field deleted on every terminal. modifier_groups
+    // was missing from this mapper entirely.
+    const groups = [{ id: 'mg', name: 'Sauce', minSelections: 1, maxSelections: 1, options: [] }];
+    const variants = [{ id: 'v-l', options: { 'vt-size': 'o-l' }, sku: 'SKU1-L', stock: 3 }];
+    const { client } = makeProductClient([
+      {
+        data: [
+          {
+            ...productRow('1'),
+            variant_types: [{ id: 'vt-size', name: 'Size', options: [] }],
+            variants,
+            modifier_groups: groups,
+          },
+        ],
+      },
+      { data: [] },
+    ]);
+
+    const result = await pullProducts(client);
+
+    expect(result?.[0].variants).toEqual(variants);
+    expect(result?.[0].modifierGroups).toEqual(groups);
+  });
+
+  it('leaves variant and modifier keys off entirely when the columns are null', async () => {
+    const { client } = makeProductClient([{ data: [productRow('1')] }, { data: [] }]);
+
+    const result = await pullProducts(client);
+
+    expect(result?.[0]).not.toHaveProperty('variants');
+    expect(result?.[0]).not.toHaveProperty('modifierGroups');
+  });
+
   it('carries the last id forward as the cursor, so offsets cannot shift', async () => {
     // Offset paging re-counts from the start of the result on every request, so
     // a sale rung up mid-pull slides a row across the page boundary and it is

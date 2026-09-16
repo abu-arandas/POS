@@ -487,25 +487,3 @@ export interface CashMovement {
   performedBy: string;
   createdAt: string;
 }
-
-export interface PromoCode {
-  code: string;
-  discountType: 'percentage' | 'fixed';
-  value: number;
-  minOrderTotal?: number;
-  maxUses?: number;
-  usedCount: number;
-  expiresAt?: string;
-  enabled: boolean;
-}
-
-export interface HappyHourRule {
-  id: string;
-  name: string;
-  discountPercentage: number;
-  daysOfWeek: number[]; // 0 = Sun, 1 = Mon ...
-  startTime: string; // "17:00"
-  endTime: string; // "20:00"
-  enabled: boolean;
-  categoryIds?: string[];
-}

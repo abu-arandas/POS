@@ -88,6 +88,8 @@ export default function Settings() {
     setAutoScanPrinters,
     showProductImages,
     setShowProductImages,
+    soundEffects,
+    setSoundEffects,
     storeId,
     setStoreId,
   } = useSettingsStore();
@@ -687,6 +689,8 @@ export default function Settings() {
                   emailTemplate={emailTemplate}
                   showProductImages={showProductImages}
                   onShowProductImagesChange={setShowProductImages}
+                  soundEffects={soundEffects}
+                  onSoundEffectsChange={setSoundEffects}
                   onUpdateSetting={handleUpdateSetting}
                   onLanguageChange={setLanguage}
                   onEmailTemplateChange={setEmailTemplate}

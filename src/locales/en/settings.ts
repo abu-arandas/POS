@@ -177,4 +177,6 @@ export const settings = {
   customerDisplayHint:
     'Opens a second window that mirrors the register for the customer. Move it to your second screen.',
   openCustomerDisplay: 'Open display',
+  soundEffects: 'Sound effects',
+  soundEffectsHint: 'Cart blips, keypad ticks, the checkout chime and the kitchen bell.',
 };

@@ -9,6 +9,7 @@ import {
   variantPrice,
 } from '../../lib/variants';
 import { calculateModifierPriceDelta, modifierSignature } from '../../lib/modifiers';
+import { playCartSound } from '../../lib/audioFeedback';
 import type { SelectedModifier } from '../../types';
 
 export type RegisterDiscountType = 'none' | 'percentage' | 'fixed' | 'loyalty';
@@ -144,6 +145,7 @@ export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
       // cannot sell a large.
       const stock = availableStock(product, variant?.id);
       if (stock <= 0) return;
+      playCartSound();
       const key = cartLineKey({ product, variant, modifiers });
       setCart((previous) => {
         const existingIndex = previous.findIndex((item) => cartLineKey(item) === key);

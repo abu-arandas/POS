@@ -52,6 +52,7 @@ import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
 import { askConfirmation, askText, notify } from '../lib/utils/ui';
 import { broadcastCfdUpdate } from '../lib/cfdChannel';
+import { playErrorSound, playSuccessChime } from '../lib/audioFeedback';
 import { cartLineKey } from './register/useRegisterCart';
 
 /**
@@ -209,12 +210,14 @@ export default function Register() {
       if (!product) product = products.find((p) => p.sku.toLowerCase() === norm);
 
       if (!product) {
+        playErrorSound();
         setScanFeedback({ ok: false, text: t('register.scanNotFound', { code }) });
         return;
       }
       const label = variant ? variantLabel(product, variant) : '';
       const name = label ? `${product.name} — ${label}` : product.name;
       if (availableStock(product, variant?.id) <= 0) {
+        playErrorSound();
         setScanFeedback({ ok: false, text: `${name} — ${t('register.outOfStock')}` });
         return;
       }
@@ -441,6 +444,7 @@ export default function Register() {
 
     const { transaction, isCashSale } = result.sale;
 
+    playSuccessChime();
     setActiveReceipt(transaction);
     setReceiptPrinted(false);
     setCheckoutModalOpen(false);

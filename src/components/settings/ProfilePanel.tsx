@@ -10,7 +10,9 @@ export interface ProfilePanelProps {
   language: 'en' | 'ar';
   emailTemplate: ReceiptEmailTemplate;
   showProductImages: boolean;
+  soundEffects: boolean;
   onShowProductImagesChange(value: boolean): void;
+  onSoundEffectsChange(value: boolean): void;
   onUpdateSetting(key: keyof StoreSettings, value: string | number): void;
   onLanguageChange(value: 'en' | 'ar'): void;
   onEmailTemplateChange(value: ReceiptEmailTemplate): void;
@@ -26,7 +28,9 @@ export function ProfilePanel({
   language,
   emailTemplate,
   showProductImages,
+  soundEffects,
   onShowProductImagesChange,
+  onSoundEffectsChange,
   onUpdateSetting,
   onLanguageChange,
   onEmailTemplateChange,
@@ -175,6 +179,26 @@ export function ProfilePanel({
                 </span>
                 <span className="block text-[11px] text-muted-foreground mt-0.5">
                   {t('settings.showProductImagesHint')}
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="flex items-start gap-3 p-3.5 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
+              <input
+                id="set-sound-effects"
+                type="checkbox"
+                checked={soundEffects}
+                onChange={(e) => onSoundEffectsChange(e.target.checked)}
+                className="size-4 mt-0.5 rounded border-border text-foreground focus:ring-foreground shrink-0 accent-foreground"
+              />
+              <span>
+                <span className="block text-xs font-semibold text-foreground">
+                  {t('settings.soundEffects')}
+                </span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">
+                  {t('settings.soundEffectsHint')}
                 </span>
               </span>
             </label>

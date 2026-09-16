@@ -33,6 +33,11 @@ interface SettingsState {
   // photography. Product.image is untouched either way, so switching this on
   // brings back whatever was already set.
   showProductImages: boolean;
+  // Feedback sounds: the cart blip, the PIN keypad tick, the error bump, the
+  // checkout chime and the kitchen bell. On by default — a busy counter reads
+  // a sound faster than a toast — but a quiet room wants it off, and it is a
+  // per-terminal preference like the printer, not an account setting.
+  soundEffects: boolean;
   // This terminal's store id for multi-store cloud scoping (see
   // src/db/multi-store-schema.sql). Empty = single-store mode: sync behaves exactly
   // as before (no store_id stamped or filtered).
@@ -50,6 +55,7 @@ interface SettingsState {
   setKitchenLayout: (layout: ReceiptLayout) => void;
   setAutoScanPrinters: (on: boolean) => void;
   setShowProductImages: (on: boolean) => void;
+  setSoundEffects: (on: boolean) => void;
   setStoreId: (storeId: string) => void;
   setDarkMode: (darkMode: boolean) => void;
   setLanguage: (lang: 'en' | 'ar') => void;
@@ -139,6 +145,7 @@ export const useSettingsStore = create<SettingsState>()(
       kitchenLayout: defaultKitchenLayout(),
       autoScanPrinters: true,
       showProductImages: false,
+      soundEffects: true,
       storeId: '',
       // Dark-first: the whole UI is designed for a dark canvas. New terminals
       // start dark and stay cohesive; a saved light preference is restored on
@@ -156,6 +163,7 @@ export const useSettingsStore = create<SettingsState>()(
       setKitchenLayout: (kitchenLayout) => set({ kitchenLayout }),
       setAutoScanPrinters: (autoScanPrinters) => set({ autoScanPrinters }),
       setShowProductImages: (showProductImages) => set({ showProductImages }),
+      setSoundEffects: (soundEffects) => set({ soundEffects }),
       setStoreId: (storeId) => set({ storeId }),
       setDarkMode: (darkMode) => {
         // Apply the theme class immediately; without this the `dark:` variants

@@ -277,3 +277,32 @@ describe('pushing to a database whose variant migration has not run', () => {
     error.mockRestore();
   });
 });
+
+describe('modifier group column', () => {
+  const withModifiers = {
+    ...product,
+    modifierGroups: [
+      {
+        id: 'mg-sauce',
+        name: 'Sauce',
+        minSelections: 1,
+        maxSelections: 1,
+        options: [{ id: 'mo-bbq', name: 'BBQ', priceDelta: 0.5 }],
+      },
+    ],
+  };
+
+  it('sends the groups as a JSON column', () => {
+    expect(toProductRow(withModifiers).modifier_groups).toEqual(withModifiers.modifierGroups);
+  });
+
+  /**
+   * This column did not exist, in the table or in either direction of the sync.
+   * Because a pull REPLACES local products, every Pull From Cloud — and every
+   * realtime product event, which calls the same pull — rebuilt each product
+   * without its modifier groups and silently erased them.
+   */
+  it('writes NULL for a product with no groups rather than omitting the column', () => {
+    expect(toProductRow(product).modifier_groups).toBeNull();
+  });
+});
