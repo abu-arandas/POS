@@ -121,6 +121,16 @@ export default function ShiftScreen() {
     const movements = cashMovements.filter((m) => m.shiftId === shift.id);
     const s = summarizeShift(txns);
     const expected = s.expectedCash(shift.openingFloat, movements);
+    // Printed as their own rows, not just folded into EXPECTED CASH. Without
+    // them the document does not reconcile on its face: float plus cash sales
+    // minus refunds does not reach the expected figure, and nothing on the page
+    // accounts for the difference.
+    const payIns = movements
+      .filter((m) => m.type === 'pay_in')
+      .reduce((sum, m) => sum + m.amount, 0);
+    const payOuts = movements
+      .filter((m) => m.type === 'pay_out')
+      .reduce((sum, m) => sum + m.amount, 0);
     const counted = shift.countedCash ?? 0;
     const w = openDetachedPrintWindow();
     if (!w) return;
@@ -153,6 +163,8 @@ export default function ShiftScreen() {
       ${row('CASH REFUNDS', c + s.cashRefunds.toFixed(2))}
       <div class="divider"></div>
       ${row('OPENING FLOAT', c + shift.openingFloat.toFixed(2))}
+      ${payIns > 0 ? row('PAY-INS', c + payIns.toFixed(2)) : ''}
+      ${payOuts > 0 ? row('PAY-OUTS', c + payOuts.toFixed(2)) : ''}
       ${row('EXPECTED CASH', c + expected.toFixed(2))}
       ${shift.closedAt ? row('COUNTED CASH', c + counted.toFixed(2)) : ''}
       ${shift.closedAt ? `<div class="flex-row bold"><span>VARIANCE</span><span>${esc(c + (counted - expected).toFixed(2))}</span></div>` : ''}

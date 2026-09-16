@@ -12,6 +12,7 @@ import {
 import { INITIAL_SETTINGS } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
 import { defaultReceiptLayout, defaultKitchenLayout } from '../lib/printing/receiptFormat';
+import type { Locale } from '../lib/i18n';
 
 interface SettingsState {
   settings: StoreSettings;
@@ -43,7 +44,7 @@ interface SettingsState {
   // as before (no store_id stamped or filtered).
   storeId: string;
   darkMode: boolean;
-  language: 'en' | 'ar';
+  language: Locale;
 
   setSettings: (settings: StoreSettings) => void;
   setPrinterConfig: (config: PrinterConfig) => void;
@@ -58,7 +59,7 @@ interface SettingsState {
   setSoundEffects: (on: boolean) => void;
   setStoreId: (storeId: string) => void;
   setDarkMode: (darkMode: boolean) => void;
-  setLanguage: (lang: 'en' | 'ar') => void;
+  setLanguage: (lang: Locale) => void;
 }
 
 /**

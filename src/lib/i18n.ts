@@ -12,8 +12,9 @@ export const resources = {
   ar,
 } as const;
 
+/** The languages the app ships catalogues for. Derived from `resources`, so
+ *  adding a locale there is the only edit a new language needs. */
 export type Locale = keyof typeof resources;
-export type TranslationResources = typeof resources;
 
 i18n.use(initReactI18next).init({
   resources,

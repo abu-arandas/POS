@@ -107,7 +107,11 @@ export default function Customers() {
       name: custName.trim(),
       phone: custPhone.trim(),
       email: custEmail.trim(),
-      points: parseInt(custPoints, 10) || 0,
+      // Floored at zero, as updateCustomerPoints does on every other path into
+      // this field. The edit form is the one place a balance is set directly
+      // rather than moved by a delta, and it accepted "-50" — a negative
+      // balance no sale can work off and no redemption can reach.
+      points: Math.max(0, parseInt(custPoints, 10) || 0),
     };
 
     if (editingCustomer) {

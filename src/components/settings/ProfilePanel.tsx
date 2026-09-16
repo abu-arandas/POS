@@ -3,18 +3,19 @@ import { Mail, RotateCcw } from 'lucide-react';
 import type { StoreSettings, ReceiptEmailTemplate } from '../../types';
 import { safeImageUrl } from '../../lib/imageUrl';
 import { DEFAULT_EMAIL_TEMPLATE } from '../../stores/settingsStore';
+import type { Locale } from '../../lib/i18n';
 
 export interface ProfilePanelProps {
   t: TFunction;
   settings: StoreSettings;
-  language: 'en' | 'ar';
+  language: Locale;
   emailTemplate: ReceiptEmailTemplate;
   showProductImages: boolean;
   soundEffects: boolean;
   onShowProductImagesChange(value: boolean): void;
   onSoundEffectsChange(value: boolean): void;
   onUpdateSetting(key: keyof StoreSettings, value: string | number): void;
-  onLanguageChange(value: 'en' | 'ar'): void;
+  onLanguageChange(value: Locale): void;
   onEmailTemplateChange(value: ReceiptEmailTemplate): void;
 }
 
@@ -291,7 +292,7 @@ export function ProfilePanel({
               <select
                 id="set-language"
                 value={language}
-                onChange={(e) => onLanguageChange(e.target.value as 'en' | 'ar')}
+                onChange={(e) => onLanguageChange(e.target.value as Locale)}
                 className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
               >
                 <option value="en">{t('settings.english')}</option>
