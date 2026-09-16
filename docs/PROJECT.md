@@ -170,14 +170,12 @@ POS/
 │   ├── locales/{en,ar}/         20 translation namespaces each
 │   ├── components/              screens + register/ inventory/ settings/ history/ shared/
 │   ├── db/                      SQL schemas and the Supabase seeder
-│   ├── build/                   bundle-budget guard
-│   └── e2e/                     Playwright end-to-end suite
+│   └── build/                   bundle-budget guard
 ├── electron/                    main, preload, and 4 pure decision modules + menu.html
-├── test/                        95 Vitest files (lib, stores, components, services, a11y, i18n, styles)
 ├── docs/                        security notes and this file
 ├── public/                      favicons
 ├── buildResources/              Electron app icons
-└── .github/workflows/           ci.yml, build-windows.yml, cleanup-runs.yml
+└── .github/workflows/           build-windows.yml, cleanup-runs.yml
 ```
 
 ---
@@ -684,11 +682,9 @@ the setting appeared to work and did nothing:
    to the printer, and `onload`/`onerror` do not cover an image that reports neither — that
    promise would stay pending forever and the receipt would never be sent.
 
-`test/lib/printing/receipt/rendererConsistency.test.ts` walks all eighteen toggles and asserts
-HTML and DocRow descriptions agree on whether each block is present. The renderers may
-differ in _how_ they draw a block — one has CSS, the other has dots — but never in
-_whether_. `htmlCharacterization.test.ts` snapshots the exact markup, including the 46
-`.ltr` spans that keep numerals from reordering on an Arabic receipt.
+The renderers may differ in _how_ they draw a block — one has CSS, the other has dots — but
+never in _whether_. Nothing enforces that now, so a toggle added to one renderer and not the
+other will ship: add it to all three paths in the same change.
 
 `escposRaster.ts` is the pure half:
 
@@ -1221,7 +1217,7 @@ hits so repeated scans cannot accumulate stale entries.
 `.font-arabic` (Cairo). The layout uses logical properties (`ps-`, `pe-`, `border-s-`) so it
 mirrors without per-direction overrides.
 
-**`test/i18n/keyCoverage.test.ts` enforces three rules:**
+**Three rules the catalogue has to satisfy, now by hand:**
 
 1. every `t('a.b')` in `src/` resolves in English,
 2. every English key has an Arabic counterpart,
@@ -1260,14 +1256,12 @@ entry.
   drifts) plus `@media (prefers-reduced-motion: reduce)`. React animation goes through
   `<MotionConfig reducedMotion="user">`.
 
-**`test/styles/deadClasses.test.ts`** asserts that every class the stylesheet defines is
-named somewhere the app can reach. The stylesheet had accumulated 38 component classes
+**Every class the stylesheet defines should be named somewhere the app can reach**, though
+nothing checks it any more. The stylesheet had accumulated 38 component classes
 nothing rendered any more — gradient text, neon borders, a skeleton loader, a whole
 z-report table — plus the 19 `@keyframes` only they animated: ~5 KB shipped to every
 terminal, and worse, a reader could not tell which of two similar-looking classes the app
-actually used. The test parses only selector preludes (scanning the whole file would collect
-`woff2` from a `@font-face` URL) and strips comments repeatedly, because one pass can splice
-neighbouring delimiters into a fresh surviving comment.
+actually used.
 
 ---
 
@@ -1510,8 +1504,8 @@ because a PIN set on one terminal has to reach the others; since every terminal 
 Supabase device account, the database cannot tell an admin's terminal from a cashier's, and
 role enforcement for that lives in the app. Treat the device account as the store's
 credential, scope it per store, rotate it when a terminal is lost.
-`test/db/schemaContract.test.ts` locks the grant shape down in CI and
-`src/db/verify-policies.sql` checks it against a live database.
+`src/db/verify-policies.sql` checks the grant shape against a live database; nothing checks
+it at build time, so run it after touching either SQL file.
 
 Both the view and the grants are built inside a `DO` block that detects whether `store_id`
 exists, because re-running this file on a fleet deployment broke twice over:
@@ -1684,8 +1678,6 @@ and port 9100 only.
 | `portable`                | `vite build --config vite.portable.config.ts` → `portable/index.html` |
 | `lint`                    | `tsc --noEmit && eslint .`                                            |
 | `format` / `format:check` | Prettier                                                              |
-| `test` / `test:coverage`  | Vitest                                                                |
-| `test:e2e`                | Playwright                                                            |
 | `perf:check`              | `node src/build/check-bundle-budget.mjs`                              |
 | `electron:dev`            | `concurrently` Vite + Electron with `wait-on`                         |
 | `electron:build`          | `vite build && electron-builder --config electron-builder.config.cjs` |
@@ -1712,12 +1704,11 @@ transpiles.
 
 ### ESLint (flat config)
 
-Four scoped blocks: TS/TSX with react-hooks and react-refresh; `electron/**/*.cjs` (which
+Two scoped blocks: TS/TSX with react-hooks and react-refresh; and `electron/**/*.cjs` (which
 had been excluded entirely, leaving the most privileged code in the project — IPC handlers,
 the PowerShell spawn, the navigation lockdown, the auto-updater — checked by nothing but a
-syntax pass); Node-context configs and e2e; and `test/**` with `no-explicit-any` off,
-because tests mock large third-party surfaces. **Production code under `src/` carries zero
-`any`.** CI runs `eslint . --max-warnings 0`.
+syntax pass). **Production code under `src/` carries zero `any`.** Run
+`eslint . --max-warnings 0`.
 
 ### electron-builder
 
@@ -1731,58 +1722,30 @@ path taken, so an unsigned build is never mistaken for a signed one in CI output
 
 ## 17. Testing
 
-### Unit and component — Vitest
+The project carries **no automated tests**. The Vitest suite under `test/`, the Playwright
+specs under `src/e2e/`, and their configs were removed deliberately; `git log` has them if
+they are ever wanted back.
 
-95 files under `test/`, mirroring `src/`. Environment `jsdom`; `test/setup.ts` loads
-`fake-indexeddb/auto` (stores persist through idb-keyval), `@testing-library/jest-dom`,
-real i18n so `t()` returns English strings, an explicit `cleanup()` (auto-cleanup only
-registers itself with vitest globals enabled, which they are not), and stubs
-`offsetWidth`/`offsetHeight` to 1 because jsdom has no layout engine and `useModalA11y`
-filters focusables by them.
+What that costs is worth stating plainly, because the guards were not only regression nets —
+several encoded invariants that nothing else in the repo expresses: every `t()` key resolving
+in both locales, every CSS class the stylesheet defines being reachable, the two receipt
+renderers agreeing on which blocks exist, the SQL grants never exposing the PIN hash, and
+every repository path named in a comment still resolving. Those rules still hold; they are
+now maintained by reading.
 
-Coverage (v8) includes `src/lib/**`, `src/stores/**` and `src/components/**`. The Vitest
-`include` is scoped to `test/**` so it can never collect a Playwright spec, whose `test()`
-and `expect()` come from a different runner.
-
-| Area                              | Files                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/lib/`                       | 48 files — pricing, checkout, refunds, payments, shift/PO/fleet reports, ESC/POS text + raster, receipt doc/format/layout/printer, hardware print, printer discovery, kitchen routing, barcode, CSV, digital receipts, product labels, purchase orders, hashing, PIN throttle, access, validation, ids, concurrency, image URLs, modal a11y, barcode scanner, sync, realtime sync, Supabase client/paging/store-stamping/device sign-in, fleet client, catalog push, store form, and the Electron pure modules (`menuServer`, `updatePolicy`, `validation`, `windowsSigning`) |
-| `test/stores/`                    | product, shift, supply, dialog                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `test/components/`                | Register, CartPanel, History, Inventory, Lockscreen, plus the two extracted hooks                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `test/a11y/formLabels.test.tsx`   | Accessible-name algorithm for initial screens and controls revealed in Settings, Inventory, Customers and receipt-layout surfaces                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `test/i18n/keyCoverage.test.ts`   | The three catalogue rules                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `test/styles/deadClasses.test.ts` | Every defined CSS class is reachable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-
-The Electron pure modules exist in their own `.cjs` files **precisely so they can be
-tested** — CI otherwise only reaches `main.cjs` through `node --check`.
-
-### End-to-end — Playwright
-
-`src/e2e/checkout.spec.ts` drives the real app across Chromium, Firefox and WebKit: PIN login,
-adding to the cart, card checkout, cash checkout with change, and role-based navigation. The
-config boots the Vite dev server automatically, retries twice in CI, records a trace on
-first retry and a screenshot on failure.
-
-Note that `npm run test:e2e` runs all three projects. Installing only Chromium leaves the
-other two failing with _"Executable doesn't exist"_, which reads like a broken test rather
-than a missing browser — iterate with `npm run test:e2e -- --project=chromium`.
+The checks that remain are `npm run lint` (`tsc --noEmit && eslint .`), `npm run format:check`,
+`npm run build`, and `npm run perf:check` for the bundle budget. The Electron pure modules
+(`menuServer`, `updatePolicy`, `validation`, `windowsSigning`) still live in their own `.cjs`
+files, which is now only a separation-of-concerns benefit — `main.cjs` is reached by
+`node --check` alone, a parse and nothing more.
 
 ---
 
 ## 18. CI/CD
 
-### `ci.yml` — on push to main and every PR
-
-`checks` job (Node 22, 20-minute timeout): `npm ci` → `npm audit --audit-level=high` →
-`tsc --noEmit && eslint` → `eslint . --max-warnings 0` → `prettier --check` → Vitest →
-`vite build` → bundle budget → `node --check` on all six Electron/seed files → a config
-smoke test asserting the unsigned path claims **no** publisher and the appId is unchanged.
-
-`e2e` job (30-minute timeout): installs all three browser engines and runs Playwright,
-uploading the HTML report as an artifact with 7-day retention.
-
-Concurrency cancels superseded **pull-request** runs only — a run on `main` is the record
-for that commit and is left to finish.
+There is no general `ci.yml`; it was removed with the test suites. Nothing runs `tsc`,
+`eslint`, `prettier` or the bundle budget on a push — run them locally before opening a
+pull request. The two workflows below remain.
 
 ### `build-windows.yml` — on push to main, PRs, and manual dispatch
 
@@ -1921,8 +1884,11 @@ A budget failure should trigger a fresh bundle analysis, not an arbitrary limit 
 12. **No credential belongs in source.** `DEFAULT_SUPABASE` is blank and sync is off by
     default. A build that ships a device password ships it to everyone holding the installer,
     and `partialize` keeping it out of IndexedDB buys nothing if the bundle carries it.
-13. **A wall-clock assertion needs a fixed zone.** `vitest.config.ts` pins `TZ=UTC`; a
-    receipt snapshot regenerated in another zone fails for everyone else.
+13. **A calendar day is a local day.** `new Date().toISOString().slice(0, 10)` names the
+    _UTC_ day: at UTC+3 it files the first three hours of every night under yesterday, and
+    at UTC-5 it stamps an evening with tomorrow. Use `localDateKey()` from
+    `src/lib/utils/dates.ts`, which is what the dashboard's own `toDateString()` bucketing
+    already agrees with.
 
 ### Adding things
 

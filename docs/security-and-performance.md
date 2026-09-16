@@ -67,19 +67,16 @@ Run the following commands from the repository root after dependency or renderer
 ```bash
 npm ci
 npm run lint
-npm test
 npm run build
 npm audit --omit=dev
 npm audit --audit-level=high
 ```
 
-The focused security tests are:
-
-```bash
-npm test -- --run test/lib/checkout.test.ts test/lib/ids.test.ts test/lib/printing/printWindow.test.ts
-```
-
-The end-to-end suite additionally exercises the browser checkout and role-navigation flows. Electron packaging and physical printer/network hardware should be verified in the supported desktop and device environment before release.
+The security-sensitive paths — checkout arithmetic, identifier generation and the
+escaping used by the detached print window — carry no automated coverage, so changes
+to them need manual verification. Electron packaging and physical printer/network
+hardware should be verified in the supported desktop and device environment before
+release.
 
 ## Residual considerations
 
