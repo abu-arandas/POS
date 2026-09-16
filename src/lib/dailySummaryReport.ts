@@ -1,6 +1,15 @@
+/**
+ * Builds the end-of-day summary as plain text, and the handful of ways an
+ * operator sends it on (WhatsApp, email, clipboard).
+ *
+ * Plain text on purpose: the summary is read on a phone as often as on the
+ * terminal, and it has to survive being pasted into a chat window unchanged.
+ */
 import { SaleTransaction, Shift, CashMovement } from '../types';
 import { summarizeShift } from './shiftReport';
 
+/** Everything the summary needs; `shift` and `cashMovements` are absent when
+ * the day ran without an opened shift. */
 export interface DailySummaryData {
   storeName: string;
   currency: string;
@@ -10,6 +19,10 @@ export interface DailySummaryData {
   cashMovements?: CashMovement[];
 }
 
+/**
+ * Renders the day's summary. Tallies come from `summarizeShift` — the same
+ * function behind the Z-report — so the two documents cannot disagree.
+ */
 export function generateDailySummaryText(data: DailySummaryData): string {
   const { storeName, currency, date, transactions, shift, cashMovements = [] } = data;
 
@@ -22,8 +35,7 @@ export function generateDailySummaryText(data: DailySummaryData): string {
   const totalTax = transactions.reduce((s, tx) => s + (tx.tax || 0), 0);
   const totalDiscount = transactions.reduce((s, tx) => s + (tx.discount || 0), 0);
   const totalSales = summary.grossSales;
-  const cashSales = summary.cashSales;
-  const cardSales = summary.cardSales;
+  const { cashSales, cardSales } = summary;
   const otherSales = Number((summary.mobileSales + summary.giftSales).toFixed(2));
 
   // Product popularity
@@ -90,6 +102,11 @@ export function generateDailySummaryText(data: DailySummaryData): string {
   return lines.join('\n');
 }
 
+/**
+ * Opens WhatsApp with the summary pre-filled. `phone` is stripped to digits
+ * because wa.me rejects the spaces and punctuation operators actually type.
+ * Without a number, WhatsApp asks the operator to pick a recipient.
+ */
 export function shareToWhatsApp(text: string, phone?: string): void {
   const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
   const url = cleanPhone
@@ -98,12 +115,18 @@ export function shareToWhatsApp(text: string, phone?: string): void {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
+/** Hands the summary to the operator's mail client via a `mailto:` link. */
 export function shareViaEmail(subject: string, body: string, email?: string): void {
   const target = email || '';
   const url = `mailto:${target}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = url;
 }
 
+/**
+ * Copies the summary to the clipboard, reporting success rather than throwing.
+ * The clipboard API rejects on an insecure origin or without a user gesture,
+ * and the caller needs to show "copy failed" instead of an unhandled rejection.
+ */
 export async function copyReportToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);

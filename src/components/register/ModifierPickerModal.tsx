@@ -6,6 +6,7 @@ import { ModalShell } from '../shared/ModalShell';
 import { variantPrice } from '../../lib/variants';
 import { calculateModifierPriceDelta, validateModifierSelections } from '../../lib/modifiers';
 
+/** Props for {@link ModifierPickerModal}. */
 export interface ModifierPickerModalProps {
   product: Product;
   variant?: ProductVariant;
@@ -14,6 +15,13 @@ export interface ModifierPickerModalProps {
   onClose(): void;
 }
 
+/**
+ * Till-side modifier picker, shown when a product has modifier groups.
+ *
+ * `onConfirm` only fires once the selection satisfies every group's min/max
+ * rule, so the caller can add the line to the cart without re-validating —
+ * a half-configured line would price wrongly and reach the kitchen incomplete.
+ */
 export function ModifierPickerModal({
   product,
   variant,

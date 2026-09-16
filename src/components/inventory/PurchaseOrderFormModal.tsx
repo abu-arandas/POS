@@ -174,7 +174,7 @@ export function PurchaseOrderFormModal({
                     onChange={(e) => onLineChange(idx, { unitCost: e.target.value })}
                     aria-label={t('inventory.poUnitCost')}
                     placeholder="0.00"
-                    className="w-full bg-transparent px-2 py-2 text-sm text-foreground font-mono focus:outline-none"
+                    className="w-full bg-transparent p-2 text-sm text-foreground font-mono focus:outline-none"
                   />
                 </div>
                 <button

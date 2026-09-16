@@ -150,7 +150,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
       <nav
         id="sidebar-navigation"
         aria-label={t('sidebar.mainNavigation')}
-        className="flex-1 px-3 py-3 space-y-1 overflow-y-auto scrollbar-none"
+        className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-none"
       >
         {allowedItems.map((item) => {
           const Icon = item.icon;
@@ -230,7 +230,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
             className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-7 h-7 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 flex items-center justify-center font-bold text-[10px] shrink-0">
+              <div className="size-7 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 flex items-center justify-center font-bold text-[10px] shrink-0">
                 {getInitials(currentUser.name)}
               </div>
               <div className="min-w-0">

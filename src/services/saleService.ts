@@ -246,7 +246,7 @@ export function commitSale(request: CheckoutRequest): CommitSaleResult {
   // station filter has something to match. Without it every item arrived with
   // no stationId or stationName and selecting any station showed an empty
   // board, while the routing rules the printed tickets already use sat unused.
-  const kitchenStations = useSettingsStore.getState().kitchenStations;
+  const { kitchenStations } = useSettingsStore.getState();
   if (kitchenStations.length > 0) {
     try {
       const categoryOf = (productId: string) => liveById.get(productId)?.category;

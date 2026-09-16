@@ -487,7 +487,7 @@ export default function ShiftScreen() {
                           value={countedCash}
                           onChange={(e) => setCountedCash(e.target.value)}
                           placeholder="0.00"
-                          className="flex-1 bg-transparent border-none px-2 py-2 font-mono num text-sm font-semibold text-foreground focus:outline-none"
+                          className="flex-1 bg-transparent border-none p-2 font-mono num text-sm font-semibold text-foreground focus:outline-none"
                         />
                       </div>
                     </div>

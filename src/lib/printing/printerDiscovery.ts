@@ -38,7 +38,7 @@ function webSerial(): WebSerialLike | undefined {
  * Whether this runtime exposes the Web Serial API.
  */
 export function serialSupported(): boolean {
-  return !!webSerial();
+  return Boolean(webSerial());
 }
 
 const hex = (n?: number) => {
@@ -108,7 +108,7 @@ export async function detectPrinters(): Promise<DetectedPrinter[]> {
  * Whether the host can scan the LAN for printers (desktop app only).
  */
 export function networkScanSupported(): boolean {
-  return !!window.electronAPI?.scanNetworkPrinters;
+  return Boolean(window.electronAPI?.scanNetworkPrinters);
 }
 
 /**

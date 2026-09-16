@@ -27,6 +27,13 @@ const COMMON_REASONS: Record<CashMovementType, string[]> = {
 
 const PRESET_AMOUNTS = [10, 20, 50, 100];
 
+/**
+ * Records a pay-in or pay-out against the open shift.
+ *
+ * Every movement is written through the shift store rather than adjusting a
+ * drawer total directly, so the Z-report reconciles counted cash against a
+ * movement it can name instead of an unexplained variance.
+ */
 export function CashMovementModal({
   initialType = 'pay_out',
   settings,

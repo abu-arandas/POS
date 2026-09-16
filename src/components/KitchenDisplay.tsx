@@ -53,6 +53,13 @@ function ElapsedTimer({ createdAt }: { createdAt: string }) {
   );
 }
 
+/**
+ * The kitchen display board: live tickets grouped by station, oldest first.
+ *
+ * Ticket state lives in the KDS store rather than here, so a reload mid-service
+ * or a second screen showing the same station both recover the real queue
+ * instead of an empty board.
+ */
 export function KitchenDisplay() {
   const { t } = useTranslation();
   const tickets = useKdsStore((s) => s.tickets);

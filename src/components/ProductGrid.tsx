@@ -215,7 +215,7 @@ const SortableProductCard = memo(function SortableProductCard({
             <img
               src={imageUrl}
               alt={prod.name}
-              className={`w-full h-full object-cover transition-transform duration-300 ${isUnavailable ? '' : 'group-hover:scale-105'}`}
+              className={`size-full object-cover transition-transform duration-300 ${isUnavailable ? '' : 'group-hover:scale-105'}`}
               referrerPolicy="no-referrer"
               onError={() => setImgError(true)}
             />

@@ -85,6 +85,14 @@ function menuPrice(product: Product): { price: number; priceFrom?: boolean } {
   return { price: cheapest, priceFrom: candidates.some((price) => price !== cheapest) };
 }
 
+/**
+ * Root shell: owns the active screen, the mobile nav, and the auth gate.
+ *
+ * Screen access is decided in one place (`canView`) rather than at each call
+ * site, so a role that loses a permission loses the sidebar entry, the keyboard
+ * shortcut and the rendered screen together instead of keeping a reachable
+ * route behind a hidden button.
+ */
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentScreen, setScreen] = useState<ScreenId>('register');
@@ -226,7 +234,7 @@ export default function App() {
   // A screen is viewable if the terminal role allows it AND, for the super-admin
   // Fleet board, the cloud account resolved as a super-admin.
   const canView = (screen: ScreenId): boolean =>
-    !!currentUser &&
+    currentUser !== null &&
     isScreenAllowed(screen, currentUser.role) &&
     (screen !== 'fleet' || isSuperadmin);
 

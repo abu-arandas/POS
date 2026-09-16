@@ -92,7 +92,7 @@ export function CategoryFormModal({
                     : 'border-border bg-background text-muted-foreground hover:bg-secondary/50'
                 }`}
               >
-                <div className={`w-4 h-4 rounded-full ${colorOption.bg}`}></div>
+                <div className={`size-4 rounded-full ${colorOption.bg}`}></div>
                 <span>{colorOption.label}</span>
               </button>
             ))}

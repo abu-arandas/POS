@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import type { ModifierGroup, ModifierOption, StoreSettings } from '../../types';
 import { shortId } from '../../lib/utils/ids';
 
+/** Props for {@link ModifiersEditor}. */
 export interface ModifiersEditorProps {
   t: TFunction;
   settings: StoreSettings;
@@ -11,6 +12,13 @@ export interface ModifiersEditorProps {
   onChange: (groups: ModifierGroup[]) => void;
 }
 
+/**
+ * Back-office editor for a product's modifier groups (size, extras, doneness).
+ *
+ * Fully controlled: it never mutates `modifierGroups`, it hands a new array to
+ * `onChange`, so the owning form keeps a single source of truth and its dirty
+ * check keeps working.
+ */
 export function ModifiersEditor({ t, settings, modifierGroups, onChange }: ModifiersEditorProps) {
   const addGroup = useCallback(() => {
     const newGroup: ModifierGroup = {

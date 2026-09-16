@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { Product, ProductVariant, StoreSettings } from '../../types';
+import type { Product, ProductVariant, SelectedModifier, StoreSettings } from '../../types';
 import { calculateOrderTotals } from '../../lib/pricing';
 import {
   availableStock,
@@ -10,7 +10,6 @@ import {
 } from '../../lib/variants';
 import { calculateModifierPriceDelta, modifierSignature } from '../../lib/modifiers';
 import { playCartSound } from '../../lib/audioFeedback';
-import type { SelectedModifier } from '../../types';
 
 export type RegisterDiscountType = 'none' | 'percentage' | 'fixed' | 'loyalty';
 

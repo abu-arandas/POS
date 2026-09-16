@@ -649,7 +649,7 @@ export default function Settings() {
                 {isActive && (
                   <motion.div
                     layoutId="settingsTabIndicator"
-                    className={`absolute bottom-0 left-0 right-0 h-0.5 ${tab.danger ? 'bg-destructive' : 'bg-foreground'}`}
+                    className={`absolute inset-x-0 bottom-0 h-0.5 ${tab.danger ? 'bg-destructive' : 'bg-foreground'}`}
                     initial={false}
                     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />
