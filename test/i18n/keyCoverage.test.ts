@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
@@ -161,5 +161,41 @@ describe('i18n catalogue', () => {
       walk(tree);
     }
     expect(blank).toEqual([]);
+  });
+});
+
+// A namespace file that exists but is never registered in locales/<loc>/index.ts
+// is invisible to every rule above: its keys are not in `en`, so rule 3 cannot
+// call them unreachable, and any t() that asks for one fails rule 1 with a
+// message about a missing key rather than a missing import — which sends you
+// looking in the wrong file. Three namespaces (kds, tables, cfd) were added by
+// hand recently; the fourth is the one that gets forgotten.
+describe('locale namespaces', () => {
+  const localeDir = (locale: string) => join(REPO_ROOT, 'src', 'locales', locale);
+
+  for (const locale of ['en', 'ar'] as const) {
+    it(`registers every ${locale} namespace file in its index`, () => {
+      const files = readdirSync(localeDir(locale))
+        .filter((f) => f.endsWith('.ts') && f !== 'index.ts')
+        .map((f) => f.replace(/\.ts$/, ''))
+        .sort();
+      const index = readFileSync(join(localeDir(locale), 'index.ts'), 'utf8');
+      // Imported AND placed in the exported translation object — an import
+      // alone leaves the namespace just as unreachable.
+      const missing = files.filter(
+        (name) =>
+          !new RegExp(`import \\{ ${name} \\} from './${name}'`).test(index) ||
+          !new RegExp(`\\n\\s*${name},`).test(index),
+      );
+      expect(missing).toEqual([]);
+    });
+  }
+
+  it('ships the same namespaces in both locales', () => {
+    const names = (locale: string) =>
+      readdirSync(localeDir(locale))
+        .filter((f) => f.endsWith('.ts') && f !== 'index.ts')
+        .sort();
+    expect(names('ar')).toEqual(names('en'));
   });
 });
