@@ -4,25 +4,29 @@ This ledger records the Phase 4 baseline and the guards that should be run befor
 
 ## Phase 4 baseline
 
-| Signal                  |                                            Baseline | Command or source                      |
-| ----------------------- | --------------------------------------------------: | -------------------------------------- |
-| Unit test files         |                                          69 passing | `npm test`                             |
-| Unit tests              |                                         664 passing | `npm test`                             |
-| TypeScript and ESLint   | Passing; zero ESLint warnings after Phase 4 cleanup | `npm run lint`                         |
-| Formatting              |                                             Passing | `npm run format:check`                 |
-| Production build        |                                 6–7 seconds locally | `npm run build`                        |
-| Initial JavaScript      |              436,340 raw bytes / 136,540 gzip bytes | `npm run build` + `npm run perf:check` |
-| Initial CSS             |               113,788 raw bytes / 17,511 gzip bytes | `npm run build` + `npm run perf:check` |
-| Instrumented statements |                                              59.07% | `npm run test:coverage`                |
-| Instrumented branches   |                                              50.01% | `npm run test:coverage`                |
-| Instrumented functions  |                                              50.80% | `npm run test:coverage`                |
-| Instrumented lines      |                                              60.60% | `npm run test:coverage`                |
+| Signal                  |                                 Baseline | Command or source                      |
+| ----------------------- | ---------------------------------------: | -------------------------------------- |
+| Unit test files         |                               94 passing | `npm test`                             |
+| Unit tests              |                             1118 passing | `npm test`                             |
+| TypeScript and ESLint   | Passing; zero ESLint errors and warnings | `npm run lint`                         |
+| Formatting              |                                  Passing | `npm run format:check`                 |
+| Production build        |                      6–7 seconds locally | `npm run build`                        |
+| Initial JavaScript      |   478,980 raw bytes / 151,632 gzip bytes | `npm run build` + `npm run perf:check` |
+| Initial CSS             |    108,000 raw bytes / 16,408 gzip bytes | `npm run build` + `npm run perf:check` |
+| Instrumented statements |                                   62.62% | `npm run test:coverage`                |
+| Instrumented branches   |                                   53.73% | `npm run test:coverage`                |
+| Instrumented functions  |                                   54.35% | `npm run test:coverage`                |
+| Instrumented lines      |                                   64.04% | `npm run test:coverage`                |
 
-The initial JavaScript figure grew by 712 gzip bytes against the earlier
-433,690/135,819 baseline. That is the services layer (`src/services/`) plus the
-receipt logo path, and it buys a store logo that actually prints on a thermal
-printer and a set of money operations callable without a DOM. It leaves 63,460
+The initial JavaScript figure grew by 15,092 gzip bytes against the earlier
+436,340/136,540 baseline. That is the restaurant feature set — item modifiers,
+the kitchen display, table management, petty cash and the customer-facing
+display — together with the two locale namespaces they added. It leaves 48,368
 gzip bytes of headroom against the 200,000 budget.
+
+Initial CSS fell by 1,103 gzip bytes: 22 component classes and the five
+`@keyframes` only they animated had gone dead again and were removed (see the
+accessibility and dead-class guards below).
 
 Coverage is recorded as a baseline rather than raised to an artificial threshold in this phase because the current suite includes broad component coverage but also many hardware, cloud, and administrative branches that are intentionally integration-oriented. New business-logic hooks must still receive focused tests, and the full suite must remain green.
 

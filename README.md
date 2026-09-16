@@ -21,6 +21,18 @@ A modern, high-performance, cross-platform Point of Sale (POS) system built with
 - **Analytics Dashboard:** Date-range KPIs (today / 7d / 30d / all), revenue & profit trend, best-sellers, category and payment breakdowns, and a per-operator sales report — all exportable to CSV.
 - **Product Variants:** Sell one product in several option types at once — Size × Colour, Size × Flavour — where each combination is its own SKU, price and stock count. The register offers a picker, barcodes scan straight to a variant, shelf labels print one tag per combination, and the product's stock is simply the sum of its variants'.
 - **Inventory Depth:** Suppliers, a lightweight "receive stock" purchase-order flow, and a full stock-adjustment audit log.
+- **Item Modifiers:** Per-product add-on groups — Sauces, Doneness, Extras — with required and
+  multi-select rules and price deltas. Two of the same product with different modifiers stay
+  two cart lines.
+- **Kitchen Display System:** Sales raise live tickets routed to the station their category
+  belongs to, with elapsed timers, item-level ticking, a bump ladder and a recall buffer.
+  Only when kitchen stations are configured, so a retail counter raises none.
+- **Table Management:** A floor plan with occupied / bill-requested / reserved states, and
+  "open this table on the register".
+- **Petty Cash:** Pay-ins and pay-outs against the open drawer, carried into the Z-report.
+- **Customer-Facing Display:** A second window that mirrors the sale for the customer on the
+  counter's other screen. Open it from **Settings → Profile → Customer-facing display**; it
+  is driven over a `BroadcastChannel`, so it needs no network and no second install.
 - **Live Multi-Terminal Sync:** Optional Supabase cloud sync with realtime subscriptions, so a second register's changes appear automatically; cloud PIN login keeps staff accounts consistent across terminals.
 - **Cross-Platform & Standalone:** Runs perfectly in the browser (via Vite) or as a native downloadable `.exe` via Electron without the standard browser toolbars.
 
@@ -179,8 +191,9 @@ count against tomorrow.
 
 ## ☁️ Cloud Sync (Supabase, optional)
 
-The app runs fully offline by default (IndexedDB). To sync terminals through
-[Supabase](https://supabase.com):
+The app runs fully offline by default (IndexedDB), with cloud sync **off and
+unconfigured** — no URL, no key and no device credentials ship in a build. To sync
+terminals through [Supabase](https://supabase.com):
 
 1. Create a Supabase project and run `src/db/schema.sql` in the SQL Editor
    (Dashboard → SQL Editor). The schema is **secure by default**: Row Level
