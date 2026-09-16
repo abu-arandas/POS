@@ -106,11 +106,11 @@ export default function Lockscreen() {
   const handleFirstRunSetup = async () => {
     const name = setupName.trim();
     if (!name) {
-      setSetupError(t('lockscreen.setupNameRequired', 'Enter an administrator name.'));
+      setSetupError(t('lockscreen.setupNameRequired'));
       return;
     }
     if (!/^\d{4}$/.test(setupPin)) {
-      setSetupError(t('lockscreen.setupPinRequired', 'Choose a four-digit PIN.'));
+      setSetupError(t('lockscreen.setupPinRequired'));
       return;
     }
     const id = `user-${shortId()}`;
@@ -327,16 +327,16 @@ export default function Lockscreen() {
         {users.length === 0 ? (
           <div className="p-6">
             <h2 className="text-sm font-semibold text-foreground mb-1 text-center">
-              {t('lockscreen.setupTitle', 'Set up your administrator account')}
+              {t('lockscreen.setupTitle')}
             </h2>
             <p className="text-xs text-muted-foreground text-center mb-5">
-              {t('lockscreen.setupSubtitle', 'This terminal has no staff accounts yet.')}
+              {t('lockscreen.setupSubtitle')}
             </p>
             <label
               className="block text-xs font-medium text-muted-foreground mb-1.5"
               htmlFor="first-run-name"
             >
-              {t('lockscreen.setupName', 'Administrator name')}
+              {t('lockscreen.setupName')}
             </label>
             <input
               id="first-run-name"
@@ -349,7 +349,7 @@ export default function Lockscreen() {
               className="block text-xs font-medium text-muted-foreground mb-1.5"
               htmlFor="first-run-pin"
             >
-              {t('lockscreen.setupPin', 'Four-digit PIN')}
+              {t('lockscreen.setupPin')}
             </label>
             <input
               id="first-run-pin"
@@ -372,7 +372,7 @@ export default function Lockscreen() {
               onClick={handleFirstRunSetup}
               className="btn-primary mt-5 w-full py-2.5 rounded-xl text-xs font-medium"
             >
-              {t('lockscreen.setupButton', 'Create administrator')}
+              {t('lockscreen.setupButton')}
             </button>
           </div>
         ) : (

@@ -49,15 +49,11 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-              {i18n.t('errorBoundary.title', 'Something went wrong')}
+              {i18n.t('errorBoundary.title')}
             </h2>
 
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-8">
-              {this.state.error?.message ||
-                i18n.t(
-                  'errorBoundary.body',
-                  'An unexpected error occurred in the application view.',
-                )}
+              {this.state.error?.message || i18n.t('errorBoundary.body')}
             </p>
 
             <button
@@ -65,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
               className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-semibold transition-colors w-full justify-center"
             >
               <RefreshCw className="size-4" />
-              <span>{i18n.t('errorBoundary.reload', 'Reload Application')}</span>
+              <span>{i18n.t('errorBoundary.reload')}</span>
             </button>
           </div>
         </div>

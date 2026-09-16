@@ -696,9 +696,7 @@ export default function Register() {
             onClose={() => setHeldModalOpen(false)}
             onResume={resumeHeldOrder}
             onRemove={async (id) => {
-              if (
-                await askConfirmation(t('register.deleteHeldConfirm', 'Delete this held order?'))
-              ) {
+              if (await askConfirmation(t('register.deleteHeldConfirm'))) {
                 removeHeldOrder(id);
               }
             }}

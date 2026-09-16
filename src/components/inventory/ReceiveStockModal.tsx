@@ -212,7 +212,7 @@ export function ReceiveStockModal({
       </div>
       <ModalFooter
         cancelLabel={t('inventory.cancel')}
-        confirmLabel={t('inventory.confirmReceive', 'Confirm')}
+        confirmLabel={t('inventory.confirmReceive')}
         onCancel={onClose}
         onConfirm={onSubmit}
         confirmDisabled={!recvProductId || !recvQty || isNaN(parseInt(recvQty, 10))}

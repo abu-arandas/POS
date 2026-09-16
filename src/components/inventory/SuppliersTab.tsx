@@ -74,11 +74,7 @@ export function InventorySuppliersTab({
             <td className="py-3 px-4 text-end">
               <button
                 onClick={async () => {
-                  if (
-                    await askConfirmation(
-                      t('inventory.deleteSupplierConfirm', 'Delete this supplier?'),
-                    )
-                  ) {
+                  if (await askConfirmation(t('inventory.deleteSupplierConfirm'))) {
                     onDeleteSupplier(sup.id);
                   }
                 }}

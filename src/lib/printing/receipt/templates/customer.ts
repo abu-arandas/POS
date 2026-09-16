@@ -98,24 +98,16 @@ export function buildReceiptHtml(
   const logo = safeImageUrl(settings.storeLogo);
 
   const meta = [
-    S.date
-      ? pairRow(i18n.t('history.date', 'DATE:'), formatDateTime(d, L.dateFormat), { ltr: true })
-      : '',
+    S.date ? pairRow(i18n.t('history.date'), formatDateTime(d, L.dateFormat), { ltr: true }) : '',
     S.time
-      ? pairRow(
-          `${i18n.t('receiptCfg.tg_time', 'Time').toUpperCase()}:`,
-          formatDateTime(d, L.timeFormat),
-          { ltr: true },
-        )
+      ? pairRow(`${i18n.t('receiptCfg.tg_time').toUpperCase()}:`, formatDateTime(d, L.timeFormat), {
+          ltr: true,
+        })
       : '',
-    S.receiptNumber
-      ? pairRow(i18n.t('history.receipt', 'RECEIPT:'), tx.id, { bold: true, ltr: true })
-      : '',
-    S.operator && tx.operatorName
-      ? pairRow(i18n.t('history.operator', 'OPERATOR:'), tx.operatorName)
-      : '',
+    S.receiptNumber ? pairRow(i18n.t('history.receipt'), tx.id, { bold: true, ltr: true }) : '',
+    S.operator && tx.operatorName ? pairRow(i18n.t('history.operator'), tx.operatorName) : '',
     S.customer && tx.customerName
-      ? pairRow(i18n.t('history.member', 'MEMBER:'), tx.customerName, { bold: true })
+      ? pairRow(i18n.t('history.member'), tx.customerName, { bold: true })
       : '',
   ].join('');
 
@@ -127,7 +119,7 @@ export function buildReceiptHtml(
         : `<div class="item">${name}</div>`;
       const unit =
         S.priceColumn && S.itemUnitPrice && item.quantity > 1
-          ? `<div class="item-unit ltr">@ ${esc(money(item.price))} ${esc(i18n.t('register.each', 'ea'))}</div>`
+          ? `<div class="item-unit ltr">@ ${esc(money(item.price))} ${esc(i18n.t('register.each'))}</div>`
           : '';
       return line + unit;
     })
@@ -135,17 +127,17 @@ export function buildReceiptHtml(
 
   const totals = S.totals
     ? `<div class="totals">
-      ${pairRow(i18n.t('history.itemsUpper', 'ITEMS:'), String(itemCount), { muted: true, ltr: true })}
-      ${pairRow(i18n.t('history.subtotal', 'SUBTOTAL:'), money(tx.subtotal), { ltr: true })}
-      ${tx.discount > 0 ? pairRow(i18n.t('history.discount', 'DISCOUNT:'), `-${money(tx.discount)}`, { ltr: true }) : ''}
+      ${pairRow(i18n.t('history.itemsUpper'), String(itemCount), { muted: true, ltr: true })}
+      ${pairRow(i18n.t('history.subtotal'), money(tx.subtotal), { ltr: true })}
+      ${tx.discount > 0 ? pairRow(i18n.t('history.discount'), `-${money(tx.discount)}`, { ltr: true }) : ''}
       ${pairRow(`${taxLabel}:`, money(tx.tax), { ltr: true })}
-      <div class="flex-row total-row"><span>${esc(i18n.t('history.totalPaid', 'TOTAL PAID:'))}</span><span class="num ltr">${esc(money(tx.total))}</span></div>
-      ${tx.discount > 0 ? `<div class="center savings">${esc(i18n.t('history.savings', 'YOU SAVED'))} <span class="num ltr">${esc(money(tx.discount))}</span></div>` : ''}
+      <div class="flex-row total-row"><span>${esc(i18n.t('history.totalPaid'))}</span><span class="num ltr">${esc(money(tx.total))}</span></div>
+      ${tx.discount > 0 ? `<div class="center savings">${esc(i18n.t('history.savings'))} <span class="num ltr">${esc(money(tx.discount))}</span></div>` : ''}
     </div>`
     : '';
 
   const payment = S.paymentDetails
-    ? pairRow(i18n.t('history.payMethod', 'METHOD:'), payMethodLabel(tx.paymentMethod), {
+    ? pairRow(i18n.t('history.payMethod'), payMethodLabel(tx.paymentMethod), {
         bold: true,
       }) +
       (tx.payments && tx.payments.length > 1
@@ -163,8 +155,8 @@ export function buildReceiptHtml(
 
   const change =
     S.changeDue && isCash
-      ? pairRow(i18n.t('history.cashPaid', 'CASH PAID:'), money(tx.cashPaid ?? 0), { ltr: true }) +
-        pairRow(i18n.t('history.cashChange', 'CHANGE:'), money(tx.cashChange ?? 0), {
+      ? pairRow(i18n.t('history.cashPaid'), money(tx.cashPaid ?? 0), { ltr: true }) +
+        pairRow(i18n.t('history.cashChange'), money(tx.cashChange ?? 0), {
           bold: true,
           ltr: true,
         })
@@ -172,7 +164,7 @@ export function buildReceiptHtml(
 
   const loyalty =
     S.loyalty && tx.customerName && (tx.pointsEarned ?? 0) > 0
-      ? pairRow(i18n.t('history.pointsEarned', 'POINTS EARNED:'), String(tx.pointsEarned), {
+      ? pairRow(i18n.t('history.pointsEarned'), String(tx.pointsEarned), {
           bold: true,
           ltr: true,
         })
@@ -190,19 +182,19 @@ export function buildReceiptHtml(
       <div class="center store-meta">
         ${S.branchName && settings.branchName ? `<div>${esc(settings.branchName)}</div>` : ''}
         ${S.address && settings.storeAddress ? `<div>${esc(settings.storeAddress)}</div>` : ''}
-        ${S.phone && settings.storePhone ? `<div class="ltr">${esc(i18n.t('receipt.phone', 'Phone'))}: ${esc(settings.storePhone)}</div>` : ''}
-        ${S.taxNumber && settings.taxNumber ? `<div class="ltr">${esc(i18n.t('receipt.vat', 'VAT'))}: ${esc(settings.taxNumber)}</div>` : ''}
+        ${S.phone && settings.storePhone ? `<div class="ltr">${esc(i18n.t('receipt.phone'))}: ${esc(settings.storePhone)}</div>` : ''}
+        ${S.taxNumber && settings.taxNumber ? `<div class="ltr">${esc(i18n.t('receipt.vat'))}: ${esc(settings.taxNumber)}</div>` : ''}
       </div>`;
 
   const statusLines = `<div class="center uppercase status-line status-${esc(tx.status)}">${esc(i18n.t(`receipt.status_${tx.status}`, tx.status))}</div>
       ${
         tx.refundDate
-          ? `<div class="center muted">${esc(i18n.t('history.refund', 'REFUND:'))} <span class="ltr">${esc(formatDateTime(new Date(tx.refundDate), L.dateFormat))}</span></div>`
+          ? `<div class="center muted">${esc(i18n.t('history.refund'))} <span class="ltr">${esc(formatDateTime(new Date(tx.refundDate), L.dateFormat))}</span></div>`
           : ''
       }
       ${
         tx.refundAuthorizedBy
-          ? `<div class="center muted">${esc(i18n.t('history.refundAuthBy', 'REFUND AUTH:'))} ${esc(tx.refundAuthorizedBy)}</div>`
+          ? `<div class="center muted">${esc(i18n.t('history.refundAuthBy'))} ${esc(tx.refundAuthorizedBy)}</div>`
           : ''
       }`;
 

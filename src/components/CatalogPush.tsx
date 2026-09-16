@@ -329,7 +329,7 @@ export default function CatalogPush({ orgId }: CatalogPushProps) {
                           {t('catalogPush.colPrices')}
                         </th>
                         <th className="text-end px-4 py-2 font-medium">
-                          {t('catalogPush.colMetadata', 'Details')}
+                          {t('catalogPush.colMetadata')}
                         </th>
                         <th className="text-end px-4 py-2 font-medium">
                           {t('catalogPush.colCategories')}

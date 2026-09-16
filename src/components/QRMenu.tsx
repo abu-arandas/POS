@@ -85,7 +85,7 @@ export default function QRMenu() {
           className="btn-secondary h-8 px-3 text-xs gap-1.5"
         >
           <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
-          {t('common.refresh', 'Refresh')}
+          {t('common.refresh')}
         </button>
       </div>
 

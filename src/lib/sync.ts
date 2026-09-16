@@ -404,13 +404,7 @@ const deleteFromCloudIfEnabled = async (table: SyncTable, ids: string[]): Promis
     // The local rows are already gone. If the cloud copy survives, the next
     // Pull From Cloud silently brings them back and the user has no idea why —
     // so a rejected delete is worth saying out loud instead of swallowing.
-    notify(
-      i18n.t(
-        'settings.cloudDeleteFailed',
-        'Deleted here, but the cloud copy could not be removed. Those records may reappear on the next pull.',
-      ),
-      'error',
-    );
+    notify(i18n.t('settings.cloudDeleteFailed'), 'error');
   }
 
   // Asked of the queue rather than inferred from the drain. An entry leaves the

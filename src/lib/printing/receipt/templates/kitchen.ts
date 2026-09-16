@@ -15,7 +15,7 @@ export function buildKitchenTicketHtml(
   layout?: ReceiptLayout,
 ): string {
   const unitCount = tx.items.reduce((s, i) => s + i.quantity, 0);
-  const kitchenStr = i18n.t('receiptCfg.kitchenTitle', 'KITCHEN').toUpperCase();
+  const kitchenStr = i18n.t('receiptCfg.kitchenTitle').toUpperCase();
   const title = stationName
     ? `*** ${esc(stationName.toUpperCase())} ***`
     : `*** ${esc(kitchenStr)} ***`;
@@ -38,11 +38,11 @@ export function buildKitchenTicketHtml(
       ${S.storeName ? `<div class="center store-meta">${esc(settings.storeName)}</div>` : ''}
       <div class="divider"></div>
 
-      ${S.receiptNumber ? pair(`${i18n.t('receiptCfg.tg_receiptNumber', 'ORDER').toUpperCase()}:`, tx.id, true) : ''}
-      ${S.date ? pair(i18n.t('history.date', 'DATE:'), formatDateTime(d, L.dateFormat)) : ''}
-      ${S.time ? pair(`${i18n.t('receiptCfg.tg_time', 'Time').toUpperCase()}:`, formatDateTime(d, L.timeFormat)) : ''}
-      ${S.operator && tx.operatorName ? pair(i18n.t('history.operator', 'OPERATOR:'), tx.operatorName) : ''}
-      ${S.customer && tx.customerName ? pair(i18n.t('history.customer', 'CUSTOMER:'), tx.customerName) : ''}
+      ${S.receiptNumber ? pair(`${i18n.t('receiptCfg.tg_receiptNumber').toUpperCase()}:`, tx.id, true) : ''}
+      ${S.date ? pair(i18n.t('history.date'), formatDateTime(d, L.dateFormat)) : ''}
+      ${S.time ? pair(`${i18n.t('receiptCfg.tg_time').toUpperCase()}:`, formatDateTime(d, L.timeFormat)) : ''}
+      ${S.operator && tx.operatorName ? pair(i18n.t('history.operator'), tx.operatorName) : ''}
+      ${S.customer && tx.customerName ? pair(i18n.t('history.customer'), tx.customerName) : ''}
 
       <div class="divider"></div>
 
@@ -51,7 +51,7 @@ export function buildKitchenTicketHtml(
         .join('')}
 
       <div class="divider"></div>
-      <div class="center kitchen-count">${unitCount} ${esc(i18n.t('history.itemsUpper', 'ITEMS').replace(':', ''))}</div>
+      <div class="center kitchen-count">${unitCount} ${esc(i18n.t('history.itemsUpper').replace(':', ''))}</div>
       ${L.footer ? `<div class="center footer-msg">${esc(L.footer)}</div>` : ''}
     </div>`;
 }

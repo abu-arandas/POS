@@ -384,7 +384,7 @@ export default function Customers() {
               <button
                 onClick={() => setSelectedCustomerId(null)}
                 className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                aria-label={t('register.close', 'Close')}
+                aria-label={t('register.close')}
               >
                 <X size={15} />
               </button>
@@ -513,7 +513,7 @@ export default function Customers() {
                   type="button"
                   onClick={() => setCustomerModalOpen(false)}
                   className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                  aria-label={t('register.close', 'Close')}
+                  aria-label={t('register.close')}
                 >
                   <X size={15} />
                 </button>

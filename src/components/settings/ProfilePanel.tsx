@@ -312,7 +312,7 @@ export function ProfilePanel({
                 htmlFor="set-loyalty-points-rate"
                 className="block text-xs font-medium text-muted-foreground mb-1.5"
               >
-                {t('settings.loyaltyPointsRate', 'Points Earned per Currency Unit')}
+                {t('settings.loyaltyPointsRate')}
               </label>
               <input
                 id="set-loyalty-points-rate"
@@ -332,7 +332,7 @@ export function ProfilePanel({
                 htmlFor="set-loyalty-point-value"
                 className="block text-xs font-medium text-muted-foreground mb-1.5"
               >
-                {t('settings.loyaltyPointValue', 'Discount Value per Point')}
+                {t('settings.loyaltyPointValue')}
               </label>
               <div className="relative">
                 <span className="absolute inset-s-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-mono">

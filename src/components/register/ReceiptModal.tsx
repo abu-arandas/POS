@@ -100,7 +100,7 @@ export function ReceiptModal({
                       {safeImageUrl(settings.storeLogo) ? (
                         <img
                           src={safeImageUrl(settings.storeLogo)}
-                          alt={t('receiptCfg.tg_logo', 'Logo')}
+                          alt={t('receiptCfg.tg_logo')}
                           className="h-8 w-auto object-contain grayscale opacity-80 dark:invert"
                         />
                       ) : (
@@ -124,7 +124,7 @@ export function ReceiptModal({
                 <div className="space-y-1.5 text-[10px] border-b border-dashed border-slate-300 dark:border-slate-700 pb-4">
                   {show.date && (
                     <div className="flex justify-between">
-                      <span>{t('history.date', 'DATE:')}</span>
+                      <span>{t('history.date')}</span>
                       <span>{new Date(receipt.date).toLocaleString()}</span>
                     </div>
                   )}
@@ -168,7 +168,7 @@ export function ReceiptModal({
                       {show.itemUnitPrice && item.quantity > 1 && (
                         <div className="text-[10px] opacity-60 ps-4">
                           @ {settings.currency}
-                          {item.price.toFixed(2)} {t('register.each', 'ea')}
+                          {item.price.toFixed(2)} {t('register.each')}
                         </div>
                       )}
                     </div>
@@ -215,7 +215,7 @@ export function ReceiptModal({
                     </div>
                     {receipt.discount > 0 && (
                       <div className="text-center font-bold text-amber-700 dark:text-amber-400 border border-dashed border-amber-400/50 rounded py-1 mt-2">
-                        {t('register.youSaved', 'YOU SAVED')} {settings.currency}
+                        {t('register.youSaved')} {settings.currency}
                         {receipt.discount.toFixed(2)}
                       </div>
                     )}
@@ -251,7 +251,7 @@ export function ReceiptModal({
 
                 {show.loyalty && receipt.customerName && (receipt.pointsEarned ?? 0) > 0 && (
                   <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-bold">
-                    <span>{t('register.pointsEarned', 'POINTS EARNED')}:</span>
+                    <span>{t('register.pointsEarned')}:</span>
                     <span>{receipt.pointsEarned}</span>
                   </div>
                 )}
