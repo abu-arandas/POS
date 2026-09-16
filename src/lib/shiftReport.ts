@@ -69,12 +69,24 @@ export function summarizeShift(transactions: SaleTransaction[]): ShiftSummary {
     // so the breakdown on the drawer-reconciliation document overstated the
     // day's tender by the cash half of every split sale.
     const tenders = tenderBreakdown(tx);
-    const refundAmt = tx.refundedAmount ?? 0;
+
+    // `status` outranks `refundedAmount`, because a sale can carry the status
+    // without the figure: refundedAmount was added after refunds already
+    // existed, so a fully refunded sale from an older install has
+    // status 'refunded' and no amount at all. Reading the amount alone made
+    // such a row report its entire tender as taken — £100 of card sales
+    // against £0 of gross — on the document that reconciles the drawer.
+    //
+    // grossSales has always special-cased the status (see `net` above); the
+    // tender columns now do too, so the two cannot disagree about whether a
+    // sale happened.
+    const fullyRefunded = tx.status === 'refunded';
+    const refundAmt = fullyRefunded ? (tx.refundedAmount ?? tx.total) : (tx.refundedAmount ?? 0);
     // Refunds are prorated across the methods in the same ratio they were
     // taken. A refund has no tender lines of its own, so the sale's own mix is
     // the only defensible split — and it is what makes a fully refunded sale
     // net to zero in every column at once.
-    const refundedShare = tx.total > 0 ? Math.min(1, refundAmt / tx.total) : 0;
+    const refundedShare = fullyRefunded ? 1 : tx.total > 0 ? Math.min(1, refundAmt / tx.total) : 0;
     const netOf = (amount: number | undefined) => (amount ?? 0) * (1 - refundedShare);
 
     // Cash stays GROSS, with refunds carried separately in cashRefunds: the

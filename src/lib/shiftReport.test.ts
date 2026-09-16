@@ -148,6 +148,42 @@ describe('summarizeShift', () => {
     expect(s.expectedCash(100)).toBe(100);
   });
 
+  // refundedAmount was added after refunds already existed, so a fully refunded
+  // sale from an older install carries status 'refunded' and no amount at all.
+  // Reading the amount alone reported its entire tender as taken — £100 of card
+  // sales against £0 of gross — on the drawer-reconciliation document.
+  describe('a legacy fully refunded sale carrying no refundedAmount', () => {
+    it('contributes nothing to the card column', () => {
+      const s = summarizeShift([sale({ total: 100, paymentMethod: 'card', status: 'refunded' })]);
+      expect(s.grossSales).toBe(0);
+      expect(s.cardSales).toBe(0);
+    });
+
+    it('nets to nothing in the drawer', () => {
+      const s = summarizeShift([
+        sale({ total: 100, paymentMethod: 'cash', cashPaid: 100, status: 'refunded' }),
+      ]);
+      expect(s.cashSales - s.cashRefunds).toBe(0);
+      expect(s.expectedCash(50)).toBe(50);
+    });
+
+    it('zeroes every method of a split sale at once', () => {
+      const s = summarizeShift([
+        sale({
+          total: 30,
+          paymentMethod: 'card',
+          status: 'refunded',
+          payments: [
+            { method: 'cash', amount: 10 },
+            { method: 'card', amount: 20 },
+          ],
+        }),
+      ]);
+      expect(s.cardSales).toBe(0);
+      expect(s.cashSales - s.cashRefunds).toBe(0);
+    });
+  });
+
   it('folds petty cash into the one expected figure', () => {
     const tx = sale({ total: 60, paymentMethod: 'cash', cashPaid: 60 });
     const s = summarizeShift([tx]);

@@ -54,6 +54,40 @@ describe('mergePendingLocal', () => {
     expect(merged.map((row) => row.id)).toEqual(['a', 'deleted']);
   });
 
+  describe('rows deleted locally but not yet on the server', () => {
+    // The server still has the row because it has not been told. Applying the
+    // snapshot as-is puts a row the operator just deleted back on screen, and
+    // keeps doing so on every pull until the delete drains.
+    it('drops a pulled row whose delete is queued', () => {
+      const merged = mergePendingLocal(
+        rows('keep', 'deleted'),
+        rows('keep'),
+        new Set(),
+        'end',
+        new Set(['deleted']),
+      );
+      expect(merged.map((row) => row.id)).toEqual(['keep']);
+    });
+
+    it('leaves the snapshot alone when nothing is queued for deletion', () => {
+      const pulled = rows('a', 'b');
+      expect(mergePendingLocal(pulled, rows('a'), new Set(), 'end', new Set())).toBe(pulled);
+    });
+
+    it('does not resurrect a deleted row via the pending path either', () => {
+      // A row can carry both a queued push and a later queued delete; the
+      // delete is the newer intent and wins.
+      const merged = mergePendingLocal(
+        rows('keep', 'doomed'),
+        rows('keep'),
+        new Set(['doomed']),
+        'end',
+        new Set(['doomed']),
+      );
+      expect(merged.map((row) => row.id)).toEqual(['keep']);
+    });
+  });
+
   it('keeps several pending rows in their local order', () => {
     const pulled = rows('s1');
     const local = rows('n1', 'n2', 's1');

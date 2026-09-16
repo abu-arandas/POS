@@ -9,7 +9,7 @@ import {
   pullUserAccounts,
 } from './supabase';
 import { isSyncBlocked } from './supabase/storeScope';
-import { pendingPushIds } from './outbox';
+import { pendingPushIds, queuedDeleteIds } from './outbox';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
@@ -63,18 +63,27 @@ export function mergePendingLocal<T extends { id: string }>(
   local: T[],
   pending: Set<string>,
   newRowsAt: 'start' | 'end',
+  /** Rows deleted locally whose deletion the server has not accepted yet. */
+  queuedDeletes: Set<string> = new Set(),
 ): T[] {
-  if (pending.size === 0) return pulled;
+  // The server still has a row the operator has already deleted here, because
+  // it has not been told yet. Applying the snapshot as-is would put that row
+  // back on screen, and keep putting it back on every pull until the delete
+  // drained. The local absence is the newer fact.
+  const visible =
+    queuedDeletes.size > 0 ? pulled.filter((row) => !queuedDeletes.has(row.id)) : pulled;
+
+  if (pending.size === 0) return visible;
   const localPending = new Map(
     local.filter((row) => pending.has(row.id)).map((row) => [row.id, row]),
   );
-  if (localPending.size === 0) return pulled;
+  if (localPending.size === 0) return visible;
 
   // An id the server already has keeps its position and takes the local copy,
   // which is the newer of the two — it is queued precisely because the server
   // has not caught up to it.
-  const merged = pulled.map((row) => localPending.get(row.id) ?? row);
-  const onServer = new Set(pulled.map((row) => row.id));
+  const merged = visible.map((row) => localPending.get(row.id) ?? row);
+  const onServer = new Set(visible.map((row) => row.id));
   const unseen = local.filter((row) => pending.has(row.id) && !onServer.has(row.id));
   if (unseen.length === 0) return merged;
   return newRowsAt === 'start' ? [...unseen, ...merged] : [...merged, ...unseen];
@@ -84,37 +93,77 @@ const PULL_INTO_STORE = {
   products: async (client: SupabaseClient, storeId?: string) => {
     const rows = await pullProducts(client, storeId);
     if (!rows) return null;
-    const pending = await pendingPushIds('products');
     return () => {
       const store = useProductStore.getState();
-      store.setProducts(mergePendingLocal(rows, store.products, pending, 'end'));
+      // Read at APPLY time, not before the await above: a sale committed while
+      // the pull was in flight is in the store but would not have been in a
+      // set captured earlier, and the merge would drop it.
+      store.setProducts(
+        mergePendingLocal(
+          rows,
+          store.products,
+          pendingPushIds('products'),
+          'end',
+          queuedDeleteIds('products'),
+        ),
+      );
     };
   },
   categories: async (client: SupabaseClient, storeId?: string) => {
     const rows = await pullCategories(client, storeId);
     if (!rows) return null;
-    const pending = await pendingPushIds('categories');
     return () => {
       const store = useProductStore.getState();
-      store.setCategories(mergePendingLocal(rows, store.categories, pending, 'end'));
+      // Read at APPLY time, not before the await above: a sale committed while
+      // the pull was in flight is in the store but would not have been in a
+      // set captured earlier, and the merge would drop it.
+      store.setCategories(
+        mergePendingLocal(
+          rows,
+          store.categories,
+          pendingPushIds('categories'),
+          'end',
+          queuedDeleteIds('categories'),
+        ),
+      );
     };
   },
   customers: async (client: SupabaseClient, storeId?: string) => {
     const rows = await pullCustomers(client, storeId);
     if (!rows) return null;
-    const pending = await pendingPushIds('customers');
     return () => {
       const store = useCustomerStore.getState();
-      store.setCustomers(mergePendingLocal(rows, store.customers, pending, 'end'));
+      // Read at APPLY time, not before the await above: a sale committed while
+      // the pull was in flight is in the store but would not have been in a
+      // set captured earlier, and the merge would drop it.
+      store.setCustomers(
+        mergePendingLocal(
+          rows,
+          store.customers,
+          pendingPushIds('customers'),
+          'end',
+          queuedDeleteIds('customers'),
+        ),
+      );
     };
   },
   transactions: async (client: SupabaseClient, storeId?: string) => {
     const rows = await pullTransactions(client, storeId);
     if (!rows) return null;
-    const pending = await pendingPushIds('transactions');
     return () => {
       const store = useTransactionStore.getState();
-      store.setTransactions(mergePendingLocal(rows, store.transactions, pending, 'start'));
+      // Read at APPLY time, not before the await above: a sale committed while
+      // the pull was in flight is in the store but would not have been in a
+      // set captured earlier, and the merge would drop it.
+      store.setTransactions(
+        mergePendingLocal(
+          rows,
+          store.transactions,
+          pendingPushIds('transactions'),
+          'start',
+          queuedDeleteIds('transactions'),
+        ),
+      );
     };
   },
   user_accounts: async (client: SupabaseClient, storeId?: string) => {
@@ -123,10 +172,17 @@ const PULL_INTO_STORE = {
     // would replace every staff account with a string, and the lockscreen reads
     // that store — so an anonymous terminal would lose its own way back in.
     if (rows === 'denied' || !rows) return null;
-    const pending = await pendingPushIds('user_accounts');
     return () => {
       const store = useAuthStore.getState();
-      store.setUsers(mergePendingLocal(rows, store.users, pending, 'end'));
+      store.setUsers(
+        mergePendingLocal(
+          rows,
+          store.users,
+          pendingPushIds('user_accounts'),
+          'end',
+          queuedDeleteIds('user_accounts'),
+        ),
+      );
     };
   },
 } as const;
