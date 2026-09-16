@@ -93,14 +93,42 @@
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* Tailwind v4 at-rules, not vendor extensions: @custom-variant registers the
-   class-based dark variant and @theme declares design tokens. A CSS linter
-   without Tailwind v4 support reports both as unknown at-rules. */
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
 }
 
 /* ─── Arabic Font ─────────────────────────────────────────────────────────── */
@@ -151,60 +179,164 @@
   --color-blue: #3b82f6;
   --color-blue-dim: rgba(59, 130, 246, 0.15);
 
+  /* ── Extended palette ─────────────────────────────────────────────────── */
+  --color-violet: #8b5cf6;
+  --color-violet-dim: rgba(139, 92, 246, 0.15);
+
+  /* Semantic intent aliases — operational state rather than hue */
+  --color-success: var(--color-emerald);
+  --color-success-dim: var(--color-emerald-dim);
+  --color-warning: var(--color-amber);
+  --color-warning-dim: var(--color-amber-dim);
+  --color-error: var(--color-rose);
+  --color-error-dim: var(--color-rose-dim);
+  --color-info: var(--color-blue);
+  --color-info-dim: var(--color-blue-dim);
+
+  /* Sync / connectivity state badge tokens */
+  --sync-online-bg: rgba(16, 185, 129, 0.12);
+  --sync-online-border: rgba(16, 185, 129, 0.28);
+  --sync-online-text: #059669;
+  --sync-online-dot: #10b981;
+  --sync-offline-bg: rgba(100, 116, 139, 0.12);
+  --sync-offline-border: rgba(100, 116, 139, 0.24);
+  --sync-offline-text: #475569;
+  --sync-offline-dot: #94a3b8;
+  --sync-syncing-bg: rgba(59, 130, 246, 0.12);
+  --sync-syncing-border: rgba(59, 130, 246, 0.28);
+  --sync-syncing-text: #2563eb;
+  --sync-syncing-dot: #3b82f6;
+  --sync-error-bg: rgba(244, 63, 94, 0.12);
+  --sync-error-border: rgba(244, 63, 94, 0.28);
+  --sync-error-text: #e11d48;
+  --sync-error-dot: #f43f5e;
+  --sync-queued-bg: rgba(245, 158, 11, 0.12);
+  --sync-queued-border: rgba(245, 158, 11, 0.28);
+  --sync-queued-text: #b45309;
+  --sync-queued-dot: #f59e0b;
+
+  /* ── Core design system color variables (Tailwind tokens) ─────────────── */
+  --background: #fbfbfd;
+  --foreground: #09090b;
+
+  --card: #ffffff;
+  --card-foreground: #09090b;
+
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+
+  --primary: #18181b;
+  --primary-foreground: #fafafa;
+
+  --secondary: #f4f4f6;
+  --secondary-foreground: #18181b;
+
+  --muted: #f4f4f6;
+  --muted-foreground: #71717a;
+
+  --accent: #f4f4f6;
+  --accent-foreground: #18181b;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #18181b;
+
+  --shadow-2xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-xs: 0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+
   /* Semantic surface/border tokens — light theme (default). One place to
      tune every elevated panel, input, and hairline in the app. */
   --surface-1: #ffffff; /* elevated card / panel */
   --surface-2: #f8fafc; /* inset areas, table headers */
   --surface-hover: #f1f5f9; /* row/card hover */
   --border-subtle: rgba(15, 23, 42, 0.08);
-  --border-strong: rgba(15, 23, 42, 0.14);
+  --border-strong: rgba(15, 23, 42, 0.15);
   --input-bg: #ffffff;
   --input-border: rgba(15, 23, 42, 0.12);
 
-  /* Operational canvas + chrome. The register, sidebar, and cart panel used to
-     hardcode near-black values, which pinned those screens to dark whatever the
-     toggle said. They read these instead so the theme actually applies. */
-  --app-bg: #f8fafc; /* full-screen canvas behind a screen */
+  /* Operational canvas + chrome. */
+  --app-bg: #f9fafb; /* full-screen canvas */
   --panel-bg: #ffffff; /* sidebar / cart rail */
-  --panel-border: rgba(15, 23, 42, 0.1);
+  --panel-border: rgba(15, 23, 42, 0.08);
   --receipt-bg: #ffffff; /* on-screen thermal receipt card */
-  --text-strong: #0f172a; /* highest-contrast body text */
-  --chip-text: #475569; /* inactive chip / toolbar label */
+  --text-strong: #09090b; /* highest-contrast body text */
+  --chip-text: #52525b; /* inactive chip / toolbar label */
 
-  /* Layered elevation — soft, close ambient + a longer cast for depth. */
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 2px 6px rgba(15, 23, 42, 0.06), 0 8px 24px -8px rgba(15, 23, 42, 0.12);
-  --shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.08), 0 24px 48px -16px rgba(15, 23, 42, 0.22);
-  --shadow-card: var(--shadow-md);
-  --shadow-glow-emerald: 0 0 24px rgba(16, 185, 129, 0.35);
-  --shadow-glow-rose: 0 0 24px rgba(244, 63, 94, 0.35);
+  /* Precision layered elevation — crisp, clean, no muddy blur */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 12px 28px -4px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
+  --shadow-card: var(--shadow-sm);
+  --shadow-glow-emerald: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  --shadow-glow-rose: 0 0 0 2px rgba(244, 63, 94, 0.2);
 
-  --radius-card: 1rem;
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --radius-card: 0.875rem; /* 14px sleek contemporary radius */
+  --radius-btn: 0.625rem; /* 10px button radius */
+  --transition-fast: 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-base: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-spring: 320ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Dark theme token overrides. Applied whenever the app sits in a dark context —
-   either the user's toggle (.dark on <html>) or the dark-first operational
-   screens that render on a near-black canvas. */
+/* Dark theme token overrides. */
 .dark {
-  --surface-1: #0f172a;
-  --surface-2: rgba(255, 255, 255, 0.03);
-  --surface-hover: rgba(255, 255, 255, 0.05);
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.12);
-  --input-bg: rgba(255, 255, 255, 0.05);
-  --input-border: rgba(255, 255, 255, 0.1);
-  --app-bg: #020617;
-  --panel-bg: rgba(2, 6, 23, 0.95);
-  --panel-border: rgba(30, 41, 59, 0.6);
-  --receipt-bg: #0a0f1e;
-  --text-strong: #e2e8f0;
-  --chip-text: #94a3b8;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6);
+  --background: #09090b;
+  --foreground: #fafafa;
+
+  --card: #121215;
+  --card-foreground: #fafafa;
+
+  --popover: #121215;
+  --popover-foreground: #fafafa;
+
+  --primary: #fafafa;
+  --primary-foreground: #09090b;
+
+  --secondary: #18181c;
+  --secondary-foreground: #fafafa;
+
+  --muted: #18181c;
+  --muted-foreground: #a1a1aa;
+
+  --accent: #18181c;
+  --accent-foreground: #fafafa;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #d4d4d8;
+
+  --shadow-2xs: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  --shadow-xs: 0 1px 3px 0 rgba(0, 0, 0, 0.6), 0 1px 2px -1px rgba(0, 0, 0, 0.5);
+
+  --surface-1: #121215; /* refined matte dark surface */
+  --surface-2: #18181c; /* inset well / secondary surface */
+  --surface-hover: rgba(255, 255, 255, 0.04);
+  --border-subtle: #27272a;
+  --border-strong: #3f3f46;
+  --input-bg: #141418;
+  --input-border: #27272a;
+  --app-bg: #09090b; /* deep obsidian canvas */
+  --panel-bg: #0d0d10;
+  --panel-border: #27272a;
+  --receipt-bg: #121216;
+  --text-strong: #fafafa;
+  --chip-text: #a1a1aa;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.75);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
+
+  /* Dark sync badge tokens */
+  --sync-online-text: #34d399;
+  --sync-offline-text: #94a3b8;
+  --sync-syncing-text: #60a5fa;
+  --sync-error-text: #fb7185;
+  --sync-queued-text: #fbbf24;
 }
 
 /* ─── Number Inputs — remove arrows ──────────────────────────────────────── */
@@ -347,19 +479,17 @@ input[type='number'] {
 ═══════════════════════════════════════════════════════════════════════════ */
 
 .mesh-bg {
-  background-color: #f1f5f9;
+  background-color: #f9fafb;
   background-image:
-    radial-gradient(at 40% 20%, hsla(167, 98%, 39%, 0.1) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, hsla(189, 100%, 56%, 0.09) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, hsla(355, 100%, 93%, 0.07) 0px, transparent 50%);
+    radial-gradient(at 50% 0%, rgba(0, 0, 0, 0.02) 0px, transparent 75%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.8), rgba(249, 250, 251, 1));
 }
 
 .mesh-bg-dark {
-  background-color: #020617;
+  background-color: #09090b;
   background-image:
-    radial-gradient(at 40% 20%, hsla(167, 98%, 39%, 0.1) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, hsla(220, 100%, 56%, 0.1) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, hsla(280, 100%, 43%, 0.07) 0px, transparent 50%);
+    radial-gradient(at 50% 0%, rgba(255, 255, 255, 0.03) 0px, transparent 70%),
+    linear-gradient(to bottom, rgba(17, 17, 20, 0.5), rgba(9, 9, 11, 1));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -492,6 +622,72 @@ input[type='number'] {
   border: 1px solid rgba(139, 92, 246, 0.24);
 }
 
+/* ─── Sync / connectivity state badges ────────────────────────────────────── */
+
+/* Base shared styles — each modifier provides the three color values. */
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.sync-badge .sync-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sync-online {
+  background: var(--sync-online-bg);
+  border-color: var(--sync-online-border);
+  color: var(--sync-online-text);
+}
+.sync-online .sync-dot { background: var(--sync-online-dot); }
+
+.sync-offline {
+  background: var(--sync-offline-bg);
+  border-color: var(--sync-offline-border);
+  color: var(--sync-offline-text);
+}
+.sync-offline .sync-dot { background: var(--sync-offline-dot); }
+
+.sync-syncing {
+  background: var(--sync-syncing-bg);
+  border-color: var(--sync-syncing-border);
+  color: var(--sync-syncing-text);
+}
+.sync-syncing .sync-dot {
+  background: var(--sync-syncing-dot);
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+.sync-error {
+  background: var(--sync-error-bg);
+  border-color: var(--sync-error-border);
+  color: var(--sync-error-text);
+}
+.sync-error .sync-dot { background: var(--sync-error-dot); }
+
+.sync-queued {
+  background: var(--sync-queued-bg);
+  border-color: var(--sync-queued-border);
+  color: var(--sync-queued-text);
+}
+.sync-queued .sync-dot { background: var(--sync-queued-dot); }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    MODAL BACKDROP
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -576,51 +772,33 @@ select {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 14px 10px;
-  border-radius: 14px;
-  border: 1.5px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  color: #64748b;
+  padding: 12px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-2);
+  color: var(--text-muted);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 200ms ease;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  transition: all 150ms ease;
+  letter-spacing: 0.02em;
 }
 
 .pay-method-btn:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.07);
-  color: #cbd5e1;
+  border-color: var(--border-strong);
+  background: var(--surface-3, var(--surface-2));
+  color: var(--foreground);
 }
 
-.pay-method-btn.active-cash {
-  border-color: #10b981;
-  background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
-  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.3);
-}
-
-.pay-method-btn.active-card {
-  border-color: #3b82f6;
-  background: rgba(59, 130, 246, 0.12);
-  color: #60a5fa;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
-}
-
-.pay-method-btn.active-mobile {
-  border-color: #8b5cf6;
-  background: rgba(139, 92, 246, 0.12);
-  color: #a78bfa;
-  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.3);
-}
-
+.pay-method-btn.active-cash,
+.pay-method-btn.active-card,
+.pay-method-btn.active-mobile,
 .pay-method-btn.active-gift {
-  border-color: #f59e0b;
-  background: rgba(245, 158, 11, 0.12);
-  color: #fbbf24;
-  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.3);
+  border-color: var(--foreground);
+  background: var(--foreground);
+  color: var(--background);
+  box-shadow: var(--shadow-xs);
+  font-weight: 600;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -737,23 +915,60 @@ select {
   border-color: rgba(16, 185, 129, 0.3);
 }
 
-/* The single confirming action in a modal — complete order, save customer,
-   finish. One definition so all three stay identical. */
+/* The single confirming action in a modal or primary trigger */
 .btn-primary {
-  background: linear-gradient(135deg, #059669, var(--color-emerald));
+  background: #09090b;
   color: #ffffff;
-  box-shadow: 0 4px 20px var(--color-emerald-glow);
-  transition: box-shadow var(--transition-fast);
+  border: 1px solid transparent;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition: all var(--transition-fast);
+}
+
+.dark .btn-primary {
+  background: #f4f4f5;
+  color: #09090b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .btn-primary:hover:not(:disabled) {
-  box-shadow: var(--shadow-glow-emerald);
+  opacity: 0.92;
+  transform: translateY(-0.5px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+.btn-secondary {
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  color: var(--text-strong);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.btn-emerald {
+  background: #10b981;
+  color: #ffffff;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-fast);
+}
+
+.btn-emerald:hover:not(:disabled) {
+  background: #059669;
 }
 
 /* "+ Add payment" / "+ Add line" — an outlined, dashed affordance for
    appending a row to a list. */
 .btn-dashed-add {
-  color: #34d399;
+  color: #10b981;
   border: 1px dashed rgba(16, 185, 129, 0.35);
   transition: background var(--transition-fast);
 }
@@ -762,7 +977,62 @@ select {
   background: var(--color-emerald-dim);
 }
 
-/* ─── Toggles & chips ─────────────────────────────────────────────────────── */
+/* Explicit disabled state: cursor + dimming rather than relying on
+   component-level opacity utilities alone. */
+.btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Destructive actions (delete, wipe, void, close shift with variance). */
+.btn-destructive {
+  background: #e11d48;
+  color: #ffffff;
+  border: 1px solid rgba(225, 29, 72, 0.3);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition: all var(--transition-fast);
+}
+
+.btn-destructive:hover:not(:disabled) {
+  background: #be123c;
+}
+
+.btn-destructive:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* ─── Numeric display ──────────────────────────────────────────────────────── */
+
+/* Apply to any element that carries a financial or quantity value.
+   JetBrains Mono already provides tabular figures; this makes them opt-in for
+   spans that use a different font stack but still need stable alignment. */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* ─── Keyboard shortcut chip ──────────────────────────────────────────────── */
+
+/* Inline label for a keyboard shortcut or quick-cash denomination. Monospaced,
+   bordered, compact — POS terminal aesthetic without decorative weight. */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--chip-text);
+  letter-spacing: 0.02em;
+}
+
+
 
 /* A pill that switches between two states (split payment on/off, a category
    filter, edit mode). Base is the resting state; `.is-active` and `.is-danger`
@@ -844,17 +1114,17 @@ select {
 }
 
 .quick-cash-btn.is-active {
-  background: rgba(16, 185, 129, 0.2);
-  border-color: rgba(16, 185, 129, 0.4);
-  color: #34d399;
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
 }
 
 /* Change-due readout. Fixed height so it lines up with the tendered input
    beside it, whose height comes from its own padding. */
 .change-due-box {
   height: 48px;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
 }
 
 /* ─── Data-driven values ──────────────────────────────────────────────────── */

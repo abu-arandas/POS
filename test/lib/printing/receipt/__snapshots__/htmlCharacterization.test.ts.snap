@@ -14,7 +14,7 @@ exports[`customer receipt markup > collapses the blocks its toggles switch off 1
       </div>
 
       <div class="divider"></div>
-      <div class="meta-row"><div class="flex-row"><span>DATE:</span><span class="num ltr">2026-03-04</span></div><div class="flex-row"><span>TIME:</span><span class="num ltr">8:15 PM</span></div><div class="flex-row bold"><span>RECEIPT:</span><span class="num ltr">TX-ABCD1234</span></div></div>
+      <div class="meta-row"><div class="flex-row"><span>DATE:</span><span class="num ltr">2026-03-04</span></div><div class="flex-row"><span>TIME:</span><span class="num ltr">11:15 PM</span></div><div class="flex-row bold"><span>RECEIPT:</span><span class="num ltr">TX-ABCD1234</span></div></div>
       <div class="divider"></div>
 
       <div class="flex-row item"><span>2x Latte</span><span class="num ltr">$9.00</span></div><div class="flex-row item"><span>1x Croissant</span><span class="num ltr">$3.00</span></div>
@@ -55,7 +55,7 @@ exports[`customer receipt markup > keeps numeric values LTR-isolated on an Arabi
       </div>
 
       <div class="divider"></div>
-      <div class="meta-row"><div class="flex-row"><span>التاريخ:</span><span class="num ltr">2026-03-04</span></div><div class="flex-row"><span>الوقت:</span><span class="num ltr">8:15 PM</span></div><div class="flex-row bold"><span>الإيصال:</span><span class="num ltr">TX-ABCD1234</span></div><div class="flex-row"><span>الموظف:</span><span class="num">Ada Lovelace</span></div><div class="flex-row bold"><span>العضو:</span><span class="num">Grace Hopper</span></div></div>
+      <div class="meta-row"><div class="flex-row"><span>التاريخ:</span><span class="num ltr">2026-03-04</span></div><div class="flex-row"><span>الوقت:</span><span class="num ltr">11:15 PM</span></div><div class="flex-row bold"><span>الإيصال:</span><span class="num ltr">TX-ABCD1234</span></div><div class="flex-row"><span>الموظف:</span><span class="num">Ada Lovelace</span></div><div class="flex-row bold"><span>العضو:</span><span class="num">Grace Hopper</span></div></div>
       <div class="divider"></div>
 
       <div class="flex-row item"><span>2x Latte</span><span class="num ltr">$9.00</span></div><div class="item-unit ltr">@ $4.50 للوحدة</div><div class="flex-row item"><span>1x Croissant</span><span class="num ltr">$3.00</span></div>
@@ -96,7 +96,7 @@ exports[`customer receipt markup > renders every block with all toggles on 1`] =
       </div>
 
       <div class="divider"></div>
-      <div class="meta-row"><div class="flex-row"><span>DATE:</span><span class="num ltr">2026-03-04</span></div><div class="flex-row"><span>TIME:</span><span class="num ltr">8:15 PM</span></div><div class="flex-row bold"><span>RECEIPT:</span><span class="num ltr">TX-ABCD1234</span></div><div class="flex-row"><span>OPERATOR:</span><span class="num">Ada Lovelace</span></div><div class="flex-row bold"><span>MEMBER:</span><span class="num">Grace Hopper</span></div></div>
+      <div class="meta-row"><div class="flex-row"><span>DATE:</span><span class="num ltr">2026-03-04</span></div><div class="flex-row"><span>TIME:</span><span class="num ltr">11:15 PM</span></div><div class="flex-row bold"><span>RECEIPT:</span><span class="num ltr">TX-ABCD1234</span></div><div class="flex-row"><span>OPERATOR:</span><span class="num">Ada Lovelace</span></div><div class="flex-row bold"><span>MEMBER:</span><span class="num">Grace Hopper</span></div></div>
       <div class="divider"></div>
 
       <div class="flex-row item"><span>2x Latte</span><span class="num ltr">$9.00</span></div><div class="item-unit ltr">@ $4.50 ea</div><div class="flex-row item"><span>1x Croissant</span><span class="num ltr">$3.00</span></div>
@@ -133,7 +133,7 @@ exports[`kitchen ticket markup > renders items in large type with no pricing 1`]
 
       <div class="flex-row bold"><span>RECEIPT / ORDER NO.:</span><span class="num ltr">TX-ABCD1234</span></div>
       
-      <div class="flex-row"><span>TIME:</span><span class="num ltr">20:15</span></div>
+      <div class="flex-row"><span>TIME:</span><span class="num ltr">23:15</span></div>
       <div class="flex-row"><span>OPERATOR:</span><span class="num ltr">Ada Lovelace</span></div>
       <div class="flex-row"><span>Customer</span><span class="num ltr">Grace Hopper</span></div>
 

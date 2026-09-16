@@ -39,28 +39,28 @@ export function SupplierFormModal({
     <ModalShell
       modalRef={modalRef}
       titleId="supplier-form-title"
-      className="max-w-sm w-full overflow-hidden"
+      className="max-w-sm w-full rounded-2xl border border-border bg-card shadow-lg overflow-hidden"
     >
-      <div className="px-8 py-6 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 flex items-center justify-between">
+      <div className="px-6 py-4 border-b border-border bg-card flex items-center justify-between">
         <h3
           id="supplier-form-title"
-          className="font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3"
+          className="font-semibold text-foreground text-base flex items-center gap-2.5"
         >
-          <Truck size={24} className="text-emerald-500" /> {t('inventory.addSupplier')}
+          <Truck size={18} className="text-muted-foreground" /> {t('inventory.addSupplier')}
         </h3>
         <button
           onClick={onClose}
           aria-label={t('inventory.cancel')}
-          className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+          className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
         >
-          <X size={20} />
+          <X size={16} />
         </button>
       </div>
-      <form onSubmit={onSubmit} className="p-8 space-y-5">
+      <form onSubmit={onSubmit} className="p-6 space-y-4">
         <div>
           <label
             htmlFor="supplier-name"
-            className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+            className="text-xs font-medium text-muted-foreground block mb-1.5"
           >
             {t('inventory.supplierCompany')} *
           </label>
@@ -71,13 +71,13 @@ export function SupplierFormModal({
             value={supName}
             onChange={(e) => onNameChange(e.target.value)}
             placeholder={t('inventory.supplierName')}
-            className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 font-bold"
+            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground font-medium"
           />
         </div>
         <div>
           <label
             htmlFor="supplier-contact"
-            className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+            className="text-xs font-medium text-muted-foreground block mb-1.5"
           >
             {t('inventory.supplierContactPerson')}
           </label>
@@ -87,14 +87,14 @@ export function SupplierFormModal({
             value={supContact}
             onChange={(e) => onContactChange(e.target.value)}
             placeholder={t('inventory.supplierContact')}
-            className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground"
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label
               htmlFor="supplier-phone"
-              className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+              className="text-xs font-medium text-muted-foreground block mb-1.5"
             >
               {t('inventory.supplierPhone')}
             </label>
@@ -104,13 +104,13 @@ export function SupplierFormModal({
               value={supPhone}
               onChange={(e) => onPhoneChange(e.target.value)}
               placeholder={t('inventory.phoneNumber')}
-              className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-mono focus:outline-none focus:border-emerald-500"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground font-mono focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground"
             />
           </div>
           <div>
             <label
               htmlFor="supplier-email"
-              className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+              className="text-xs font-medium text-muted-foreground block mb-1.5"
             >
               {t('inventory.supplierEmail')}
             </label>
@@ -120,21 +120,21 @@ export function SupplierFormModal({
               value={supEmail}
               onChange={(e) => onEmailChange(e.target.value)}
               placeholder={t('inventory.emailAddress')}
-              className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground"
             />
           </div>
         </div>
-        <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-white/5 mt-6">
+        <div className="flex justify-end gap-2 pt-4 border-t border-border mt-4">
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
+            className="btn-secondary text-xs h-9 px-4 rounded-lg"
           >
             {t('inventory.cancel')}
           </button>
           <button
             type="submit"
-            className="px-6 py-3 font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+            className="btn-primary text-xs h-9 px-4 rounded-lg"
           >
             {t('inventory.saveSupplier')}
           </button>

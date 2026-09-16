@@ -141,28 +141,33 @@ export default function History() {
   return (
     <div
       id="history-root"
-      className="flex-1 flex h-screen overflow-hidden bg-slate-50 dark:bg-[#020617] p-6 text-slate-800 dark:text-slate-100 relative"
+      className="flex-1 flex h-screen overflow-hidden bg-background p-6 text-foreground relative"
     >
       <div
         id="transaction-list-section"
         className="flex-1 flex flex-col min-w-0 pe-6 overflow-hidden"
       >
-        <div id="history-header" className="mb-6 shrink-0 flex items-start justify-between gap-3">
-          <div>
-            <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
-              <HistoryIcon className="text-emerald-500" /> {t('history.transactionLogs')}
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
-              {t('history.auditPastOrders')}
-            </p>
+        <div id="history-header" className="mb-5 shrink-0 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="size-10 rounded-xl bg-secondary/80 border border-border flex items-center justify-center text-foreground shrink-0">
+              <HistoryIcon size={20} />
+            </div>
+            <div>
+              <h2 className="font-sans font-semibold tracking-tight text-foreground text-xl">
+                {t('history.transactionLogs')}
+              </h2>
+              <p className="text-muted-foreground text-xs mt-0.5">
+                {t('history.auditPastOrders')}
+              </p>
+            </div>
           </div>
           <button
             id="export-csv-btn"
             onClick={exportCsv}
             disabled={filteredTransactions.length === 0}
-            className="shrink-0 flex items-center gap-1.5 glass-input hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-slate-900 dark:text-white text-xs font-semibold px-4 py-2.5 rounded-2xl shadow-lg transition-colors"
+            className="btn-secondary text-xs h-9 px-3 rounded-xl flex items-center gap-1.5 disabled:opacity-40"
           >
-            <Download size={14} /> {t('history.exportCsv')}
+            <Download size={13} /> {t('history.exportCsv')}
           </button>
         </div>
 

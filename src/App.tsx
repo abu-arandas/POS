@@ -11,13 +11,20 @@ import {
   QrCode,
   Clock,
   Building2,
+  ChefHat,
+  Grid3X3,
   Loader2,
+  Sun,
+  Moon,
 } from 'lucide-react';
+
 import { motion, AnimatePresence, MotionConfig } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import Sidebar from './components/Sidebar';
 import Register from './components/Register';
 import Lockscreen from './components/Lockscreen';
+import { KitchenDisplay } from './components/KitchenDisplay';
+import { TableManagement } from './components/TableManagement';
 // Non-default screens are code-split so heavy deps (recharts, qrcode.react, …)
 // stay out of the initial bundle and load only when their screen is opened.
 const Inventory = lazy(() => import('./components/Inventory'));
@@ -44,7 +51,7 @@ import { notify } from './lib/utils/ui';
 function ScreenLoader() {
   return (
     <div className="flex-1 flex items-center justify-center">
-      <Loader2 className="animate-spin text-emerald-500" size={28} />
+      <Loader2 className="animate-spin text-zinc-400 dark:text-zinc-500" size={24} />
     </div>
   );
 }
@@ -250,6 +257,16 @@ export default function App() {
     switch (activeScreen) {
       case 'register':
         return <Register />;
+      case 'tables':
+        return (
+          <TableManagement
+            onSelectTableForRegister={(table) => {
+              setScreen('register');
+            }}
+          />
+        );
+      case 'kitchen':
+        return <KitchenDisplay />;
       case 'inventory':
         return <Inventory />;
       case 'history':
@@ -278,6 +295,8 @@ export default function App() {
     badge?: number;
   }> = [
     { id: 'register', label: t('sidebar.register'), icon: ShoppingBag },
+    { id: 'tables', label: t('sidebar.tables', { defaultValue: 'Tables' }), icon: Grid3X3 },
+    { id: 'kitchen', label: t('sidebar.kitchen', { defaultValue: 'Kitchen' }), icon: ChefHat },
     { id: 'dashboard', label: t('sidebar.dashboard'), icon: BarChart3 },
     {
       id: 'inventory',
@@ -301,7 +320,7 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       <div
         id="application-container"
-        className={`flex min-h-screen overflow-hidden text-slate-800 dark:text-slate-100 transition-colors duration-300 ${darkMode ? 'mesh-bg-dark' : 'mesh-bg'}`}
+        className="flex min-h-screen overflow-hidden text-foreground bg-background transition-colors duration-200"
       >
         <NotificationCenter />
         <DialogCenter />
@@ -314,55 +333,51 @@ export default function App() {
           duplicate element IDs across the mobile/desktop layouts. */}
         <div
           id="app-shell"
-          className="relative flex flex-col flex-1 min-w-0 h-screen overflow-hidden"
+          className="relative flex flex-col flex-1 min-w-0 h-screen overflow-hidden bg-background"
         >
-          <header className="app-panel lg:hidden text-slate-800 dark:text-slate-100 px-4 py-3 flex items-center justify-between shadow-md shrink-0 border-b">
-            <div className="flex items-center space-x-2">
-              <div className="bg-emerald-500 text-slate-950 p-1.5 rounded-lg">
-                <ShoppingBag size={16} className="stroke-[2.5]" />
+          <header className="app-panel lg:hidden px-4 py-2.5 flex items-center justify-between shrink-0 border-b border-border bg-card">
+            <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
+              <div className="size-7 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight">
+                <ShoppingBag size={14} className="stroke-[2.2]" />
               </div>
               <h1
-                className="font-sans font-bold tracking-tight text-slate-900 dark:text-white text-sm truncate max-w-[120px]"
+                className="font-medium tracking-tight text-foreground text-sm truncate max-w-[130px]"
                 title={settings.storeName}
               >
                 {settings.storeName}
               </h1>
-              <span className="text-[9px] uppercase font-mono font-bold bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400">
+              <span className="text-[10px] uppercase font-mono font-medium bg-muted px-1.5 py-0.5 rounded text-muted-foreground border border-border">
                 {currentUser.role}
               </span>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1.5 rtl:space-x-reverse">
               <button
                 onClick={() => setDarkMode(!darkMode)}
                 aria-label={darkMode ? t('sidebar.lightMode') : t('sidebar.darkMode')}
-                className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg"
+                className="p-2 rounded-lg transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
               >
                 {darkMode ? (
-                  <div className="text-amber-400" aria-hidden="true">
-                    ☀️
-                  </div>
+                  <Sun size={15} className="text-zinc-300" aria-hidden="true" />
                 ) : (
-                  <div className="text-indigo-400" aria-hidden="true">
-                    🌙
-                  </div>
+                  <Moon size={15} className="text-zinc-600" aria-hidden="true" />
                 )}
               </button>
               <button
                 onClick={() => setCurrentUser(null)}
                 title={t('sidebar.lockTerminal')}
                 aria-label={t('sidebar.lockTerminal')}
-                className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg"
+                className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
               >
-                <XIcon size={16} />
+                <XIcon size={15} />
               </button>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-label={t('sidebar.menu')}
                 aria-expanded={mobileMenuOpen}
-                className="p-1.5 text-slate-300 hover:text-white rounded-lg"
+                className="p-2 text-foreground hover:bg-muted rounded-lg transition-colors"
               >
-                <Menu size={20} />
+                <Menu size={18} />
               </button>
             </div>
           </header>
@@ -370,10 +385,11 @@ export default function App() {
           <AnimatePresence>
             {mobileMenuOpen && (
               <motion.div
-                initial={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="app-panel lg:hidden absolute top-[48px] inset-x-0 border-b shadow-2xl z-40 p-4 space-y-2 flex flex-col"
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15 }}
+                className="app-panel lg:hidden absolute top-[45px] inset-x-0 border-b border-border shadow-lg z-40 p-3 space-y-1 bg-card flex flex-col"
               >
                 {allowedMobileItems.map((item) => {
                   const Icon = item.icon;
@@ -385,18 +401,20 @@ export default function App() {
                         setScreen(item.id);
                         setMobileMenuOpen(false);
                       }}
-                      className={`flex items-center justify-between w-full p-3 rounded-xl text-xs font-semibold ${
+                      className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                         isSel
-                          ? 'bg-slate-800 text-white border-s-4 border-emerald-500 ps-2'
-                          : 'text-slate-500 dark:text-slate-400 bg-slate-100/60 dark:bg-slate-950/20'
+                          ? 'bg-foreground text-background font-semibold shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                       }`}
                     >
-                      <div className="flex items-center space-x-2.5">
-                        <Icon size={16} className={isSel ? 'text-emerald-400' : 'text-slate-500'} />
+                      <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
+                        <Icon size={15} className={isSel ? 'text-background' : 'text-muted-foreground'} />
                         <span>{item.label}</span>
                       </div>
                       {item.badge !== undefined && (
-                        <span className="bg-amber-500 text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded-full">
+                        <span className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                          isSel ? 'bg-background/20 text-background' : 'bg-muted text-muted-foreground border border-border'
+                        }`}>
                           {item.badge}
                         </span>
                       )}

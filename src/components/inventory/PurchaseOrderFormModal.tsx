@@ -56,30 +56,30 @@ export function PurchaseOrderFormModal({
     <ModalShell
       modalRef={modalRef}
       titleId="po-form-title"
-      className="max-w-2xl w-full flex flex-col max-h-[90vh]"
+      className="max-w-2xl w-full flex flex-col max-h-[90vh] rounded-2xl border border-border bg-card shadow-lg"
     >
-      <div className="px-8 py-6 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 flex items-center justify-between">
+      <div className="px-6 py-4 border-b border-border bg-card flex items-center justify-between">
         <h3
           id="po-form-title"
-          className="font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3"
+          className="font-semibold text-foreground text-base flex items-center gap-2.5"
         >
-          <ClipboardList size={24} className="text-emerald-500" /> {t('inventory.newPurchaseOrder')}
+          <ClipboardList size={18} className="text-muted-foreground" /> {t('inventory.newPurchaseOrder')}
         </h3>
         <button
           onClick={onClose}
           aria-label={t('inventory.cancel')}
-          className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+          className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
         >
-          <X size={20} />
+          <X size={16} />
         </button>
       </div>
 
-      <div className="p-8 space-y-6 overflow-y-auto flex-1">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="p-6 space-y-5 overflow-y-auto flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label
               htmlFor="po-supplier-select"
-              className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+              className="text-xs font-medium text-muted-foreground block mb-1.5"
             >
               {t('inventory.poSupplier')}
             </label>
@@ -87,7 +87,7 @@ export function PurchaseOrderFormModal({
               id="po-supplier-select"
               value={poSupplierId}
               onChange={(e) => onSupplierIdChange(e.target.value)}
-              className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground"
             >
               <option value="">{t('inventory.poNoSupplier')}</option>
               {suppliers.map((s) => (
@@ -100,7 +100,7 @@ export function PurchaseOrderFormModal({
           <div>
             <label
               htmlFor="po-note-input"
-              className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+              className="text-xs font-medium text-muted-foreground block mb-1.5"
             >
               {t('inventory.poNote')}
             </label>
@@ -110,12 +110,12 @@ export function PurchaseOrderFormModal({
               value={poNote}
               onChange={(e) => onNoteChange(e.target.value)}
               placeholder={t('inventory.noteOptional')}
-              className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground placeholder:text-muted-foreground"
             />
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {poLines.map((lineRow, idx) => {
             const lineProduct = products.find((p) => p.id === lineRow.productId);
             const lineVariants = lineProduct?.variants ?? [];
@@ -124,13 +124,10 @@ export function PurchaseOrderFormModal({
                 <select
                   value={lineRow.productId}
                   onChange={(e) =>
-                    // Clearing the variant with the product: an id from the old
-                    // product means nothing against the new one, and receiving
-                    // would silently skip the line.
                     onLineChange(idx, { productId: e.target.value, variantId: '' })
                   }
                   aria-label={t('inventory.products')}
-                  className="flex-1 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 min-w-0"
+                  className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-foreground min-w-40"
                 >
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -143,7 +140,7 @@ export function PurchaseOrderFormModal({
                     value={lineRow.variantId ?? ''}
                     onChange={(e) => onLineChange(idx, { variantId: e.target.value })}
                     aria-label={t('inventory.variant')}
-                    className="flex-1 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 min-w-0"
+                    className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-foreground min-w-32"
                   >
                     <option value="">{t('inventory.variantRequired')}</option>
                     {lineVariants.map((variant) => (
@@ -164,10 +161,10 @@ export function PurchaseOrderFormModal({
                   onChange={(e) => onLineChange(idx, { quantity: e.target.value })}
                   aria-label={t('inventory.poQty')}
                   placeholder={t('inventory.poQty')}
-                  className="w-24 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl p-3 text-slate-900 dark:text-white font-mono text-center focus:outline-none focus:border-emerald-500"
+                  className="w-20 bg-background border border-border rounded-lg px-2.5 py-2 text-sm text-foreground font-mono text-center focus:outline-none focus:border-foreground"
                 />
-                <div className="w-32 flex items-center bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden focus-within:border-emerald-500">
-                  <span className="ps-3 text-slate-500 font-mono text-sm">{settings.currency}</span>
+                <div className="w-28 flex items-center bg-background border border-border rounded-lg overflow-hidden focus-within:border-foreground">
+                  <span className="ps-2 text-muted-foreground font-mono text-xs">{settings.currency}</span>
                   <input
                     type="number"
                     min="0"
@@ -176,14 +173,14 @@ export function PurchaseOrderFormModal({
                     onChange={(e) => onLineChange(idx, { unitCost: e.target.value })}
                     aria-label={t('inventory.poUnitCost')}
                     placeholder="0.00"
-                    className="w-full bg-transparent px-2 py-3 text-slate-900 dark:text-white font-mono focus:outline-none"
+                    className="w-full bg-transparent px-2 py-2 text-sm text-foreground font-mono focus:outline-none"
                   />
                 </div>
                 <button
                   onClick={() => onRemoveLine(idx)}
                   disabled={poLines.length <= 1}
                   aria-label={t('inventory.poRemoveLine')}
-                  className="btn-icon-outline p-2.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl disabled:opacity-25 transition-colors shrink-0"
+                  className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg disabled:opacity-20 transition-colors shrink-0"
                 >
                   <X size={14} />
                 </button>
@@ -192,17 +189,17 @@ export function PurchaseOrderFormModal({
           })}
           <button
             onClick={onAddLine}
-            className="btn-dashed-add text-xs font-bold px-3 py-2 rounded-lg"
+            className="btn-secondary text-xs h-8 px-3 rounded-lg inline-flex items-center gap-1.5"
           >
             + {t('inventory.poAddLine')}
           </button>
         </div>
 
-        <div className="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-white/5 text-sm">
-          <span className="text-slate-500 dark:text-slate-400 font-bold uppercase text-xs tracking-wider">
+        <div className="flex justify-between items-center pt-4 border-t border-border text-sm">
+          <span className="text-muted-foreground font-medium text-xs uppercase tracking-wider">
             {t('inventory.poTotalCost')}
           </span>
-          <span className="font-mono font-bold text-emerald-400 text-lg">
+          <span className="font-mono font-semibold text-foreground text-base">
             {settings.currency}
             {poLines
               .reduce(

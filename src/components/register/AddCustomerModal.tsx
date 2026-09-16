@@ -57,31 +57,31 @@ export function AddCustomerModal({
             transition={{ type: 'spring', stiffness: 280, damping: 22 }}
             className="modal-card max-w-sm w-full p-6 space-y-5"
           >
-            <div className="modal-divider-bottom flex justify-between items-center pb-4">
+            <div className="modal-divider-bottom flex justify-between items-center pb-3.5">
               <h3
                 id="add-customer-title"
-                className="font-sans font-bold text-slate-900 dark:text-white text-base flex items-center gap-2.5"
+                className="font-semibold text-foreground text-sm flex items-center gap-2"
               >
-                <div className="chip-emerald p-1.5 rounded-xl">
-                  <UserPlus size={16} />
+                <div className="p-1.5 bg-muted rounded-lg text-foreground">
+                  <UserPlus size={15} />
                 </div>
                 {t('register.newCustomer')}
               </h3>
               <button
                 onClick={onClose}
                 aria-label={t('register.close')}
-                className="p-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 rounded-xl transition-colors"
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             </div>
 
-            <form onSubmit={onSubmit} className="space-y-4">
+            <form onSubmit={onSubmit} className="space-y-3.5">
               {fields.map(({ label, type, value, onChange, placeholder, required }) => (
                 <div key={label}>
                   <label
                     htmlFor={`customer-field-${label}`}
-                    className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5"
+                    className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block mb-1"
                   >
                     {label}
                   </label>
@@ -92,22 +92,22 @@ export function AddCustomerModal({
                     placeholder={placeholder}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    className="input-shell w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-all placeholder:text-slate-600"
+                    className="input-shell w-full rounded-lg px-3 py-2 text-xs transition-all placeholder:text-muted-foreground"
                   />
                 </div>
               ))}
 
-              <div className="modal-divider-top flex justify-end gap-2.5 pt-3">
+              <div className="modal-divider-top flex justify-end gap-2 pt-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="btn-ghost px-5 py-2.5 text-sm font-bold rounded-xl"
+                  className="btn-secondary px-4 py-2 text-xs font-medium rounded-lg"
                 >
                   {t('register.cancel')}
                 </button>
                 <button
                   type="submit"
-                  className="btn-primary px-6 py-2.5 text-sm font-bold rounded-xl active:scale-95"
+                  className="btn-primary px-4 py-2 text-xs font-semibold rounded-lg"
                 >
                   {t('register.saveLink')}
                 </button>

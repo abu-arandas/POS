@@ -22,40 +22,40 @@ export function BulkActionBar({
   const { t } = useTranslation();
   return (
     <motion.div
-      initial={{ opacity: 0, y: 50, scale: 0.9 }}
+      initial={{ opacity: 0, y: 50, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 50, scale: 0.9 }}
-      className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-800/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-3 rounded-2xl flex items-center gap-6 shadow-2xl z-40"
+      exit={{ opacity: 0, y: 50, scale: 0.95 }}
+      className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-card border border-border p-2 px-3.5 rounded-xl flex items-center gap-4 shadow-xl z-40 text-foreground"
     >
-      <div className="flex items-center gap-3 px-2">
-        <div className="size-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+      <div className="flex items-center gap-2.5 px-1">
+        <div className="size-6 rounded-full bg-foreground text-background flex items-center justify-center font-mono font-semibold text-xs">
           {count}
         </div>
-        <span className="text-slate-900 dark:text-white font-bold text-sm">
+        <span className="text-foreground font-medium text-xs">
           {t('history.selected')}
         </span>
       </div>
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         <button
           onClick={onPrint}
-          className="bg-slate-700 hover:bg-slate-600 text-slate-900 dark:text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-colors"
+          className="btn-secondary text-xs h-8 px-3 rounded-lg flex items-center gap-1.5"
         >
-          <Printer size={16} /> {t('history.print')}
+          <Printer size={13} /> {t('history.print')}
         </button>
         {canDelete && (
           <button
             onClick={onDelete}
-            className="bg-rose-500 hover:bg-rose-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-colors"
+            className="btn-destructive text-xs h-8 px-3 rounded-lg flex items-center gap-1.5"
           >
-            <Trash2 size={16} /> {t('history.delete')}
+            <Trash2 size={13} /> {t('history.delete')}
           </button>
         )}
         <button
           onClick={onClear}
           aria-label={t('history.clearSelection')}
-          className="bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-2.5 rounded-xl transition-colors ms-2"
+          className="size-7 inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
         >
-          <X size={16} />
+          <X size={14} />
         </button>
       </div>
     </motion.div>

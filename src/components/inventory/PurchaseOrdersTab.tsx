@@ -44,9 +44,9 @@ export function InventoryPurchaseOrdersTab({
       {purchaseOrders.length === 0 ? (
         <tr>
           <td colSpan={6}>
-            <div className="py-20 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 gap-3">
-              <ClipboardList size={48} className="opacity-20" />
-              <p className="font-medium font-mono">{t('inventory.noPurchaseOrders')}</p>
+            <div className="py-20 flex flex-col items-center justify-center text-muted-foreground gap-3">
+              <ClipboardList size={40} className="opacity-20" />
+              <p className="font-mono text-xs">{t('inventory.noPurchaseOrders')}</p>
             </div>
           </td>
         </tr>
@@ -54,50 +54,50 @@ export function InventoryPurchaseOrdersTab({
         purchaseOrders.map((po) => (
           <tr
             key={po.id}
-            className="hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
+            className="hover:bg-muted/40 transition-colors border-b border-border/50"
           >
-            <td className="py-4 px-6">
-              <span className="font-mono font-bold text-slate-900 dark:text-white block text-xs">
+            <td className="py-3 px-4">
+              <span className="font-mono font-medium text-foreground block text-xs">
                 {po.id}
               </span>
-              <span className="text-[10px] text-slate-500 font-mono mt-1 block">
+              <span className="text-[10px] text-muted-foreground font-mono mt-0.5 block">
                 {new Date(po.createdAt).toLocaleString()}
                 {po.createdBy && <> · {po.createdBy}</>}
               </span>
               {po.note && (
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block truncate max-w-55">
+                <span className="text-[10px] text-muted-foreground mt-0.5 block truncate max-w-56">
                   {po.note}
                 </span>
               )}
             </td>
-            <td className="p-4 text-slate-600 dark:text-slate-300">
+            <td className="py-3 px-4 text-muted-foreground text-sm">
               <div className="flex items-center gap-2">
-                <Truck size={14} className="text-slate-500" />
+                <Truck size={13} className="text-muted-foreground/70" />
                 {po.supplierName || '—'}
               </div>
             </td>
-            <td className="p-4 text-slate-600 dark:text-slate-300 font-mono text-xs">
+            <td className="py-3 px-4 text-muted-foreground font-mono text-xs">
               {t('inventory.poLinesUnits', {
                 lines: po.lines.length,
                 units: poUnitCount(po),
               })}
             </td>
-            <td className="p-4 text-end font-mono font-bold text-slate-900 dark:text-white">
+            <td className="py-3 px-4 text-end font-mono font-semibold text-foreground text-sm">
               {settings.currency}
               {poTotal(po).toFixed(2)}
             </td>
-            <td className="p-4 text-center">
+            <td className="py-3 px-4 text-center">
               <span className={statusBadge[po.status]}>{t(`inventory.poStatus_${po.status}`)}</span>
             </td>
-            <td className="py-4 px-6">
-              <div className="flex items-center justify-end gap-2">
+            <td className="py-3 px-4">
+              <div className="flex items-center justify-end gap-1.5">
                 {po.status === 'draft' && (
                   <>
                     <button
                       onClick={() => onSetStatus(po.id, 'ordered')}
-                      className="btn-chip-blue flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl"
+                      className="btn-secondary text-xs h-7 px-2.5 rounded-md flex items-center gap-1.5"
                     >
-                      <Send size={12} /> {t('inventory.poMarkOrdered')}
+                      <Send size={11} /> {t('inventory.poMarkOrdered')}
                     </button>
                     <button
                       onClick={async () => {
@@ -105,9 +105,9 @@ export function InventoryPurchaseOrdersTab({
                           onDeleteOrder(po.id);
                       }}
                       aria-label={t('inventory.poDeleteDraft')}
-                      className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
+                      className="size-7 inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={13} />
                     </button>
                   </>
                 )}
@@ -115,9 +115,9 @@ export function InventoryPurchaseOrdersTab({
                   <>
                     <button
                       onClick={() => onReceive(po)}
-                      className="btn-chip-emerald flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl"
+                      className="btn-primary text-xs h-7 px-2.5 rounded-md flex items-center gap-1.5"
                     >
-                      <PackagePlus size={12} /> {t('inventory.poReceive')}
+                      <PackagePlus size={11} /> {t('inventory.poReceive')}
                     </button>
                     <button
                       onClick={async () => {
@@ -125,9 +125,9 @@ export function InventoryPurchaseOrdersTab({
                           onSetStatus(po.id, 'cancelled');
                       }}
                       aria-label={t('inventory.poCancelOrder')}
-                      className="p-2 text-slate-500 dark:text-slate-400 hover:text-rose-400 bg-slate-100 dark:bg-slate-800 hover:bg-rose-500/10 rounded-xl transition-colors"
+                      className="size-7 inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                     >
-                      <Ban size={14} />
+                      <Ban size={13} />
                     </button>
                   </>
                 )}
@@ -138,9 +138,9 @@ export function InventoryPurchaseOrdersTab({
                         onDeleteOrder(po.id);
                     }}
                     aria-label={t('inventory.poDeleteDraft')}
-                    className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
+                    className="size-7 inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={13} />
                   </button>
                 )}
               </div>

@@ -139,9 +139,9 @@ export default function Customers() {
   };
 
   const getCustomerTier = (points: number) => {
-    if (points >= 200) return { name: t('customers.tierPlatinum'), badge: 'badge-purple' };
-    if (points >= 100) return { name: t('customers.tierGold'), badge: 'badge-amber' };
-    return { name: t('customers.tierSilver'), badge: 'badge-slate' };
+    if (points >= 200) return { name: t('customers.tierPlatinum'), badge: 'bg-foreground/10 text-foreground border-foreground/20' };
+    if (points >= 100) return { name: t('customers.tierGold'), badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' };
+    return { name: t('customers.tierSilver'), badge: 'bg-secondary text-muted-foreground border-border' };
   };
 
   const getInitials = (name: string) => {
@@ -153,49 +153,43 @@ export default function Customers() {
       .toUpperCase();
   };
 
-  const getColorByLetter = (letter: string) => {
-    const char = letter.toUpperCase();
-    if (char < 'H') return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-    if (char < 'O') return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-    if (char < 'U') return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-    return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-  };
-
   return (
     <div
       id="customers-root"
-      className="flex-1 flex h-screen overflow-hidden bg-transparent p-6 text-slate-800 dark:text-slate-100"
+      className="flex-1 flex h-screen overflow-hidden bg-background p-6 text-foreground"
     >
       <div
         id="customer-directory-section"
         className="flex-1 flex flex-col min-w-0 pe-6 overflow-hidden"
       >
+        {/* Header */}
         <div id="customers-header" className="mb-6 shrink-0 flex items-center justify-between">
           <div>
-            <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
-              <Users className="text-emerald-500" /> {t('customers.customerLoyaltyCrm')}
+            <h2 className="font-semibold tracking-tight text-foreground text-xl sm:text-2xl flex items-center gap-2">
+              <Users className="size-5 text-muted-foreground" /> {t('customers.customerLoyaltyCrm')}
             </h2>
-            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
+            <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
               {t('customers.manageCustomerAccounts')}
             </p>
           </div>
           <button
             id="add-customer-trigger-btn"
             onClick={handleOpenAddCustomer}
-            className="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-sans font-bold text-xs sm:text-sm px-4 py-2 rounded-2xl flex items-center space-x-1.5 transition-all shadow-lg shadow-emerald-500/20"
+            className="btn-primary h-9 px-4 text-xs font-medium gap-1.5"
           >
-            <UserPlus size={16} />
+            <UserPlus size={15} />
             <span>{t('customers.newCustomer')}</span>
           </button>
         </div>
 
+        {/* Filter / Search Bar */}
         <div
           id="customers-filters"
-          className="glass dark:glass-dark p-4 rounded-3xl border border-slate-200 dark:border-white/10 shadow-lg space-y-4 mb-6 shrink-0"
+          className="bg-card border border-border rounded-xl p-3 shadow-2xs mb-5 shrink-0"
         >
-          <div className="flex flex-col md:flex-row gap-3">
-            <div className="flex-1 flex items-center space-x-2 glass-input px-4 py-2.5 rounded-2xl">
-              <Search size={16} className="text-slate-500 dark:text-slate-400" />
+          <div className="flex flex-col md:flex-row gap-2.5">
+            <div className="flex-1 flex items-center gap-2 bg-secondary/50 border border-border px-3 py-1.5 rounded-lg focus-within:border-foreground/40 transition-colors">
+              <Search size={15} className="text-muted-foreground shrink-0" />
               <input
                 id="customer-search-input"
                 type="text"
@@ -203,10 +197,10 @@ export default function Customers() {
                 placeholder={t('customers.searchCrm')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent border-none text-slate-700 dark:text-slate-200 text-sm focus:outline-none placeholder:text-slate-500"
+                className="flex-1 bg-transparent border-none text-foreground text-xs sm:text-sm focus:outline-none placeholder:text-muted-foreground"
               />
             </div>
-            <div className="flex glass-input p-1 rounded-2xl shrink-0">
+            <div className="flex bg-secondary/40 border border-border p-0.5 rounded-lg shrink-0">
               {(
                 [
                   { id: 'name', label: t('customers.alphabetical') },
@@ -217,10 +211,10 @@ export default function Customers() {
                 <button
                   key={opt.id}
                   onClick={() => setSortBy(opt.id)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all shrink-0 ${
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all shrink-0 ${
                     sortBy === opt.id
-                      ? 'bg-slate-700 text-slate-900 dark:text-white shadow-md'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/5'
+                      ? 'bg-background text-foreground shadow-2xs font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {opt.label}
@@ -230,19 +224,22 @@ export default function Customers() {
           </div>
         </div>
 
+        {/* Customer Cards Grid */}
         <div id="crm-grid-container" className="flex-1 overflow-y-auto pe-1 scrollbar-none">
           {sortedAndFilteredCustomers.length === 0 ? (
-            <div className="glass dark:glass-dark rounded-3xl p-16 flex flex-col items-center justify-center text-center animate-fade-up">
-              <div className="text-6xl mb-4 animate-bounce-in">🕵️‍♂️</div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+            <div className="bg-card border border-dashed border-border rounded-xl p-12 flex flex-col items-center justify-center text-center">
+              <div className="size-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground mb-3">
+                <Users size={18} />
+              </div>
+              <h3 className="text-sm font-semibold text-foreground mb-1">
                 {t('customers.noCustomersMatching')}
               </h3>
-              <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 max-w-sm">
+              <p className="text-muted-foreground text-xs mb-5 max-w-sm">
                 {t('customers.noMatchHint')}
               </p>
               <button
                 onClick={handleOpenAddCustomer}
-                className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white px-6 py-2.5 rounded-2xl text-sm font-bold transition-all shadow-lg"
+                className="btn-secondary h-8 px-3 text-xs"
               >
                 + {t('customers.newCustomer')}
               </button>
@@ -250,26 +247,19 @@ export default function Customers() {
           ) : (
             <div
               id="crm-grid"
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-4"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 pb-4"
             >
-              {sortedAndFilteredCustomers.map((cust, idx) => {
+              {sortedAndFilteredCustomers.map((cust) => {
                 const tier = getCustomerTier(cust.points);
                 const isSelected = cust.id === selectedCustomerId;
                 const initials = getInitials(cust.name);
-                const avatarColor = getColorByLetter(initials[0] || 'A');
 
                 return (
-                  <motion.div
+                  <div
                     key={cust.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: (idx % 10) * 0.05 }}
-                    layoutId={`crm-card-${cust.id}`}
                     id={`crm-card-${cust.id}`}
                     onClick={() => setSelectedCustomerId(cust.id)}
                     onKeyDown={(e) => {
-                      // Only when the card itself is focused — keys on the nested
-                      // edit/delete buttons must keep their native activation.
                       if (e.target !== e.currentTarget) return;
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
@@ -279,60 +269,60 @@ export default function Customers() {
                     role="button"
                     tabIndex={0}
                     aria-pressed={isSelected}
-                    className={`glass dark:glass-dark rounded-3xl border p-5 shadow-lg hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between card-hover group ${
+                    className={`bg-card border rounded-xl p-4 shadow-2xs transition-all cursor-pointer flex flex-col justify-between group ${
                       isSelected
-                        ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-slate-200 dark:bg-slate-800/80'
-                        : 'border-slate-200 dark:border-white/5 hover:border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-slate-800/40'
+                        ? 'border-foreground ring-1 ring-foreground/20 bg-secondary/30'
+                        : 'border-border hover:border-foreground/30 hover:bg-secondary/15'
                     }`}
                   >
-                    <div className="flex items-center gap-4 mb-4">
-                      <div
-                        className={`w-12 h-12 rounded-full border flex items-center justify-center font-bold text-lg shrink-0 ${avatarColor}`}
-                      >
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="size-10 rounded-full bg-secondary border border-border flex items-center justify-center font-mono font-medium text-xs text-foreground shrink-0">
                         {initials}
                       </div>
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <h4 className="font-sans font-bold text-slate-900 dark:text-white text-base truncate">
+                      <div className="space-y-0.5 min-w-0 flex-1">
+                        <h4 className="font-semibold text-foreground text-xs sm:text-sm truncate">
                           {cust.name}
                         </h4>
-                        <div className="flex flex-col space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                        <div className="flex flex-col space-y-0.5 text-[11px] text-muted-foreground">
                           {cust.email && (
-                            <span className="flex items-center gap-1.5 truncate">
-                              <Mail size={12} className="text-slate-500 shrink-0" />{' '}
+                            <span className="flex items-center gap-1 truncate">
+                              <Mail size={11} className="text-muted-foreground shrink-0" />
                               <span className="truncate">{cust.email}</span>
                             </span>
                           )}
                           {cust.phone && (
-                            <span className="flex items-center gap-1.5">
-                              <Phone size={12} className="text-slate-500 shrink-0" /> {cust.phone}
+                            <span className="flex items-center gap-1 font-mono">
+                              <Phone size={11} className="text-muted-foreground shrink-0" /> {cust.phone}
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between mt-auto">
-                      <div className="flex items-center gap-2">
-                        <span className={`badge ${tier.badge}`}>{tier.name}</span>
-                        <div className="flex items-center gap-1 bg-slate-200 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl px-2 py-1 shadow-inner">
-                          <span className="font-mono font-bold text-xs text-emerald-400">
+                    <div className="flex items-center justify-between mt-auto pt-3 border-t border-border">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded border ${tier.badge}`}>
+                          {tier.name}
+                        </span>
+                        <div className="flex items-center gap-1 bg-secondary border border-border rounded px-1.5 py-0.5">
+                          <span className="font-mono num font-semibold text-xs text-foreground">
                             {cust.points}
                           </span>
-                          <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                          <span className="text-[9px] text-muted-foreground font-mono uppercase">
                             {t('customers.pointsShort')}
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleOpenEditCustomer(cust);
                           }}
-                          className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                          className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                           aria-label={t('customers.editCustomerDetails')}
                         >
-                          <Edit2 size={14} />
+                          <Edit2 size={13} />
                         </button>
                         <button
                           id={`del-cust-${cust.id}`}
@@ -340,14 +330,14 @@ export default function Customers() {
                             e.stopPropagation();
                             confirmDelete(cust);
                           }}
-                          className="p-2 text-rose-400 hover:text-slate-900 dark:hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
+                          className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                           aria-label={t('customers.deleteCustomerRecord')}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
@@ -355,108 +345,103 @@ export default function Customers() {
         </div>
       </div>
 
+      {/* CRM Profile Sidebar */}
       <div
         id="crm-profile-section"
-        className="w-80 glass dark:glass-dark border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-2xl flex flex-col overflow-hidden shrink-0"
+        className="w-80 bg-card border border-border rounded-xl shadow-xs flex flex-col overflow-hidden shrink-0"
       >
         {activeCustomer ? (
-          <motion.div
-            key={activeCustomer.id}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex flex-col h-full"
-          >
-            <div className="p-6 border-b border-slate-200 dark:border-white/10 bg-white/60 dark:bg-slate-900/40 relative overflow-hidden">
-              <div className="absolute top-0 right-0 size-32 bg-emerald-500/10 rounded-full blur-3xl" />
-              <div className="flex items-start justify-between relative z-10">
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`w-14 h-14 rounded-full border flex items-center justify-center font-bold text-xl ${getColorByLetter(getInitials(activeCustomer.name)[0])}`}
-                  >
-                    {getInitials(activeCustomer.name)}
-                  </div>
-                  <div>
-                    <h3 className="font-sans font-bold text-slate-900 dark:text-white text-lg leading-tight">
-                      {activeCustomer.name}
-                    </h3>
-                    <span className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-1 block">
-                      ID: {activeCustomer.id.substring(0, 8)}
-                    </span>
-                  </div>
+          <div className="flex flex-col h-full">
+            <div className="p-4 border-b border-border bg-secondary/20 flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="size-11 rounded-full bg-secondary border border-border flex items-center justify-center font-mono font-semibold text-sm text-foreground">
+                  {getInitials(activeCustomer.name)}
                 </div>
-                <button
-                  onClick={() => setSelectedCustomerId(null)}
-                  className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors shadow-sm"
-                  aria-label={t('register.close', 'Close')}
-                >
-                  <X size={16} />
-                </button>
+                <div>
+                  <h3 className="font-semibold text-foreground text-sm leading-tight">
+                    {activeCustomer.name}
+                  </h3>
+                  <span className="text-[11px] font-mono text-muted-foreground mt-0.5 block">
+                    ID: {activeCustomer.id.substring(0, 8)}
+                  </span>
+                </div>
               </div>
+              <button
+                onClick={() => setSelectedCustomerId(null)}
+                className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                aria-label={t('register.close', 'Close')}
+              >
+                <X size={15} />
+              </button>
             </div>
 
-            <div className="flex-1 p-6 overflow-y-auto space-y-6 scrollbar-none">
-              <div id="crm-stats-block" className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 text-center">
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block uppercase tracking-wider font-mono mb-1">
+            <div className="flex-1 p-4 overflow-y-auto space-y-5 scrollbar-none">
+              <div id="crm-stats-block" className="grid grid-cols-2 gap-2">
+                <div className="bg-secondary/40 border border-border rounded-lg p-3 text-center">
+                  <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider block mb-1">
                     {t('customers.totalSpent')}
                   </span>
-                  <p className="font-mono font-extrabold text-lg text-slate-900 dark:text-white">
+                  <p className="font-mono num font-semibold text-sm sm:text-base text-foreground">
                     {settings.currency}
                     {activeCustomerStats.totalSpent.toFixed(2)}
                   </p>
                 </div>
-                <div className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 text-center">
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block uppercase tracking-wider font-mono mb-1">
+                <div className="bg-secondary/40 border border-border rounded-lg p-3 text-center">
+                  <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider block mb-1">
                     {t('customers.orderCount')}
                   </span>
-                  <p className="font-mono font-extrabold text-lg text-slate-900 dark:text-white">
+                  <p className="font-mono num font-semibold text-sm sm:text-base text-foreground">
                     {activeCustomerStats.totalVisits}
                   </p>
                 </div>
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-center col-span-2">
-                  <span className="text-[10px] text-emerald-500 font-bold block uppercase tracking-wider font-mono mb-1">
+                <div className="bg-secondary/60 border border-border rounded-lg p-3 text-center col-span-2">
+                  <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider block mb-1">
                     {t('customers.averageTicketValue')}
                   </span>
-                  <p className="font-mono font-extrabold text-xl text-emerald-400">
+                  <p className="font-mono num font-semibold text-base sm:text-lg text-foreground">
                     {settings.currency}
                     {activeCustomerStats.averageSpent.toFixed(2)}
                   </p>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-white/5">
-                  <ShoppingBag size={14} /> {t('customers.purchaseHistoryLog')}
+              <div className="space-y-2.5">
+                <h4 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider font-mono flex items-center gap-1.5 pb-2 border-b border-border">
+                  <ShoppingBag size={13} /> {t('customers.purchaseHistoryLog')}
                 </h4>
                 {activeCustomerTransactions.length === 0 ? (
-                  <p className="text-xs text-slate-500 text-center py-8 bg-slate-100 dark:bg-slate-800/30 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/50">
+                  <p className="text-xs text-muted-foreground text-center py-6 bg-secondary/30 rounded-lg border border-dashed border-border">
                     {t('customers.noLinkedSales')}
                   </p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     {activeCustomerTransactions
                       .slice()
                       .reverse()
                       .map((tx) => (
                         <div
                           key={tx.id}
-                          className="bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 rounded-2xl p-3 flex items-center justify-between transition-colors cursor-default"
+                          className="bg-secondary/30 hover:bg-secondary/60 border border-border rounded-lg p-2.5 flex items-center justify-between transition-colors"
                         >
                           <div>
-                            <span className="font-mono font-bold text-slate-700 dark:text-slate-200 text-xs block">
-                              {tx.id.substring(0, 8)}
+                            <span className="font-mono num font-medium text-foreground text-xs block">
+                              #{tx.id.substring(0, 8)}
                             </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
+                            <span className="text-[10px] text-muted-foreground mt-0.5 block font-mono">
                               {new Date(tx.date).toLocaleDateString()}
                             </span>
                           </div>
                           <div className="text-end">
-                            <span className="font-mono font-bold text-sm text-slate-900 dark:text-white block">
+                            <span className="font-mono num font-semibold text-xs text-foreground block">
                               {settings.currency}
                               {tx.total.toFixed(2)}
                             </span>
                             <span
-                              className={`badge mt-1 ${tx.status === 'refunded' ? 'badge-rose' : 'badge-emerald'}`}
+                              className={`text-[9px] uppercase font-semibold px-1 py-0.2 rounded border ${
+                                tx.status === 'refunded'
+                                  ? 'bg-destructive/10 text-destructive border-destructive/20'
+                                  : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                              }`}
                             >
                               {tx.status === 'refunded'
                                 ? t('customers.refunded')
@@ -469,22 +454,23 @@ export default function Customers() {
                 )}
               </div>
             </div>
-          </motion.div>
+          </div>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-center p-8">
-            <div className="size-24 bg-slate-100 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border border-slate-200 dark:border-slate-700/50 shadow-inner">
-              <span className="text-4xl">🏅</span>
+          <div className="h-full flex flex-col items-center justify-center text-center p-6">
+            <div className="size-12 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground mb-3">
+              <Users size={20} />
             </div>
-            <h4 className="font-sans font-bold text-slate-900 dark:text-white text-lg mb-2">
+            <h4 className="font-semibold text-foreground text-sm mb-1">
               {t('customers.crmProfileOffline')}
             </h4>
-            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-[200px] leading-relaxed">
+            <p className="text-xs text-muted-foreground max-w-[180px] leading-relaxed">
               {t('customers.selectClientCard')}
             </p>
           </div>
         )}
       </div>
 
+      {/* Customer Create/Edit Modal */}
       <AnimatePresence>
         {customerModalOpen && (
           <div
@@ -497,15 +483,15 @@ export default function Customers() {
               aria-modal="true"
               aria-labelledby="crm-form-title"
               tabIndex={-1}
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: -20 }}
-              className="modal-card max-w-sm w-full overflow-hidden"
+              initial={{ scale: 0.98, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.98, opacity: 0 }}
+              className="bg-card border border-border rounded-xl shadow-xl max-w-sm w-full overflow-hidden"
             >
-              <div className="p-6 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-slate-100 dark:bg-slate-800/30">
+              <div className="p-4 border-b border-border flex justify-between items-center bg-secondary/20">
                 <h3
                   id="crm-form-title"
-                  className="font-sans font-bold text-slate-900 dark:text-white text-lg"
+                  className="font-semibold text-foreground text-sm"
                 >
                   {editingCustomer
                     ? t('customers.editCustomerRecord')
@@ -514,19 +500,19 @@ export default function Customers() {
                 <button
                   type="button"
                   onClick={() => setCustomerModalOpen(false)}
-                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+                  className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   aria-label={t('register.close', 'Close')}
                 >
-                  <X size={18} />
+                  <X size={15} />
                 </button>
               </div>
 
               <form onSubmit={handleSubmitCustomer}>
-                <div className="p-6 space-y-5">
-                  <div className="space-y-1.5">
+                <div className="p-4 space-y-3.5">
+                  <div className="space-y-1">
                     <label
                       htmlFor="form-cust-name"
-                      className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block"
+                      className="text-xs font-medium text-muted-foreground block"
                     >
                       {t('customers.customerFullName')}
                     </label>
@@ -537,14 +523,14 @@ export default function Customers() {
                       placeholder="e.g. Eleanor Vance"
                       value={custName}
                       onChange={(e) => setCustName(e.target.value)}
-                      className="w-full glass-input rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                      className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <label
                       htmlFor="form-cust-phone"
-                      className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block"
+                      className="text-xs font-medium text-muted-foreground block"
                     >
                       {t('customers.phoneNumber')}
                     </label>
@@ -554,14 +540,14 @@ export default function Customers() {
                       placeholder="e.g. 555-1234"
                       value={custPhone}
                       onChange={(e) => setCustPhone(e.target.value)}
-                      className="w-full glass-input rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white font-mono focus:outline-none focus:border-emerald-500 transition-colors"
+                      className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground font-mono focus:outline-none focus:border-foreground/50 transition-colors"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <label
                       htmlFor="form-cust-email"
-                      className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block"
+                      className="text-xs font-medium text-muted-foreground block"
                     >
                       {t('customers.emailAddress')}
                     </label>
@@ -571,13 +557,13 @@ export default function Customers() {
                       placeholder="e.g. eleanor@example.com"
                       value={custEmail}
                       onChange={(e) => setCustEmail(e.target.value)}
-                      className="w-full glass-input rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                      className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
                     />
                   </div>
 
                   {editingCustomer && (
-                    <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-white/5">
-                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                    <div className="space-y-1 pt-2 border-t border-border">
+                      <label className="text-xs font-medium text-muted-foreground block">
                         {t('customers.adjustLoyaltyPoints')}
                       </label>
                       <input
@@ -586,26 +572,26 @@ export default function Customers() {
                         min="0"
                         value={custPoints}
                         onChange={(e) => setCustPoints(e.target.value)}
-                        className="w-full glass-input rounded-xl px-4 py-3 text-sm text-emerald-400 font-mono font-bold focus:outline-none focus:border-emerald-500 transition-colors bg-white/80 dark:bg-slate-900/50"
+                        className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground font-mono num font-semibold focus:outline-none focus:border-foreground/50 transition-colors"
                       />
                     </div>
                   )}
                 </div>
 
-                <div className="p-6 border-t border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-800/30 flex items-center justify-end gap-3">
+                <div className="p-4 border-t border-border bg-secondary/20 flex items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setCustomerModalOpen(false)}
-                    className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl text-sm font-bold transition-colors"
+                    className="btn-secondary h-8 px-3 text-xs"
                   >
                     {t('customers.cancel')}
                   </button>
                   <button
                     type="submit"
                     id="form-submit-cust-btn"
-                    className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-sans font-bold text-sm rounded-xl flex items-center shadow-lg shadow-emerald-500/20 transition-all"
+                    className="btn-primary h-8 px-3 text-xs font-medium gap-1.5"
                   >
-                    <Check size={16} className="me-2" />
+                    <Check size={14} />
                     <span>{t('customers.saveCustomer')}</span>
                   </button>
                 </div>
@@ -615,6 +601,7 @@ export default function Customers() {
         )}
       </AnimatePresence>
 
+      {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {deleteModalOpen && customerToDelete && (
           <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
@@ -624,39 +611,39 @@ export default function Customers() {
               aria-modal="true"
               aria-labelledby="crm-delete-title"
               tabIndex={-1}
-              initial={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.98, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="modal-card max-w-sm w-full overflow-hidden"
+              exit={{ scale: 0.98, opacity: 0 }}
+              className="bg-card border border-border rounded-xl shadow-xl max-w-sm w-full overflow-hidden"
             >
-              <div className="p-6 flex flex-col items-center text-center">
-                <div className="size-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mb-4">
-                  <AlertTriangle size={32} />
+              <div className="p-5 flex flex-col items-center text-center">
+                <div className="size-11 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-3">
+                  <AlertTriangle size={22} />
                 </div>
                 <h3
                   id="crm-delete-title"
-                  className="text-xl font-bold text-slate-900 dark:text-white mb-2"
+                  className="text-base font-semibold text-foreground mb-1"
                 >
                   {t('customers.deleteConfirm', { name: customerToDelete.name })}
                 </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                <p className="text-xs text-muted-foreground mb-5">
                   {t('customers.deleteIrreversible')}
                 </p>
-                <div className="flex w-full gap-3">
+                <div className="flex w-full gap-2">
                   <button
                     type="button"
                     onClick={() => {
                       setDeleteModalOpen(false);
                       setCustomerToDelete(null);
                     }}
-                    className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
+                    className="btn-secondary flex-1 h-9 text-xs"
                   >
                     {t('customers.cancel')}
                   </button>
                   <button
                     type="button"
                     onClick={handleDeleteConfirm}
-                    className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold shadow-lg shadow-rose-500/20 transition-colors"
+                    className="btn-destructive flex-1 h-9 text-xs font-medium"
                   >
                     {t('customers.delete')}
                   </button>

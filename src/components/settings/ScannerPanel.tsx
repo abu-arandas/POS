@@ -26,34 +26,34 @@ export function ScannerPanel({
   onSaveScanner,
 }: ScannerPanelProps) {
   return (
-    <div className="surface rounded-2xl p-6 max-w-3xl mx-auto space-y-8">
+    <div className="bg-card border border-border rounded-xl p-5 shadow-2xs max-w-3xl mx-auto space-y-6">
       <div>
-        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-2 flex items-center gap-2">
-          <ScanLine size={16} className="text-emerald-500" />
+        <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono mb-1.5 flex items-center gap-2">
+          <ScanLine size={14} className="text-muted-foreground" />
           {t('settings.scannerTitle')}
         </h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           {t('settings.scannerHint')}
         </p>
       </div>
 
-      <label className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl cursor-pointer">
+      <label className="flex items-center gap-3 p-3 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
         <input
           type="checkbox"
           checked={scannerForm.enabled}
           onChange={(e) => onScannerFormChange({ ...scannerForm, enabled: e.target.checked })}
-          className="size-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+          className="size-4 rounded border-border text-foreground focus:ring-foreground accent-foreground"
         />
-        <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+        <span className="text-xs font-medium text-foreground">
           {t('settings.scannerEnabled')}
         </span>
       </label>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label
             htmlFor="set-scanner-min-length"
-            className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+            className="block text-xs font-medium text-muted-foreground mb-1.5"
           >
             {t('settings.scannerMinLength')}
           </label>
@@ -68,14 +68,14 @@ export function ScannerPanel({
                 minLength: parseInt(e.target.value, 10) || 0,
               })
             }
-            className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
+            className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground font-mono focus:outline-none focus:border-foreground/50 transition-colors"
           />
-          <p className="text-xs text-slate-500 mt-2">{t('settings.scannerMinLengthHint')}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">{t('settings.scannerMinLengthHint')}</p>
         </div>
         <div>
           <label
             htmlFor="set-scanner-speed"
-            className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+            className="block text-xs font-medium text-muted-foreground mb-1.5"
           >
             {t('settings.scannerSpeed')}
           </label>
@@ -91,34 +91,34 @@ export function ScannerPanel({
                 maxInterKeyMs: parseInt(e.target.value, 10) || 0,
               })
             }
-            className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
+            className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground font-mono focus:outline-none focus:border-foreground/50 transition-colors"
           />
-          <p className="text-xs text-slate-500 mt-2">{t('settings.scannerSpeedHint')}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">{t('settings.scannerSpeedHint')}</p>
         </div>
       </div>
 
       {/* Live scan test area */}
-      <div className="rounded-2xl border-2 border-dashed border-emerald-500/30 bg-emerald-500/5 p-5">
-        <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1 flex items-center gap-2">
-          <ScanLine size={14} /> {t('settings.scannerTest')}
+      <div className="rounded-xl border border-dashed border-border bg-secondary/15 p-4">
+        <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono mb-1 flex items-center gap-1.5">
+          <ScanLine size={13} className="text-muted-foreground" /> {t('settings.scannerTest')}
         </h4>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+        <p className="text-[11px] text-muted-foreground mb-3">
           {t('settings.scannerTestHint')}
         </p>
         <div
-          className="rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 px-4 py-3 font-mono text-sm"
+          className="rounded-lg bg-secondary/40 border border-border px-3 py-2.5 font-mono text-xs"
           role="status"
           aria-live="polite"
         >
           {lastTestScan ? (
-            <span className="text-emerald-600 dark:text-emerald-400">
-              {t('settings.scannerLastScan')}: <strong>{lastTestScan.code}</strong>
-              <span className="text-slate-500 dark:text-slate-400 ms-2 text-xs">
+            <span className="text-foreground font-semibold">
+              {t('settings.scannerLastScan')}: <strong className="font-mono">{lastTestScan.code}</strong>
+              <span className="text-muted-foreground ms-2 text-[11px] font-normal">
                 {lastTestScan.at}
               </span>
             </span>
           ) : (
-            <span className="text-slate-500 dark:text-slate-400">
+            <span className="text-muted-foreground">
               {t('settings.scannerNoScan')}
             </span>
           )}
@@ -129,9 +129,9 @@ export function ScannerPanel({
         <button
           id="save-scanner-btn"
           onClick={onSaveScanner}
-          className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+          className="btn-primary h-9 px-4 text-xs font-medium gap-1.5"
         >
-          <Save size={18} />
+          <Save size={15} />
           {t('settings.saveScanner')}
         </button>
       </div>

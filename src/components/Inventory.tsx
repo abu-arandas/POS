@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Plus, Layers, PackagePlus, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, ProductVariant, PurchaseOrder, PurchaseOrderStatus, VariantType } from '../types';
+import { ModifierGroup, Product, ProductVariant, PurchaseOrder, PurchaseOrderStatus, VariantType } from '../types';
 import { hasVariants, totalVariantStock, variantCost, variantLabel } from '../lib/variants';
 import { normalizePoLines } from '../lib/purchaseOrders';
 import { type InventoryTabId, allowedInventoryTabs, isInventoryTabAllowed } from '../lib/access';
@@ -293,6 +293,7 @@ export default function Inventory() {
   const [prodImage, setProdImage] = useState('');
   const [prodVariantTypes, setProdVariantTypes] = useState<VariantType[]>([]);
   const [prodVariants, setProdVariants] = useState<ProductVariant[]>([]);
+  const [prodModifierGroups, setProdModifierGroups] = useState<ModifierGroup[]>([]);
 
   /**
    * Types and matrix move together — the editor rebuilds one from the other —
@@ -323,6 +324,7 @@ export default function Inventory() {
     setProdImage('');
     setProdVariantTypes([]);
     setProdVariants([]);
+    setProdModifierGroups([]);
     setProductModalOpen(true);
   }, [categories]);
 
@@ -341,6 +343,7 @@ export default function Inventory() {
     setProdImage(prod.image);
     setProdVariantTypes(prod.variantTypes ?? []);
     setProdVariants(prod.variants ?? []);
+    setProdModifierGroups(prod.modifierGroups ?? []);
     setProductModalOpen(true);
   };
 
@@ -414,6 +417,7 @@ export default function Inventory() {
       image: prodImage || '',
       variantTypes: prodVariantTypes.length > 0 ? prodVariantTypes : undefined,
       variants: prodVariants.length > 0 ? prodVariants : undefined,
+      modifierGroups: prodModifierGroups.length > 0 ? prodModifierGroups : undefined,
     };
 
     if (editingProduct) {
@@ -551,33 +555,38 @@ export default function Inventory() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       id="inventory-root"
-      className="flex-1 flex flex-col h-screen overflow-hidden bg-transparent p-6 text-slate-800 dark:text-slate-100"
+      className="flex-1 flex flex-col h-screen overflow-hidden bg-background p-6 text-foreground"
     >
       {/* Header Panel */}
       <div
         id="inventory-header"
         className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4"
       >
-        <div>
-          <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-2xl flex items-center gap-3">
-            <Layers className="text-emerald-500" size={28} /> {t('inventory.catalogInventory')}
-          </h2>
-          <p className="text-slate-500 text-sm mt-1">{t('inventory.manageStoreItems')}</p>
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-secondary/80 border border-border flex items-center justify-center text-foreground shrink-0">
+            <Layers size={20} />
+          </div>
+          <div>
+            <h2 className="font-sans font-semibold tracking-tight text-foreground text-xl">
+              {t('inventory.catalogInventory')}
+            </h2>
+            <p className="text-muted-foreground text-xs">{t('inventory.manageStoreItems')}</p>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-3 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           {currentTab === 'products' && (
             <button
               id="print-labels-btn"
               onClick={handlePrintLabels}
               disabled={sortedAndFilteredProducts.length === 0}
-              className="glass dark:glass-dark hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-slate-900 dark:text-white font-sans font-bold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all"
+              className="btn-secondary text-xs h-9 px-3 rounded-lg flex items-center gap-1.5 disabled:opacity-40"
               title={t('inventory.printLabelsHint')}
             >
-              <Tag size={18} />
+              <Tag size={14} />
               <span className="hidden sm:inline">{t('inventory.printLabels')}</span>
             </button>
           )}
@@ -589,9 +598,9 @@ export default function Inventory() {
                 setRecvProductId(products[0]?.id || '');
                 setReceiveOpen(true);
               }}
-              className="glass dark:glass-dark hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-sans font-bold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all"
+              className="btn-secondary text-xs h-9 px-3 rounded-lg flex items-center gap-1.5"
             >
-              <PackagePlus size={18} />
+              <PackagePlus size={14} />
               <span className="hidden sm:inline">{t('inventory.receiveStock')}</span>
             </button>
           )}
@@ -608,9 +617,9 @@ export default function Inventory() {
                       ? handleOpenPoModal
                       : () => setSupplierModalOpen(true)
               }
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-bold text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+              className="btn-primary text-xs h-9 px-3.5 rounded-lg flex items-center gap-1.5 active:scale-[0.98]"
             >
-              <Plus size={18} />
+              <Plus size={14} />
               <span>
                 {currentTab === 'products'
                   ? t('inventory.addProduct')
@@ -629,7 +638,7 @@ export default function Inventory() {
       <div
         role="tablist"
         aria-label={t('inventory.catalogInventory')}
-        className="flex space-x-6 border-b border-slate-200 dark:border-white/10 mb-6 relative"
+        className="flex space-x-6 border-b border-border mb-5 relative"
       >
         {tabs.map((tab) => (
           <button
@@ -637,17 +646,17 @@ export default function Inventory() {
             role="tab"
             aria-selected={currentTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`pb-3 text-sm font-semibold transition-colors relative z-10 ${
+            className={`pb-3 text-sm transition-colors relative z-10 ${
               currentTab === tab.id
-                ? 'text-emerald-500'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                ? 'text-foreground font-semibold'
+                : 'text-muted-foreground hover:text-foreground font-medium'
             }`}
           >
             {tab.label}
             {currentTab === tab.id && (
               <motion.div
                 layoutId="inventoryTab"
-                className="absolute -bottom-px inset-x-0 h-0.5 bg-emerald-500 rounded-t-full"
+                className="absolute -bottom-px inset-x-0 h-[2px] bg-foreground rounded-full"
                 initial={false}
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
@@ -737,7 +746,9 @@ export default function Inventory() {
             onImageChange={setProdImage}
             prodVariantTypes={prodVariantTypes}
             prodVariants={prodVariants}
+            prodModifierGroups={prodModifierGroups}
             onVariantsChange={handleVariantsChange}
+            onModifierGroupsChange={setProdModifierGroups}
             onClose={() => setProductModalOpen(false)}
             onSubmit={handleSubmitProduct}
           />

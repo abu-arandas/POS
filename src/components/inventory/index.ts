@@ -23,3 +23,5 @@ export { SupplierFormModal } from './SupplierFormModal';
 export type { SupplierFormModalProps } from './SupplierFormModal';
 export { VariantsEditor } from './VariantsEditor';
 export type { VariantsEditorProps } from './VariantsEditor';
+export { ModifiersEditor } from './ModifiersEditor';
+export type { ModifiersEditorProps } from './ModifiersEditor';

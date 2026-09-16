@@ -37,7 +37,7 @@ function DialogContent({
   }, [dialog.kind]);
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center modal-backdrop p-4">
       <div
         role="dialog"
         aria-modal="true"
@@ -46,30 +46,30 @@ function DialogContent({
             ? t('common.confirm', 'Confirm')
             : t('common.prompt', 'Input required')
         }
-        className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-5 text-slate-100 shadow-2xl"
+        className="w-full max-w-sm rounded-xl border border-border bg-card p-5 text-foreground shadow-xl"
       >
-        <p className="whitespace-pre-wrap text-sm leading-6">{dialog.message}</p>
+        <p className="whitespace-pre-wrap text-xs sm:text-sm text-foreground leading-relaxed">{dialog.message}</p>
         {dialog.kind === 'prompt' && (
           <input
             ref={inputRef}
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500"
+            className="mt-3.5 w-full rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs sm:text-sm text-foreground outline-none focus:border-foreground/50 transition-colors"
             aria-label={t('common.promptValue', 'Value')}
           />
         )}
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
             onClick={() => resolveCurrent(dialog.kind === 'confirm' ? false : null)}
-            className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800"
+            className="btn-secondary h-8 px-3 text-xs"
           >
             {t('common.cancel', 'Cancel')}
           </button>
           <button
             type="button"
             onClick={() => resolveCurrent(dialog.kind === 'confirm' ? true : value)}
-            className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400"
+            className="btn-primary h-8 px-3 text-xs font-medium"
           >
             {t('common.confirm', 'Confirm')}
           </button>

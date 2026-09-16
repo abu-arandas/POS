@@ -48,29 +48,31 @@ export function HeldOrdersModal({
             transition={{ type: 'spring', stiffness: 300, damping: 24 }}
             className="modal-card max-w-md w-full overflow-hidden flex flex-col max-h-[80vh]"
           >
-            <div className="p-5 flex justify-between items-center border-b border-slate-800/60">
+            <div className="p-4 flex justify-between items-center border-b border-border">
               <h3
                 id="held-orders-title"
-                className="font-sans font-bold text-slate-900 dark:text-white text-base flex items-center gap-2.5"
+                className="font-semibold text-foreground text-sm flex items-center gap-2"
               >
-                <div className="p-1.5 bg-amber-500/15 rounded-xl text-amber-400">
-                  <Clock size={16} />
+                <div className="p-1.5 bg-muted rounded-lg text-foreground">
+                  <Clock size={15} />
                 </div>
                 {t('register.heldOrders')}
-                <span className="badge badge-amber ms-1">{heldOrders.length}</span>
+                <span className="bg-muted text-muted-foreground border border-border font-mono px-1.5 py-0.2 rounded-full text-[10px] ms-1">
+                  {heldOrders.length}
+                </span>
               </h3>
               <button
                 onClick={onClose}
                 aria-label={t('register.close')}
-                className="p-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 rounded-xl transition-colors"
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             </div>
-            <div className="p-4 overflow-y-auto space-y-2.5">
+            <div className="p-3.5 overflow-y-auto space-y-2">
               {heldOrders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-                  <PauseCircle size={36} className="opacity-20 mb-3" />
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                  <PauseCircle size={32} className="opacity-25 mb-2" />
                   <p className="font-mono text-xs">{t('register.noHeldOrders')}</p>
                 </div>
               ) : (
@@ -80,38 +82,38 @@ export function HeldOrdersModal({
                   return (
                     <div
                       key={order.id}
-                      className="group flex items-center justify-between gap-3 rounded-2xl p-3.5 transition-all bg-slate-800/40 border border-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-800/70"
+                      className="group flex items-center justify-between gap-3 rounded-xl p-3 transition-colors bg-card border border-border hover:border-foreground/20"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="font-sans font-bold text-slate-800 dark:text-slate-100 text-sm truncate">
+                        <p className="font-medium text-foreground text-xs truncate">
                           {order.label}
                         </p>
-                        <p className="text-[10px] font-mono text-slate-500 mt-1">
+                        <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
                           {itemCount} {t('register.itemsLower')}{' '}
-                          <span className="mx-1.5 opacity-40">•</span>
+                          <span className="mx-1 opacity-40">•</span>
                           {currency}
                           {orderTotal.toFixed(2)}
                           {order.operatorName && (
                             <>
-                              <span className="mx-1.5 opacity-40">•</span>
+                              <span className="mx-1 opacity-40">•</span>
                               {order.operatorName}
                             </>
                           )}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           onClick={() => onResume(order)}
-                          className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"
+                          className="btn-primary flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg"
                         >
-                          <Play size={12} className="fill-current" /> {t('register.resume')}
+                          <Play size={11} className="fill-current" /> {t('register.resume')}
                         </button>
                         <button
                           onClick={() => onRemove(order.id)}
                           aria-label={t('register.deleteHeld')}
-                          className="p-1.5 text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors"
+                          className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-muted rounded-lg transition-colors"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     </div>

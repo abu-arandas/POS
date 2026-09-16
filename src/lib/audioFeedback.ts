@@ -1,0 +1,177 @@
+/**
+ * Synthesized audio feedback engine using the native Web Audio API.
+ * 100% offline, zero external asset downloads or network latency.
+ */
+
+let audioCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  if (!audioCtx) {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (AudioCtx) {
+      audioCtx = new AudioCtx();
+    }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+  return audioCtx;
+}
+
+export function isAudioFeedbackEnabled(): boolean {
+  if (typeof localStorage === 'undefined') return true;
+  return localStorage.getItem('pos_sound_fx') !== 'false';
+}
+
+export function setAudioFeedbackEnabled(enabled: boolean): void {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('pos_sound_fx', enabled ? 'true' : 'false');
+  }
+}
+
+/**
+ * Short crisp click/blip for keyboard & numpad input
+ */
+export function playKeySound(): void {
+  if (!isAudioFeedbackEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.04);
+
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.04);
+  } catch {}
+}
+
+/**
+ * Cheerful pop when adding an item to the cart
+ */
+export function playCartSound(): void {
+  if (!isAudioFeedbackEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.09);
+
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.09);
+  } catch {}
+}
+
+/**
+ * Elegant dual-tone restaurant service chime for Kitchen tickets
+ */
+export function playKitchenBell(): void {
+  if (!isAudioFeedbackEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    [
+      { freq: 880, start: now, duration: 0.3, vol: 0.2 },
+      { freq: 1174.66, start: now + 0.12, duration: 0.45, vol: 0.25 },
+    ].forEach(({ freq, start, duration, vol }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, start);
+
+      gain.gain.setValueAtTime(vol, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(start);
+      osc.stop(start + duration);
+    });
+  } catch {}
+}
+
+/**
+ * Harmonious C-major triad chime on successful checkout
+ */
+export function playSuccessChime(): void {
+  if (!isAudioFeedbackEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    // C5, E5, G5, C6 arpeggio
+    [
+      { freq: 523.25, time: now },
+      { freq: 659.25, time: now + 0.08 },
+      { freq: 783.99, time: now + 0.16 },
+      { freq: 1046.5, time: now + 0.24 },
+    ].forEach(({ freq, time }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.15, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(time);
+      osc.stop(time + 0.4);
+    });
+  } catch {}
+}
+
+/**
+ * Subtle low error or boundary bump
+ */
+export function playErrorSound(): void {
+  if (!isAudioFeedbackEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(200, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(140, ctx.currentTime + 0.15);
+
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+  } catch {}
+}

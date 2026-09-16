@@ -6,6 +6,8 @@ import { UserAccount } from '../types';
  */
 export type ScreenId =
   | 'register'
+  | 'tables'
+  | 'kitchen'
   | 'inventory'
   | 'history'
   | 'customers'
@@ -27,6 +29,8 @@ export type ScreenId =
  */
 export const SCREEN_ROLES: Record<ScreenId, ReadonlyArray<UserAccount['role']>> = {
   register: ['admin', 'manager', 'cashier'],
+  tables: ['admin', 'manager', 'cashier'],
+  kitchen: ['admin', 'manager', 'cashier'],
   dashboard: ['admin', 'manager'],
   // Cashiers reach only the purchasing sections; INVENTORY_TAB_ROLES below
   // decides what they actually see once inside.

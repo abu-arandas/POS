@@ -149,44 +149,44 @@ export function VariantsEditor({
 
   return (
     <div>
-      <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2 border-b border-slate-200 dark:border-white/5 pb-2">
-        <Layers size={16} className="text-emerald-500" /> {t('inventory.sectionVariants')}
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-2 border-b border-border/60 pb-2">
+        <Layers size={14} className="text-muted-foreground" /> {t('inventory.sectionVariants')}
       </h4>
-      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+      <p className="text-[11px] text-muted-foreground mb-3">
         {variants.length > 0 ? t('inventory.variantStockHint') : t('inventory.variantsHint')}
       </p>
 
       {/* Option types */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {variantTypes.map((type) => (
           <div
             key={type.id}
-            className="rounded-2xl border border-slate-200 dark:border-white/10 p-4 bg-white/60 dark:bg-slate-900/40"
+            className="rounded-xl border border-border p-3 bg-secondary/30"
           >
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2 mb-2.5">
               <input
                 type="text"
                 aria-label={t('inventory.variantTypeName')}
                 placeholder={t('inventory.variantTypeNamePlaceholder')}
                 value={type.name}
                 onChange={(e) => renameType(type.id, e.target.value)}
-                className="flex-1 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                className="flex-1 bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs font-medium text-foreground focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground"
               />
               <button
                 type="button"
                 onClick={() => removeType(type.id)}
                 aria-label={`${t('inventory.removeVariantType')} — ${type.name || t('inventory.variantTypeName')}`}
-                className="p-2 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors shrink-0"
+                className="size-7 inline-flex items-center justify-center text-muted-foreground hover:text-destructive rounded-md hover:bg-destructive/10 transition-colors shrink-0"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {type.options.map((option) => (
                 <div
                   key={option.id}
-                  className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/60 rounded-xl ps-3 pe-1 py-1 border border-slate-200 dark:border-white/10"
+                  className="flex items-center gap-1 bg-background rounded-md ps-2 pe-1 py-0.5 border border-border"
                 >
                   <input
                     type="text"
@@ -194,24 +194,24 @@ export function VariantsEditor({
                     placeholder={t('inventory.variantOptionPlaceholder')}
                     value={option.name}
                     onChange={(e) => renameOption(type.id, option.id, e.target.value)}
-                    className="w-24 bg-transparent border-none text-sm text-slate-900 dark:text-white focus:outline-none"
+                    className="w-20 bg-transparent border-none text-xs text-foreground focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => removeOption(type.id, option.id)}
                     aria-label={`${t('inventory.removeVariantOption')} — ${option.name || type.name}`}
-                    className="p-1 text-slate-500 hover:text-rose-400 rounded-lg transition-colors"
+                    className="size-5 inline-flex items-center justify-center text-muted-foreground hover:text-destructive rounded transition-colors"
                   >
-                    <X size={12} />
+                    <X size={10} />
                   </button>
                 </div>
               ))}
               <button
                 type="button"
                 onClick={() => addOption(type.id)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-600 dark:text-emerald-400 border border-dashed border-emerald-500/40 hover:bg-emerald-500/10 transition-colors"
+                className="btn-secondary text-[11px] h-6 px-2 rounded-md inline-flex items-center gap-1"
               >
-                <Plus size={12} /> {t('inventory.addVariantOption')}
+                <Plus size={10} /> {t('inventory.addVariantOption')}
               </button>
             </div>
           </div>
@@ -222,62 +222,62 @@ export function VariantsEditor({
         type="button"
         id="add-variant-type-btn"
         onClick={addType}
-        className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400 border border-dashed border-emerald-500/40 hover:bg-emerald-500/10 transition-colors"
+        className="mt-3 btn-secondary text-xs h-8 px-3 rounded-lg inline-flex items-center gap-1.5"
       >
-        <Plus size={14} /> {t('inventory.addVariantType')}
+        <Plus size={13} /> {t('inventory.addVariantType')}
       </button>
 
       {/* The generated matrix */}
       {variants.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-5">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
               {t('inventory.variantCombinations', { count: variants.length })}
             </p>
-            <p className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+            <p className="text-xs font-mono font-medium text-foreground">
               {t('inventory.variantTotalStock', { count: derivedTotal })}
             </p>
           </div>
           {atLimit && (
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-2">
+            <p className="text-[11px] text-amber-500 mb-2">
               {t('inventory.variantLimitReached', { count: MAX_VARIANTS_PER_PRODUCT })}
             </p>
           )}
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-white/10">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-100 dark:bg-slate-800/60">
-                <tr className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  <th className="text-start font-bold px-3 py-2">
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/50 border-b border-border">
+                <tr className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">
+                  <th className="text-start font-medium px-3 py-2">
                     {t('inventory.productDetails')}
                   </th>
-                  <th className="text-start font-bold px-3 py-2">{t('inventory.sku')}</th>
-                  <th className="text-start font-bold px-3 py-2">
+                  <th className="text-start font-medium px-3 py-2">{t('inventory.sku')}</th>
+                  <th className="text-start font-medium px-3 py-2">
                     {t('inventory.price')} ({settings.currency})
                   </th>
-                  <th className="text-start font-bold px-3 py-2">
+                  <th className="text-start font-medium px-3 py-2">
                     {t('inventory.cost')} ({settings.currency})
                   </th>
-                  <th className="text-start font-bold px-3 py-2">{t('inventory.stock')}</th>
+                  <th className="text-start font-medium px-3 py-2">{t('inventory.stock')}</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border/50">
                 {variants.map((variant) => {
                   const label = variantLabel({ variantTypes }, variant);
                   return (
-                    <tr key={variant.id} className="border-t border-slate-200 dark:border-white/5">
-                      <td className="px-3 py-2 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                    <tr key={variant.id} className="hover:bg-muted/30">
+                      <td className="px-3 py-1.5 font-medium text-foreground whitespace-nowrap">
                         {label || t('inventory.variantUnnamed')}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-1.5">
                         <input
                           type="text"
                           aria-label={`${t('inventory.sku')} — ${label}`}
                           value={variant.sku}
                           onChange={(e) => updateVariant(variant.id, { sku: e.target.value })}
-                          className="w-32 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-lg px-2 py-1.5 font-mono text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                          className="w-28 bg-background border border-border rounded-md px-2 py-1 font-mono text-xs text-foreground focus:outline-none focus:border-foreground"
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-1.5">
                         <input
                           type="number"
                           step="0.01"
@@ -285,17 +285,15 @@ export function VariantsEditor({
                           aria-label={`${t('inventory.price')} — ${label}`}
                           placeholder={t('inventory.variantInherits')}
                           value={variant.price ?? ''}
-                          // An emptied box means "inherit", not "free". Writing 0
-                          // here would quietly make the variant a giveaway.
                           onChange={(e) =>
                             updateVariant(variant.id, {
                               price: e.target.value === '' ? undefined : Number(e.target.value),
                             })
                           }
-                          className="w-24 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-lg px-2 py-1.5 font-mono text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                          className="w-20 bg-background border border-border rounded-md px-2 py-1 font-mono text-xs text-foreground focus:outline-none focus:border-foreground"
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-1.5">
                         <input
                           type="number"
                           step="0.01"
@@ -308,10 +306,10 @@ export function VariantsEditor({
                               cost: e.target.value === '' ? undefined : Number(e.target.value),
                             })
                           }
-                          className="w-24 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-lg px-2 py-1.5 font-mono text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                          className="w-20 bg-background border border-border rounded-md px-2 py-1 font-mono text-xs text-foreground focus:outline-none focus:border-foreground"
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-1.5">
                         <input
                           type="number"
                           min="0"
@@ -322,7 +320,7 @@ export function VariantsEditor({
                               stock: Math.max(0, Math.trunc(Number(e.target.value) || 0)),
                             })
                           }
-                          className="w-20 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-lg px-2 py-1.5 font-mono text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                          className="w-16 bg-background border border-border rounded-md px-2 py-1 font-mono text-xs text-foreground focus:outline-none focus:border-foreground"
                         />
                       </td>
                     </tr>

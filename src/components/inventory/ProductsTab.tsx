@@ -72,11 +72,11 @@ export function InventoryProductsTab({
       {/* Filter Bar */}
       <div
         id="inventory-filters"
-        className="surface p-4 rounded-2xl shadow-lg mb-6 shrink-0 flex flex-wrap gap-4 items-center"
+        className="p-3 rounded-xl border border-border bg-card mb-4 shrink-0 flex flex-wrap gap-3 items-center"
       >
         {/* Search */}
-        <div className="flex-1 min-w-50 flex items-center space-x-2 bg-white/80 dark:bg-slate-900/50 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 focus-within:border-emerald-500/50 transition-colors">
-          <Search size={18} className="text-slate-500 dark:text-slate-400" />
+        <div className="flex-1 min-w-48 relative flex items-center">
+          <Search size={14} className="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <input
             id="inventory-search-input"
             type="text"
@@ -84,15 +84,15 @@ export function InventoryProductsTab({
             placeholder={t('inventory.searchProducts')}
             value={searchQuery}
             onChange={(e) => onSearchQueryChange(e.target.value)}
-            className="flex-1 bg-transparent border-none text-slate-700 dark:text-slate-200 text-sm focus:outline-none placeholder:text-slate-500 glass-input"
+            className="input-shell w-full ps-8 pe-3 py-1.5 rounded-lg text-xs"
           />
         </div>
 
         {/* Select Category */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <label
             htmlFor="filter-category-select"
-            className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono"
+            className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider font-mono"
           >
             {t('inventory.category')}
           </label>
@@ -100,7 +100,7 @@ export function InventoryProductsTab({
             id="filter-category-select"
             value={selectedCategory}
             onChange={(e) => onSelectedCategoryChange(e.target.value)}
-            className="bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-semibold px-4 py-2 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
+            className="input-shell rounded-lg text-xs font-medium px-3 py-1.5 cursor-pointer"
           >
             <option value="all">{t('inventory.allCategories')}</option>
             {categories.map((c) => (
@@ -112,37 +112,37 @@ export function InventoryProductsTab({
         </div>
 
         {/* Stock status filter */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider font-mono">
             {t('inventory.stockLevel')}
           </span>
-          <div className="flex bg-white/80 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200 dark:border-white/10">
+          <div className="flex bg-muted/60 p-0.5 rounded-lg border border-border">
             <button
               onClick={() => onStockFilterChange('all')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                 stockFilter === 'all'
-                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  ? 'bg-card text-foreground font-semibold shadow-2xs'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {t('inventory.all')}
             </button>
             <button
               onClick={() => onStockFilterChange('low')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                 stockFilter === 'low'
-                  ? 'bg-amber-500/20 text-amber-400 shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold shadow-2xs'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {t('inventory.low')}
             </button>
             <button
               onClick={() => onStockFilterChange('out')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                 stockFilter === 'out'
-                  ? 'bg-rose-500/20 text-rose-400 shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  ? 'bg-destructive/15 text-destructive font-semibold shadow-2xs'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {t('inventory.out')}
@@ -154,15 +154,15 @@ export function InventoryProductsTab({
       {/* Table Container */}
       <div
         id="inventory-table-container"
-        className="flex-1 surface rounded-2xl shadow-lg overflow-hidden flex flex-col"
+        className="flex-1 bg-card rounded-xl border border-border shadow-2xs overflow-hidden flex flex-col"
       >
         <div className="flex-1 overflow-y-auto">
           <table id="inventory-table" className="w-full text-start border-collapse table-fixed">
             <thead>
-              <tr className="bg-white/90 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 sticky top-0 z-10 backdrop-blur-md">
-                <th className="py-4 px-6 w-1/4">{t('inventory.productDetails')}</th>
+              <tr className="bg-muted/70 text-muted-foreground text-[11px] font-medium uppercase tracking-wider font-mono border-b border-border sticky top-0 z-10 backdrop-blur-xs">
+                <th className="py-3 px-4 w-1/4">{t('inventory.productDetails')}</th>
                 <th
-                  className="p-4 w-1/8"
+                  className="p-3 w-1/8"
                   aria-sort={
                     sortBy === 'sku'
                       ? sortOrder === 'asc'
@@ -173,14 +173,14 @@ export function InventoryProductsTab({
                 >
                   <button
                     onClick={() => onToggleSort('sku')}
-                    className="flex items-center gap-2 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    className="flex items-center gap-1.5 hover:text-foreground transition-colors"
                   >
-                    {t('inventory.sku')} <ArrowUpDown size={12} />
+                    {t('inventory.sku')} <ArrowUpDown size={11} />
                   </button>
                 </th>
-                <th className="p-4 w-1/6">{t('inventory.category').replace(':', '')}</th>
+                <th className="p-3 w-1/6">{t('inventory.category').replace(':', '')}</th>
                 <th
-                  className="p-4 w-1/8 text-end"
+                  className="p-3 w-1/8 text-end"
                   aria-sort={
                     sortBy === 'price'
                       ? sortOrder === 'asc'
@@ -191,15 +191,15 @@ export function InventoryProductsTab({
                 >
                   <button
                     onClick={() => onToggleSort('price')}
-                    className="flex items-center gap-2 hover:text-slate-900 dark:hover:text-white transition-colors justify-end w-full"
+                    className="flex items-center gap-1.5 hover:text-foreground transition-colors justify-end w-full"
                   >
-                    {t('inventory.price')} <ArrowUpDown size={12} />
+                    {t('inventory.price')} <ArrowUpDown size={11} />
                   </button>
                 </th>
-                <th className="p-4 w-1/8 text-end">{t('inventory.cost')}</th>
-                <th className="p-4 w-1/8 text-end">{t('inventory.margin')}</th>
+                <th className="p-3 w-1/8 text-end">{t('inventory.cost')}</th>
+                <th className="p-3 w-1/8 text-end">{t('inventory.margin')}</th>
                 <th
-                  className="py-4 px-6 w-1/6 text-center"
+                  className="py-3 px-4 w-1/6 text-center"
                   aria-sort={
                     sortBy === 'stock'
                       ? sortOrder === 'asc'
@@ -210,21 +210,21 @@ export function InventoryProductsTab({
                 >
                   <button
                     onClick={() => onToggleSort('stock')}
-                    className="flex items-center gap-2 hover:text-slate-900 dark:hover:text-white transition-colors justify-center w-full"
+                    className="flex items-center gap-1.5 hover:text-foreground transition-colors justify-center w-full"
                   >
-                    {t('inventory.stock')} <ArrowUpDown size={12} />
+                    {t('inventory.stock')} <ArrowUpDown size={11} />
                   </button>
                 </th>
-                <th className="p-4 w-25 text-center">{t('inventory.actions')}</th>
+                <th className="p-3 w-20 text-center">{t('inventory.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 text-sm text-slate-700 dark:text-slate-200">
+            <tbody className="divide-y divide-border text-xs text-foreground">
               {sortedAndFilteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={8}>
-                    <div className="py-20 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 gap-3">
-                      <Layers size={48} className="opacity-20" />
-                      <p className="font-medium font-mono">{t('inventory.noProductsRegistered')}</p>
+                    <div className="py-16 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                      <Layers size={36} className="opacity-25" />
+                      <p className="font-mono text-xs">{t('inventory.noProductsRegistered')}</p>
                     </div>
                   </td>
                 </tr>
@@ -238,11 +238,11 @@ export function InventoryProductsTab({
                     <tr
                       key={prod.id}
                       id={`inventory-row-${prod.id}`}
-                      className={`hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors group ${isOut ? 'bg-rose-500/5' : isLow ? 'bg-amber-500/5' : ''}`}
+                      className={`hover:bg-muted/40 transition-colors group ${isOut ? 'bg-destructive/5' : isLow ? 'bg-amber-500/5' : ''}`}
                     >
-                      <td className="py-4 px-6 flex items-center gap-4 truncate">
+                      <td className="py-2.5 px-4 flex items-center gap-3 truncate">
                         {showProductImages && (
-                          <div className="size-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 overflow-hidden shrink-0 flex items-center justify-center text-xl">
+                          <div className="size-8 rounded-lg bg-muted border border-border/50 overflow-hidden shrink-0 flex items-center justify-center">
                             {safeImageUrl(prod.image) ? (
                               <img
                                 src={safeImageUrl(prod.image)}
@@ -251,68 +251,68 @@ export function InventoryProductsTab({
                                 referrerPolicy="no-referrer"
                               />
                             ) : (
-                              <ImageIcon className="text-slate-500" size={20} />
+                              <ImageIcon className="text-muted-foreground" size={16} />
                             )}
                           </div>
                         )}
                         <div className="truncate">
-                          <span className="font-bold block truncate text-slate-800 dark:text-slate-100">
+                          <span className="font-medium block truncate text-foreground text-xs">
                             {prod.name}
                           </span>
-                          <span className="text-xs font-mono font-medium text-slate-500 block mt-0.5">
+                          <span className="text-[10px] font-mono text-muted-foreground block mt-0.5">
                             {t('inventory.thresholdAlert')}: {prod.minStock}
                           </span>
                         </div>
                       </td>
-                      <td className="p-4 font-mono text-xs truncate text-slate-500 dark:text-slate-400">
+                      <td className="p-3 font-mono text-xs truncate text-muted-foreground">
                         {prod.sku}
                       </td>
-                      <td className="p-4">
-                        <span className={getProductCategoryColor(prod.category)}>
+                      <td className="p-3">
+                        <span className="text-[11px] font-medium px-2 py-0.5 rounded border border-border bg-muted/60 text-foreground">
                           {getProductCategoryName(prod.category)}
                         </span>
                       </td>
-                      <td className="p-4 font-mono font-bold text-slate-900 dark:text-white text-end">
+                      <td className="p-3 font-mono font-semibold text-foreground text-end num">
                         {settings.currency}
                         {prod.price.toFixed(2)}
                       </td>
-                      <td className="p-4 font-mono text-slate-500 dark:text-slate-400 text-end">
+                      <td className="p-3 font-mono text-muted-foreground text-end num">
                         {settings.currency}
                         {prod.cost.toFixed(2)}
                       </td>
-                      <td className="p-4 text-end font-mono font-medium">
+                      <td className="p-3 text-end font-mono font-medium">
                         <span
                           className={
-                            margin >= 50 ? 'text-emerald-400' : 'text-slate-500 dark:text-slate-400'
+                            margin >= 50 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
                           }
                         >
                           {margin.toFixed(0)}%
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-center">
+                      <td className="py-2.5 px-4 text-center">
                         <div className="flex flex-col items-center justify-center">
                           <div
-                            className={`px-3 py-1 rounded-lg font-mono font-bold text-sm flex items-center gap-2 ${
+                            className={`px-2 py-0.5 rounded-full font-mono text-xs inline-flex items-center gap-1 border ${
                               isOut
-                                ? 'bg-rose-500/20 text-rose-400'
+                                ? 'bg-destructive/10 text-destructive border-destructive/20'
                                 : isLow
-                                  ? 'bg-amber-500/20 text-amber-400'
-                                  : 'bg-emerald-500/20 text-emerald-400'
+                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                                  : 'bg-muted text-foreground border-border'
                             }`}
                           >
-                            {isOut || isLow ? <AlertTriangle size={14} /> : null}
+                            {isOut || isLow ? <AlertTriangle size={11} /> : null}
                             {prod.stock}
                           </div>
                         </div>
                       </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                      <td className="p-3">
+                        <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                           <button
                             onClick={() => onEditProduct(prod)}
                             aria-label={t('inventory.editCatalogProduct')}
-                            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                           >
-                            <Edit2 size={16} />
+                            <Edit2 size={13} />
                           </button>
                           <button
                             id={`del-prod-${prod.id}`}
@@ -325,9 +325,9 @@ export function InventoryProductsTab({
                                 onDeleteProduct(prod.id);
                             }}
                             aria-label={t('inventory.deleteProduct')}
-                            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded-xl transition-colors"
+                            className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-muted rounded-lg transition-colors"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </td>
@@ -339,23 +339,23 @@ export function InventoryProductsTab({
           </table>
         </div>
         {/* Table Footer Stats */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-white/5 bg-white/80 dark:bg-slate-900/50 text-xs text-slate-500 dark:text-slate-400 font-mono flex justify-between items-center">
+        <div className="px-4 py-2 border-t border-border bg-muted/20 text-xs text-muted-foreground font-mono flex justify-between items-center">
           <span>
             {t('inventory.activeSkus')}:{' '}
-            <strong className="text-slate-900 dark:text-white ms-1">{products.length}</strong>
+            <strong className="text-foreground ms-1">{products.length}</strong>
           </span>
-          <span className="flex items-center gap-6">
-            <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-amber-500"></span>
+          <span className="flex items-center gap-5">
+            <span className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-amber-500"></span>
               {t('inventory.lowStock')}:{' '}
-              <strong className="text-amber-400 ms-1">
+              <strong className="text-foreground ms-1">
                 {products.filter((p) => p.stock <= p.minStock && p.stock > 0).length}
               </strong>
             </span>
-            <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-rose-500"></span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-destructive"></span>
               {t('inventory.outOfStock')}:{' '}
-              <strong className="text-rose-400 ms-1">
+              <strong className="text-foreground ms-1">
                 {products.filter((p) => p.stock <= 0).length}
               </strong>
             </span>

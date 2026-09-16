@@ -7,7 +7,15 @@ import {
   variantCost,
   variantLabel,
   variantPrice,
+import {
+  availableStock,
+  lineKey,
+  variantCost,
+  variantLabel,
+  variantPrice,
 } from '../../lib/variants';
+import { calculateModifierPriceDelta, modifierSignature } from '../../lib/modifiers';
+import type { SelectedModifier } from '../../types';
 
 export type RegisterDiscountType = 'none' | 'percentage' | 'fixed' | 'loyalty';
 
@@ -15,6 +23,8 @@ export interface RegisterCartLine {
   product: Product;
   /** The chosen variant, on a product that sells through variants. */
   variant?: ProductVariant;
+  /** Chosen modifiers / add-ons (e.g. Extra cheese, No onions). */
+  modifiers?: SelectedModifier[];
   quantity: number;
 }
 
@@ -23,6 +33,7 @@ export interface RegisterCartItem {
   productName: string;
   variantId?: string;
   variantName?: string;
+  modifiers?: SelectedModifier[];
   price: number;
   cost: number;
   quantity: number;
@@ -30,11 +41,12 @@ export interface RegisterCartItem {
 
 /**
  * What a cart line is addressed by: the product for a plain item, the product
- * and the variant together for a varianted one. Two sizes of the same shirt are
- * two lines, and everything that edits the cart names one of them.
+ * and the variant together for a varianted one, and their modifier signature.
  */
-export function cartLineKey(line: Pick<RegisterCartLine, 'product' | 'variant'>): string {
-  return lineKey(line.product.id, line.variant?.id);
+export function cartLineKey(line: Pick<RegisterCartLine, 'product' | 'variant' | 'modifiers'>): string {
+  const base = lineKey(line.product.id, line.variant?.id);
+  const mod = modifierSignature(line.modifiers);
+  return mod ? `${base}#${mod}` : base;
 }
 
 export interface RegisterCartResult {
@@ -58,7 +70,7 @@ export interface RegisterCartResult {
   totalAmount: number;
   cashSuggestions: number[];
   cashChangeDue(cashPaidText: string): number;
-  addToCart(product: Product, variant?: ProductVariant): void;
+  addToCart(product: Product, variant?: ProductVariant, modifiers?: SelectedModifier[]): void;
   updateCartQty(key: string, delta: number): void;
   removeFromCart(key: string): void;
   clearCart(): void;
@@ -79,18 +91,19 @@ export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
 
   const cartItems = useMemo<RegisterCartItem[]>(
     () =>
-      cart.map(({ product, variant, quantity }) => ({
-        productId: product.id,
-        productName: product.name,
-        variantId: variant?.id,
-        // Resolved now, not at checkout: the variant's name has to be what the
-        // operator saw on the screen when they rang it up, even if the catalogue
-        // is edited (or synced over) while the sale is still open.
-        variantName: variant ? variantLabel(product, variant) || undefined : undefined,
-        price: variantPrice(product, variant),
-        cost: variantCost(product, variant),
-        quantity,
-      })),
+      cart.map(({ product, variant, modifiers, quantity }) => {
+        const modDelta = calculateModifierPriceDelta(modifiers);
+        return {
+          productId: product.id,
+          productName: product.name,
+          variantId: variant?.id,
+          variantName: variant ? variantLabel(product, variant) || undefined : undefined,
+          modifiers,
+          price: variantPrice(product, variant) + modDelta,
+          cost: variantCost(product, variant),
+          quantity,
+        };
+      }),
     [cart],
   );
 
@@ -128,25 +141,28 @@ export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
     [totalAmount],
   );
 
-  const addToCart = useCallback((product: Product, variant?: ProductVariant) => {
-    // Stock is read for the line being added, not for the product as a whole: a
-    // shirt with forty smalls and no larges has plenty of stock and still
-    // cannot sell a large.
-    const stock = availableStock(product, variant?.id);
-    if (stock <= 0) return;
-    const key = lineKey(product.id, variant?.id);
-    setCart((previous) => {
-      const existingIndex = previous.findIndex((item) => cartLineKey(item) === key);
-      if (existingIndex >= 0) {
-        const existing = previous[existingIndex];
-        if (existing.quantity >= stock) return previous;
-        const next = [...previous];
-        next[existingIndex] = { ...existing, quantity: existing.quantity + 1 };
-        return next;
-      }
-      return [...previous, { product, variant, quantity: 1 }];
-    });
-  }, []);
+  const addToCart = useCallback(
+    (product: Product, variant?: ProductVariant, modifiers?: SelectedModifier[]) => {
+      // Stock is read for the line being added, not for the product as a whole: a
+      // shirt with forty smalls and no larges has plenty of stock and still
+      // cannot sell a large.
+      const stock = availableStock(product, variant?.id);
+      if (stock <= 0) return;
+      const key = cartLineKey({ product, variant, modifiers });
+      setCart((previous) => {
+        const existingIndex = previous.findIndex((item) => cartLineKey(item) === key);
+        if (existingIndex >= 0) {
+          const existing = previous[existingIndex];
+          if (existing.quantity >= stock) return previous;
+          const next = [...previous];
+          next[existingIndex] = { ...existing, quantity: existing.quantity + 1 };
+          return next;
+        }
+        return [...previous, { product, variant, modifiers, quantity: 1 }];
+      });
+    },
+    [],
+  );
 
   const updateCartQty = useCallback((key: string, delta: number) => {
     setCart((previous) =>

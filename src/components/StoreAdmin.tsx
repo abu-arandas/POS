@@ -46,7 +46,7 @@ const EMPTY_DRAFT: Draft = { name: '', address: '', timezone: 'UTC', currency: '
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const FLD =
-  'w-full bg-[var(--surface-1)] border border-slate-200 dark:border-white/10 focus:border-emerald-500/40 text-slate-700 dark:text-slate-200 text-sm px-3 py-2 rounded-lg focus:outline-none placeholder:text-slate-600';
+  'w-full bg-background border border-input focus:ring-1 focus:ring-ring text-foreground text-sm px-3 py-2 rounded-lg focus:outline-none placeholder:text-muted-foreground transition-colors';
 
 /**
  * Central store & staff management (Phase 3). A super-admin can create, rename,
@@ -218,12 +218,12 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
 
   return (
     <div id="store-admin-root" className="flex-1 flex flex-col min-h-0 overflow-hidden p-6">
-      <div className="mb-6 shrink-0 flex flex-wrap items-center justify-between gap-3">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-lg sm:text-xl flex items-center gap-2">
-            <Building2 className="text-emerald-500" size={22} /> {t('storeAdmin.title')}
+      <div className="mb-5 shrink-0 flex flex-wrap items-center justify-between gap-3">
+        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
+          <h2 className="font-semibold tracking-tight text-foreground text-lg sm:text-xl flex items-center gap-2">
+            <Building2 className="text-foreground" size={20} /> {t('storeAdmin.title')}
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+          <p className="text-muted-foreground text-xs mt-0.5">
             {t('storeAdmin.subtitle')}
           </p>
         </motion.div>
@@ -232,16 +232,16 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
             onClick={reload}
             disabled={loading || busy}
             aria-label={t('fleet.refresh')}
-            className="flex items-center gap-2 bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+            className="btn-secondary h-8 px-2.5 rounded-lg"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           </button>
           <button
             onClick={() => {
               setDraft(EMPTY_DRAFT);
               setErrors({});
             }}
-            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold uppercase px-4 py-2 rounded-xl transition-colors"
+            className="btn-primary h-8 px-3 text-xs flex items-center gap-1.5"
           >
             <Plus size={14} /> {t('storeAdmin.addStore')}
           </button>
@@ -251,8 +251,8 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
       <div className="flex-1 overflow-y-auto space-y-4 pe-1 pb-6">
         {/* New/edit store form */}
         {draft && (
-          <div className="surface rounded-3xl p-6 shadow-xl">
-            <h3 className="font-sans font-bold text-slate-900 dark:text-white text-sm mb-4">
+          <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
+            <h3 className="font-semibold text-foreground text-sm mb-4">
               {draft.id ? t('storeAdmin.editStore') : t('storeAdmin.newStore')}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -301,18 +301,18 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
               <button
                 onClick={saveStore}
                 disabled={busy}
-                className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 text-xs font-bold uppercase px-4 py-2 rounded-xl transition-colors"
+                className="btn-primary h-8 px-3 text-xs flex items-center gap-1.5"
               >
-                <Save size={14} /> {t('storeAdmin.save')}
+                <Save size={13} /> {t('storeAdmin.save')}
               </button>
               <button
                 onClick={() => {
                   setDraft(null);
                   setErrors({});
                 }}
-                className="flex items-center gap-2 bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold uppercase px-4 py-2 rounded-xl transition-colors"
+                className="btn-secondary h-8 px-3 text-xs flex items-center gap-1.5"
               >
-                <X size={14} /> {t('storeAdmin.cancel')}
+                <X size={13} /> {t('storeAdmin.cancel')}
               </button>
             </div>
           </div>
@@ -320,8 +320,8 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
 
         {/* Store list */}
         {stores.length === 0 && !loading ? (
-          <div className="surface rounded-3xl py-20 flex flex-col items-center justify-center text-slate-500 gap-3">
-            <Building2 size={40} className="opacity-20" />
+          <div className="bg-card border border-border rounded-xl py-20 flex flex-col items-center justify-center text-muted-foreground gap-3">
+            <Building2 size={36} className="opacity-20" />
             <p className="font-mono text-xs">{t('storeAdmin.noStores')}</p>
           </div>
         ) : (
@@ -329,22 +329,24 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
             const roster = membersByStore.get(s.id) ?? [];
             const expanded = expandedId === s.id;
             return (
-              <div key={s.id} className="surface rounded-3xl shadow-xl overflow-hidden">
-                <div className="px-6 py-4 flex items-center justify-between gap-4">
+              <div key={s.id} className="bg-card border border-border rounded-xl shadow-2xs overflow-hidden">
+                <div className="px-5 py-3.5 flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                      <span className="text-sm font-semibold text-foreground truncate">
                         {s.name}
                       </span>
                       <span
-                        className={
-                          s.status === 'active' ? 'badge badge-emerald' : 'badge badge-slate'
-                        }
+                        className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-md border ${
+                          s.status === 'active'
+                            ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                            : 'text-muted-foreground bg-secondary/60 border-border'
+                        }`}
                       >
                         {t(`storeAdmin.status_${s.status}`)}
                       </span>
                     </div>
-                    <span className="text-[10px] font-mono text-slate-500">
+                    <span className="text-[11px] font-mono text-muted-foreground">
                       {s.currency} · {s.timezone} · {roster.length} {t('storeAdmin.membersLabel')}
                     </span>
                   </div>
@@ -384,9 +386,9 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
 
                 {/* Staff roster */}
                 {expanded && (
-                  <div className="border-t border-slate-200 dark:border-white/5 px-6 py-4 bg-slate-900/30">
+                  <div className="border-t border-border px-5 py-3.5 bg-muted/20">
                     {roster.length === 0 ? (
-                      <p className="text-[11px] font-mono text-slate-500 mb-3">
+                      <p className="text-[11px] font-mono text-muted-foreground mb-3">
                         {t('storeAdmin.noMembers')}
                       </p>
                     ) : (
@@ -394,7 +396,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                         {roster.map((m) => (
                           <li key={m.userId} className="flex items-center justify-between gap-3">
                             <span
-                              className="text-[11px] font-mono text-slate-600 dark:text-slate-300 truncate"
+                              className="text-[11px] font-mono text-foreground truncate"
                               title={m.userId}
                             >
                               {m.userId.slice(0, 12)}…
@@ -405,7 +407,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                                 value={m.role}
                                 onChange={(e) => changeRole(m, e.target.value as Role)}
                                 disabled={busy}
-                                className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-[11px] font-semibold px-2 py-1 rounded-lg focus:outline-none focus:border-emerald-500/40"
+                                className="bg-background border border-input text-foreground text-[11px] font-medium px-2 py-1 rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
                               >
                                 {ASSIGNABLE_ROLES.map((r) => (
                                   <option key={r} value={r}>
@@ -418,7 +420,7 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                                 onClick={() => dropMember(m)}
                                 danger
                               >
-                                <Trash2 size={14} />
+                                <Trash2 size={13} />
                               </IconBtn>
                             </div>
                           </li>
@@ -432,13 +434,13 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                         onChange={(e) => setMemberUserId(e.target.value)}
                         aria-label={t('storeAdmin.userIdPlaceholder')}
                         placeholder={t('storeAdmin.userIdPlaceholder')}
-                        className={`${FLD} flex-1 min-w-45 font-mono text-[11px]`}
+                        className={`${FLD} flex-1 min-w-45 font-mono text-[11px] py-1.5`}
                       />
                       <select
                         aria-label={t('storeAdmin.roleLabel')}
                         value={memberRole}
                         onChange={(e) => setMemberRole(e.target.value as Role)}
-                        className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-[11px] font-semibold p-2 rounded-lg focus:outline-none focus:border-emerald-500/40"
+                        className="bg-background border border-input text-foreground text-[11px] font-medium px-2 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-ring"
                       >
                         {ASSIGNABLE_ROLES.map((r) => (
                           <option key={r} value={r}>
@@ -449,13 +451,13 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
                       <button
                         onClick={() => addMember(s.id)}
                         disabled={busy || !memberUserId.trim()}
-                        className="flex items-center gap-1.5 bg-emerald-500/90 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 text-[11px] font-bold uppercase px-3 py-2 rounded-lg transition-colors"
+                        className="btn-primary h-8 px-3 text-xs flex items-center gap-1.5"
                       >
                         <Plus size={13} /> {t('storeAdmin.addMember')}
                       </button>
                     </div>
-                    <p className="text-[10px] font-mono text-slate-500 mt-2 flex items-center gap-1.5">
-                      <ShieldCheck size={12} className="text-emerald-500/70" />
+                    <p className="text-[10px] font-mono text-muted-foreground mt-2 flex items-center gap-1.5">
+                      <ShieldCheck size={12} className="text-muted-foreground" />
                       {t('storeAdmin.memberHint')}
                     </p>
                   </div>
@@ -466,13 +468,13 @@ export default function StoreAdmin({ orgId }: StoreAdminProps) {
         )}
 
         {/* RLS enforcement callout */}
-        <div className="surface rounded-3xl p-5 shadow-xl border border-amber-500/15">
-          <h3 className="font-sans font-bold text-amber-300/90 text-xs uppercase tracking-wider flex items-center gap-2 mb-1.5">
-            <ShieldCheck size={14} /> {t('storeAdmin.rlsTitle')}
+        <div className="bg-card border border-border rounded-xl p-4 shadow-2xs">
+          <h3 className="font-semibold text-foreground text-xs uppercase tracking-wider flex items-center gap-2 mb-1">
+            <ShieldCheck size={14} className="text-foreground" /> {t('storeAdmin.rlsTitle')}
           </h3>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+          <p className="text-xs text-muted-foreground leading-relaxed">
             {t('storeAdmin.rlsBody')}{' '}
-            <code className="font-mono text-slate-600 dark:text-slate-300">
+            <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded text-[11px]">
               src/db/multi-store-rls-enforce.sql
             </code>
           </p>
@@ -496,11 +498,11 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
       <div className="mt-1">{children}</div>
-      {error && <span className="text-[10px] font-mono text-rose-400 mt-1 block">{error}</span>}
+      {error && <span className="text-[11px] font-mono text-destructive mt-1 block">{error}</span>}
     </label>
   );
 }
@@ -527,12 +529,12 @@ function IconBtn({
       onClick={onClick}
       title={title}
       aria-label={title}
-      className={`p-2 rounded-lg transition-colors ${
+      className={`size-8 rounded-lg flex items-center justify-center transition-colors ${
         active
-          ? 'bg-emerald-500/15 text-emerald-300'
+          ? 'bg-secondary text-foreground'
           : danger
-            ? 'text-slate-500 dark:text-slate-400 hover:text-rose-400 hover:bg-rose-500/10'
-            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/5'
+            ? 'text-muted-foreground hover:text-destructive hover:bg-destructive/10'
+            : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
       }`}
     >
       {children}

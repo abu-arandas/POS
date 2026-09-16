@@ -45,30 +45,30 @@ export function UserModal({
       id="user-modal"
       modalRef={modalRef}
       titleId="user-modal-title"
-      className="w-full max-w-sm"
+      className="w-full max-w-sm bg-card border border-border rounded-xl shadow-xl overflow-hidden"
       compactAnimation
     >
-      <div className="px-6 py-4 border-b border-slate-200/10 flex items-center justify-between">
+      <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-secondary/20">
         <h3
           id="user-modal-title"
-          className="font-bold text-slate-800 dark:text-white flex items-center gap-2"
+          className="font-semibold text-xs sm:text-sm text-foreground flex items-center gap-2"
         >
-          <UserPlus size={18} className="text-emerald-500" />
+          <UserPlus size={16} className="text-muted-foreground" />
           {editingUser ? t('settings.editUser') : t('settings.newUser')}
         </h3>
         <button
           onClick={() => onClose()}
           aria-label={t('settings.cancel')}
-          className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+          className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
         >
-          <X size={16} />
+          <X size={15} />
         </button>
       </div>
-      <form onSubmit={onSubmit} className="p-6 space-y-4">
+      <form onSubmit={onSubmit} className="p-5 space-y-3.5">
         <div>
           <label
             htmlFor="user-name-input"
-            className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2"
+            className="block text-xs font-medium text-muted-foreground mb-1"
           >
             {t('settings.userName')}
           </label>
@@ -78,13 +78,13 @@ export function UserModal({
             required
             value={userName}
             onChange={(e) => onUserNameChange(e.target.value)}
-            className="glass-input w-full px-4 py-2.5 rounded-xl"
+            className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
           />
         </div>
         <div>
           <label
             htmlFor="user-role-select"
-            className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2"
+            className="block text-xs font-medium text-muted-foreground mb-1"
           >
             {t('settings.userRole')}
           </label>
@@ -92,7 +92,7 @@ export function UserModal({
             id="user-role-select"
             value={userRole}
             onChange={(e) => onUserRoleChange(e.target.value as UserAccount['role'])}
-            className="glass-input w-full px-4 py-2.5 rounded-xl appearance-none"
+            className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
           >
             <option value="admin">{t('settings.roleAdmin')}</option>
             <option value="manager">{t('settings.roleManager')}</option>
@@ -102,7 +102,7 @@ export function UserModal({
         <div>
           <label
             htmlFor="user-pin-input"
-            className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2"
+            className="block text-xs font-medium text-muted-foreground mb-1"
           >
             {editingUser ? t('settings.userPinKeep') : t('settings.userPin')}
           </label>
@@ -114,35 +114,35 @@ export function UserModal({
             placeholder="••••"
             value={userPin}
             onChange={(e) => onUserPinChange(e.target.value.replace(/\D/g, ''))}
-            className="glass-input w-full px-4 py-2.5 rounded-xl font-mono tracking-[0.5em] text-lg text-center"
+            className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 font-mono tracking-[0.5em] text-base text-center text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
           />
         </div>
-        <label className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-slate-800/30 rounded-xl cursor-pointer">
+        <label className="flex items-center gap-3 p-3 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
           <input
             id="user-active-checkbox"
             type="checkbox"
             checked={userActive}
             onChange={(e) => onUserActiveChange(e.target.checked)}
-            className="size-5 rounded border-slate-600 text-emerald-500 focus:ring-emerald-500 bg-white dark:bg-slate-900"
+            className="size-4 rounded border-border text-foreground focus:ring-foreground accent-foreground"
           />
-          <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
+          <span className="text-xs font-medium text-foreground">
             {t('settings.statusActive')}
           </span>
         </label>
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-200/10">
+        <div className="flex justify-end gap-2 pt-3 border-t border-border">
           <button
             type="button"
             onClick={() => onClose()}
-            className="px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+            className="btn-secondary h-8 px-3 text-xs"
           >
             {t('settings.cancel')}
           </button>
           <button
             id="user-save-btn"
             type="submit"
-            className="px-5 py-2.5 text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+            className="btn-primary h-8 px-3 text-xs font-medium gap-1.5"
           >
-            <Check size={16} />
+            <Check size={14} />
             {t('settings.saveUser')}
           </button>
         </div>

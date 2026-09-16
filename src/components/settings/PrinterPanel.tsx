@@ -51,14 +51,16 @@ export function PrinterPanel({
   // Also used outside the list: the OS-printer datalist and the auto-scan toggle.
   const { detectedPrinters, networkScanSupported } = discovery;
   return (
-    <div className="surface rounded-2xl p-6 max-w-3xl mx-auto space-y-8">
+    <div className="bg-card border border-border rounded-xl p-5 shadow-2xs max-w-3xl mx-auto space-y-6">
       <ConnectedPrinters
         t={t}
         discovery={discovery}
         renderRowActions={(p) => (
           <>
             {p.isDefault && (
-              <span className="badge badge-emerald">{t('settings.printerDefault')}</span>
+              <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded border bg-secondary text-foreground border-border">
+                {t('settings.printerDefault')}
+              </span>
             )}
             {p.kind === 'network' && p.ipAddress && (
               <button
@@ -83,17 +85,17 @@ export function PrinterPanel({
                   : t('settings.useThisPrinter')}
               </button>
             )}
-            <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
+            <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
           </>
         )}
         footer={
           networkScanSupported() ? (
-            <label className="mt-3 flex items-center gap-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer">
+            <label className="mt-2.5 flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer">
               <input
                 type="checkbox"
                 checked={autoScanPrinters}
                 onChange={(e) => onAutoScanPrintersChange(e.target.checked)}
-                className="size-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                className="size-3.5 rounded border-border text-foreground focus:ring-foreground accent-foreground"
               />
               {t('settings.autoScanPrinters')}
             </label>
@@ -101,11 +103,11 @@ export function PrinterPanel({
         }
       />
 
-      <div>
-        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-4">
+      <div className="pt-2 border-t border-border">
+        <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono mb-3">
           {t('settings.connectionType')}
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           {printerTypes.map((pt) => {
             const Icon = pt.icon;
             const isSelected = printerForm.type === pt.id;
@@ -120,25 +122,25 @@ export function PrinterPanel({
                     type: pt.id as PrinterConfig['type'],
                   })
                 }
-                className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${
+                className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
                   isSelected
-                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-500 dark:text-slate-400'
+                    ? 'border-foreground bg-foreground text-background font-semibold shadow-2xs'
+                    : 'border-border bg-secondary/30 hover:bg-secondary/60 text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Icon size={24} className="mb-2" />
-                <span className="text-xs font-bold">{pt.label}</span>
+                <Icon size={18} className="mb-1.5" />
+                <span className="text-xs">{pt.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label
             htmlFor="set-paper-size"
-            className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+            className="block text-xs font-medium text-muted-foreground mb-1.5"
           >
             {t('settings.paperSize')}
           </label>
@@ -151,7 +153,7 @@ export function PrinterPanel({
                 paperSize: e.target.value as PrinterConfig['paperSize'],
               })
             }
-            className="glass-input w-full px-4 py-2.5 rounded-xl appearance-none"
+            className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
           >
             <option value="58mm">58mm</option>
             <option value="80mm">80mm</option>
@@ -159,10 +161,10 @@ export function PrinterPanel({
         </div>
 
         {printerForm.type === 'network' && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
             <label
               htmlFor="set-ip-address"
-              className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+              className="block text-xs font-medium text-muted-foreground mb-1.5"
             >
               {t('settings.ipAddress')}
             </label>
@@ -173,15 +175,15 @@ export function PrinterPanel({
               placeholder="192.168.1.50"
               value={printerForm.ipAddress || ''}
               onChange={(e) => onPrinterFormChange({ ...printerForm, ipAddress: e.target.value })}
-              className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
+              className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground font-mono focus:outline-none focus:border-foreground/50 transition-colors"
             />
           </motion.div>
         )}
         {printerForm.type === 'serial' && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
             <label
               htmlFor="set-baud-rate"
-              className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+              className="block text-xs font-medium text-muted-foreground mb-1.5"
             >
               {t('settings.baudRate')}
             </label>
@@ -196,15 +198,15 @@ export function PrinterPanel({
                   baudRate: e.target.value ? parseInt(e.target.value, 10) : undefined,
                 })
               }
-              className="glass-input w-full px-4 py-2.5 rounded-xl font-mono"
+              className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground font-mono focus:outline-none focus:border-foreground/50 transition-colors"
             />
           </motion.div>
         )}
         {(printerForm.type === 'windows' || printerForm.type === 'system') && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
             <label
               htmlFor="set-printer-name"
-              className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+              className="block text-xs font-medium text-muted-foreground mb-1.5"
             >
               {t('settings.printerName')}
             </label>
@@ -215,7 +217,7 @@ export function PrinterPanel({
               placeholder={t('settings.printerNamePlaceholder')}
               value={printerForm.printerName || ''}
               onChange={(e) => onPrinterFormChange({ ...printerForm, printerName: e.target.value })}
-              className="glass-input w-full px-4 py-2.5 rounded-xl"
+              className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
             />
             <datalist id="os-printer-names">
               {detectedPrinters
@@ -229,41 +231,41 @@ export function PrinterPanel({
       </div>
 
       {(printerForm.type === 'windows' || printerForm.type === 'system') && (
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 -mt-2 leading-relaxed">
+        <p className="text-[11px] text-muted-foreground -mt-1 leading-relaxed">
           {printerForm.type === 'windows'
             ? t('settings.printerWindowsHint')
             : t('settings.printerSystemHint')}
         </p>
       )}
 
-      <div className="space-y-3">
-        <label className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl cursor-pointer">
+      <div className="space-y-2 pt-1">
+        <label className="flex items-center gap-3 p-3 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
           <input
             type="checkbox"
             checked={printerForm.showBarcode}
             onChange={(e) => onPrinterFormChange({ ...printerForm, showBarcode: e.target.checked })}
-            className="size-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+            className="size-4 rounded border-border text-foreground focus:ring-foreground accent-foreground"
           />
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+          <span className="text-xs font-medium text-foreground">
             {t('settings.showBarcode')}
           </span>
         </label>
 
-        <label className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl cursor-pointer">
+        <label className="flex items-center gap-3 p-3 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
           <input
             type="checkbox"
             checked={printerForm.autoPrintOnCheckout}
             onChange={(e) =>
               onPrinterFormChange({ ...printerForm, autoPrintOnCheckout: e.target.checked })
             }
-            className="size-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+            className="size-4 rounded border-border text-foreground focus:ring-foreground accent-foreground"
           />
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+          <span className="text-xs font-medium text-foreground">
             {t('settings.autoPrint')}
           </span>
         </label>
 
-        <label className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl cursor-pointer">
+        <label className="flex items-center gap-3 p-3 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
           <input
             type="checkbox"
             checked={!!printerForm.kitchenTicketOnCheckout}
@@ -273,32 +275,32 @@ export function PrinterPanel({
                 kitchenTicketOnCheckout: e.target.checked,
               })
             }
-            className="size-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+            className="size-4 rounded border-border text-foreground focus:ring-foreground accent-foreground"
           />
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+          <span className="text-xs font-medium text-foreground">
             {t('settings.autoPrintKitchen')}
           </span>
         </label>
       </div>
 
-      <div className="pt-4 flex justify-end">
+      <div className="pt-2 flex justify-end">
         <button
           id="save-printer-btn"
           onClick={onSavePrinter}
-          className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+          className="btn-primary h-9 px-4 text-xs font-medium gap-1.5"
         >
-          <Save size={18} />
+          <Save size={15} />
           {t('settings.savePrinter')}
         </button>
       </div>
 
       {/* Customer receipt layout */}
-      <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
-        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2 mb-1">
-          <Receipt size={16} className="text-emerald-500" />
+      <div className="pt-5 border-t border-border">
+        <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono flex items-center gap-1.5 mb-1">
+          <Receipt size={14} className="text-muted-foreground" />
           {t('receiptCfg.customerTitle')}
         </h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
           {t('receiptCfg.customerHint')}
         </p>
         <ReceiptSettingsPanel

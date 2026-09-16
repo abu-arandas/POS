@@ -70,107 +70,92 @@ export default function QRMenu() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="h-full flex flex-col bg-transparent overflow-y-auto p-6"
-    >
+    <div className="h-full flex flex-col bg-background text-foreground overflow-y-auto p-6">
       <div className="shrink-0 flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-            <QrCode className="text-emerald-500" />
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2">
+            <QrCode className="size-5 text-muted-foreground" />
             {t('qrmenu.title')}
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t('qrmenu.subtitle')}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('qrmenu.subtitle')}</p>
         </div>
 
         <button
           onClick={fetchMenuInfo}
           disabled={isRefreshing}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-sans font-bold text-xs sm:text-sm px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+          className="btn-secondary h-8 px-3 text-xs gap-1.5"
         >
-          <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+          <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
           {t('common.refresh', 'Refresh')}
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
+      <div className="flex-1 flex flex-col items-center justify-center max-w-lg mx-auto w-full">
         {/* Main QR Card */}
-        <motion.div
-          initial={{ scale: 0.95 }}
-          animate={{ scale: 1 }}
+        <div
           id="print-area"
-          className="surface rounded-3xl p-10 flex flex-col items-center text-center w-full relative overflow-hidden shadow-2xl mb-8"
+          className="bg-card border border-border rounded-xl p-8 flex flex-col items-center text-center w-full shadow-2xs mb-6 relative"
         >
-          <div className="absolute top-0 inset-x-0 w-full h-32 bg-linear-to-b from-emerald-500/10 to-transparent"></div>
-
-          <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white mb-2 relative z-10">
+          <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-1">
             {t('qrmenu.scanToOrder')}
           </h3>
-          <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base mb-8 font-medium relative z-10">
+          <p className="text-muted-foreground text-xs mb-6">
             {t('qrmenu.scanHint')}
           </p>
 
-          {/* The address and port below are only meaningful while something is
-              listening on them. Saying so beats printing a confident code for a
-              dead endpoint and letting a customer find out. */}
           {!menuHost.running && (
             <p
               role="alert"
-              className="badge badge-amber max-w-md mb-8 relative z-10 !normal-case !tracking-normal !text-[11px] leading-relaxed py-2 px-3 text-center"
+              className="text-xs rounded-lg px-3 py-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 max-w-sm mb-6 leading-relaxed text-center"
             >
               {t('qrmenu.serverDown')}
             </p>
           )}
 
-          <div className="bg-white p-6 rounded-4xl shadow-xl border-4 border-slate-100 dark:border-slate-800 mb-8 relative z-10 transition-transform hover:scale-105">
+          <div className="bg-white p-5 rounded-2xl shadow-2xs border border-border mb-6">
             <QRCodeSVG
               value={menuUrl}
-              size={256}
+              size={220}
               level="H"
               includeMargin={false}
-              fgColor="#0f172a"
+              fgColor="#09090b"
             />
           </div>
 
-          <div className="flex flex-col items-center gap-4 w-full relative z-10">
+          <div className="flex flex-col items-center gap-3 w-full">
             {/* Pill Badge for URL */}
-            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-full ps-5 pe-2 py-1.5 shadow-inner w-full max-w-sm">
-              <span className="flex-1 font-mono text-sm text-slate-700 dark:text-slate-300 truncate text-start">
+            <div className="flex items-center gap-2 bg-secondary/40 border border-border rounded-lg ps-3 pe-1.5 py-1 w-full max-w-xs">
+              <span className="flex-1 font-mono text-xs text-foreground truncate text-start">
                 {menuUrl}
               </span>
               <button
                 onClick={copyToClipboard}
                 aria-label={t('qrmenu.copyLink')}
-                className={`p-2 rounded-full transition-all ${
-                  copied
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white shadow-sm'
-                }`}
+                className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
               >
-                {copied ? <Check size={16} /> : <Copy size={16} />}
+                {copied ? <Check size={14} className="text-foreground" /> : <Copy size={14} />}
               </button>
             </div>
 
             {/* Network Info */}
-            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-500 font-bold text-sm bg-emerald-50 dark:bg-emerald-500/10 px-4 py-2 rounded-xl">
-              <Wifi size={16} />
+            <div className="flex items-center gap-1.5 text-muted-foreground font-mono text-xs bg-secondary/30 border border-border px-3 py-1 rounded-md">
+              <Wifi size={13} className="text-muted-foreground" />
               <span>
                 {menuHost.ip}:{menuHost.port}
               </span>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Print Button */}
         <button
           onClick={printQR}
-          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-8 rounded-2xl shadow-lg shadow-emerald-600/20 flex items-center gap-3 transition-all hover:-translate-y-1 active:translate-y-0 w-full max-w-sm justify-center text-lg"
+          className="btn-primary h-10 px-6 text-xs font-medium w-full max-w-xs justify-center gap-2"
         >
-          <Printer size={24} />
+          <Printer size={15} />
           {t('qrmenu.printDisplay')}
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 }

@@ -13,22 +13,22 @@ import { useTranslation } from 'react-i18next';
 
 const ROLE_CONFIG = {
   admin: {
-    gradient: 'from-indigo-500 to-violet-600',
-    glow: 'rgba(99, 102, 241, 0.4)',
-    badge: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
-    dot: 'bg-indigo-400',
+    gradient: 'from-zinc-800 to-zinc-900',
+    glow: 'rgba(255, 255, 255, 0.05)',
+    badge: 'bg-zinc-800 text-zinc-200 border-zinc-700',
+    dot: 'bg-white',
   },
   manager: {
-    gradient: 'from-amber-500 to-orange-500',
-    glow: 'rgba(245, 158, 11, 0.4)',
-    badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-    dot: 'bg-amber-400',
+    gradient: 'from-zinc-800 to-zinc-900',
+    glow: 'rgba(255, 255, 255, 0.05)',
+    badge: 'bg-zinc-800/80 text-zinc-300 border-zinc-700/80',
+    dot: 'bg-zinc-200',
   },
   cashier: {
-    gradient: 'from-emerald-500 to-teal-500',
-    glow: 'rgba(16, 185, 129, 0.4)',
-    badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-    dot: 'bg-emerald-400',
+    gradient: 'from-zinc-800 to-zinc-900',
+    glow: 'rgba(255, 255, 255, 0.05)',
+    badge: 'bg-zinc-800/60 text-zinc-400 border-zinc-700/60',
+    dot: 'bg-zinc-300',
   },
 } as const;
 
@@ -291,52 +291,48 @@ export default function Lockscreen() {
   return (
     <div
       id="lockscreen-root"
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 overflow-hidden bg-slate-950"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 overflow-hidden bg-background text-foreground"
     >
-      {/* Animated background orbs */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="animate-orb-1 absolute top-[-15%] left-[-10%] size-125 rounded-full opacity-20 bg-linear-to-br from-emerald-500/40 to-transparent blur-3xl" />
-        <div className="animate-orb-2 absolute bottom-[-20%] right-[-10%] size-150 rounded-full opacity-15 bg-linear-to-br from-blue-500/40 to-transparent blur-3xl" />
-        <div className="animate-orb-3 absolute top-[40%] left-[50%] size-87.5 rounded-full opacity-10 bg-linear-to-br from-purple-500/40 to-transparent blur-3xl" />
-        {/* Dot grid */}
-        <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(#94a3b8_1px,transparent_1px)] bg-size-[24px_24px]" />
+      {/* Subtle precision dot grid */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-[0.04] dark:opacity-[0.07]">
+        <div className="absolute inset-0 bg-[radial-gradient(currentColor_1px,transparent_1px)] bg-[size:24px_24px]" />
       </div>
 
       {/* Brand */}
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-center mb-8 z-10"
+        transition={{ duration: 0.35 }}
+        className="text-center mb-6 z-10"
       >
-        <div className="inline-flex items-center gap-3 mb-3">
-          <div className="size-11 flex items-center justify-center">
-            <Logo size={44} title="Arandas IT Solutions" />
+        <div className="inline-flex items-center gap-2.5 mb-2">
+          <div className="size-9 flex items-center justify-center">
+            <Logo size={36} title="Arandas IT Solutions" />
           </div>
-          <span className="font-mono text-2xl font-extrabold tracking-tight text-white">
+          <span className="font-mono text-xl font-bold tracking-tight text-foreground">
             EA POS
           </span>
         </div>
-        <p className="text-xs text-slate-500 font-medium">{t('lockscreen.subtitle')}</p>
+        <p className="text-xs text-muted-foreground font-medium">{t('lockscreen.subtitle')}</p>
       </motion.div>
 
       {/* Main card */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
-        className="w-full max-w-sm rounded-3xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-2xl shadow-2xl overflow-hidden z-10"
+        transition={{ duration: 0.3 }}
+        className="w-full max-w-sm rounded-2xl bg-card border border-border shadow-xl overflow-hidden z-10"
       >
         {users.length === 0 ? (
           <div className="p-6">
-            <h2 className="text-sm font-bold text-slate-200 mb-1 text-center">
+            <h2 className="text-sm font-semibold text-foreground mb-1 text-center">
               {t('lockscreen.setupTitle', 'Set up your administrator account')}
             </h2>
-            <p className="text-xs text-slate-500 text-center mb-5">
+            <p className="text-xs text-muted-foreground text-center mb-5">
               {t('lockscreen.setupSubtitle', 'This terminal has no staff accounts yet.')}
             </p>
             <label
-              className="block text-xs font-semibold text-slate-400 mb-1"
+              className="block text-xs font-medium text-muted-foreground mb-1.5"
               htmlFor="first-run-name"
             >
               {t('lockscreen.setupName', 'Administrator name')}
@@ -345,11 +341,11 @@ export default function Lockscreen() {
               id="first-run-name"
               value={setupName}
               onChange={(e) => setSetupName(e.target.value)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500"
+              className="input-shell w-full px-3 py-2 rounded-xl text-xs mb-3"
               autoComplete="name"
             />
             <label
-              className="block text-xs font-semibold text-slate-400 mt-4 mb-1"
+              className="block text-xs font-medium text-muted-foreground mb-1.5"
               htmlFor="first-run-pin"
             >
               {t('lockscreen.setupPin', 'Four-digit PIN')}
@@ -362,18 +358,18 @@ export default function Lockscreen() {
               pattern="[0-9]{4}"
               value={setupPin}
               onChange={(e) => setSetupPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5 text-sm font-mono tracking-[0.4em] text-white outline-none focus:border-emerald-500"
+              className="input-shell w-full px-3 py-2 rounded-xl text-xs font-mono tracking-[0.4em]"
               autoComplete="new-password"
             />
             {setupError && (
-              <p className="mt-3 text-xs font-semibold text-rose-400" role="alert">
+              <p className="mt-3 text-xs font-medium text-destructive" role="alert">
                 {setupError}
               </p>
             )}
             <button
               type="button"
               onClick={handleFirstRunSetup}
-              className="mt-5 w-full rounded-xl bg-emerald-500 px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-950 hover:bg-emerald-400"
+              className="btn-primary mt-5 w-full py-2.5 rounded-xl text-xs font-medium"
             >
               {t('lockscreen.setupButton', 'Create administrator')}
             </button>
@@ -384,52 +380,52 @@ export default function Lockscreen() {
               /* ── SCREEN 1: USER SELECTION ── */
               <motion.div
                 key="user-select"
-                initial={{ opacity: 0, x: -24 }}
+                initial={{ opacity: 0, x: -16 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -24 }}
-                transition={{ duration: 0.25 }}
+                exit={{ opacity: 0, x: -16 }}
+                transition={{ duration: 0.2 }}
                 className="p-6"
               >
-                <h2 className="text-sm font-bold text-slate-200 mb-1 text-center">
+                <h2 className="text-sm font-semibold text-foreground mb-1 text-center">
                   {t('lockscreen.selectUser')}
                 </h2>
-                <p className="text-xs text-slate-500 text-center mb-5">
+                <p className="text-xs text-muted-foreground text-center mb-5">
                   {t('lockscreen.selectUserSub')}
                 </p>
 
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   {activeUsers.map((user, i) => {
                     const cfg = ROLE_CONFIG[user.role];
                     return (
                       <motion.button
                         key={user.id}
-                        initial={{ opacity: 0, y: 10 }}
+                        initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.06 }}
+                        transition={{ delay: i * 0.04 }}
                         onClick={() => setSelectedUser(user)}
-                        className="w-full flex items-center justify-between p-4 rounded-2xl border border-slate-800/80 bg-slate-800/30 hover:bg-slate-800/60 hover:border-slate-700/80 transition-all group text-start"
+                        className="w-full flex items-center justify-between p-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/80 hover:border-foreground/20 transition-all group text-start"
                       >
-                        <div className="flex items-center gap-3.5">
+                        <div className="flex items-center gap-3">
                           {/* Avatar */}
                           <div
-                            className={`w-10 h-10 rounded-xl bg-linear-to-br ${cfg.gradient} flex items-center justify-center text-slate-900 dark:text-white font-bold text-sm shrink-0 shadow-md shadow-emerald-500/20`}
+                            className="w-9 h-9 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight shrink-0"
                           >
                             {getInitials(user.name)}
                           </div>
                           <div>
-                            <p className="text-slate-900 dark:text-white text-sm font-semibold leading-tight">
+                            <p className="text-foreground text-xs font-semibold leading-tight">
                               {user.name}
                             </p>
                             <span
-                              className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${cfg.badge} mt-1 inline-block`}
+                              className={`text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.2 rounded border ${cfg.badge} mt-1 inline-block`}
                             >
                               {user.role}
                             </span>
                           </div>
                         </div>
                         <ChevronRight
-                          size={16}
-                          className="text-slate-600 group-hover:text-slate-500 dark:text-slate-500 dark:group-hover:text-slate-300 transition-colors rtl:rotate-180"
+                          size={15}
+                          className="text-muted-foreground group-hover:text-foreground transition-colors rtl:rotate-180"
                         />
                       </motion.button>
                     );
@@ -440,35 +436,35 @@ export default function Lockscreen() {
               /* ── SCREEN 2: PIN ENTRY ── */
               <motion.div
                 key="pin-entry"
-                initial={{ opacity: 0, x: 24 }}
+                initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -24 }}
-                transition={{ duration: 0.25 }}
+                exit={{ opacity: 0, x: -16 }}
+                transition={{ duration: 0.2 }}
                 className="p-6"
               >
                 {/* Back + user info */}
                 <div className="flex items-center justify-between mb-6">
                   <button
                     onClick={handleBackToUsers}
-                    className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs font-semibold transition-colors p-1.5 rounded-xl hover:bg-white/8"
+                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground text-xs font-medium transition-colors p-1.5 rounded-lg hover:bg-muted"
                     aria-label={t('lockscreen.back')}
                   >
-                    <ArrowLeft size={14} className="rtl:rotate-180" />
+                    <ArrowLeft size={13} className="rtl:rotate-180" />
                     <span>{t('lockscreen.back')}</span>
                   </button>
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2">
                     <div className="text-end">
-                      <p className="text-slate-900 dark:text-white text-xs font-bold">
+                      <p className="text-foreground text-xs font-semibold">
                         {selectedUser.name}
                       </p>
                       <span
-                        className={`text-[9px] font-mono uppercase tracking-wider ${roleCfg.badge} px-1.5 py-0.5 rounded-full border inline-block mt-0.5`}
+                        className={`text-[9px] font-mono uppercase tracking-wider ${roleCfg.badge} px-1.5 py-0.2 rounded border inline-block mt-0.5`}
                       >
                         {selectedUser.role}
                       </span>
                     </div>
                     <div
-                      className={`w-8 h-8 rounded-xl bg-linear-to-br ${roleCfg.gradient} flex items-center justify-center text-slate-900 dark:text-white font-bold text-xs shrink-0 shadow-md shadow-emerald-500/20`}
+                      className="w-7 h-7 rounded-md bg-foreground text-background flex items-center justify-center font-bold text-[11px] shrink-0"
                     >
                       {getInitials(selectedUser.name)}
                     </div>
@@ -476,29 +472,29 @@ export default function Lockscreen() {
                 </div>
 
                 {/* PIN dots */}
-                <div className="flex flex-col items-center mb-7">
+                <div className="flex flex-col items-center mb-6">
                   <span className="sr-only" role="status">
                     {t('lockscreen.pinProgress', { count: pin.length })}
                   </span>
                   <motion.div
                     aria-hidden="true"
-                    animate={error ? { x: [-10, 10, -8, 8, -4, 4, 0] } : {}}
-                    transition={{ duration: 0.45 }}
-                    className="flex justify-center gap-4 mb-3"
+                    animate={error ? { x: [-8, 8, -6, 6, -3, 3, 0] } : {}}
+                    transition={{ duration: 0.4 }}
+                    className="flex justify-center gap-3.5 mb-2"
                   >
                     {[0, 1, 2, 3].map((idx) => (
                       <motion.div
                         key={idx}
                         animate={{
-                          scale: pin.length > idx ? 1 : 0.85,
+                          scale: pin.length > idx ? 1.05 : 0.9,
                         }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                        className={`w-4 h-4 rounded-full border-2 transition-all ${
+                        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                        className={`w-3.5 h-3.5 rounded-full border transition-all duration-150 ${
                           error
-                            ? 'bg-rose-500 border-rose-500 shadow-lg shadow-rose-500/50'
+                            ? 'bg-destructive border-destructive shadow-xs'
                             : pin.length > idx
-                              ? 'bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/50'
-                              : 'border-slate-700'
+                              ? 'bg-foreground border-foreground shadow-xs'
+                              : 'border-muted-foreground/40 bg-transparent'
                         }`}
                       />
                     ))}
@@ -508,9 +504,9 @@ export default function Lockscreen() {
                     <motion.span
                       id="pin-lockout-message"
                       role="alert"
-                      initial={{ opacity: 0, y: 4 }}
+                      initial={{ opacity: 0, y: 3 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="text-rose-400 text-xs font-semibold text-center"
+                      className="text-destructive text-xs font-medium font-mono num text-center"
                     >
                       {t('lockscreen.lockedOut', {
                         time: formatRemaining(lockout.remainingMs),
@@ -520,17 +516,15 @@ export default function Lockscreen() {
                     <>
                       {error && (
                         <motion.span
-                          initial={{ opacity: 0, y: 4 }}
+                          initial={{ opacity: 0, y: 3 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="text-rose-400 text-xs font-semibold"
+                          className="text-destructive text-xs font-medium"
                         >
                           {t('lockscreen.incorrectPin')}
                         </motion.span>
                       )}
-                      {/* Only warn near the threshold — no need to advertise the
-                        counter to someone who simply mistyped once. */}
                       {!error && lockout.attemptsLeft <= 2 && lockout.attemptsLeft > 0 && (
-                        <span className="text-amber-400 text-xs font-semibold">
+                        <span className="text-amber-500 dark:text-amber-400 text-xs font-medium">
                           {t('lockscreen.attemptsLeft', { count: lockout.attemptsLeft })}
                         </span>
                       )}
@@ -538,16 +532,16 @@ export default function Lockscreen() {
                   )}
                 </div>
 
-                {/* Keypad — disabled outright while a lockout is running. */}
-                <div className="grid grid-cols-3 gap-2.5">
+                {/* Keypad — Apple/Linear circular minimalist keys */}
+                <div className="grid grid-cols-3 gap-3 justify-items-center">
                   {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
                     <motion.button
                       key={num}
                       id={`pin-key-${num}`}
                       onClick={() => handleKeyPress(num)}
                       disabled={lockout.locked}
-                      whileTap={{ scale: 0.88 }}
-                      className="h-13 rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-900 dark:text-white font-mono text-lg font-bold transition-all disabled:opacity-30 disabled:hover:bg-slate-800/40"
+                      whileTap={{ scale: 0.92 }}
+                      className="size-16 rounded-full bg-muted/40 hover:bg-muted active:bg-foreground/10 border border-border text-foreground font-mono text-2xl font-medium transition-colors disabled:opacity-30 flex items-center justify-center select-none shadow-2xs"
                     >
                       {num}
                     </motion.button>
@@ -556,8 +550,8 @@ export default function Lockscreen() {
                   <motion.button
                     onClick={handleClear}
                     disabled={lockout.locked}
-                    whileTap={{ scale: 0.9 }}
-                    className="h-13 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 font-semibold text-[11px] uppercase tracking-wider transition-all disabled:opacity-30"
+                    whileTap={{ scale: 0.92 }}
+                    className="size-16 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-[11px] font-medium uppercase tracking-wider transition-colors disabled:opacity-30 flex items-center justify-center"
                   >
                     {t('lockscreen.clear')}
                   </motion.button>
@@ -566,8 +560,8 @@ export default function Lockscreen() {
                     id="pin-key-0"
                     disabled={lockout.locked}
                     onClick={() => handleKeyPress('0')}
-                    whileTap={{ scale: 0.88 }}
-                    className="h-13 rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-900 dark:text-white font-mono text-lg font-bold transition-all disabled:opacity-30 disabled:hover:bg-slate-800/40"
+                    whileTap={{ scale: 0.92 }}
+                    className="size-16 rounded-full bg-muted/40 hover:bg-muted active:bg-foreground/10 border border-border text-foreground font-mono text-2xl font-medium transition-colors disabled:opacity-30 flex items-center justify-center select-none shadow-2xs"
                   >
                     0
                   </motion.button>
@@ -575,11 +569,11 @@ export default function Lockscreen() {
                   <motion.button
                     onClick={handleBackspace}
                     disabled={lockout.locked}
-                    whileTap={{ scale: 0.9 }}
+                    whileTap={{ scale: 0.92 }}
                     aria-label={t('lockscreen.backspace')}
-                    className="h-13 rounded-2xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-all disabled:opacity-30"
+                    className="size-16 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted text-xs transition-colors disabled:opacity-30 flex items-center justify-center"
                   >
-                    <Delete size={18} />
+                    <Delete size={17} />
                   </motion.button>
                 </div>
               </motion.div>
@@ -593,15 +587,15 @@ export default function Lockscreen() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="mt-5 z-10 bg-white/90 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 py-2.5 text-center"
+          transition={{ delay: 0.5 }}
+          className="mt-6 z-10 bg-card/80 border border-border rounded-xl px-4 py-2 text-center"
         >
-          <p className="text-slate-500 font-mono text-[10px]">{t('lockscreen.defaultPins')}</p>
-          <div className="flex gap-4 justify-center mt-1">
+          <p className="text-muted-foreground font-mono text-[10px]">{t('lockscreen.defaultPins')}</p>
+          <div className="flex gap-3 justify-center mt-1">
             {[
-              ['Admin', '1234', 'text-indigo-400'],
-              ['Manager', '5555', 'text-amber-400'],
-              ['Cashier', '0000', 'text-emerald-400'],
+              ['Admin', '1234', 'text-foreground'],
+              ['Manager', '5555', 'text-foreground'],
+              ['Cashier', '0000', 'text-foreground'],
             ].map(([role, pin, color]) => (
               <span key={role} className={`font-mono text-[10px] ${color}`}>
                 {role}: <strong>{pin}</strong>

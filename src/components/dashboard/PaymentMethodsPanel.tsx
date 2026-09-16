@@ -24,17 +24,17 @@ export function PaymentMethodsPanel({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.8 }}
-      className="surface rounded-3xl p-8 shadow-xl"
+      transition={{ delay: 0.4 }}
+      className="bg-card border border-border rounded-xl p-6 shadow-2xs"
     >
-      <div className="mb-6">
-        <h3 className="font-sans font-bold text-slate-900 dark:text-white text-lg">
+      <div className="mb-4">
+        <h3 className="font-sans font-semibold text-foreground text-base">
           {t('dashboard.paymentMethods')}
         </h3>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3">
         {PAYMENT_METHOD_ORDER.map((method) => {
           const data = byMethod.get(method.toUpperCase());
           const val = data ? data.value : 0;
@@ -43,20 +43,16 @@ export function PaymentMethodsPanel({
           return (
             <div
               key={method}
-              className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 rounded-2xl p-5 hover:border-slate-200 transition-colors"
+              className="bg-secondary/30 border border-border rounded-xl p-4 transition-colors"
             >
-              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block mb-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono block mb-1">
                 {t(`dashboard.${method}`, { defaultValue: method })}
               </span>
-              <span className="font-mono font-extrabold text-2xl text-slate-900 dark:text-white block mb-2">
+              <span className="font-mono font-semibold text-xl text-foreground block mb-2">
                 {currency}
                 {val.toFixed(2)}
               </span>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mb-2">
-                {/* The method's own colour, not a hardcoded blue. Every
-                    bar being blue meant the four methods were told apart
-                    by their label alone, and the colour computed for them
-                    was never drawn. */}
+              <div className="w-full bg-secondary rounded-full h-1.5 mb-1.5">
                 <div
                   className="bar-fill h-1.5 rounded-full"
                   style={
@@ -67,7 +63,7 @@ export function PaymentMethodsPanel({
                   }
                 />
               </div>
-              <span className="text-xs text-slate-500 font-mono">
+              <span className="text-[11px] text-muted-foreground font-mono">
                 {t('dashboard.percentOfTotal', { percent: pct.toFixed(1) })}
               </span>
             </div>

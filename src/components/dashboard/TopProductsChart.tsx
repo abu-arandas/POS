@@ -35,36 +35,36 @@ export function TopProductsChart({ data, currency }: TopProductsChartProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.6 }}
-      className="surface rounded-3xl p-8 shadow-xl lg:col-span-2"
+      transition={{ delay: 0.3 }}
+      className="bg-card border border-border rounded-xl p-6 shadow-2xs lg:col-span-2"
     >
-      <div className="mb-8">
-        <h3 className="font-sans font-bold text-slate-900 dark:text-white text-lg">
+      <div className="mb-6">
+        <h3 className="font-sans font-semibold text-foreground text-base">
           {t('dashboard.bestSellers')}
         </h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t('dashboard.topMenu')}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.topMenu')}</p>
       </div>
-      <div className="h-72 w-full">
+      <div className="h-64 w-full">
         {data.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-500 bg-[var(--surface-1)] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
-            <Package size={32} className="mb-3 opacity-50" />
-            <span>{t('dashboard.noSales')}</span>
+          <div className="h-full flex flex-col items-center justify-center text-muted-foreground bg-secondary/30 rounded-xl border border-dashed border-border">
+            <Package size={28} className="mb-2 opacity-40" />
+            <span className="text-xs">{t('dashboard.noSales')}</span>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" margin={horizontalBarMargin}>
-              <CartesianGrid {...horizontalBarGrid} />
-              <XAxis {...barValueAxis} />
-              <YAxis {...barCategoryAxis} width={120} />
+              <CartesianGrid {...horizontalBarGrid} stroke="var(--border)" strokeDasharray="3 3" opacity={0.5} />
+              <XAxis {...barValueAxis} stroke="var(--muted-foreground)" />
+              <YAxis {...barCategoryAxis} stroke="var(--muted-foreground)" width={120} />
               <Tooltip
                 content={<ChartTooltip currency={currency} valueType="number" />}
-                cursor={{ fill: '#1e293b', opacity: 0.4 }}
+                cursor={{ fill: 'var(--secondary)', opacity: 0.5 }}
               />
-              <Bar dataKey="quantity" radius={[0, 8, 8, 0]} barSize={28}>
+              <Bar dataKey="quantity" radius={[0, 6, 6, 0]} barSize={20}>
                 {data.map((_entry, index) => (
-                  <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#3b82f6'} />
+                  <Cell key={`cell-${index}`} fill={index === 0 ? 'var(--foreground)' : 'var(--muted-foreground)'} />
                 ))}
               </Bar>
             </BarChart>

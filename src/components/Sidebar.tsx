@@ -12,6 +12,8 @@ import {
   QrCode,
   Clock,
   Building2,
+  ChefHat,
+  Grid3X3,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +22,7 @@ import { ScreenId, isScreenAllowed } from '../lib/access';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
+import { useKdsStore } from '../stores/kdsStore';
 import { safeImageUrl } from '../lib/imageUrl';
 
 interface SidebarProps {
@@ -30,6 +33,8 @@ interface SidebarProps {
 
 const NAV_ITEMS: Array<{ id: ScreenId; labelKey: string; icon: typeof ShoppingBag }> = [
   { id: 'register', labelKey: 'sidebar.register', icon: ShoppingBag },
+  { id: 'tables', labelKey: 'sidebar.tables', icon: Grid3X3 },
+  { id: 'kitchen', labelKey: 'sidebar.kitchen', icon: ChefHat },
   { id: 'dashboard', labelKey: 'sidebar.dashboard', icon: BarChart3 },
   { id: 'inventory', labelKey: 'sidebar.inventory', icon: Package },
   { id: 'history', labelKey: 'sidebar.transactions', icon: History },
@@ -41,12 +46,14 @@ const NAV_ITEMS: Array<{ id: ScreenId; labelKey: string; icon: typeof ShoppingBa
 ];
 
 const ROLE_COLOR: Record<string, string> = {
+  super_admin: 'from-violet-500 to-purple-600',
   admin: 'from-indigo-500 to-violet-600',
   manager: 'from-amber-500 to-orange-500',
   cashier: 'from-emerald-500 to-teal-500',
 };
 
 const ROLE_BADGE: Record<string, string> = {
+  super_admin: 'text-violet-300 bg-violet-500/12 border-violet-500/25',
   admin: 'text-indigo-300 bg-indigo-500/12 border-indigo-500/25',
   manager: 'text-amber-300 bg-amber-500/12 border-amber-500/25',
   cashier: 'text-emerald-300 bg-emerald-500/12 border-emerald-500/25',
@@ -61,17 +68,52 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
+/** Visual sync-status pill shown in the sidebar bottom controls area. */
+function SyncBadge({ enabled, status }: { enabled: boolean; status: string }) {
+  if (!enabled) return null;
+
+  const cls =
+    status === 'connected'
+      ? 'sync-badge sync-online'
+      : status === 'connecting'
+        ? 'sync-badge sync-syncing'
+        : status === 'error'
+          ? 'sync-badge sync-error'
+          : status === 'queued'
+            ? 'sync-badge sync-queued'
+            : 'sync-badge sync-offline';
+
+  const label =
+    status === 'connected'
+      ? 'Online'
+      : status === 'connecting'
+        ? 'Syncing'
+        : status === 'error'
+          ? 'Sync error'
+          : status === 'queued'
+            ? 'Queued'
+            : 'Offline';
+
+  return (
+    <span className={cls}>
+      <span className="sync-dot" />
+      {label}
+    </span>
+  );
+}
+
 /**
  * Primary navigation. Shows only the screens the signed-in role may open, and
  * reveals the fleet board only to a resolved super-admin.
  */
 export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: SidebarProps) {
   const { currentUser, setCurrentUser } = useAuthStore();
-  const { settings, darkMode, setDarkMode } = useSettingsStore();
+  const { settings, darkMode, setDarkMode, supabaseConfig } = useSettingsStore();
   const { products } = useProductStore();
   const { t } = useTranslation();
 
   const lowStockCount = products.filter((p) => p.stock <= p.minStock && p.stock > 0).length;
+  const kdsActiveCount = useKdsStore((s) => s.tickets.filter((t) => t.status !== 'completed').length);
 
   // The Fleet board is additionally gated on a resolved super-admin membership,
   // so it's hidden unless the cloud account is actually a super-admin.
@@ -84,154 +126,131 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
   return (
     <aside
       id="sidebar-container"
-      className="app-panel flex flex-col w-60 min-h-screen transition-colors duration-300 relative overflow-hidden shrink-0 border-e"
+      className="app-panel flex flex-col w-60 min-h-screen transition-colors duration-200 relative shrink-0 border-e border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-950"
     >
-      {/* Ambient glow orbs — dark canvas only. Over a white panel the large
-          blur radius bands into visible concentric rings instead of a glow. */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden hidden dark:block">
-        <div className="absolute top-0 left-0 size-48 rounded-full opacity-20 blur-3xl bg-emerald-500/40" />
-        <div className="absolute bottom-0 right-0 size-40 rounded-full opacity-10 blur-3xl bg-blue-500/40" />
-      </div>
-
       {/* ── Brand ── */}
-      <div id="brand-header" className="relative z-10 p-5 border-b border-slate-800/60">
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="flex items-center gap-3"
-        >
-          <div className="size-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
+      <div id="brand-header" className="p-4 border-b border-zinc-200/80 dark:border-zinc-800/80">
+        <div className="flex items-center gap-3">
+          <div className="size-9 rounded-lg flex items-center justify-center shrink-0 overflow-hidden bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">
             {safeImageUrl(settings.storeLogo) ? (
               <img
                 src={safeImageUrl(settings.storeLogo)}
                 alt="Logo"
-                className="size-full object-contain rounded-sm"
+                className="size-full object-contain"
               />
             ) : (
-              <Logo size={36} />
+              <Logo size={28} />
             )}
           </div>
           <div className="min-w-0">
             <h1
-              className="font-sans font-bold text-slate-900 dark:text-white text-sm truncate tracking-tight"
+              className="font-sans font-bold text-zinc-950 dark:text-zinc-100 text-[13px] truncate tracking-tight leading-tight"
               title={settings.storeName}
             >
-              {settings.storeName}
+              {settings.storeName || 'SJ Grill'}
             </h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="size-1.5 bg-emerald-400 rounded-full animate-pulse" />
-              <span className="text-[9px] font-mono text-emerald-400 tracking-[0.18em] uppercase">
-                EA POS
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="size-1.5 bg-emerald-500 rounded-full" />
+              <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                POS Terminal
               </span>
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* ── Navigation ── */}
       <nav
         id="sidebar-navigation"
         aria-label={t('sidebar.mainNavigation')}
-        className="flex-1 px-3 py-4 space-y-1 relative z-10 overflow-y-auto scrollbar-none"
+        className="flex-1 px-3 py-3 space-y-1 overflow-y-auto scrollbar-none"
       >
-        {allowedItems.map((item, i) => {
+        {allowedItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentScreen === item.id;
-          const badge = item.id === 'inventory' && lowStockCount > 0 ? lowStockCount : undefined;
+          const badge =
+            item.id === 'inventory' && lowStockCount > 0
+              ? lowStockCount
+              : item.id === 'kitchen' && kdsActiveCount > 0
+                ? kdsActiveCount
+                : undefined;
 
           return (
-            <motion.button
+            <button
               key={item.id}
               id={`nav-btn-${item.id}`}
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.04, duration: 0.3 }}
               onClick={() => setScreen(item.id)}
               aria-current={isActive ? 'page' : undefined}
-              className={`relative flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 group ${
+              className={`relative flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150 group ${
                 isActive
-                  ? 'text-slate-900 dark:text-white bg-slate-200/70 dark:bg-slate-800/60'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40'
+                  ? 'text-white bg-zinc-900 dark:text-zinc-950 dark:bg-zinc-100 shadow-sm'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 hover:bg-zinc-100/80 dark:hover:bg-zinc-900/80'
               }`}
             >
-              {/* Active left indicator */}
-              {isActive && (
-                <motion.div
-                  layoutId="sidebar-active-bar"
-                  className="absolute inset-y-2 inset-s-0 w-0.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-500/50"
-                  transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-                />
-              )}
-
-              <div className="flex items-center gap-3 z-10">
+              <div className="flex items-center gap-2.5 z-10">
                 <Icon
                   size={16}
-                  className={`transition-colors duration-200 ${
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                  className={`transition-colors duration-150 ${
                     isActive
-                      ? 'text-emerald-500 dark:text-emerald-400'
-                      : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-400'
+                      ? 'text-white dark:text-zinc-950'
+                      : 'text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'
                   }`}
                 />
-                <span className="tracking-wide">{t(item.labelKey)}</span>
+                <span className="tracking-normal">{t(item.labelKey)}</span>
               </div>
 
               {badge !== undefined && (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
+                <span
                   id={`nav-badge-${item.id}`}
-                  className="relative z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-full font-mono text-[9px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-400"
+                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full font-mono text-[9px] font-semibold border ${
+                    isActive
+                      ? 'bg-amber-400/20 text-amber-200 border-amber-300/40 dark:bg-amber-500/20 dark:text-amber-700 dark:border-amber-500/40'
+                      : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/60 text-amber-700 dark:text-amber-400'
+                  }`}
                 >
-                  <AlertTriangle size={9} />
+                  <AlertTriangle size={8} />
                   {badge}
-                </motion.span>
+                </span>
               )}
-            </motion.button>
+            </button>
           );
         })}
       </nav>
 
       {/* ── Bottom Controls ── */}
-      <div className="relative z-10 px-3 pb-3 space-y-2">
-        {/* Dark mode toggle */}
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200"
-          aria-label={darkMode ? t('sidebar.lightMode') : t('sidebar.darkMode')}
-        >
-          {darkMode ? (
-            <>
-              <Sun size={13} className="text-amber-400" />
-              <span className="text-slate-500 dark:text-slate-400">{t('sidebar.lightMode')}</span>
-            </>
-          ) : (
-            <>
-              <Moon size={13} className="text-indigo-400" />
-              <span className="text-slate-500 dark:text-slate-400">{t('sidebar.darkMode')}</span>
-            </>
-          )}
-        </button>
+      <div className="px-3 pb-3 pt-2 space-y-2 border-t border-zinc-200/80 dark:border-zinc-800/80">
+        <div className="px-1 flex items-center justify-between">
+          <SyncBadge enabled={supabaseConfig.enabled} status={supabaseConfig.status} />
+          {/* Dark mode toggle */}
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            className="p-1.5 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+            aria-label={darkMode ? t('sidebar.lightMode') : t('sidebar.darkMode')}
+          >
+            {darkMode ? (
+              <Sun size={14} className="text-zinc-300" />
+            ) : (
+              <Moon size={14} className="text-zinc-600" />
+            )}
+          </button>
+        </div>
 
         {/* User card */}
         {currentUser && (
           <div
             id="sidebar-user-card"
-            className="flex items-center justify-between p-3 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50"
+            className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div
-                className={`w-8 h-8 rounded-lg bg-linear-to-br ${ROLE_COLOR[currentUser.role] || ROLE_COLOR.cashier} flex items-center justify-center text-slate-900 dark:text-white font-bold text-[11px] shrink-0`}
-              >
+              <div className="w-7 h-7 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 flex items-center justify-center font-bold text-[10px] shrink-0">
                 {getInitials(currentUser.name)}
               </div>
               <div className="min-w-0">
-                <p className="text-slate-900 dark:text-white text-xs font-bold truncate leading-tight">
+                <p className="text-zinc-900 dark:text-zinc-100 text-xs font-semibold truncate leading-tight">
                   {currentUser.name.split(' ')[0]}
                 </p>
-                <span
-                  className={`text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border inline-block mt-0.5 ${ROLE_BADGE[currentUser.role] || ROLE_BADGE.cashier}`}
-                >
+                <span className="text-[9px] font-mono text-zinc-500 dark:text-zinc-400 uppercase tracking-wide inline-block">
                   {currentUser.role}
                 </span>
               </div>
@@ -241,9 +260,9 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
               onClick={() => setCurrentUser(null)}
               title={t('sidebar.lockTerminal')}
               aria-label={t('sidebar.lockTerminal')}
-              className="p-1.5 text-slate-500 dark:text-slate-600 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0"
+              className="p-1 text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded transition-colors shrink-0"
             >
-              <LogOut size={14} />
+              <LogOut size={13} />
             </button>
           </div>
         )}

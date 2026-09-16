@@ -57,27 +57,27 @@ export function ReceiveStockModal({
   const selectedProduct = products.find((p) => p.id === recvProductId);
   const variants = selectedProduct?.variants ?? [];
   return (
-    <ModalShell modalRef={modalRef} titleId="receive-stock-title" className="max-w-md w-full">
-      <div className="px-8 py-6 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 flex items-center justify-between">
+    <ModalShell modalRef={modalRef} titleId="receive-stock-title" className="max-w-md w-full rounded-2xl border border-border bg-card shadow-lg overflow-hidden">
+      <div className="px-6 py-4 border-b border-border bg-card flex items-center justify-between">
         <h3
           id="receive-stock-title"
-          className="font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3"
+          className="font-semibold text-foreground text-base flex items-center gap-2.5"
         >
-          <PackagePlus size={24} className="text-emerald-500" /> {t('inventory.receiveStock')}
+          <PackagePlus size={18} className="text-muted-foreground" /> {t('inventory.receiveStock')}
         </h3>
         <button
           onClick={onClose}
           aria-label={t('inventory.cancel')}
-          className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+          className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
         >
-          <X size={20} />
+          <X size={16} />
         </button>
       </div>
-      <div className="p-8 space-y-6">
+      <div className="p-6 space-y-4">
         <div>
           <label
             htmlFor="receive-product-select"
-            className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+            className="text-xs font-medium text-muted-foreground block mb-1.5"
           >
             {t('inventory.products')}
           </label>
@@ -86,7 +86,7 @@ export function ReceiveStockModal({
             value={recvProductId}
             onChange={(e) => onProductIdChange(e.target.value)}
             aria-label={t('inventory.products')}
-            className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 text-lg font-bold"
+            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground text-sm font-medium"
           >
             {products.map((p) => (
               <option key={p.id} value={p.id}>
@@ -100,7 +100,7 @@ export function ReceiveStockModal({
           <div>
             <label
               htmlFor="receive-variant-select"
-              className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+              className="text-xs font-medium text-muted-foreground block mb-1.5"
             >
               {t('inventory.variant')}
             </label>
@@ -109,7 +109,7 @@ export function ReceiveStockModal({
               value={recvVariantId}
               onChange={(e) => onVariantIdChange(e.target.value)}
               aria-label={t('inventory.variant')}
-              className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 font-bold"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground text-sm font-medium"
             >
               <option value="">{t('inventory.variantRequired')}</option>
               {variants.map((variant) => (
@@ -126,22 +126,18 @@ export function ReceiveStockModal({
         )}
 
         <div>
-          <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+          <label className="text-xs font-medium text-muted-foreground block mb-1.5">
             {t('inventory.adjustmentReason')}
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {(['received', 'waste', 'correction', 'other'] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => onReasonChange(r)}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                   recvReason === r
-                    ? r === 'waste'
-                      ? 'bg-rose-500/20 border-rose-500 text-rose-400'
-                      : r === 'received'
-                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
-                        : 'bg-amber-500/20 border-amber-500 text-amber-400'
-                    : 'bg-white/80 dark:bg-slate-900/50 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-foreground text-background border-foreground font-semibold'
+                    : 'bg-background border-border text-muted-foreground hover:text-foreground hover:bg-secondary/60'
                 }`}
               >
                 {t(`inventory.reason_${r}`, r.charAt(0).toUpperCase() + r.slice(1))}
@@ -150,11 +146,11 @@ export function ReceiveStockModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label
               htmlFor="recv-qty-input"
-              className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+              className="text-xs font-medium text-muted-foreground block mb-1.5"
             >
               {t('inventory.deltaQuantity')}
             </label>
@@ -165,13 +161,13 @@ export function ReceiveStockModal({
               onChange={(e) => onQuantityChange(e.target.value)}
               aria-label={t('inventory.qtyChange')}
               placeholder={recvReason === 'waste' ? '-5' : '10'}
-              className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-mono text-xl text-center focus:outline-none focus:border-emerald-500"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground font-mono text-sm text-center focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground"
             />
           </div>
           <div>
             <label
               htmlFor="recv-supplier-select"
-              className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+              className="text-xs font-medium text-muted-foreground block mb-1.5"
             >
               {t('inventory.suppliers')}
             </label>
@@ -181,7 +177,7 @@ export function ReceiveStockModal({
               onChange={(e) => onSupplierIdChange(e.target.value)}
               aria-label={t('inventory.suppliers')}
               disabled={recvReason !== 'received'}
-              className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 disabled:opacity-50"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground disabled:opacity-40 text-sm"
             >
               <option value="">{t('inventory.noneOption')}</option>
               {suppliers.map((s) => (
@@ -195,7 +191,7 @@ export function ReceiveStockModal({
         <div>
           <label
             htmlFor="recv-note-input"
-            className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+            className="text-xs font-medium text-muted-foreground block mb-1.5"
           >
             {t('inventory.notes')}
           </label>
@@ -206,7 +202,7 @@ export function ReceiveStockModal({
             onChange={(e) => onNoteChange(e.target.value)}
             aria-label={t('inventory.noteOptional')}
             placeholder={t('inventory.noteOptional')}
-            className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground placeholder:text-muted-foreground"
           />
         </div>
       </div>

@@ -39,29 +39,29 @@ export function CategoryFormModal({
       id="category-form-modal"
       modalRef={modalRef}
       titleId="category-form-title"
-      className="max-w-sm w-full p-8 space-y-6"
+      className="max-w-sm w-full p-6 space-y-5 rounded-2xl border border-border bg-card shadow-lg"
     >
       <div className="flex justify-between items-center">
         <h3
           id="category-form-title"
-          className="font-sans font-bold text-slate-900 dark:text-white text-xl flex items-center gap-3"
+          className="font-sans font-semibold text-foreground text-base flex items-center gap-2.5"
         >
-          <FolderPlus size={24} className="text-emerald-500" /> {t('inventory.addNewCategory')}
+          <FolderPlus size={18} className="text-muted-foreground" /> {t('inventory.addNewCategory')}
         </h3>
         <button
           onClick={onClose}
           aria-label={t('inventory.cancel')}
-          className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+          className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
         >
-          <X size={20} />
+          <X size={16} />
         </button>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-6">
+      <form onSubmit={onSubmit} className="space-y-5">
         <div>
           <label
             htmlFor="new-cat-name-input"
-            className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2"
+            className="text-xs font-medium text-muted-foreground block mb-1.5"
           >
             {t('inventory.categoryName')} *
           </label>
@@ -72,46 +72,44 @@ export function CategoryFormModal({
             placeholder="e.g. Beverages"
             value={newCatName}
             onChange={(e) => onNameChange(e.target.value)}
-            className="w-full bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-colors font-bold text-lg"
+            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-foreground focus:ring-1 focus:ring-foreground transition-colors font-medium"
           />
         </div>
 
         <div>
-          <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-3">
+          <label className="text-xs font-medium text-muted-foreground block mb-2">
             {t('inventory.visualThemeColor')}
           </label>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             {categoryColors.map((colorOption) => (
               <button
                 key={colorOption.label}
                 type="button"
                 onClick={() => onColorChange(colorOption.class)}
-                className={`py-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
+                className={`py-2 rounded-lg border flex flex-col items-center gap-1.5 transition-all text-xs font-medium ${
                   newCatColor === colorOption.class
-                    ? 'border-emerald-500 bg-slate-100 dark:bg-slate-800'
-                    : 'border-transparent bg-white/80 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    ? 'border-foreground bg-secondary text-foreground'
+                    : 'border-border bg-background text-muted-foreground hover:bg-secondary/50'
                 }`}
               >
-                <div className={`w-6 h-6 rounded-full ${colorOption.bg}`}></div>
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                  {colorOption.label}
-                </span>
+                <div className={`w-4 h-4 rounded-full ${colorOption.bg}`}></div>
+                <span>{colorOption.label}</span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-white/5">
+        <div className="flex justify-end gap-2 pt-4 border-t border-border">
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
+            className="btn-secondary text-xs h-9 px-4 rounded-lg"
           >
             {t('inventory.cancel')}
           </button>
           <button
             type="submit"
-            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
+            className="btn-primary text-xs h-9 px-4 rounded-lg"
           >
             {t('inventory.saveCategory')}
           </button>

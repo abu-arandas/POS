@@ -31,36 +31,29 @@ export function CategoryShareChart({ data, currency }: CategoryShareChartProps) 
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.7 }}
-      className="surface rounded-3xl p-8 shadow-xl flex flex-col"
+      transition={{ delay: 0.35 }}
+      className="bg-card border border-border rounded-xl p-6 shadow-2xs flex flex-col"
     >
       <div className="mb-4">
-        <h3 className="font-sans font-bold text-slate-900 dark:text-white text-lg">
+        <h3 className="font-sans font-semibold text-foreground text-base">
           {t('dashboard.salesByCategory')}
         </h3>
       </div>
       <div className="flex-1 min-h-55 w-full relative">
         {data.length === 0 ? (
-          <div className="size-full flex items-center justify-center text-slate-500 bg-[var(--surface-1)] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
+          <div className="size-full flex items-center justify-center text-xs text-muted-foreground bg-secondary/30 rounded-xl border border-dashed border-border">
             {t('dashboard.noCategoryStats')}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            {/* Bars, not a donut. A pie compares every slice against every
-                other at once, and this palette only clears the colour-vision
-                floors for three simultaneous classes; bars are compared
-                against their neighbour, which six clear. Bars also carry the
-                category name in the axis, so identity never rests on colour
-                alone — and that doubles as the visible label the light
-                surface requires, where three of the steps sit under 3:1. */}
             <BarChart data={data} layout="vertical" margin={horizontalBarMargin}>
-              <CartesianGrid {...horizontalBarGrid} />
-              <XAxis {...barValueAxis} />
-              <YAxis {...barCategoryAxis} width={110} />
+              <CartesianGrid {...horizontalBarGrid} stroke="var(--border)" strokeDasharray="3 3" opacity={0.5} />
+              <XAxis {...barValueAxis} stroke="var(--muted-foreground)" />
+              <YAxis {...barCategoryAxis} stroke="var(--muted-foreground)" width={110} />
               <Tooltip content={<ChartTooltip currency={currency} />} />
-              <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={22}>
+              <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={18}>
                 {data.map((entry) => (
                   <Cell key={entry.key} fill={entry.color} />
                 ))}
@@ -69,21 +62,18 @@ export function CategoryShareChart({ data, currency }: CategoryShareChartProps) 
           </ResponsiveContainer>
         )}
       </div>
-      {/* Every row, with its value — the old grid showed the first four of
-          however many there were, so anything past the fourth was
-          identified by its colour and nothing else. */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3 mt-6">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 mt-5 pt-3 border-t border-border">
         {data.map((item) => (
           <div key={item.key} className="flex items-center gap-2">
             <span
-              className="swatch size-3 rounded-full shrink-0"
+              className="swatch size-2.5 rounded-full shrink-0"
               style={{ '--swatch-color': item.color } as CSSProperties}
             />
-            <div className="flex flex-col">
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate w-20">
+            <div className="flex flex-col min-w-0">
+              <span className="text-[11px] text-muted-foreground truncate max-w-24">
                 {item.name}
               </span>
-              <span className="text-xs font-bold text-slate-900 dark:text-white font-mono">
+              <span className="text-xs font-semibold text-foreground font-mono">
                 {currency}
                 {item.value.toFixed(0)}
               </span>

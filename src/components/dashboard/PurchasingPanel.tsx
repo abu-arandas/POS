@@ -15,86 +15,86 @@ export function PurchasingPanel({ report, currency }: PurchasingPanelProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 1.0 }}
-      className="surface rounded-3xl p-8 shadow-xl"
+      transition={{ delay: 0.5 }}
+      className="bg-card border border-border rounded-xl p-6 shadow-2xs"
     >
-      <div className="mb-6 flex items-center justify-between">
-        <h3 className="font-sans font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
-          <ClipboardList size={20} className="text-emerald-500" /> {t('dashboard.purchasing')}
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="font-sans font-semibold text-foreground text-base flex items-center gap-2">
+          <ClipboardList size={16} className="text-muted-foreground" /> {t('dashboard.purchasing')}
         </h3>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block mb-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+        <div className="bg-secondary/30 border border-border rounded-xl p-4">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono block mb-1">
             {t('dashboard.poReceived')}
           </span>
-          <span className="font-mono font-extrabold text-2xl text-emerald-400 block">
+          <span className="font-mono font-semibold text-xl text-foreground block">
             {currency}
             {report.receivedValue.toFixed(2)}
           </span>
         </div>
-        <div className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block mb-2">
+        <div className="bg-secondary/30 border border-border rounded-xl p-4">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono block mb-1">
             {t('dashboard.poOutstanding')}
           </span>
-          <span className="font-mono font-extrabold text-2xl text-amber-400 block">
+          <span className="font-mono font-semibold text-xl text-foreground block">
             {currency}
             {report.outstandingValue.toFixed(2)}
           </span>
         </div>
-        <div className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono block mb-2">
+        <div className="bg-secondary/30 border border-border rounded-xl p-4">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono block mb-1">
             {t('dashboard.poOpenOrders')}
           </span>
-          <span className="font-mono font-extrabold text-2xl text-slate-900 dark:text-white block">
+          <span className="font-mono font-semibold text-xl text-foreground block">
             {report.countByStatus.draft + report.countByStatus.ordered}
           </span>
-          <span className="text-[10px] font-mono text-slate-500">
+          <span className="text-[10px] font-mono text-muted-foreground">
             {report.countByStatus.received} {t('dashboard.poReceivedCount')}
           </span>
         </div>
       </div>
 
       {report.suppliers.length === 0 ? (
-        <div className="w-full py-10 flex items-center justify-center text-slate-500 bg-[var(--surface-1)] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
+        <div className="w-full py-8 flex items-center justify-center text-xs text-muted-foreground bg-secondary/30 rounded-xl border border-dashed border-border">
           {t('dashboard.noPurchaseData')}
         </div>
       ) : (
-        <div className="space-y-3">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
+        <div className="space-y-3 pt-2">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">
             {t('dashboard.topSuppliers')}
           </span>
           {report.suppliers.slice(0, 5).map((s) => {
             const maxSpend = report.suppliers[0].received || report.suppliers[0].outstanding || 1;
             const spend = s.received || s.outstanding;
             return (
-              <div key={s.supplierId ?? 'none'} className="flex items-center gap-4">
-                <div className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-emerald-400 shrink-0">
-                  <Truck size={15} />
+              <div key={s.supplierId ?? 'none'} className="flex items-center gap-3">
+                <div className="size-7 rounded-full bg-secondary border border-border flex items-center justify-center text-foreground shrink-0">
+                  <Truck size={13} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-end mb-1.5">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
+                  <div className="flex justify-between items-end mb-1">
+                    <span className="text-xs font-medium text-foreground truncate">
                       {s.supplierName}
                     </span>
-                    <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
+                    <span className="font-mono font-semibold text-xs text-foreground">
                       {currency}
                       {s.received.toFixed(2)}
                       {s.outstanding > 0 && (
-                        <span className="text-amber-400 ms-2 text-xs">
+                        <span className="text-muted-foreground ms-1.5 text-[11px]">
                           +{currency}
                           {s.outstanding.toFixed(2)}
                         </span>
                       )}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
                       <div
-                        className="bar-fill h-full bg-emerald-500 rounded-full"
+                        className="bar-fill h-full bg-foreground rounded-full"
                         style={
                           {
                             '--bar-width': `${Math.max(2, (spend / maxSpend) * 100)}%`,
@@ -102,7 +102,7 @@ export function PurchasingPanel({ report, currency }: PurchasingPanelProps) {
                         }
                       />
                     </div>
-                    <span className="text-[10px] font-mono text-slate-500 shrink-0">
+                    <span className="text-[10px] font-mono text-muted-foreground shrink-0">
                       {s.orders} {t('dashboard.poOrdersLabel')}
                     </span>
                   </div>

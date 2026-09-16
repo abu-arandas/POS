@@ -38,21 +38,19 @@ export function TransactionDetailPanel({
       exit={{ opacity: 0, x: '100%' }}
       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
       id="receipt-view-section"
-      className="absolute inset-y-6 inset-e-6 w-96 glass dark:glass-dark border border-slate-200 dark:border-white/10 rounded-4xl shadow-2xl flex flex-col overflow-hidden z-30"
+      className="absolute inset-y-6 inset-e-6 w-96 bg-card border border-border rounded-2xl shadow-xl flex flex-col overflow-hidden z-30"
     >
       <div
-        className={`p-5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 ${
-          isRefunded ? 'bg-rose-500/10' : isPartial ? 'bg-amber-500/10' : 'bg-emerald-500/10'
-        }`}
+        className="p-4 flex items-center justify-between border-b border-border bg-card"
       >
         <div className="flex items-center space-x-2">
           <Check
-            size={18}
+            size={16}
             className={
-              isRefunded ? 'text-rose-500' : isPartial ? 'text-amber-500' : 'text-emerald-500'
+              isRefunded ? 'text-destructive' : isPartial ? 'text-amber-500' : 'text-emerald-500'
             }
           />
-          <span className="font-sans font-bold text-sm text-slate-900 dark:text-white">
+          <span className="font-sans font-semibold text-sm text-foreground">
             {isRefunded
               ? t('history.transactionRefunded')
               : isPartial
@@ -63,65 +61,63 @@ export function TransactionDetailPanel({
         <button
           onClick={onClose}
           aria-label={t('history.closeDetails')}
-          className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors"
+          className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
         >
           <X size={16} />
         </button>
       </div>
 
-      <div className="flex-1 p-6 overflow-y-auto bg-white dark:bg-slate-950 flex flex-col justify-between scrollbar-none relative">
-        <div className="absolute inset-0 mesh-bg-dark opacity-30 pointer-events-none" />
-
+      <div className="flex-1 p-5 overflow-y-auto bg-muted/20 flex flex-col justify-between scrollbar-none relative">
         <div
           id="audit-receipt-mockup"
-          className="bg-white text-slate-900 rounded-lg p-5 shadow-sm font-mono text-[11px] relative z-10 receipt-paper"
+          className="bg-card text-foreground border border-border rounded-xl p-5 shadow-2xs font-mono text-[11px] relative z-10"
         >
-          <div className="text-center border-b border-dashed border-slate-300 pb-4 mb-4">
+          <div className="text-center border-b border-dashed border-border pb-4 mb-4">
             <div className="flex justify-center mb-2">
               {logoUrl ? (
                 <img src={logoUrl} alt="Logo" className="h-8 w-auto object-contain" />
               ) : (
-                <ShoppingBag size={28} className="text-slate-800" />
+                <ShoppingBag size={24} className="text-muted-foreground" />
               )}
             </div>
-            <h4 className="font-bold text-slate-900 text-sm uppercase tracking-wider">
+            <h4 className="font-bold text-foreground text-xs uppercase tracking-wider">
               {settings.storeName}
             </h4>
-            <p className="text-[10px] text-slate-500 mt-1">{settings.storeAddress}</p>
-            <p className="text-[10px] text-slate-500">{settings.storePhone}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{settings.storeAddress}</p>
+            <p className="text-[10px] text-muted-foreground">{settings.storePhone}</p>
           </div>
 
-          <div className="space-y-1.5 border-b border-dashed border-slate-300 pb-4 mb-4">
+          <div className="space-y-1.5 border-b border-dashed border-border pb-4 mb-4">
             <div className="flex justify-between">
-              <span>{t('history.date')}</span>
+              <span className="text-muted-foreground">{t('history.date')}</span>
               <span>{new Date(transaction.date).toLocaleString()}</span>
             </div>
             {isRefunded && transaction.refundDate && (
-              <div className="flex justify-between text-rose-600 font-bold">
+              <div className="flex justify-between text-destructive font-semibold">
                 <span>{t('history.refunded').toUpperCase()}:</span>
                 <span>{new Date(transaction.refundDate).toLocaleDateString()}</span>
               </div>
             )}
             <div className="flex justify-between">
-              <span>{t('history.receipt')}</span>
-              <span className="font-bold">{transaction.id.substring(0, 8)}...</span>
+              <span className="text-muted-foreground">{t('history.receipt')}</span>
+              <span className="font-semibold">{transaction.id.substring(0, 8)}...</span>
             </div>
             {transaction.operatorName && (
               <div className="flex justify-between">
-                <span>{t('history.operator')}</span>
+                <span className="text-muted-foreground">{t('history.operator')}</span>
                 <span>{transaction.operatorName}</span>
               </div>
             )}
             {transaction.customerName && (
-              <div className="flex justify-between text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded">
+              <div className="flex justify-between font-semibold bg-secondary px-2 py-0.5 rounded">
                 <span>{t('history.member')}</span>
                 <span>{transaction.customerName}</span>
               </div>
             )}
           </div>
 
-          <div className="space-y-2 border-b border-dashed border-slate-300 pb-4 mb-4">
-            <div className="grid grid-cols-12 text-slate-500 dark:text-slate-400 font-bold mb-1">
+          <div className="space-y-2 border-b border-dashed border-border pb-4 mb-4">
+            <div className="grid grid-cols-12 text-muted-foreground font-semibold mb-1 text-[10px]">
               <span className="col-span-8">ITEM</span>
               <span className="col-span-2 text-center">QTY</span>
               <span className="col-span-2 text-end">TOT</span>
@@ -142,16 +138,16 @@ export function TransactionDetailPanel({
             ))}
           </div>
 
-          <div className="space-y-1.5 border-b border-dashed border-slate-300 pb-4 mb-4">
+          <div className="space-y-1.5 border-b border-dashed border-border pb-4 mb-4">
             <div className="flex justify-between">
-              <span>{t('history.subtotal')}</span>
+              <span className="text-muted-foreground">{t('history.subtotal')}</span>
               <span>
                 {settings.currency}
                 {transaction.subtotal.toFixed(2)}
               </span>
             </div>
             {transaction.discount > 0 && (
-              <div className="flex justify-between text-rose-600">
+              <div className="flex justify-between text-destructive">
                 <span>{t('history.discount')}</span>
                 <span>
                   -{settings.currency}
@@ -159,14 +155,14 @@ export function TransactionDetailPanel({
                 </span>
               </div>
             )}
-            <div className="flex justify-between text-slate-500">
+            <div className="flex justify-between text-muted-foreground">
               <span>{t('history.tax')}</span>
               <span>
                 {settings.currency}
                 {transaction.tax.toFixed(2)}
               </span>
             </div>
-            <div className="flex justify-between text-slate-900 font-bold pt-2 border-t border-slate-200 text-sm mt-1">
+            <div className="flex justify-between text-foreground font-semibold pt-2 border-t border-border text-xs mt-1">
               <span>{t('history.totalPaid')}</span>
               <span>
                 {settings.currency}
@@ -175,26 +171,26 @@ export function TransactionDetailPanel({
             </div>
           </div>
 
-          <div className="space-y-1 text-center text-[10px] text-slate-500">
+          <div className="space-y-1 text-center text-[10px] text-muted-foreground">
             <p>PAID VIA {transaction.paymentMethod.toUpperCase()}</p>
-            <p className="mt-2 font-bold uppercase">{receiptLayout.footer}</p>
+            <p className="mt-1 font-semibold uppercase">{receiptLayout.footer}</p>
           </div>
         </div>
       </div>
 
-      <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-white/10 flex gap-2">
+      <div className="p-4 bg-card border-t border-border flex gap-2">
         <button
           onClick={() => onPrint(transaction)}
-          className="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white py-3 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
+          className="btn-secondary flex-1 text-xs h-9 px-3 rounded-lg flex items-center justify-center gap-1.5"
         >
-          <Printer size={16} /> {t('history.print')}
+          <Printer size={14} /> {t('history.print')}
         </button>
         {!isRefunded && (
           <button
             onClick={() => onRefund(transaction)}
-            className="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-3 rounded-xl text-xs font-bold transition-colors shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2"
+            className="btn-destructive flex-1 text-xs h-9 px-3 rounded-lg flex items-center justify-center gap-1.5"
           >
-            <RotateCcw size={16} /> {t('history.refund')}
+            <RotateCcw size={14} /> {t('history.refund')}
           </button>
         )}
       </div>

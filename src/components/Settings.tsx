@@ -222,11 +222,15 @@ export default function Settings() {
   });
 
   // --- Supabase form state ---
-  const [sbUrl, setSbUrl] = useState(supabaseConfig.url);
-  const [sbKey, setSbKey] = useState(supabaseConfig.anonKey);
-  const [sbAuthEmail, setSbAuthEmail] = useState(supabaseConfig.authEmail || '');
-  const [sbAuthPassword, setSbAuthPassword] = useState(supabaseConfig.authPassword || '');
-  const [sbEnabled, setSbEnabled] = useState(supabaseConfig.enabled);
+  const [sbUrl, setSbUrl] = useState(supabaseConfig.url || DEFAULT_SUPABASE.url);
+  const [sbKey, setSbKey] = useState(supabaseConfig.anonKey || DEFAULT_SUPABASE.anonKey);
+  const [sbAuthEmail, setSbAuthEmail] = useState(
+    supabaseConfig.authEmail || DEFAULT_SUPABASE.authEmail || '',
+  );
+  const [sbAuthPassword, setSbAuthPassword] = useState(
+    supabaseConfig.authPassword || DEFAULT_SUPABASE.authPassword || '',
+  );
+  const [sbEnabled, setSbEnabled] = useState(supabaseConfig.enabled || DEFAULT_SUPABASE.enabled);
   const [sbStoreId, setSbStoreId] = useState(storeId);
   const [busy, setBusy] = useState<null | 'test' | 'push' | 'pull'>(null);
 
@@ -605,11 +609,11 @@ export default function Settings() {
     // other, and nothing could reach them. Every sibling screen escapes this by
     // carrying `overflow-hidden` on its own root, which zeroes its automatic
     // minimum size; this one does not, so it says so explicitly.
-    <div className="h-full flex-1 min-w-0 flex flex-col bg-slate-50 dark:bg-slate-950">
-      <div className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-col gap-4">
+    <div className="h-full flex-1 min-w-0 flex flex-col bg-background text-foreground">
+      <div className="shrink-0 bg-card border-b border-border px-6 py-4 flex flex-col gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-            <SettingsIcon className="text-emerald-500" />
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2">
+            <SettingsIcon className="size-5 text-muted-foreground" />
             {t('settings.systemControlCenter')}
           </h2>
         </div>
@@ -618,7 +622,7 @@ export default function Settings() {
         <nav
           role="tablist"
           aria-label={t('settings.systemControlCenter')}
-          className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-px overflow-x-auto no-scrollbar"
+          className="flex gap-1 border-b border-border pb-px overflow-x-auto no-scrollbar"
         >
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -629,20 +633,20 @@ export default function Settings() {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
+                className={`relative flex items-center gap-2 px-3.5 py-2.5 text-xs font-medium transition-colors whitespace-nowrap ${
                   isActive
                     ? tab.danger
-                      ? 'text-rose-600 dark:text-rose-500'
-                      : 'text-emerald-600 dark:text-emerald-500'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                      ? 'text-destructive font-semibold'
+                      : 'text-foreground font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Icon size={16} />
+                <Icon size={14} className={isActive ? (tab.danger ? 'text-destructive' : 'text-foreground') : 'text-muted-foreground'} />
                 {tab.label}
                 {isActive && (
                   <motion.div
                     layoutId="settingsTabIndicator"
-                    className={`absolute bottom-0 left-0 right-0 h-0.5 ${tab.danger ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                    className={`absolute bottom-0 left-0 right-0 h-0.5 ${tab.danger ? 'bg-destructive' : 'bg-foreground'}`}
                     initial={false}
                     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />
@@ -653,7 +657,7 @@ export default function Settings() {
         </nav>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50 dark:bg-[#0f172a]/40">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-background">
         <div className="w-full mx-auto">
           <AnimatePresence mode="wait">
             <motion.div

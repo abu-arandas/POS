@@ -11,6 +11,13 @@ import {
   User,
   ShoppingBag,
   Timer,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Share2,
+  Copy,
+  Mail,
+  Send,
+  X,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useShiftStore } from '../stores/shiftStore';
@@ -20,16 +27,23 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { summarizeShift } from '../lib/shiftReport';
 import { escapeHtml } from '../lib/utils/formatting';
 import { openDetachedPrintWindow } from '../lib/utils/dom';
-import { Shift } from '../types';
-import { askConfirmation } from '../lib/utils/ui';
+import { CashMovementType, Shift } from '../types';
+import { askConfirmation, notify } from '../lib/utils/ui';
+import { CashMovementModal } from './shift/CashMovementModal';
+import {
+  generateDailySummaryText,
+  shareToWhatsApp,
+  shareViaEmail,
+  copyReportToClipboard,
+} from '../lib/dailySummaryReport';
 
 /**
- * Shift screen: open and close a drawer with an opening float, and produce the
- * Z-report reconciling counted cash against expected.
+ * Shift screen: open and close a drawer with an opening float, manage petty cash
+ * pay-ins and payouts, and produce the Z-report reconciling counted cash against expected.
  */
 export default function ShiftScreen() {
   const { t } = useTranslation();
-  const { shifts, currentShiftId, openShift, closeShift } = useShiftStore();
+  const { shifts, currentShiftId, cashMovements, openShift, closeShift } = useShiftStore();
   const { transactions } = useTransactionStore();
   const { currentUser } = useAuthStore();
   const { settings } = useSettingsStore();
@@ -40,6 +54,11 @@ export default function ShiftScreen() {
   const [closeNote, setCloseNote] = useState('');
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
+  // Cash movement modal state
+  const [movementModalOpen, setMovementModalOpen] = useState(false);
+  const [movementType, setMovementType] = useState<CashMovementType>('pay_out');
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
+
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 60000);
     return () => clearInterval(interval);
@@ -47,12 +66,29 @@ export default function ShiftScreen() {
 
   const currentShift = shifts.find((s) => s.id === currentShiftId) || null;
 
+  const currentShiftMovements = useMemo(
+    () => (currentShift ? cashMovements.filter((m) => m.shiftId === currentShift.id) : []),
+    [cashMovements, currentShift],
+  );
+
+  const totalPayIns = useMemo(
+    () => currentShiftMovements.filter((m) => m.type === 'pay_in').reduce((s, m) => s + m.amount, 0),
+    [currentShiftMovements],
+  );
+
+  const totalPayOuts = useMemo(
+    () => currentShiftMovements.filter((m) => m.type === 'pay_out').reduce((s, m) => s + m.amount, 0),
+    [currentShiftMovements],
+  );
+
   const shiftTxns = useMemo(
     () => (currentShift ? transactions.filter((tx) => tx.shiftId === currentShift.id) : []),
     [transactions, currentShift],
   );
   const summary = useMemo(() => summarizeShift(shiftTxns), [shiftTxns]);
-  const expectedCash = currentShift ? summary.expectedCash(currentShift.openingFloat) : 0;
+  const expectedCash = currentShift
+    ? summary.expectedCash(currentShift.openingFloat) + totalPayIns - totalPayOuts
+    : 0;
   const variance =
     countedCash !== '' ? Number((parseFloat(countedCash) - expectedCash).toFixed(2)) : null;
 
@@ -131,16 +167,16 @@ export default function ShiftScreen() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-[#020617] p-6 text-slate-800 dark:text-slate-100 transition-colors duration-300">
+    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-background p-6 text-foreground">
       <div className="mb-6 shrink-0 flex items-center justify-between">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
-            <Clock className="text-emerald-500" /> {t('shift.title')}
+        <div>
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2">
+            <Clock className="size-5 text-muted-foreground" /> {t('shift.title')}
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
+          <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
             {t('shift.subtitle')}
           </p>
-        </motion.div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-6 pe-1">
@@ -148,250 +184,336 @@ export default function ShiftScreen() {
           {!currentShift ? (
             <motion.div
               key="no-shift"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="glass dark:glass-dark border border-slate-200 dark:border-white/10 rounded-3xl p-10 max-w-lg mx-auto text-center shadow-2xl relative overflow-hidden group"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              className="bg-card border border-border rounded-xl p-8 max-w-md mx-auto text-center shadow-xs"
             >
-              <div className="absolute -inset-e-6 -top-6 size-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-colors" />
-              <div className="relative z-10">
-                <div className="mx-auto size-20 rounded-3xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-6 shadow-inner animate-bounce-in">
-                  <Unlock size={32} />
-                </div>
-                <h3 className="font-bold text-2xl text-slate-900 dark:text-white mb-2">
-                  {t('shift.noOpenShift')}
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-8">
-                  {t('shift.openHint')}
-                </p>
-
-                <div className="text-start bg-[var(--surface-2)] p-6 rounded-2xl border border-slate-200 dark:border-white/5 shadow-inner">
-                  <label
-                    htmlFor="opening-float-input"
-                    className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3"
-                  >
-                    {t('shift.openingFloat')}
-                  </label>
-                  <div className="flex items-center rounded-xl bg-white dark:bg-[#020617] px-4 py-2 border border-slate-200 dark:border-slate-700/50 focus-within:border-emerald-500/50 transition-colors">
-                    <span className="font-mono text-xl text-slate-500">{cur}</span>
-                    <input
-                      id="opening-float-input"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={openFloat}
-                      onChange={(e) => setOpenFloat(e.target.value)}
-                      placeholder="0.00"
-                      className="flex-1 bg-transparent border-none p-3 font-mono text-2xl font-bold text-slate-900 dark:text-white focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  id="open-shift-btn"
-                  onClick={handleOpen}
-                  disabled={openFloat === ''}
-                  className="w-full mt-6 bg-emerald-500 hover:bg-emerald-400 text-[#020617] disabled:opacity-50 disabled:hover:bg-emerald-500 font-extrabold text-lg py-4 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] transition-all flex items-center justify-center gap-2"
-                >
-                  <Unlock size={20} />
-                  {t('shift.openShift')}
-                </button>
+              <div className="mx-auto size-12 rounded-full bg-secondary border border-border text-foreground flex items-center justify-center mb-4">
+                <Unlock size={20} />
               </div>
+              <h3 className="font-semibold text-base text-foreground mb-1">
+                {t('shift.noOpenShift')}
+              </h3>
+              <p className="text-xs text-muted-foreground mb-6">
+                {t('shift.openHint')}
+              </p>
+
+              <div className="text-start bg-secondary/30 p-4 rounded-xl border border-border">
+                <label
+                  htmlFor="opening-float-input"
+                  className="block text-[11px] font-mono uppercase tracking-wider text-muted-foreground mb-2"
+                >
+                  {t('shift.openingFloat')}
+                </label>
+                <div className="flex items-center rounded-lg bg-background px-3 py-1 border border-border focus-within:border-foreground/50 transition-colors">
+                  <span className="font-mono text-sm text-muted-foreground">{cur}</span>
+                  <input
+                    id="opening-float-input"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={openFloat}
+                    onChange={(e) => setOpenFloat(e.target.value)}
+                    placeholder="0.00"
+                    className="flex-1 bg-transparent border-none p-2 font-mono num text-xl font-semibold text-foreground focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <button
+                id="open-shift-btn"
+                onClick={handleOpen}
+                disabled={openFloat === ''}
+                className="w-full mt-5 btn-primary h-10 text-xs font-medium gap-2 disabled:opacity-50"
+              >
+                <Unlock size={14} />
+                {t('shift.openShift')}
+              </button>
             </motion.div>
           ) : (
             <motion.div
               key="active-shift"
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+              className="grid grid-cols-1 lg:grid-cols-3 gap-5"
             >
               {/* Active Shift Overview */}
-              <div className="lg:col-span-2 space-y-6">
-                <div className="surface rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                  <div className="absolute -inset-e-6 -top-6 size-32 bg-emerald-500/10 rounded-full blur-3xl" />
-                  <div className="relative z-10 flex items-start justify-between">
+              <div className="lg:col-span-2 space-y-5">
+                <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="font-bold text-2xl text-slate-900 dark:text-white flex items-center gap-3">
-                        {t('shift.currentShift')}
-                        <span className="badge badge-emerald flex items-center gap-1.5 px-3 py-1 text-xs">
-                          <span className="size-2 bg-emerald-400 rounded-full animate-pulse" />
+                      <div className="flex items-center gap-2.5">
+                        <h3 className="font-semibold text-lg text-foreground">
+                          {t('shift.currentShift')}
+                        </h3>
+                        <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded border bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 flex items-center gap-1.5">
+                          <span className="size-1.5 bg-emerald-500 rounded-full animate-pulse" />
                           {t('shift.open')}
                         </span>
-                      </h3>
-                      <div className="flex items-center gap-6 mt-4">
-                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[var(--surface-1)] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
-                          <User size={16} className="text-emerald-500" />
-                          <span className="font-medium text-slate-700 dark:text-slate-200">
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 mt-3">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-secondary/40 px-2.5 py-1 rounded-md border border-border">
+                          <User size={13} className="text-muted-foreground" />
+                          <span className="font-medium text-foreground">
                             {currentShift.openedBy}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[var(--surface-1)] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
-                          <Timer size={16} className="text-blue-500" />
-                          <span className="font-mono font-medium text-slate-700 dark:text-slate-200">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-secondary/40 px-2.5 py-1 rounded-md border border-border">
+                          <Timer size={13} className="text-muted-foreground" />
+                          <span className="font-mono font-medium text-foreground">
                             {getShiftDuration(currentShift.openedAt)}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-[var(--surface-1)] px-4 py-2 rounded-xl border border-slate-200 dark:border-white/5">
-                          <ShoppingBag size={16} className="text-purple-500" />
-                          <span className="font-mono font-medium text-slate-700 dark:text-slate-200">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-secondary/40 px-2.5 py-1 rounded-md border border-border">
+                          <ShoppingBag size={13} className="text-muted-foreground" />
+                          <span className="font-mono font-medium text-foreground">
                             {summary.saleCount} {t('shift.sales')}
                           </span>
                         </div>
                       </div>
                     </div>
+
+                    {/* Drawer & Report Actions */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setMovementType('pay_in');
+                          setMovementModalOpen(true);
+                        }}
+                        className="h-8 px-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                      >
+                        <ArrowDownLeft size={13} />
+                        <span>Pay-In</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setMovementType('pay_out');
+                          setMovementModalOpen(true);
+                        }}
+                        className="h-8 px-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                      >
+                        <ArrowUpRight size={13} />
+                        <span>Pay-Out</span>
+                      </button>
+                      <button
+                        onClick={() => setShareMenuOpen(true)}
+                        className="h-8 px-3 rounded-lg btn-secondary text-xs font-medium flex items-center gap-1.5"
+                      >
+                        <Share2 size={13} />
+                        <span>Daily Report</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
                     {
                       label: t('shift.gross'),
                       val: `${cur}${summary.grossSales.toFixed(2)}`,
-                      color: 'emerald',
                     },
                     {
                       label: t('shift.cashSales'),
                       val: `${cur}${summary.cashSales.toFixed(2)}`,
-                      color: 'emerald',
                     },
                     {
                       label: t('dashboard.card'),
                       val: `${cur}${summary.cardSales.toFixed(2)}`,
-                      color: 'blue',
                     },
                     {
                       label: t('dashboard.mobile'),
                       val: `${cur}${summary.mobileSales.toFixed(2)}`,
-                      color: 'purple',
                     },
                     {
                       label: t('shift.cashRefunds'),
                       val: `${cur}${summary.cashRefunds.toFixed(2)}`,
-                      color: 'rose',
                     },
-                  ].map((s, i) => (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.05 }}
+                  ].map((s) => (
+                    <div
                       key={s.label}
-                      className="surface rounded-2xl p-5 hover:bg-[var(--surface-hover)] transition-colors"
+                      className="bg-card border border-border rounded-xl p-4 shadow-2xs"
                     >
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono block mb-2">
+                      <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider block mb-1.5">
                         {s.label}
                       </span>
-                      <span className="font-mono font-extrabold text-xl text-slate-900 dark:text-white">
+                      <span className="font-mono font-semibold text-xl num text-foreground">
                         {s.val}
                       </span>
-                    </motion.div>
+                    </div>
                   ))}
+                </div>
+
+                {/* Petty Cash & Drawer Movements Log */}
+                <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                      <DollarSign size={14} className="text-muted-foreground" />
+                      Drawer Cash Activity & Petty Cash Log ({currentShiftMovements.length})
+                    </h4>
+                  </div>
+                  {currentShiftMovements.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">
+                      No petty cash movements recorded this shift. Use Pay-In or Pay-Out to record drawer deposits or expenses.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {currentShiftMovements.map((m) => (
+                        <div
+                          key={m.id}
+                          className="flex items-center justify-between p-2.5 rounded-lg border border-border/70 bg-secondary/30 text-xs"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className={`size-6 rounded-md flex items-center justify-center ${
+                              m.type === 'pay_in'
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                            }`}>
+                              {m.type === 'pay_in' ? <ArrowDownLeft size={13} /> : <ArrowUpRight size={13} />}
+                            </div>
+                            <div>
+                              <span className="font-medium text-foreground block">{m.reason}</span>
+                              <span className="text-[10px] font-mono text-muted-foreground">
+                                {new Date(m.createdAt).toLocaleTimeString()} • {m.performedBy}
+                              </span>
+                            </div>
+                          </div>
+                          <span className={`font-mono font-bold num ${
+                            m.type === 'pay_in' ? 'text-emerald-500' : 'text-amber-500'
+                          }`}>
+                            {m.type === 'pay_in' ? '+' : '-'}{cur}{m.amount.toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Close Shift (Z-Report Style) */}
-              <div className="surface rounded-3xl p-6 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 inset-x-0 h-2 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjQiPgo8cGF0aCBkPSJNIDAgMCBMIDQgNCBMIDggMCBaIiBmaWxsPSIjMGYxNzJhIi8+Cjwvc3ZnPg==')] opacity-50 bg-repeat-x" />
+              <div className="bg-card border border-border rounded-xl p-5 shadow-2xs flex flex-col justify-between">
+                <div>
+                  <h3 className="font-semibold text-xs sm:text-sm text-foreground flex items-center gap-2 mb-4">
+                    <LockKeyhole size={15} className="text-muted-foreground" /> {t('shift.closeReconcile')}
+                  </h3>
 
-                <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2 mb-6 mt-2">
-                  <LockKeyhole size={18} className="text-amber-500" /> {t('shift.closeReconcile')}
-                </h3>
+                  <div className="space-y-2.5 text-xs font-mono">
+                    <div className="flex justify-between items-center border-b border-dashed border-border pb-2">
+                      <span className="text-muted-foreground">
+                        {t('shift.openingFloat')}
+                      </span>
+                      <span className="num font-medium text-foreground">
+                        {cur}
+                        {currentShift.openingFloat.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-dashed border-border pb-2">
+                      <span className="text-muted-foreground">
+                        {t('shift.cashSales')}
+                      </span>
+                      <span className="num font-medium text-foreground">
+                        +{cur}
+                        {summary.cashSales.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-dashed border-border pb-2">
+                      <span className="text-muted-foreground">
+                        {t('shift.cashRefunds')}
+                      </span>
+                      <span className="num font-medium text-destructive">
+                        -{cur}
+                        {summary.cashRefunds.toFixed(2)}
+                      </span>
+                    </div>
+                    {totalPayIns > 0 && (
+                      <div className="flex justify-between items-center border-b border-dashed border-border pb-2">
+                        <span className="text-muted-foreground">Cash Deposits (Pay-In)</span>
+                        <span className="num font-medium text-emerald-500">
+                          +{cur}
+                          {totalPayIns.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {totalPayOuts > 0 && (
+                      <div className="flex justify-between items-center border-b border-dashed border-border pb-2">
+                        <span className="text-muted-foreground">Petty Cash (Pay-Out)</span>
+                        <span className="num font-medium text-amber-500">
+                          -{cur}
+                          {totalPayOuts.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center border-b border-border pb-2.5 mb-3">
+                      <span className="font-semibold text-foreground">
+                        {t('shift.expectedCash')}
+                      </span>
+                      <span className="font-semibold num text-foreground text-sm">
+                        {cur}
+                        {expectedCash.toFixed(2)}
+                      </span>
+                    </div>
 
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center text-sm font-mono border-b border-dashed border-slate-200 dark:border-slate-700/50 pb-3">
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('shift.openingFloat')}
-                    </span>
-                    <span className="font-medium text-slate-600 dark:text-slate-300">
-                      {cur}
-                      {currentShift.openingFloat.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm font-mono border-b border-dashed border-slate-200 dark:border-slate-700/50 pb-3">
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('shift.cashSales')}
-                    </span>
-                    <span className="font-medium text-slate-600 dark:text-slate-300">
-                      +{cur}
-                      {summary.cashSales.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm font-mono border-b border-dashed border-slate-200 dark:border-slate-700/50 pb-3">
-                    <span className="text-slate-500 dark:text-slate-400">
-                      {t('shift.cashRefunds')}
-                    </span>
-                    <span className="font-medium text-rose-400">
-                      -{cur}
-                      {summary.cashRefunds.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm font-mono border-b-2 border-slate-200 dark:border-slate-700/50 pb-3 mb-4">
-                    <span className="font-bold text-slate-600 dark:text-slate-300">
-                      {t('shift.expectedCash')}
-                    </span>
-                    <span className="font-extrabold text-emerald-400 text-lg">
-                      {cur}
-                      {expectedCash.toFixed(2)}
-                    </span>
-                  </div>
+                    <div className="pt-1">
+                      <label className="block text-[10px] uppercase font-mono tracking-wider text-muted-foreground mb-1.5">
+                        {t('shift.countedCash')}
+                      </label>
+                      <div className="flex items-center rounded-lg bg-secondary/40 px-3 border border-border focus-within:border-foreground/50 transition-colors">
+                        <DollarSign size={14} className="text-muted-foreground" />
+                        <input
+                          id="counted-cash-input"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={countedCash}
+                          onChange={(e) => setCountedCash(e.target.value)}
+                          placeholder="0.00"
+                          className="flex-1 bg-transparent border-none px-2 py-2 font-mono num text-sm font-semibold text-foreground focus:outline-none"
+                        />
+                      </div>
+                    </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                      {t('shift.countedCash')}
-                    </label>
-                    <div className="flex items-center rounded-xl bg-white dark:bg-[#020617] px-3 border border-slate-200 dark:border-slate-700/50 focus-within:border-blue-500/50 transition-colors">
-                      <DollarSign size={16} className="text-slate-500" />
+                    {variance !== null && (
+                      <div
+                        className={`flex justify-between items-center text-xs font-mono rounded-lg px-3 py-2 border ${
+                          Math.abs(variance) < 0.005
+                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-destructive/10 border-destructive/20 text-destructive'
+                        }`}
+                      >
+                        <span className="font-semibold uppercase flex items-center gap-1.5">
+                          {Math.abs(variance) < 0.005 ? (
+                            <Check size={13} />
+                          ) : (
+                            <AlertTriangle size={13} />
+                          )}
+                          {t('shift.variance')}
+                        </span>
+                        <span className="num font-semibold">
+                          {variance >= 0 ? '+' : ''}
+                          {cur}
+                          {variance.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="pt-1">
                       <input
-                        id="counted-cash-input"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={countedCash}
-                        onChange={(e) => setCountedCash(e.target.value)}
-                        placeholder="0.00"
-                        className="flex-1 bg-transparent border-none px-2 py-3 font-mono text-lg font-bold text-slate-900 dark:text-white focus:outline-none"
+                        type="text"
+                        value={closeNote}
+                        onChange={(e) => setCloseNote(e.target.value)}
+                        placeholder={t('shift.notePlaceholder')}
+                        className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
                       />
                     </div>
                   </div>
+                </div>
 
-                  {variance !== null && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className={`flex justify-between items-center text-sm font-mono rounded-xl px-4 py-3 ${
-                        Math.abs(variance) < 0.005
-                          ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
-                          : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
-                      }`}
-                    >
-                      <span className="font-bold uppercase flex items-center gap-1.5">
-                        {Math.abs(variance) < 0.005 ? (
-                          <Check size={14} />
-                        ) : (
-                          <AlertTriangle size={14} />
-                        )}
-                        {t('shift.variance')}
-                      </span>
-                      <span className="font-extrabold">
-                        {variance >= 0 ? '+' : ''}
-                        {cur}
-                        {variance.toFixed(2)}
-                      </span>
-                    </motion.div>
-                  )}
-
-                  <input
-                    type="text"
-                    value={closeNote}
-                    onChange={(e) => setCloseNote(e.target.value)}
-                    placeholder={t('shift.notePlaceholder')}
-                    className="w-full bg-white dark:bg-[#020617] border border-slate-200 dark:border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-blue-500/50 transition-colors"
-                  />
-
+                <div className="pt-4">
                   <button
                     id="close-shift-btn"
                     onClick={handleClose}
                     disabled={countedCash === ''}
-                    className="w-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 disabled:opacity-50 font-bold text-sm py-3.5 rounded-xl transition-colors mt-2"
+                    className="w-full btn-destructive h-9 text-xs font-medium disabled:opacity-50"
                   >
                     {t('shift.closeShift')}
                   </button>
@@ -403,87 +525,87 @@ export default function ShiftScreen() {
 
         {/* Shift History Table */}
         {closedShifts.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="surface rounded-3xl p-6 shadow-xl mt-8"
-          >
-            <h3 className="font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-              <Clock size={18} className="text-slate-500 dark:text-slate-400" />
+          <div className="bg-card border border-border rounded-xl p-5 shadow-2xs mt-6">
+            <h3 className="font-semibold text-xs sm:text-sm text-foreground mb-4 flex items-center gap-2">
+              <Clock size={15} className="text-muted-foreground" />
               {t('shift.pastShifts')}
             </h3>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-start text-sm">
+              <table className="w-full text-start text-xs">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 font-medium">
-                    <th className="pb-3 px-4">{t('shift.operator', 'Opened By')}</th>
-                    <th className="pb-3 px-4">{t('shift.closedBy', 'Closed By')}</th>
-                    <th className="pb-3 px-4">{t('shift.openedAt', 'Opened')}</th>
-                    <th className="pb-3 px-4">{t('shift.closedAt', 'Closed')}</th>
-                    <th className="pb-3 px-4 text-end">{t('shift.gross', 'Gross')}</th>
-                    <th className="pb-3 px-4 text-end">{t('shift.variance', 'Variance')}</th>
-                    <th className="pb-3 px-4 text-center"></th>
+                  <tr className="border-b border-border text-muted-foreground font-mono uppercase text-[10px]">
+                    <th className="pb-2 px-3 text-start">{t('shift.operator', 'Opened By')}</th>
+                    <th className="pb-2 px-3 text-start">{t('shift.closedBy', 'Closed By')}</th>
+                    <th className="pb-2 px-3 text-start">{t('shift.openedAt', 'Opened')}</th>
+                    <th className="pb-2 px-3 text-start">{t('shift.closedAt', 'Closed')}</th>
+                    <th className="pb-2 px-3 text-end">{t('shift.gross', 'Gross')}</th>
+                    <th className="pb-2 px-3 text-end">{t('shift.variance', 'Variance')}</th>
+                    <th className="pb-2 px-3 text-center"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-border">
                   {closedShifts.map((shift) => {
                     const s = summarizeShift(transactions.filter((tx) => tx.shiftId === shift.id));
                     const expected = s.expectedCash(shift.openingFloat);
                     const v = Number(((shift.countedCash ?? 0) - expected).toFixed(2));
                     return (
-                      <tr key={shift.id} className="hover:bg-white/5 transition-colors group">
-                        <td className="p-4">
+                      <tr key={shift.id} className="hover:bg-secondary/15 transition-colors group">
+                        <td className="py-2.5 px-3">
                           <div className="flex items-center gap-2">
-                            <div className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs">
+                            <div className="size-6 rounded-full bg-secondary border border-border flex items-center justify-center text-foreground font-mono font-semibold text-[10px]">
                               {shift.openedBy.charAt(0).toUpperCase()}
                             </div>
-                            <span className="font-medium text-slate-700 dark:text-slate-200">
+                            <span className="font-medium text-foreground">
                               {shift.openedBy}
                             </span>
                           </div>
                         </td>
-                        <td className="p-4">
+                        <td className="py-2.5 px-3">
                           {shift.closedBy ? (
                             <div className="flex items-center gap-2">
-                              <div className="size-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold text-xs">
+                              <div className="size-6 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground font-mono font-semibold text-[10px]">
                                 {shift.closedBy.charAt(0).toUpperCase()}
                               </div>
-                              <span className="text-sm text-slate-600 dark:text-slate-300">
+                              <span className="text-muted-foreground">
                                 {shift.closedBy}
                               </span>
                             </div>
                           ) : (
-                            <span className="text-slate-600">—</span>
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </td>
-                        <td className="p-4 font-mono text-slate-500 dark:text-slate-400 text-xs">
+                        <td className="py-2.5 px-3 font-mono text-muted-foreground text-[11px]">
                           {new Date(shift.openedAt).toLocaleString()}
                         </td>
-                        <td className="p-4 font-mono text-slate-500 dark:text-slate-400 text-xs">
+                        <td className="py-2.5 px-3 font-mono text-muted-foreground text-[11px]">
                           {shift.closedAt ? new Date(shift.closedAt).toLocaleString() : '—'}
                         </td>
-                        <td className="p-4 text-end font-mono font-medium text-slate-900 dark:text-white">
+                        <td className="py-2.5 px-3 text-end font-mono num font-semibold text-foreground">
                           {cur}
                           {s.grossSales.toFixed(2)}
                         </td>
-                        <td className="p-4 text-end">
+                        <td className="py-2.5 px-3 text-end">
                           <span
-                            className={`badge ${Math.abs(v) < 0.005 ? 'badge-emerald' : 'badge-rose'} font-mono text-xs`}
+                            className={`text-[10px] font-mono num font-semibold px-1.5 py-0.5 rounded border ${
+                              Math.abs(v) < 0.005
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                                : 'bg-destructive/10 text-destructive border-destructive/20'
+                            }`}
                           >
                             {v >= 0 ? '+' : ''}
                             {cur}
                             {v.toFixed(2)}
                           </span>
                         </td>
-                        <td className="p-4 text-center">
+                        <td className="py-2.5 px-3 text-center">
                           <button
                             onClick={() => printReport(shift)}
                             aria-label={t('shift.printReport')}
-                            className="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                            className="size-7 rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                             title={t('shift.printReport')}
                           >
-                            <Printer size={16} />
+                            <Printer size={13} />
                           </button>
                         </td>
                       </tr>
@@ -492,8 +614,123 @@ export default function ShiftScreen() {
                 </tbody>
               </table>
             </div>
-          </motion.div>
+          </div>
         )}
+        {/* Cash Movement (Pay-In / Pay-Out) Modal */}
+        <AnimatePresence>
+          {movementModalOpen && (
+            <CashMovementModal
+              initialType={movementType}
+              settings={settings}
+              onClose={() => setMovementModalOpen(false)}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Daily Summary Share Dialog */}
+        <AnimatePresence>
+          {shareMenuOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+              >
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <Share2 size={16} className="text-primary" />
+                    <h3 className="font-semibold text-foreground text-sm">
+                      Share End-of-Day Daily Executive Summary
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setShareMenuOpen(false)}
+                    className="size-7 inline-flex items-center justify-center text-muted-foreground hover:text-foreground rounded-lg"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto my-4 p-3.5 rounded-xl border border-border bg-secondary/30 font-mono text-xs whitespace-pre-wrap leading-relaxed select-text text-foreground">
+                  {generateDailySummaryText({
+                    storeName: settings.storeName || 'SJ Grill',
+                    currency: cur,
+                    date: new Date().toLocaleDateString(undefined, {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    }),
+                    transactions: shiftTxns,
+                    shift: currentShift,
+                    cashMovements: currentShiftMovements,
+                  })}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-border">
+                  <button
+                    onClick={async () => {
+                      const text = generateDailySummaryText({
+                        storeName: settings.storeName || 'SJ Grill',
+                        currency: cur,
+                        date: new Date().toLocaleDateString(),
+                        transactions: shiftTxns,
+                        shift: currentShift,
+                        cashMovements: currentShiftMovements,
+                      });
+                      const ok = await copyReportToClipboard(text);
+                      if (ok) notify(t('shift.copiedToClipboard', { defaultValue: 'Summary copied to clipboard!' }));
+                    }}
+                    className="btn-secondary h-9 px-3.5 rounded-xl text-xs flex items-center gap-1.5"
+                  >
+                    <Copy size={13} />
+                    <span>Copy Text</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const text = generateDailySummaryText({
+                        storeName: settings.storeName || 'SJ Grill',
+                        currency: cur,
+                        date: new Date().toLocaleDateString(),
+                        transactions: shiftTxns,
+                        shift: currentShift,
+                        cashMovements: currentShiftMovements,
+                      });
+                      shareViaEmail(
+                        `${settings.storeName || 'POS'} - Daily Summary Report`,
+                        text,
+                      );
+                    }}
+                    className="btn-secondary h-9 px-3.5 rounded-xl text-xs flex items-center gap-1.5"
+                  >
+                    <Mail size={13} />
+                    <span>Email</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const text = generateDailySummaryText({
+                        storeName: settings.storeName || 'SJ Grill',
+                        currency: cur,
+                        date: new Date().toLocaleDateString(),
+                        transactions: shiftTxns,
+                        shift: currentShift,
+                        cashMovements: currentShiftMovements,
+                      });
+                      shareToWhatsApp(text);
+                    }}
+                    className="h-9 px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors"
+                  >
+                    <Send size={13} />
+                    <span>WhatsApp</span>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

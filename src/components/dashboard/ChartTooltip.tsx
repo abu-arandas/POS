@@ -24,16 +24,16 @@ export const ChartTooltip = ({
 }: ChartTooltipProps) => {
   if (!active || !payload || !payload.length) return null;
   return (
-    <div className="bg-[var(--surface-1)] backdrop-blur-md border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-xl">
-      <p className="text-slate-900 dark:text-white font-bold mb-2">{label}</p>
+    <div className="bg-card/95 backdrop-blur-md border border-border rounded-xl p-3 shadow-lg">
+      <p className="text-foreground font-semibold text-xs mb-1.5">{label}</p>
       {payload.map((entry, index) => (
-        <div key={index} className="flex items-center gap-2 text-sm font-mono mt-1">
+        <div key={index} className="flex items-center gap-2 text-xs font-mono mt-1">
           <span
             className="swatch size-2 rounded-full"
             style={{ '--swatch-color': entry.color } as CSSProperties}
           />
-          <span className="text-slate-500 dark:text-slate-400 capitalize">{entry.name}:</span>
-          <span className="text-slate-900 dark:text-white font-bold">
+          <span className="text-muted-foreground capitalize">{entry.name}:</span>
+          <span className="text-foreground font-semibold">
             {valueType === 'currency' ? currency : ''}
             {Number(entry.value).toFixed(valueType === 'currency' ? 2 : 0)}
           </span>

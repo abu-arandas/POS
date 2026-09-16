@@ -11,11 +11,11 @@ import type { DetectedPrinter } from '../../lib/printing/printerDiscovery';
 
 /** Shared styling for the small toolbar buttons above the printer list. */
 export const printerToolbarButtonClass =
-  'px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 rounded-xl flex items-center gap-2 transition-colors';
+  'h-8 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border disabled:opacity-40 rounded-lg flex items-center gap-1.5 transition-colors';
 
 /** Shared styling for the per-row action buttons on the right of each entry. */
 export const printerRowActionClass =
-  'text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors';
+  'text-[11px] font-medium px-2.5 py-1 rounded-md bg-secondary text-foreground hover:bg-foreground hover:text-background border border-border transition-colors';
 
 export interface ScanNetworkButtonProps {
   t: TFunction;
@@ -35,7 +35,7 @@ export function ScanNetworkButton({ t, scanningNetwork, onScanNetwork }: ScanNet
       disabled={scanningNetwork}
       className={printerToolbarButtonClass}
     >
-      <Wifi size={14} className={scanningNetwork ? 'animate-pulse' : ''} />
+      <Wifi size={13} className={scanningNetwork ? 'animate-pulse' : ''} />
       {scanningNetwork ? t('settings.scanningNetwork') : t('settings.scanNetwork')}
     </button>
   );
@@ -89,14 +89,14 @@ export function ConnectedPrinters({
   } = discovery;
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono">
           {t('settings.connectedPrinters')}
         </h3>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
           {serialSupported() && (
             <button type="button" onClick={onPairSerial} className={printerToolbarButtonClass}>
-              <Usb size={14} />
+              <Usb size={13} />
               {t('settings.pairSerial')}
             </button>
           )}
@@ -113,38 +113,38 @@ export function ConnectedPrinters({
             disabled={printersLoading}
             className={printerToolbarButtonClass}
           >
-            <RefreshCw size={14} className={printersLoading ? 'animate-spin' : ''} />
+            <RefreshCw size={13} className={printersLoading ? 'animate-spin' : ''} />
             {t('settings.refreshPrinters')}
           </button>
         </div>
       </div>
       {detectedPrinters.length === 0 ? (
-        <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-4 leading-relaxed">
+        <p className="text-xs text-muted-foreground bg-secondary/20 border border-dashed border-border rounded-lg p-3 leading-relaxed">
           {printersLoading ? '…' : t('settings.noPrintersFound')}
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-1.5">
           {detectedPrinters.map((p) => (
             <li
               key={p.id}
-              className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700"
+              className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-secondary/30 border border-border"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="size-7 rounded bg-secondary border border-border text-muted-foreground flex items-center justify-center shrink-0">
                   {p.kind === 'system' ? (
-                    <Monitor size={16} />
+                    <Monitor size={14} />
                   ) : p.kind === 'network' ? (
-                    <Wifi size={16} />
+                    <Wifi size={14} />
                   ) : (
-                    <Usb size={16} />
+                    <Usb size={14} />
                   )}
                 </div>
                 <div className="min-w-0">
-                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block truncate">
+                  <span className="text-xs font-medium text-foreground block truncate">
                     {p.name}
                   </span>
                   {p.detail && (
-                    <span className="text-[11px] text-slate-500 block truncate">{p.detail}</span>
+                    <span className="text-[11px] text-muted-foreground block truncate font-mono">{p.detail}</span>
                   )}
                 </div>
               </div>

@@ -16,43 +16,43 @@ export function OperatorPanel({ rows, currency }: OperatorPanelProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.9 }}
-      className="surface rounded-3xl p-8 shadow-xl"
+      transition={{ delay: 0.45 }}
+      className="bg-card border border-border rounded-xl p-6 shadow-2xs"
     >
-      <div className="mb-6 flex items-center justify-between">
-        <h3 className="font-sans font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
-          <Users size={20} className="text-emerald-500" /> {t('dashboard.byOperator')}
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="font-sans font-semibold text-foreground text-base flex items-center gap-2">
+          <Users size={16} className="text-muted-foreground" /> {t('dashboard.byOperator')}
         </h3>
       </div>
       {rows.length === 0 ? (
-        <div className="w-full py-12 flex items-center justify-center text-slate-500 bg-[var(--surface-1)] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
+        <div className="w-full py-10 flex items-center justify-center text-xs text-muted-foreground bg-secondary/30 rounded-xl border border-dashed border-border">
           {t('dashboard.noSales')}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {rows.map((op, idx) => {
             const max = rows[0].revenue || 1;
             return (
-              <div key={idx} className="flex items-center gap-4">
-                <div className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs shrink-0">
+              <div key={idx} className="flex items-center gap-3">
+                <div className="size-7 rounded-full bg-secondary border border-border flex items-center justify-center text-foreground font-semibold text-xs shrink-0">
                   {op.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-end mb-1.5">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
+                  <div className="flex justify-between items-end mb-1">
+                    <span className="text-xs font-medium text-foreground truncate">
                       {op.name}
                     </span>
-                    <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
+                    <span className="font-mono font-semibold text-xs text-foreground">
                       {currency}
                       {op.revenue.toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
                       <div
-                        className="bar-fill h-full bg-emerald-500 rounded-full"
+                        className="bar-fill h-full bg-foreground rounded-full"
                         style={
                           {
                             '--bar-width': `${Math.max(2, (op.revenue / max) * 100)}%`,
@@ -60,7 +60,7 @@ export function OperatorPanel({ rows, currency }: OperatorPanelProps) {
                         }
                       />
                     </div>
-                    <span className="text-[10px] font-mono text-slate-500 shrink-0">
+                    <span className="text-[10px] font-mono text-muted-foreground shrink-0">
                       {op.orders} {t('dashboard.ordersLabel')}
                     </span>
                   </div>

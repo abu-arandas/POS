@@ -22,16 +22,16 @@ export function InventoryTable({ header, children }: InventoryTableProps) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex-1 overflow-hidden flex flex-col surface rounded-2xl"
+      className="flex-1 overflow-hidden flex flex-col bg-card border border-border rounded-xl shadow-2xs"
     >
       <div className="flex-1 overflow-y-auto">
         <table className="w-full text-start border-collapse">
           <thead>
-            <tr className="bg-white/90 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider font-mono border-b border-slate-200 dark:border-white/5 sticky top-0 z-10 backdrop-blur-md">
+            <tr className="bg-muted/70 text-muted-foreground text-[11px] font-medium uppercase tracking-wider font-mono border-b border-border sticky top-0 z-10 backdrop-blur-xs">
               {header}
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5 text-sm text-slate-700 dark:text-slate-200">
+          <tbody className="divide-y divide-border text-xs text-foreground">
             {children}
           </tbody>
         </table>

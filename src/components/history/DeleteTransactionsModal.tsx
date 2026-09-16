@@ -31,27 +31,27 @@ export function DeleteTransactionsModal({
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="modal-card max-w-sm w-full p-6 text-center"
+        className="bg-card border border-border max-w-sm w-full p-6 text-center rounded-2xl shadow-xl"
       >
-        <div className="size-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
-          <AlertTriangle size={32} />
+        <div className="size-12 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mx-auto mb-3">
+          <AlertTriangle size={24} />
         </div>
-        <h3 id="delete-tx-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+        <h3 id="delete-tx-title" className="text-base font-semibold text-foreground mb-1.5">
           {t('history.deleteTitle')}
         </h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+        <p className="text-xs text-muted-foreground mb-5">
           {t('history.deleteBody', { count })}
         </p>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <button
             onClick={onCancel}
-            className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
+            className="btn-secondary flex-1 text-xs h-9 px-3 rounded-lg"
           >
             {t('history.cancel')}
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold transition-colors"
+            className="btn-destructive flex-1 text-xs h-9 px-3 rounded-lg"
           >
             {t('history.delete')}
           </button>

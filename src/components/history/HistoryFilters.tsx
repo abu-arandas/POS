@@ -33,11 +33,11 @@ export function HistoryFilters({
   return (
     <div
       id="history-filters"
-      className="surface p-5 rounded-4xl shadow-2xl mb-6 shrink-0 space-y-4"
+      className="bg-card border border-border rounded-xl p-3.5 mb-4 shadow-2xs shrink-0 space-y-3"
     >
-      <div className="flex flex-col md:flex-row gap-3">
-        <div className="flex-1 flex items-center space-x-2 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/10 px-4 py-2 rounded-2xl focus-within:ring-2 focus-within:ring-emerald-500/50 transition-shadow shadow-sm">
-          <Search size={16} className="text-slate-400 dark:text-slate-500" />
+      <div className="flex flex-col md:flex-row gap-2.5">
+        <div className="flex-1 flex items-center space-x-2 bg-background border border-border px-3 py-1.5 rounded-lg focus-within:border-foreground focus-within:ring-1 focus-within:ring-foreground transition-all">
+          <Search size={14} className="text-muted-foreground" />
           <input
             id="history-search-input"
             type="text"
@@ -45,7 +45,7 @@ export function HistoryFilters({
             placeholder={t('history.searchReceipts')}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="flex-1 bg-transparent border-none text-slate-700 dark:text-slate-200 text-sm focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
+            className="flex-1 bg-transparent border-none text-foreground text-xs focus:outline-none placeholder:text-muted-foreground"
           />
         </div>
 
@@ -55,29 +55,14 @@ export function HistoryFilters({
             aria-label={t('history.status')}
             value={statusFilter}
             onChange={(e) => onStatusChange(e.target.value as HistoryStatusFilter)}
-            className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/10 rounded-2xl text-xs font-semibold px-4 py-2 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer transition-shadow shadow-sm"
+            className="bg-background border border-border rounded-lg text-xs font-medium px-3 py-1.5 text-foreground focus:outline-none focus:border-foreground cursor-pointer transition-colors"
           >
-            <option
-              value="all"
-              className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-            >
-              {t('history.allStatuses')}
-            </option>
-            <option
-              value="completed"
-              className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-            >
-              {t('history.paidCompleted')}
-            </option>
-            <option
-              value="refunded"
-              className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-            >
-              {t('history.refundedReturned')}
-            </option>
+            <option value="all">{t('history.allStatuses')}</option>
+            <option value="completed">{t('history.paidCompleted')}</option>
+            <option value="refunded">{t('history.refundedReturned')}</option>
           </select>
 
-          <div className="flex bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 p-1 rounded-2xl shrink-0 shadow-inner">
+          <div className="flex bg-secondary border border-border p-1 rounded-lg shrink-0">
             {(
               [
                 { id: 'all', label: t('history.allDates') },
@@ -89,10 +74,10 @@ export function HistoryFilters({
               <button
                 key={opt.id}
                 onClick={() => onDateChange(opt.id)}
-                className={`px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all shrink-0 border ${
+                className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all shrink-0 ${
                   dateFilter === opt.id
-                    ? 'bg-white dark:bg-slate-700/50 text-emerald-600 dark:text-emerald-400 shadow-sm border-slate-200/50 dark:border-white/10'
-                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-white/5'
+                    ? 'bg-card text-foreground font-semibold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {opt.label}
@@ -102,25 +87,25 @@ export function HistoryFilters({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 pt-1">
-        <div className="flex items-center gap-2">
-          <Filter size={14} className="text-slate-400 dark:text-slate-500" />
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+      <div className="flex items-center gap-2.5 pt-0.5">
+        <div className="flex items-center gap-1.5">
+          <Filter size={12} className="text-muted-foreground" />
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
             {t('history.paymentFilter')}
           </span>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap">
           {PAYMENT_METHODS.map((method) => (
             <button
               key={method}
               onClick={() => onTogglePayment(method)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 shadow-sm ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all border flex items-center gap-1.5 ${
                 paymentFilter.includes(method)
-                  ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500/30 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                  : 'bg-white dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:text-slate-900 dark:hover:text-slate-200'
+                  ? 'bg-foreground text-background border-foreground font-semibold'
+                  : 'bg-background border-border text-muted-foreground hover:text-foreground hover:bg-secondary'
               }`}
             >
-              <PaymentIcon method={method} /> <span className="uppercase">{method}</span>
+              <PaymentIcon method={method} /> <span className="uppercase text-[11px]">{method}</span>
             </button>
           ))}
         </div>

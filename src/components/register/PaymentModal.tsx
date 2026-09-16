@@ -93,17 +93,17 @@ export function PaymentModal({
             transition={{ type: 'spring', stiffness: 280, damping: 22 }}
             className="modal-card max-w-lg w-full overflow-hidden flex flex-col"
           >
-            <div className="modal-divider-bottom p-5 flex justify-between items-center">
+            <div className="modal-divider-bottom p-4 flex justify-between items-center">
               <div>
                 <h3
                   id="payment-modal-title"
-                  className="font-sans font-bold text-slate-900 dark:text-white text-lg"
+                  className="font-semibold text-foreground text-base tracking-tight"
                 >
                   {t('register.selectPaymentMethod')}
                 </h3>
-                <p className="text-xs text-slate-500 font-mono mt-1 flex items-center gap-2">
+                <p className="text-xs text-muted-foreground font-mono mt-0.5 flex items-center gap-2">
                   {t('register.amountToPay')}
-                  <span className="font-bold text-xl text-emerald-400 tracking-tight font-mono">
+                  <span className="font-bold text-lg text-foreground tracking-tight font-mono num">
                     {currency}
                     {totalAmount.toFixed(2)}
                   </span>
@@ -112,17 +112,17 @@ export function PaymentModal({
               <button
                 onClick={() => onClose()}
                 aria-label={t('register.close')}
-                className="p-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/8 rounded-xl transition-colors"
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
               >
                 <X size={16} />
               </button>
             </div>
 
-            <div className="p-5 space-y-5">
+            <div className="p-4 space-y-4">
               <button
                 id="split-toggle-btn"
                 onClick={onToggleSplit}
-                className={`toggle-pill w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold ${
+                className={`toggle-pill w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium ${
                   splitMode ? 'is-active' : ''
                 }`}
               >
@@ -131,7 +131,7 @@ export function PaymentModal({
               </button>
 
               {!splitMode && (
-                <div className="grid grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-4 gap-2.5 min-h-[56px]">
                   {paymentMethods.map((m) => {
                     const MIcon = m.icon;
                     const isSel = paymentMethod === m.id;
@@ -229,16 +229,16 @@ export function PaymentModal({
                     className="modal-divider-top space-y-4 pt-4 overflow-hidden"
                   >
                     <div>
-                      <label className="text-[10px] font-bold text-slate-600 block mb-2 uppercase tracking-wider">
+                      <label className="text-[11px] font-medium text-muted-foreground block mb-2 uppercase tracking-wider">
                         {t('register.quickCashPay')}
                       </label>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-1.5">
                         {cashSuggestions.map((val) => (
                           <motion.button
                             key={val}
-                            whileTap={{ scale: 0.93 }}
+                            whileTap={{ scale: 0.94 }}
                             onClick={() => onCashPaidChange(val.toFixed(2))}
-                            className={`quick-cash-btn font-mono text-sm font-bold px-3.5 py-2 rounded-xl ${
+                            className={`quick-cash-btn num min-h-[38px] font-mono text-xs font-semibold px-3 py-1.5 rounded-lg ${
                               cashPaidText === val.toFixed(2) ? 'is-active' : ''
                             }`}
                           >
@@ -253,12 +253,12 @@ export function PaymentModal({
                       <div>
                         <label
                           htmlFor="cash-tendered-input"
-                          className="text-[10px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wider"
+                          className="text-[11px] font-medium text-muted-foreground block mb-1.5 uppercase tracking-wider"
                         >
                           {t('register.cashTendered')}
                         </label>
                         <div className="input-shell flex items-center rounded-xl overflow-hidden transition-all">
-                          <span className="font-mono text-slate-500 ps-3 font-bold text-sm">
+                          <span className="font-mono text-muted-foreground ps-3 font-semibold text-sm">
                             {currency}
                           </span>
                           <input
@@ -270,20 +270,20 @@ export function PaymentModal({
                             value={cashPaidText}
                             onChange={(e) => onCashPaidChange(e.target.value)}
                             aria-label={t('register.cashTendered')}
-                            className="flex-1 bg-transparent text-slate-900 dark:text-white text-xl font-mono font-bold px-2 py-2.5 focus:outline-none"
+                            className="flex-1 bg-transparent text-foreground text-lg font-mono font-bold px-2 py-2 focus:outline-none"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wider">
+                        <label className="text-[11px] font-medium text-muted-foreground block mb-1.5 uppercase tracking-wider">
                           {t('register.changeDue')}
                         </label>
-                        <div className="change-due-box rounded-xl px-4 flex items-center justify-between">
-                          <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
+                        <div className="change-due-box rounded-xl px-3.5 flex items-center justify-between border border-border">
+                          <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
                             {t('register.returnAmount')}
                           </span>
-                          <span className="font-mono text-emerald-400 font-bold text-xl">
+                          <span className="text-xl font-mono font-bold text-foreground num">
                             {currency}
                             {cashChangeDue.toFixed(2)}
                           </span>
@@ -295,15 +295,16 @@ export function PaymentModal({
               </AnimatePresence>
             </div>
 
-            <div className="modal-divider-top p-4 flex items-center gap-3">
+            <div className="modal-divider-top p-4 flex items-center gap-2.5">
               <button
                 onClick={() => onClose()}
-                className="btn-ghost px-5 py-3 rounded-xl text-sm font-bold"
+                className="btn-secondary px-4 py-2.5 rounded-xl text-xs font-medium flex items-center gap-1.5"
               >
                 {t('register.cancel')}
+                <span className="kbd text-[10px] opacity-60">Esc</span>
               </button>
               <motion.button
-                whileTap={{ scale: 0.97 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={onComplete}
                 disabled={
                   splitMode
@@ -312,9 +313,9 @@ export function PaymentModal({
                       totalAmount > 0 &&
                       (parseFloat(cashPaidText) || 0) < totalAmount
                 }
-                className="btn-primary flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40"
+                className="btn-primary flex-1 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-30 shadow-xs"
               >
-                <Check size={17} strokeWidth={2.5} />
+                <Check size={15} strokeWidth={2.2} />
                 <span>{t('register.completeOrder')}</span>
               </motion.button>
             </div>

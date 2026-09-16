@@ -133,9 +133,9 @@ export function RefundModal({
     );
     if (!computed) return null;
     return (
-      <div className="bg-white/80 dark:bg-slate-900/50 rounded-2xl p-4 border border-slate-300 dark:border-slate-700 space-y-2 mt-4">
+      <div className="bg-secondary/30 rounded-xl p-3.5 border border-border space-y-1.5 mt-3 text-xs">
         {computed.pointsReversal !== 0 && (
-          <div className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
+          <div className="flex justify-between text-muted-foreground">
             <span>{t('history.loyaltyAdjustment')}</span>
             <span className="font-mono">
               {computed.pointsReversal > 0 ? '+' : ''}
@@ -143,16 +143,16 @@ export function RefundModal({
             </span>
           </div>
         )}
-        <div className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
+        <div className="flex justify-between text-muted-foreground">
           <span>{t('history.totalRefundedAfter')}</span>
-          <span className="font-mono">
+          <span className="font-mono text-foreground">
             {settings.currency}
             {computed.refundedAmount.toFixed(2)}
           </span>
         </div>
-        <div className="flex justify-between text-lg font-bold text-slate-900 dark:text-white pt-2 border-t border-slate-300 dark:border-slate-700">
+        <div className="flex justify-between text-sm font-semibold text-foreground pt-1.5 border-t border-border">
           <span>{t('history.refundAmount')}</span>
-          <span className="text-emerald-400 font-mono">
+          <span className="text-foreground font-mono">
             {settings.currency}
             {computed.refundAmount.toFixed(2)}
           </span>
@@ -169,22 +169,22 @@ export function RefundModal({
         aria-modal="true"
         aria-labelledby="refund-modal-title"
         tabIndex={-1}
-        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        initial={{ scale: 0.95, opacity: 0, y: 10 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.95, opacity: 0, y: 20 }}
-        className="modal-card max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]"
+        exit={{ scale: 0.95, opacity: 0, y: 10 }}
+        className="bg-card border border-border max-w-md w-full overflow-hidden flex flex-col max-h-[90vh] rounded-2xl shadow-xl"
       >
-        <div className="p-6 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 flex justify-between items-center">
+        <div className="px-6 py-4 border-b border-border bg-card flex justify-between items-center">
           <h3
             id="refund-modal-title"
-            className="font-sans font-bold text-slate-900 dark:text-white text-lg"
+            className="font-sans font-semibold text-foreground text-base"
           >
             {step === 1 ? t('history.refundStep1') : t('history.refundStep2')}
           </h3>
           <button
             onClick={onClose}
             aria-label={t('history.close')}
-            className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
           >
             <X size={16} />
           </button>
@@ -192,8 +192,8 @@ export function RefundModal({
 
         <div className="p-6 overflow-y-auto flex-1">
           {step === 1 && (
-            <div className="space-y-4">
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground mb-3">
                 {t('history.selectQtyHint')}
               </p>
               {transaction.items.map((item, idx) => {
@@ -207,23 +207,23 @@ export function RefundModal({
                 return (
                   <div
                     key={idx}
-                    className="flex items-center justify-between bg-slate-100 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200 dark:border-white/5"
+                    className="flex items-center justify-between bg-secondary/30 p-3 rounded-xl border border-border"
                   >
-                    <div className="flex-1 min-w-0 pe-4">
-                      <h4 className="text-slate-900 dark:text-white font-bold truncate">
+                    <div className="flex-1 min-w-0 pe-3">
+                      <h4 className="text-foreground font-medium text-xs truncate">
                         {item.productName}
                       </h4>
                       {item.variantName && (
-                        <p className="text-[11px] font-medium text-sky-500 dark:text-sky-400 truncate mt-0.5">
+                        <p className="text-[11px] text-muted-foreground truncate mt-0.5">
                           {item.variantName}
                         </p>
                       )}
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
                         {settings.currency}
                         {(item.total / item.quantity).toFixed(2)} {t('history.each')}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3 bg-white dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-white/10">
+                    <div className="flex items-center gap-2 bg-background rounded-lg p-0.5 border border-border">
                       <button
                         onClick={() =>
                           setSelection({
@@ -232,11 +232,11 @@ export function RefundModal({
                           })
                         }
                         aria-label={`${t('history.decreaseRefundQty')} — ${displayName}`}
-                        className="size-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-rose-500/20 hover:text-rose-400"
+                        className="size-7 flex items-center justify-center bg-secondary rounded-md text-foreground hover:bg-muted transition-colors"
                       >
-                        <Minus size={14} />
+                        <Minus size={12} />
                       </button>
-                      <span className="w-6 text-center font-bold font-mono text-slate-900 dark:text-white">
+                      <span className="w-5 text-center font-semibold font-mono text-xs text-foreground">
                         {current}
                       </span>
                       <button
@@ -247,9 +247,9 @@ export function RefundModal({
                           })
                         }
                         aria-label={`${t('history.increaseRefundQty')} — ${displayName}`}
-                        className="size-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-900 dark:text-white hover:bg-emerald-500/20 hover:text-emerald-400"
+                        className="size-7 flex items-center justify-center bg-secondary rounded-md text-foreground hover:bg-muted transition-colors"
                       >
-                        <Plus size={14} />
+                        <Plus size={12} />
                       </button>
                     </div>
                   </div>
@@ -259,12 +259,12 @@ export function RefundModal({
           )}
 
           {step === 2 && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {renderRefundAmounts()}
               {needsOverride && (
-                <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-5">
-                  <div className="flex items-center gap-2 text-rose-400 mb-3 font-bold text-sm">
-                    <Lock size={16} /> {t('history.managerAuthRequired')}
+                <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4">
+                  <div className="flex items-center gap-2 text-destructive mb-2 font-medium text-xs">
+                    <Lock size={14} /> {t('history.managerAuthRequired')}
                   </div>
                   <input
                     type="password"
@@ -273,10 +273,10 @@ export function RefundModal({
                     data-autofocus
                     value={overridePin}
                     onChange={(e) => setOverridePin(e.target.value)}
-                    className="w-full glass-input rounded-xl px-4 py-3 text-slate-900 dark:text-white text-center tracking-widest font-mono focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground text-center tracking-widest font-mono text-sm focus:outline-none focus:border-foreground"
                   />
                   {overrideError && (
-                    <p className="text-xs text-rose-400 mt-2 text-center">{overrideError}</p>
+                    <p className="text-xs text-destructive mt-1.5 text-center">{overrideError}</p>
                   )}
                 </div>
               )}
@@ -284,11 +284,11 @@ export function RefundModal({
           )}
         </div>
 
-        <div className="p-6 border-t border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 flex gap-3">
+        <div className="px-6 py-4 border-t border-border bg-card flex gap-2.5">
           {step === 2 && (
             <button
               onClick={() => setStep(1)}
-              className="px-5 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-xl font-bold transition-colors"
+              className="btn-secondary text-xs h-9 px-4 rounded-lg"
             >
               {t('history.back')}
             </button>
@@ -296,10 +296,10 @@ export function RefundModal({
           <button
             onClick={handleProcessRefund}
             disabled={step === 1 && Object.values(selection).reduce((a, b) => a + b, 0) === 0}
-            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
+            className="btn-primary flex-1 text-xs h-9 px-4 rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-40"
           >
             {step === 1 ? t('history.next') : t('history.confirmRefund')}{' '}
-            {step === 1 && <ChevronRight size={16} />}
+            {step === 1 && <ChevronRight size={14} />}
           </button>
         </div>
       </motion.div>

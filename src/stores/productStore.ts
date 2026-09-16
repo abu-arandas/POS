@@ -23,10 +23,8 @@ interface ProductState {
   handleDeleteCategory: (id: string) => boolean;
 }
 
-const DEFAULT_PRODUCTS: Product[] =
-  import.meta.env.DEV || import.meta.env.MODE === 'test' ? INITIAL_PRODUCTS : [];
-const DEFAULT_CATEGORIES: Category[] =
-  import.meta.env.DEV || import.meta.env.MODE === 'test' ? INITIAL_CATEGORIES : [];
+const DEFAULT_PRODUCTS: Product[] = INITIAL_PRODUCTS;
+const DEFAULT_CATEGORIES: Category[] = INITIAL_CATEGORIES;
 
 /**
  * The product catalog and its categories, including stock levels. Persisted to
@@ -99,6 +97,15 @@ export const useProductStore = create<ProductState>()(
     {
       name: 'pos-product-storage',
       storage: createJSONStorage(() => idbStorage),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<ProductState>;
+        return {
+          ...current,
+          ...p,
+          products: p.products && p.products.length > 0 ? p.products : INITIAL_PRODUCTS,
+          categories: p.categories && p.categories.length > 0 ? p.categories : INITIAL_CATEGORIES,
+        };
+      },
     },
   ),
 );

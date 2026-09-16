@@ -68,9 +68,9 @@ function TrendTooltip({
 }) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 shadow-xl">
-      <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mb-1">{label}</p>
-      <p className="text-sm font-mono font-bold text-emerald-400">
+    <div className="bg-card/95 backdrop-blur-md border border-border rounded-xl px-3 py-2 shadow-md">
+      <p className="text-[11px] font-mono text-muted-foreground mb-0.5">{label}</p>
+      <p className="text-sm font-mono num font-semibold text-foreground">
         {currency}
         {Number(payload[0].value).toFixed(2)}
       </p>
@@ -166,12 +166,12 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
   return (
     <div id="fleet-dashboard-root" className="flex-1 flex flex-col min-h-0 overflow-hidden p-6">
       {/* Controls */}
-      <div className="mb-6 shrink-0 flex flex-wrap items-center justify-between gap-3">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-lg sm:text-xl flex items-center gap-2">
-            <Activity className="text-emerald-500" size={22} /> {t('fleetReport.title')}
+      <div className="mb-5 shrink-0 flex flex-wrap items-center justify-between gap-3">
+        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
+          <h2 className="font-semibold tracking-tight text-foreground text-lg sm:text-xl flex items-center gap-2">
+            <Activity className="text-foreground" size={20} /> {t('fleetReport.title')}
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+          <p className="text-muted-foreground text-xs mt-0.5">
             {t('fleetReport.subtitle')}
           </p>
         </motion.div>
@@ -181,7 +181,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             value={activeFilter}
             onChange={(e) => setStoreFilter(e.target.value)}
             aria-label={t('fleetReport.storeFilter')}
-            className="bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-emerald-500/40"
+            className="bg-background border border-input text-foreground text-xs font-medium px-3 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">{t('fleetReport.allStores')}</option>
             {ranked.map((s) => (
@@ -191,15 +191,15 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             ))}
           </select>
           {/* Period selector */}
-          <div className="flex bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 rounded-xl p-1">
+          <div className="flex bg-muted/60 border border-border rounded-lg p-0.5">
             {periods.map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-colors ${
+                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
                   period === p
-                    ? 'bg-emerald-500 text-slate-950'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-card text-foreground shadow-2xs font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {t(`fleetReport.period_${p}`)}
@@ -210,17 +210,17 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             onClick={load}
             disabled={loading}
             aria-label={t('fleet.refresh')}
-            className="flex items-center gap-2 bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+            className="btn-secondary h-8 px-2.5 rounded-lg"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-6 pe-1 pb-6">
+      <div className="flex-1 overflow-y-auto space-y-5 pe-1 pb-6">
         {empty ? (
-          <div className="surface rounded-3xl py-20 flex flex-col items-center justify-center text-slate-500 gap-3">
-            <StoreIcon size={40} className="opacity-20" />
+          <div className="bg-card border border-border rounded-xl py-20 flex flex-col items-center justify-center text-muted-foreground gap-3">
+            <StoreIcon size={36} className="opacity-20" />
             <p className="font-mono text-xs">{t('fleet.noStores')}</p>
           </div>
         ) : (
@@ -230,41 +230,41 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
               <KpiTile
                 label={t('fleetReport.totalRevenue')}
                 value={`${cur}${totals.revenue.toFixed(2)}`}
-                icon={<TrendingUp size={18} className="text-emerald-400" />}
-                accent="text-emerald-400"
+                icon={<TrendingUp size={16} className="text-emerald-500" />}
+                accent="text-emerald-600 dark:text-emerald-400"
               />
               <KpiTile
                 label={t('fleetReport.orders')}
                 value={String(totals.orders)}
-                icon={<ShoppingBag size={18} className="text-blue-400" />}
+                icon={<ShoppingBag size={16} className="text-foreground" />}
               />
               <KpiTile
                 label={t('fleetReport.avgOrder')}
                 value={`${cur}${totals.avgOrder.toFixed(2)}`}
-                icon={<Receipt size={18} className="text-violet-400" />}
+                icon={<Receipt size={16} className="text-foreground" />}
               />
               <KpiTile
                 label={t('fleetReport.activeStores')}
                 value={`${totals.activeCount} / ${totals.storeCount}`}
-                icon={<StoreIcon size={18} className="text-amber-400" />}
+                icon={<StoreIcon size={16} className="text-foreground" />}
               />
             </div>
 
             {/* Revenue trend */}
-            <div className="surface rounded-3xl p-6 shadow-xl">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-sans font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
-                  <Activity size={18} className="text-emerald-500" />
+            <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                  <Activity size={16} className="text-foreground" />
                   {t('fleetReport.revenueTrend')}
                 </h3>
                 {activeFilter && (
-                  <span className="badge badge-emerald">
+                  <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md border border-border bg-muted text-foreground">
                     {ranked.find((s) => s.storeId === activeFilter)?.storeName}
                   </span>
                 )}
               </div>
               {series.length === 0 ? (
-                <div className="h-64 flex items-center justify-center text-slate-500 font-mono text-xs">
+                <div className="h-64 flex items-center justify-center text-muted-foreground font-mono text-xs">
                   {t('fleetReport.noData')}
                 </div>
               ) : (
@@ -273,21 +273,21 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                     <AreaChart data={series} margin={trendChartMargin}>
                       <defs>
                         <linearGradient id="fleetRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                          <stop offset="5%" stopColor="var(--color-foreground, #18181b)" stopOpacity={0.15} />
+                          <stop offset="95%" stopColor="var(--color-foreground, #18181b)" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid {...trendChartGrid} />
-                      <XAxis {...trendTimeAxis} dy={10} />
-                      <YAxis {...trendValueAxis} dx={-10} />
+                      <CartesianGrid {...trendChartGrid} strokeDasharray="3 3" opacity={0.3} />
+                      <XAxis {...trendTimeAxis} dy={8} />
+                      <YAxis {...trendValueAxis} dx={-8} />
                       <Tooltip content={<TrendTooltip currency={cur} />} />
                       <Area
                         type="monotone"
                         dataKey="revenue"
-                        stroke="#10b981"
-                        strokeWidth={3}
+                        stroke="var(--color-foreground, #18181b)"
+                        strokeWidth={2}
                         fill="url(#fleetRevenue)"
-                        activeDot={{ r: 6, fill: '#10b981', stroke: '#020617', strokeWidth: 3 }}
+                        activeDot={{ r: 4, fill: 'var(--color-foreground, #18181b)', stroke: 'var(--color-background, #ffffff)', strokeWidth: 2 }}
                       />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -296,45 +296,45 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             </div>
 
             {/* Revenue by store (ranked, click to drill in) */}
-            <div className="surface rounded-3xl shadow-xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
-                <h3 className="font-sans font-bold text-slate-900 dark:text-white text-base">
+            <div className="bg-card border border-border rounded-xl shadow-2xs overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-border bg-muted/20 flex items-center justify-between">
+                <h3 className="font-semibold text-foreground text-sm">
                   {t('fleetReport.revenueByStore')}
                 </h3>
-                <span className="text-[10px] font-mono text-slate-500 uppercase">
+                <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
                   {t('fleetReport.clickToDrill')}
                 </span>
               </div>
-              <ul className="divide-y divide-white/5">
+              <ul className="divide-y divide-border/60">
                 {ranked.map((s) => {
                   const selected = s.storeId === activeFilter;
                   return (
                     <li key={s.storeId}>
                       <button
                         onClick={() => setStoreFilter(selected ? '' : s.storeId)}
-                        className={`w-full text-start px-6 py-4 transition-colors ${
+                        className={`w-full text-start px-5 py-3.5 transition-colors ${
                           selected
-                            ? 'bg-emerald-500/10'
-                            : 'hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                            ? 'bg-secondary'
+                            : 'hover:bg-secondary/40'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-4 mb-2">
-                          <span className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                          <span className="text-sm font-semibold text-foreground truncate">
                             {s.storeName}
                           </span>
                           <div className="flex items-center gap-4 shrink-0">
-                            <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
+                            <span className="font-mono num font-semibold text-foreground text-sm">
                               {cur}
                               {s.revenue.toFixed(2)}
                             </span>
-                            <span className="font-mono text-[10px] text-slate-500 w-10 text-end">
+                            <span className="font-mono num text-[11px] text-muted-foreground w-10 text-end">
                               {(s.share * 100).toFixed(0)}%
                             </span>
                           </div>
                         </div>
-                        <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                           <div
-                            className="bar-fill h-full rounded-full bg-linear-to-r from-emerald-500 to-teal-400"
+                            className="bar-fill h-full rounded-full bg-foreground"
                             style={
                               {
                                 '--bar-width': `${Math.max(s.share * 100, s.revenue > 0 ? 2 : 0)}%`,
@@ -362,7 +362,7 @@ function KpiTile({
   label,
   value,
   icon,
-  accent = 'text-slate-900 dark:text-white',
+  accent = 'text-foreground',
 }: {
   label: string;
   value: string;
@@ -370,14 +370,14 @@ function KpiTile({
   accent?: string;
 }) {
   return (
-    <div className="surface rounded-3xl p-5 shadow-xl">
+    <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
       <div className="flex justify-between items-start mb-2">
-        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
+        <span className="text-[11px] text-muted-foreground font-mono uppercase tracking-wider">
           {label}
         </span>
         {icon}
       </div>
-      <p className={`font-mono font-extrabold text-2xl ${accent}`}>{value}</p>
+      <p className={`font-mono num font-semibold text-2xl ${accent}`}>{value}</p>
     </div>
   );
 }

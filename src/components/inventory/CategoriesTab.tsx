@@ -33,13 +33,13 @@ export function InventoryCategoriesTab({
       {/* Inline Add Category Card */}
       <button
         type="button"
-        className="surface border-2 border-dashed border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-lg flex flex-col justify-center items-center gap-4 cursor-pointer hover:border-emerald-500/50 transition-colors group"
+        className="border border-dashed border-border rounded-xl p-5 bg-card/40 flex flex-col justify-center items-center gap-3 cursor-pointer hover:border-foreground/40 hover:bg-muted/30 transition-colors group min-h-[140px]"
         onClick={() => onAddCategory()}
       >
-        <div className="size-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-          <Plus size={24} />
+        <div className="size-10 rounded-xl bg-muted text-foreground flex items-center justify-center group-hover:scale-105 transition-transform">
+          <Plus size={20} />
         </div>
-        <span className="font-bold text-slate-600 dark:text-slate-300">
+        <span className="font-medium text-xs text-foreground">
           {t('inventory.addCategory')}
         </span>
       </button>
@@ -50,11 +50,13 @@ export function InventoryCategoriesTab({
           <div
             key={cat.id}
             id={`cat-card-${cat.id}`}
-            className="surface rounded-2xl p-6 shadow-lg flex flex-col justify-between card-hover"
+            className="bg-card border border-border rounded-xl p-4 flex flex-col justify-between hover:border-foreground/20 transition-colors shadow-2xs min-h-[140px]"
           >
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <span className={cat.color}>{cat.name}</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium px-2 py-0.5 rounded-md border border-border bg-muted/60 text-foreground">
+                  {cat.name}
+                </span>
                 <button
                   id={`del-cat-${cat.id}`}
                   disabled={productCount > 0}
@@ -71,19 +73,19 @@ export function InventoryCategoriesTab({
                       ? t('inventory.cannotDeleteCategory')
                       : t('inventory.deleteCategory')
                   }
-                  className="text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-rose-500 disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent p-2 rounded-xl transition-all"
+                  className="text-muted-foreground hover:text-destructive hover:bg-muted disabled:opacity-25 p-1.5 rounded-lg transition-colors"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={14} />
                 </button>
               </div>
-              <p className="text-xs text-slate-500 font-mono">ID: {cat.id}</p>
+              <p className="text-[10px] text-muted-foreground font-mono">ID: {cat.id}</p>
             </div>
 
-            <div className="flex justify-between items-center pt-4 mt-4 border-t border-slate-200 dark:border-white/10">
-              <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+            <div className="flex justify-between items-center pt-3 mt-3 border-t border-border">
+              <span className="text-xs text-muted-foreground font-normal">
                 {t('inventory.linkedProducts')}
               </span>
-              <span className="font-mono text-slate-900 dark:text-white font-bold text-sm bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg">
+              <span className="font-mono text-foreground font-medium text-xs bg-muted px-2 py-0.5 rounded">
                 {productCount}
               </span>
             </div>

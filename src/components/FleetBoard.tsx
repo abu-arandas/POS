@@ -11,15 +11,15 @@ interface FleetBoardProps {
 }
 
 const PRESENCE_DOT: Record<StorePresence, string> = {
-  online: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]',
+  online: 'bg-emerald-500',
   stale: 'bg-amber-500',
-  offline: 'bg-slate-500',
+  offline: 'bg-muted-foreground/40',
 };
 
 const PRESENCE_BADGE: Record<StorePresence, string> = {
-  online: 'badge badge-emerald',
-  stale: 'badge badge-amber',
-  offline: 'badge badge-slate',
+  online: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+  stale: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20',
+  offline: 'text-muted-foreground bg-secondary/60 border-border',
 };
 
 /**
@@ -74,112 +74,112 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
 
   return (
     <div id="fleet-root" className="flex-1 flex flex-col min-h-0 overflow-hidden p-6">
-      <div className="mb-6 shrink-0 flex items-center justify-between">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h2 className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-white text-xl sm:text-2xl flex items-center gap-2">
-            <Building2 className="text-emerald-500" /> {t('fleet.title')}
+      <div className="mb-5 shrink-0 flex items-center justify-between">
+        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
+          <h2 className="font-semibold tracking-tight text-foreground text-lg sm:text-xl flex items-center gap-2">
+            <Building2 className="text-foreground" size={20} /> {t('fleet.title')}
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
+          <p className="text-muted-foreground text-xs mt-0.5">
             {t('fleet.subtitle')}
           </p>
         </motion.div>
         <button
           onClick={load}
           disabled={loading}
-          className="flex items-center gap-2 bg-[var(--surface-1)] border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 disabled:opacity-40 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold uppercase px-4 py-2 rounded-xl shadow-sm transition-colors"
+          className="btn-secondary h-8 px-3 text-xs flex items-center gap-1.5"
         >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           {t('fleet.refresh')}
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-6 pe-1 pb-6">
+      <div className="flex-1 overflow-y-auto space-y-5 pe-1 pb-6">
         {/* Fleet KPI row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <div className="surface rounded-3xl p-6 shadow-xl">
-            <div className="flex justify-between items-start mb-3">
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-[11px] text-muted-foreground font-mono uppercase tracking-wider">
                 {t('fleet.storesOnline')}
               </span>
-              <Radio size={18} className="text-emerald-400" />
+              <Radio size={16} className="text-emerald-500" />
             </div>
-            <p className="font-mono font-extrabold text-slate-900 dark:text-white text-3xl">
+            <p className="font-mono num font-semibold text-foreground text-2xl">
               {summary.onlineCount}
-              <span className="text-slate-500 text-lg"> / {summary.storeCount}</span>
+              <span className="text-muted-foreground text-base font-normal"> / {summary.storeCount}</span>
             </p>
           </div>
-          <div className="surface rounded-3xl p-6 shadow-xl">
-            <div className="flex justify-between items-start mb-3">
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
+          <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-[11px] text-muted-foreground font-mono uppercase tracking-wider">
                 {t('fleet.revenueToday')}
               </span>
-              <TrendingUp size={18} className="text-emerald-400" />
+              <TrendingUp size={16} className="text-emerald-500" />
             </div>
-            <p className="font-mono font-extrabold text-emerald-400 text-3xl">
+            <p className="font-mono num font-semibold text-emerald-600 dark:text-emerald-400 text-2xl">
               {cur}
               {summary.totalRevenue.toFixed(2)}
             </p>
           </div>
-          <div className="surface rounded-3xl p-6 shadow-xl">
-            <div className="flex justify-between items-start mb-3">
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
+          <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-[11px] text-muted-foreground font-mono uppercase tracking-wider">
                 {t('fleet.ordersToday')}
               </span>
-              <StoreIcon size={18} className="text-blue-400" />
+              <StoreIcon size={16} className="text-foreground" />
             </div>
-            <p className="font-mono font-extrabold text-slate-900 dark:text-white text-3xl">
+            <p className="font-mono num font-semibold text-foreground text-2xl">
               {summary.totalOrders}
             </p>
           </div>
         </div>
 
         {/* Store list */}
-        <div className="surface rounded-3xl shadow-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200 dark:border-white/5">
-            <h3 className="font-sans font-bold text-slate-900 dark:text-white text-base">
+        <div className="bg-card border border-border rounded-xl shadow-2xs overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-border bg-muted/20">
+            <h3 className="font-semibold text-foreground text-sm">
               {t('fleet.stores')}
             </h3>
           </div>
           {summary.stores.length === 0 ? (
-            <div className="py-16 flex flex-col items-center justify-center text-slate-500 gap-3">
-              <Building2 size={40} className="opacity-20" />
+            <div className="py-16 flex flex-col items-center justify-center text-muted-foreground gap-3">
+              <Building2 size={36} className="opacity-20" />
               <p className="font-mono text-xs max-w-sm text-center px-6">
                 {loadedOnce ? t('fleet.noStores') : t('fleet.loading')}
               </p>
             </div>
           ) : (
-            <ul className="divide-y divide-white/5">
+            <ul className="divide-y divide-border/60">
               {summary.stores.map((s) => (
                 <li
                   key={s.storeId}
-                  className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-slate-100 dark:hover:bg-slate-800/30 transition-colors"
+                  className="px-5 py-3.5 flex items-center justify-between gap-4 hover:bg-secondary/40 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span
-                      className={`w-2.5 h-2.5 rounded-full shrink-0 ${PRESENCE_DOT[s.presence]}`}
+                      className={`size-2 rounded-full shrink-0 ${PRESENCE_DOT[s.presence]}`}
                     />
                     <div className="min-w-0">
-                      <span className="text-sm font-bold text-slate-900 dark:text-white block truncate">
+                      <span className="text-sm font-semibold text-foreground block truncate">
                         {s.storeName}
                       </span>
-                      <span className="text-[10px] font-mono text-slate-500">
+                      <span className="text-[11px] font-mono text-muted-foreground">
                         {s.lastSeenAt
                           ? `${t('fleet.lastSeen')} ${new Date(s.lastSeenAt).toLocaleString()}`
                           : t('fleet.neverSeen')}
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6 shrink-0">
+                  <div className="flex items-center gap-5 shrink-0">
                     <div className="text-end hidden sm:block">
-                      <span className="font-mono font-bold text-slate-900 dark:text-white text-sm block">
+                      <span className="font-mono num font-semibold text-foreground text-sm block">
                         {cur}
                         {s.revenue.toFixed(2)}
                       </span>
-                      <span className="text-[10px] font-mono text-slate-500">
+                      <span className="text-[11px] font-mono text-muted-foreground">
                         {s.orders} {t('fleet.ordersLabel')}
                       </span>
                     </div>
-                    <span className={PRESENCE_BADGE[s.presence]}>
+                    <span className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-md border ${PRESENCE_BADGE[s.presence]}`}>
                       {t(`fleet.presence_${s.presence}`)}
                     </span>
                   </div>

@@ -42,7 +42,7 @@ export function KitchenPrinterPanel({
   // button above the station rows that fills them.
   const { detectedPrinters, scanningNetwork, onScanNetwork, networkScanSupported } = discovery;
   return (
-    <div className="surface rounded-2xl p-6 max-w-3xl mx-auto space-y-8">
+    <div className="bg-card border border-border rounded-xl p-5 shadow-2xs max-w-3xl mx-auto space-y-6">
       <ConnectedPrinters
         t={t}
         discovery={discovery}
@@ -58,12 +58,12 @@ export function KitchenPrinterPanel({
       />
 
       {/* Kitchen ticket layout */}
-      <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
-        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2 mb-1">
-          <ChefHat size={16} className="text-emerald-500" />
+      <div className="pt-5 border-t border-border">
+        <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono flex items-center gap-1.5 mb-1">
+          <ChefHat size={14} className="text-muted-foreground" />
           {t('receiptCfg.kitchenTitle')}
         </h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
           {t('receiptCfg.kitchenHint')}
         </p>
         <ReceiptSettingsPanel
@@ -74,13 +74,13 @@ export function KitchenPrinterPanel({
       </div>
 
       {/* Kitchen station routing */}
-      <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
-            <ChefHat size={16} className="text-emerald-500" />
+      <div className="pt-5 border-t border-border">
+        <div className="flex items-center justify-between mb-1.5">
+          <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono flex items-center gap-1.5">
+            <ChefHat size={14} className="text-muted-foreground" />
             {t('settings.kitchenStations')}
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {networkScanSupported() && (
               <ScanNetworkButton
                 t={t}
@@ -91,19 +91,17 @@ export function KitchenPrinterPanel({
             <button
               type="button"
               onClick={onAddStation}
-              className="px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl flex items-center gap-2 transition-colors"
+              className="btn-secondary h-8 px-2.5 text-xs gap-1.5"
             >
-              <Plus size={14} />
+              <Plus size={13} />
               {t('settings.addStation')}
             </button>
           </div>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
           {t('settings.kitchenStationsHint')}
         </p>
 
-        {/* Discovered network-printer IPs offered as autocomplete on the
-                        station IP fields below. */}
         <datalist id="station-printer-ips">
           {detectedPrinters
             .filter((p) => p.kind === 'network' && p.ipAddress)
@@ -122,15 +120,15 @@ export function KitchenPrinterPanel({
             ))}
         </datalist>
         {stationForm.length === 0 ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-4">
+          <p className="text-xs text-muted-foreground bg-secondary/20 border border-dashed border-border rounded-lg p-3">
             {t('settings.noStations')}
           </p>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {stationForm.map((station) => (
               <div
                 key={station.id}
-                className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100/60 dark:bg-slate-800/40 p-4 space-y-3"
+                className="rounded-xl border border-border bg-secondary/15 p-3.5 space-y-3"
               >
                 <div className="flex items-center gap-2">
                   <input
@@ -139,7 +137,7 @@ export function KitchenPrinterPanel({
                     onChange={(e) => onUpdateStation(station.id, { name: e.target.value })}
                     placeholder={t('settings.stationNamePlaceholder')}
                     aria-label={t('settings.stationName')}
-                    className="glass-input flex-1 px-4 py-2.5 rounded-xl font-bold"
+                    className="flex-1 bg-secondary/40 border border-border rounded-lg px-3 py-1.5 text-xs sm:text-sm text-foreground font-semibold focus:outline-none focus:border-foreground/50 transition-colors"
                   />
                   <input
                     type="text"
@@ -149,7 +147,7 @@ export function KitchenPrinterPanel({
                     onChange={(e) => onUpdateStation(station.id, { ipAddress: e.target.value })}
                     placeholder={t('settings.stationPrinterIp')}
                     aria-label={t('settings.stationPrinterIp')}
-                    className="glass-input w-40 px-4 py-2.5 rounded-xl font-mono text-sm"
+                    className="w-36 bg-secondary/40 border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground font-mono focus:outline-none focus:border-foreground/50 transition-colors"
                   />
                   <input
                     type="text"
@@ -158,27 +156,27 @@ export function KitchenPrinterPanel({
                     onChange={(e) => onUpdateStation(station.id, { printerName: e.target.value })}
                     placeholder={t('settings.stationPrinterName')}
                     aria-label={t('settings.stationPrinterName')}
-                    className="glass-input w-40 px-4 py-2.5 rounded-xl text-sm"
+                    className="w-36 bg-secondary/40 border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => onRemoveStation(station.id)}
                     aria-label={t('settings.removeStation')}
-                    className="p-2.5 text-slate-500 dark:text-slate-400 hover:text-rose-500 bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/10 rounded-xl transition-colors shrink-0"
+                    className="size-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block mb-2">
                     {t('settings.stationCategories')}
                   </span>
                   {station.categoryIds.length === 0 && (
-                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 mb-2 leading-relaxed">
+                    <p className="text-[11px] text-muted-foreground bg-secondary/30 border border-border rounded-md px-2.5 py-1.5 mb-2 leading-relaxed font-mono">
                       {t('settings.stationCatchAll')}
                     </p>
                   )}
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {categories.map((cat) => {
                       const on = station.categoryIds.includes(cat.id);
                       return (
@@ -187,10 +185,10 @@ export function KitchenPrinterPanel({
                           type="button"
                           aria-pressed={on}
                           onClick={() => onToggleStationCategory(station.id, cat.id)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                          className={`px-2.5 py-1 rounded-md text-xs transition-colors border ${
                             on
-                              ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-400'
-                              : 'bg-slate-200/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                              ? 'bg-foreground text-background border-foreground font-semibold'
+                              : 'bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:bg-secondary'
                           }`}
                         >
                           {cat.name}
@@ -208,9 +206,9 @@ export function KitchenPrinterPanel({
           <button
             type="button"
             onClick={onSaveStations}
-            className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-sm transition-colors"
+            className="btn-primary h-9 px-4 text-xs font-medium gap-1.5"
           >
-            <Save size={18} />
+            <Save size={15} />
             {t('settings.saveStations')}
           </button>
         </div>

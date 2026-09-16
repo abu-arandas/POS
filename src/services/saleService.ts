@@ -10,6 +10,7 @@ import { buildSaleTransaction, CheckoutOutcome, CheckoutRequest } from '../lib/c
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
+import { useKdsStore } from '../stores/kdsStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
 
 /**
@@ -232,6 +233,26 @@ export function commitSale(request: CheckoutRequest): CommitSaleResult {
   }
 
   useTransactionStore.getState().addTransaction(transaction);
+
+  // Dispatch live ticket to Kitchen Display System (KDS)
+  try {
+    useKdsStore.getState().addTicket({
+      orderNumber: `#${transaction.id.slice(-4)}`,
+      saleId: transaction.id,
+      orderType: 'dine_in',
+      customerName: transaction.customerName || undefined,
+      serverName: transaction.operatorName || undefined,
+      items: transaction.items.map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        variantName: item.variantName,
+        modifiers: item.modifiers,
+        quantity: item.quantity,
+      })),
+    });
+  } catch (err) {
+    console.error('Failed to create KDS ticket:', err);
+  }
 
   // Not awaited: a slow or failed network must never delay handing the customer
   // their receipt. It is not fire-and-forget either — syncToCloudIfEnabled

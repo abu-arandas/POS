@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
 import { Search, X, LayoutGrid, GripHorizontal, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, ProductVariant, StoreSettings } from '../types';
+import { Product, ProductVariant, SelectedModifier, StoreSettings } from '../types';
 import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
 import { safeImageUrl } from '../lib/imageUrl';
 import { hasVariants, variantPrice } from '../lib/variants';
 import { VariantPickerModal } from './register/VariantPickerModal';
+import { ModifierPickerModal } from './register/ModifierPickerModal';
 import {
   DndContext,
   closestCenter,
@@ -29,8 +30,8 @@ import { useTranslation } from 'react-i18next';
 interface ProductGridProps {
   selectedCategory: string;
   setSelectedCategory: (c: string) => void;
-  cart: Array<{ product: Product; variant?: ProductVariant; quantity: number }>;
-  addToCart: (product: Product, variant?: ProductVariant) => void;
+  cart: Array<{ product: Product; variant?: ProductVariant; modifiers?: SelectedModifier[]; quantity: number }>;
+  addToCart: (product: Product, variant?: ProductVariant, modifiers?: SelectedModifier[]) => void;
 }
 
 interface SortableProductCardProps {
@@ -121,7 +122,7 @@ const SortableProductCard = memo(function SortableProductCard({
       }}
       whileHover={!isEditMode && !isUnavailable ? { y: -4, scale: 1.02 } : {}}
       whileTap={!isEditMode && !isUnavailable ? { scale: 0.96 } : {}}
-      className={`product-card relative rounded-2xl overflow-hidden flex flex-col transition-all duration-200 select-none group ${
+      className={`product-card relative rounded-xl overflow-hidden flex flex-col transition-all duration-150 select-none group border border-border bg-card hover:border-foreground/20 hover:shadow-2xs ${
         isDragging ? 'is-dragging' : ''
       } ${
         isEditMode
@@ -167,19 +168,19 @@ const SortableProductCard = memo(function SortableProductCard({
         : {})}
     >
       {/* Status overlays */}
-      <div className="absolute top-2 inset-s-2 z-20 flex flex-col gap-1.5">
+      <div className="absolute top-2 inset-s-2 z-20 flex flex-col gap-1">
         {isOutOfStock && (
-          <span className="bg-rose-500/90 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+          <span className="bg-destructive text-destructive-foreground text-[9px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider">
             {t('register.outOfStock')}
           </span>
         )}
         {!isOutOfStock && isLowStock && (
-          <span className="bg-amber-500 text-slate-950 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+          <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[9px] font-semibold px-1.5 py-0.5 rounded uppercase">
             {t('register.onlyLeft', { count: prod.stock })}
           </span>
         )}
         {variantCount > 0 && (
-          <span className="bg-sky-500/90 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+          <span className="bg-background/80 backdrop-blur-xs text-foreground border border-border text-[9px] font-medium px-1.5 py-0.5 rounded uppercase tracking-wider">
             {t('register.variantOptionsCount', { count: variantCount })}
           </span>
         )}
@@ -187,7 +188,7 @@ const SortableProductCard = memo(function SortableProductCard({
           <motion.span
             initial={{ scale: 0, rotate: -10 }}
             animate={{ scale: 1, rotate: 0 }}
-            className="flex items-center gap-1 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-lg shadow-emerald-500/30"
+            className="flex items-center gap-1 bg-foreground text-background text-[9px] font-semibold px-1.5 py-0.5 rounded-full shadow-xs"
           >
             <Check size={9} className="stroke-3" />
             {cartQty}
@@ -197,62 +198,55 @@ const SortableProductCard = memo(function SortableProductCard({
 
       {/* Edit mode drag handle */}
       {isEditMode && (
-        <div className="absolute top-2 inset-e-2 z-20 bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm text-slate-500 dark:text-slate-400 p-1.5 rounded-lg">
+        <div className="absolute top-2 inset-e-2 z-20 bg-background/80 backdrop-blur-xs text-muted-foreground p-1 rounded-md border border-border">
           <GripHorizontal size={13} />
         </div>
       )}
 
-      {/* Product image. Omitted entirely when the operator has product images
-          switched off — not swapped for the emoji placeholder, which would keep
-          a picture on the tile and defeat the setting. The card then sizes to
-          its text, so more of the catalogue fits on screen. */}
+      {/* Product image */}
       {showProductImages && (
-        <div className="relative aspect-4/3 w-full overflow-hidden bg-slate-100 dark:bg-slate-800/50 pointer-events-none">
+        <div className="relative aspect-4/3 w-full overflow-hidden bg-muted pointer-events-none">
           {imageUrl && !imgError ? (
             <img
               src={imageUrl}
               alt={prod.name}
-              className={`w-full h-full object-cover transition-transform duration-500 ${isUnavailable ? '' : 'group-hover:scale-110'}`}
+              className={`w-full h-full object-cover transition-transform duration-300 ${isUnavailable ? '' : 'group-hover:scale-105'}`}
               referrerPolicy="no-referrer"
               onError={() => setImgError(true)}
             />
           ) : (
-            <div className="size-full flex items-center justify-center bg-linear-to-br from-slate-800/40 to-slate-900/40">
+            <div className="size-full flex items-center justify-center bg-muted/40">
               <span
-                className={`text-4xl transition-transform duration-400 opacity-70 ${isUnavailable ? '' : 'group-hover:scale-110 group-hover:rotate-6'}`}
+                className={`text-3xl transition-transform duration-300 opacity-60 ${isUnavailable ? '' : 'group-hover:scale-110'}`}
               >
                 {getCategoryEmoji(categoryName)}
               </span>
             </div>
           )}
-          {/* Bottom gradient overlay */}
-          <div
-            className={`absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent transition-opacity duration-300 ${isUnavailable ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
-          />
         </div>
       )}
 
       {/* Info */}
-      <div className="px-3 pt-2.5 pb-3 flex-1 flex flex-col justify-between pointer-events-none">
+      <div className="p-3 flex-1 flex flex-col justify-between pointer-events-none">
         <div>
-          <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-400 block mb-1">
+          <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground block mb-1">
             {t(`categories.${categoryName.toLowerCase()}`, { defaultValue: categoryName })}
           </span>
-          <h3 className="font-sans font-semibold text-slate-800 dark:text-slate-100 text-[13px] tracking-tight line-clamp-2 leading-snug min-h-[2.4em]">
+          <h3 className="font-medium text-foreground text-[13px] tracking-tight line-clamp-2 leading-snug min-h-[2.4em]">
             {prod.name}
           </h3>
         </div>
-        <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-200 dark:border-slate-800/60">
-          <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+          <span className="font-mono font-semibold text-foreground text-sm tracking-tight num">
             {isPriceFrom && (
-              <span className="font-sans text-[9px] font-semibold uppercase tracking-wider text-slate-500 me-1">
+              <span className="font-sans text-[9px] font-medium uppercase tracking-wider text-muted-foreground me-1">
                 {t('register.priceFrom')}
               </span>
             )}
             {settings.currency}
             {displayPrice.toFixed(2)}
           </span>
-          <span className="text-[9px] font-mono text-slate-600 uppercase tracking-wider">
+          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">
             {prod.sku.split('-').slice(-1)[0]}
           </span>
         </div>
@@ -281,6 +275,7 @@ const ProductGrid = ({
   const { t } = useTranslation();
 
   const [pickerProduct, setPickerProduct] = useState<Product | null>(null);
+  const [modifierTarget, setModifierTarget] = useState<{ product: Product; variant?: ProductVariant } | null>(null);
 
   // Per product, so the card badge and the sold-out rule see the whole product;
   // per variant, so the picker can stop at each combination's own limit.
@@ -303,10 +298,15 @@ const ProductGrid = ({
 
   // A card tap is only an add for a plain product. A varianted one has no
   // single thing to add, so the tap opens the picker and the add happens there.
+  // A product with modifier groups opens the modifier customization modal.
   const handleCardActivate = useCallback(
     (product: Product) => {
       if (hasVariants(product)) {
         setPickerProduct(product);
+        return;
+      }
+      if (product.modifierGroups && product.modifierGroups.length > 0) {
+        setModifierTarget({ product });
         return;
       }
       addToCart(product);
@@ -377,13 +377,13 @@ const ProductGrid = ({
   return (
     <div id="catalog-section" className="flex-1 flex flex-col min-w-0 overflow-hidden">
       {/* Controls bar */}
-      <div id="catalog-controls" className="shrink-0 px-4 pt-4 pb-3">
-        <div className="field-shell flex items-center gap-3 p-3 rounded-2xl">
+      <div id="catalog-controls" className="shrink-0 px-4 pt-3 pb-2">
+        <div className="flex items-center gap-2.5 p-1.5 rounded-xl border border-border bg-card">
           {/* Search */}
           <div className="relative shrink-0">
             <Search
               size={13}
-              className="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+              className="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
             />
             <input
               id="register-search-input"
@@ -393,7 +393,7 @@ const ProductGrid = ({
               onChange={(e) => setSearch(e.target.value)}
               aria-label={t('register.searchProducts')}
               placeholder={`${t('register.searchProducts')} (Ctrl+K)`}
-              className="input-shell w-36 sm:w-48 ps-8 pe-7 py-1.5 rounded-xl text-xs transition-all"
+              className="input-shell w-36 sm:w-48 ps-8 pe-7 py-1.5 rounded-lg text-xs"
             />
             <AnimatePresence>
               {search && (
@@ -403,7 +403,7 @@ const ProductGrid = ({
                   exit={{ opacity: 0, scale: 0.8 }}
                   onClick={() => setSearch('')}
                   aria-label={t('register.clearSearch')}
-                  className="absolute inset-e-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                  className="absolute inset-e-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <X size={12} />
                 </motion.button>
@@ -414,11 +414,8 @@ const ProductGrid = ({
           {/* Category pills */}
           <div
             id="category-pills"
-            className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-1"
+            className="flex items-center gap-1 overflow-x-auto scrollbar-none flex-1"
           >
-            {/* Built as an object array rather than mapping ids and calling
-                .find() per pill, which was an O(N²) lookup inside the render
-                loop. */}
             {[{ id: 'all', name: null }, ...categories].map((cat) => {
               const catId = cat.id;
               const label =
@@ -433,8 +430,10 @@ const ProductGrid = ({
                   key={catId}
                   onClick={() => setSelectedCategory(catId)}
                   aria-pressed={isActive}
-                  className={`toggle-pill px-3.5 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 duration-200 ${
-                    isActive ? 'is-selected' : ''
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium shrink-0 whitespace-nowrap transition-colors ${
+                    isActive
+                      ? 'bg-foreground text-background font-semibold shadow-2xs'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >
                   {label}
@@ -449,8 +448,10 @@ const ProductGrid = ({
               onClick={() => setIsEditMode(!isEditMode)}
               aria-pressed={isEditMode}
               aria-label={isEditMode ? t('register.doneEditing') : t('register.editLayout')}
-              className={`toggle-pill flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold shrink-0 ${
-                isEditMode ? 'is-danger' : ''
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium shrink-0 transition-colors ${
+                isEditMode
+                  ? 'bg-destructive text-destructive-foreground font-semibold'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted border border-border'
               }`}
             >
               <LayoutGrid size={13} />
@@ -518,10 +519,28 @@ const ProductGrid = ({
             settings={settings}
             cartQuantityByVariantId={cartQuantityByVariantId}
             onPick={(variant) => {
-              addToCart(livePickerProduct, variant);
-              setPickerProduct(null);
+              if (livePickerProduct.modifierGroups && livePickerProduct.modifierGroups.length > 0) {
+                setModifierTarget({ product: livePickerProduct, variant });
+                setPickerProduct(null);
+              } else {
+                addToCart(livePickerProduct, variant);
+                setPickerProduct(null);
+              }
             }}
             onClose={() => setPickerProduct(null)}
+          />
+        )}
+        {modifierTarget && (
+          <ModifierPickerModal
+            key={`${modifierTarget.product.id}-${modifierTarget.variant?.id ?? 'base'}`}
+            product={modifierTarget.product}
+            variant={modifierTarget.variant}
+            settings={settings}
+            onConfirm={(modifiers) => {
+              addToCart(modifierTarget.product, modifierTarget.variant, modifiers);
+              setModifierTarget(null);
+            }}
+            onClose={() => setModifierTarget(null)}
           />
         )}
       </AnimatePresence>

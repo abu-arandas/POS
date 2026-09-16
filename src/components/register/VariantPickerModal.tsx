@@ -88,34 +88,34 @@ export function VariantPickerModal({
       className="max-w-md w-full flex flex-col"
       compactAnimation
     >
-      <div className="px-6 py-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
+      <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
         <div className="min-w-0">
           <h3
             id="variant-picker-title"
-            className="font-sans font-bold text-slate-900 dark:text-white text-base truncate"
+            className="font-semibold text-foreground text-sm truncate"
           >
             {product.name}
           </h3>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-[11px] text-muted-foreground mt-0.5">
             {t('register.chooseVariant')}
           </p>
         </div>
         <button
           onClick={onClose}
           aria-label={t('register.closeVariantPicker')}
-          className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors shrink-0"
+          className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors shrink-0"
         >
-          <X size={16} />
+          <X size={15} />
         </button>
       </div>
 
-      <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto">
+      <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
         {types.map((type) => (
           <div key={type.id}>
-            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
               {type.name}
             </p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label={type.name}>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={type.name}>
               {type.options.map((option) => {
                 const isSelected = selection[type.id] === option.id;
                 // Whether this option leads anywhere sellable, given everything
@@ -136,7 +136,7 @@ export function VariantPickerModal({
                     type="button"
                     aria-pressed={isSelected}
                     onClick={() => setSelection((prev) => ({ ...prev, [type.id]: option.id }))}
-                    className={`toggle-pill px-3.5 py-1.5 rounded-xl text-[11px] font-semibold ${
+                    className={`toggle-pill px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       isSelected ? 'is-selected' : ''
                     } ${soldOut ? 'opacity-40 line-through' : ''}`}
                   >
@@ -149,13 +149,13 @@ export function VariantPickerModal({
         ))}
       </div>
 
-      <div className="px-6 py-4 border-t border-slate-200 dark:border-white/10 flex items-center justify-between gap-3">
+      <div className="px-5 py-3.5 border-t border-border flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-mono font-bold text-slate-900 dark:text-white text-sm">
+          <p className="font-mono font-semibold text-foreground text-sm num">
             {settings.currency}
             {variantPrice(product, chosen).toFixed(2)}
           </p>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+          <p className="text-[10px] text-muted-foreground truncate">
             {chosen
               ? variantLabel(product, chosen) || product.sku
               : t('register.variantUnavailable')}
@@ -165,9 +165,9 @@ export function VariantPickerModal({
           type="button"
           onClick={confirm}
           disabled={!canAdd}
-          className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl flex items-center gap-2 transition-transform active:scale-95 shrink-0"
+          className="btn-primary px-5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 disabled:opacity-30 shrink-0 shadow-xs"
         >
-          <Check size={16} />
+          <Check size={14} />
           <span>{canAdd ? t('register.addToCart') : t('register.outOfStock')}</span>
         </button>
       </div>

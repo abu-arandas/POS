@@ -31,20 +31,20 @@ export default function FleetView({ orgId }: FleetViewProps) {
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-[#020617]">
-      <div className="shrink-0 flex items-center gap-1 px-6 pt-4 border-b border-slate-200 dark:border-white/5">
+    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-background text-foreground">
+      <div className="shrink-0 flex items-center gap-1 px-6 pt-3 border-b border-border bg-card/50">
         {tabs.map(({ id, labelKey, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
             aria-current={tab === id ? 'page' : undefined}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-wide border-b-2 -mb-px transition-colors ${
+            className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${
               tab === id
-                ? 'border-emerald-500 text-slate-900 dark:text-white'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                ? 'border-foreground text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Icon size={14} />
+            <Icon size={14} className="stroke-[2.2]" />
             {t(labelKey)}
           </button>
         ))}

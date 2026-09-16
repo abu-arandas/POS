@@ -69,26 +69,22 @@ export function ReceiptModal({
             transition={{ type: 'spring', stiffness: 260, damping: 20 }}
             className="receipt-card max-w-sm w-full overflow-hidden flex flex-col rounded-3xl"
           >
-            <div className="bg-linear-to-br from-emerald-500 to-emerald-600 text-slate-900 dark:text-white p-8 pb-10 text-center flex flex-col items-center relative overflow-hidden">
-              {/* Decorative background circle */}
-              <div className="absolute -top-12 -right-12 size-32 bg-white opacity-10 rounded-full blur-2xl"></div>
-              <div className="absolute -bottom-8 -left-8 size-24 bg-black opacity-10 rounded-full blur-xl"></div>
-
+            <div className="bg-card border-b border-border p-6 text-center flex flex-col items-center relative overflow-hidden">
               <motion.div
                 initial={{ scale: 0, rotate: -45 }}
                 animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: 'spring', damping: 12, delay: 0.1 }}
-                className="bg-white/20 p-3 rounded-full text-slate-900 dark:text-white shadow-inner mb-4 backdrop-blur-sm z-10"
+                transition={{ type: 'spring', damping: 14, delay: 0.05 }}
+                className="size-12 rounded-full bg-foreground text-background flex items-center justify-center mb-3 shadow-xs"
               >
-                <Check size={36} strokeWidth={3} />
+                <Check size={24} strokeWidth={2.5} />
               </motion.div>
               <h3
                 id="receipt-modal-title"
-                className="font-sans font-bold text-slate-900 dark:text-white text-2xl tracking-tight z-10 mb-1.5"
+                className="font-semibold text-foreground text-xl tracking-tight mb-1"
               >
                 {t('register.paymentSuccessful')}
               </h3>
-              <p className="text-emerald-100 text-[11px] uppercase tracking-wider font-bold bg-black/15 px-3.5 py-1 rounded-full z-10 shadow-sm border border-slate-200 dark:border-white/10">
+              <p className="text-muted-foreground font-mono text-xs font-medium bg-muted px-2.5 py-0.5 rounded-full border border-border">
                 {t('register.receipt')} {receipt.id}
               </p>
             </div>
@@ -163,7 +159,7 @@ export function ReceiptModal({
                             : item.productName}
                         </span>
                         {show.priceColumn && (
-                          <span className="shrink-0 font-bold">
+                          <span className="shrink-0 font-bold num">
                             {settings.currency}
                             {item.total.toFixed(2)}
                           </span>
@@ -183,7 +179,7 @@ export function ReceiptModal({
                   <div className="space-y-1.5">
                     <div className="flex justify-between">
                       <span>{t('register.subtotal').toUpperCase()}:</span>
-                      <span>
+                      <span className="num">
                         {settings.currency}
                         {receipt.subtotal.toFixed(2)}
                       </span>
@@ -191,7 +187,7 @@ export function ReceiptModal({
                     {receipt.discount > 0 && (
                       <div className="flex justify-between text-amber-700 dark:text-amber-400">
                         <span>{t('register.discount').toUpperCase()}</span>
-                        <span>
+                        <span className="num">
                           -{settings.currency}
                           {receipt.discount.toFixed(2)}
                         </span>
@@ -205,14 +201,14 @@ export function ReceiptModal({
                           : ''}
                         :
                       </span>
-                      <span>
+                      <span className="num">
                         {settings.currency}
                         {receipt.tax.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-900 dark:text-white font-bold pt-3 border-t border-slate-300 dark:border-slate-700 mt-2 text-sm">
                       <span>{t('register.totalPaid')}:</span>
-                      <span>
+                      <span className="num">
                         {settings.currency}
                         {receipt.total.toFixed(2)}
                       </span>
@@ -279,13 +275,13 @@ export function ReceiptModal({
               </div>
             </div>
 
-            <div className="modal-divider-top p-4 space-y-2.5">
+            <div className="modal-divider-top p-4 space-y-2">
               <div className="flex items-center gap-2">
                 {actions.map(({ icon: Icon, label, onClick }) => (
                   <button
                     key={label}
                     onClick={onClick}
-                    className="btn-ghost-emerald flex-1 flex justify-center items-center gap-1.5 py-2.5 rounded-xl text-xs font-bold group"
+                    className="btn-secondary flex-1 flex justify-center items-center gap-1.5 py-2 rounded-xl text-xs font-medium"
                   >
                     <Icon size={14} />
                     <span>{label}</span>
@@ -293,9 +289,9 @@ export function ReceiptModal({
                 ))}
               </div>
               <motion.button
-                whileTap={{ scale: 0.97 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={onClose}
-                className="btn-primary w-full py-3.5 rounded-xl text-sm font-bold active:scale-[0.98]"
+                className="btn-primary w-full py-2.5 rounded-xl text-xs font-semibold"
               >
                 {t('register.newSale')}
               </motion.button>

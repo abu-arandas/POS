@@ -41,7 +41,7 @@ export default function Dashboard() {
   return (
     <div
       id="dashboard-root"
-      className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-[#020617] p-6 transition-colors duration-300"
+      className="flex-1 flex flex-col h-screen overflow-hidden bg-background p-6 transition-colors duration-300"
     >
       <DashboardHeader
         range={range}

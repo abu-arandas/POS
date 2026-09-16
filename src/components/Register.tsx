@@ -203,6 +203,7 @@ export default function Register() {
         productName: i.product.name,
         variantId: i.variant?.id,
         variantName: i.variant ? variantLabel(i.product, i.variant) || undefined : undefined,
+        modifiers: i.modifiers,
         price: variantPrice(i.product, i.variant),
         cost: variantCost(i.product, i.variant),
         quantity: i.quantity,
@@ -255,10 +256,10 @@ export default function Register() {
           }
           const quantity = Math.min(i.quantity, availableStock(product, variant?.id));
           if (quantity !== i.quantity) adjustedItems.push(product.name);
-          return { product, variant, quantity };
+          return { product, variant, modifiers: i.modifiers, quantity };
         })
         .filter(
-          (x): x is { product: Product; variant: ProductVariant | undefined; quantity: number } =>
+          (x): x is { product: Product; variant: ProductVariant | undefined; modifiers?: import('../types').SelectedModifier[]; quantity: number } =>
             x !== null && x.quantity > 0,
         );
       if (adjustedItems.length > 0) {
@@ -620,8 +621,8 @@ export default function Register() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] ring-1 ring-black/5 text-sm font-semibold tracking-wide ${
-              scanFeedback.ok ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-lg border text-xs font-medium ${
+              scanFeedback.ok ? 'bg-card text-foreground border-border' : 'bg-destructive text-destructive-foreground border-destructive'
             }`}
           >
             <ScanLine size={18} className="opacity-90" />

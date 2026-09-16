@@ -32,17 +32,17 @@ export function ProfilePanel({
   onEmailTemplateChange,
 }: ProfilePanelProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 max-w-4xl mx-auto">
       {/* General Info Card */}
-      <div className="surface rounded-2xl p-6">
-        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">
+      <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
+        <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono mb-5">
           {t('settings.generalDetails')}
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label
               htmlFor="set-store-name"
-              className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+              className="block text-xs font-medium text-muted-foreground mb-1.5"
             >
               {t('settings.storeName')}
             </label>
@@ -51,13 +51,13 @@ export function ProfilePanel({
               type="text"
               value={settings.storeName}
               onChange={(e) => onUpdateSetting('storeName', e.target.value)}
-              className="glass-input w-full px-4 py-2.5 rounded-xl"
+              className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
             />
           </div>
           <div>
             <label
               htmlFor="set-store-phone"
-              className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+              className="block text-xs font-medium text-muted-foreground mb-1.5"
             >
               {t('settings.storePhone')}
             </label>
@@ -66,13 +66,13 @@ export function ProfilePanel({
               type="text"
               value={settings.storePhone}
               onChange={(e) => onUpdateSetting('storePhone', e.target.value)}
-              className="glass-input w-full px-4 py-2.5 rounded-xl"
+              className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground font-mono focus:outline-none focus:border-foreground/50 transition-colors"
             />
           </div>
           <div>
             <label
               htmlFor="set-branch-name"
-              className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+              className="block text-xs font-medium text-muted-foreground mb-1.5"
             >
               {t('settings.branchName')}
             </label>
@@ -81,13 +81,13 @@ export function ProfilePanel({
               type="text"
               value={settings.branchName || ''}
               onChange={(e) => onUpdateSetting('branchName', e.target.value)}
-              className="glass-input w-full px-4 py-2.5 rounded-xl"
+              className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
             />
           </div>
           <div>
             <label
               htmlFor="set-tax-number"
-              className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+              className="block text-xs font-medium text-muted-foreground mb-1.5"
             >
               {t('settings.taxNumber')}
             </label>
@@ -96,13 +96,13 @@ export function ProfilePanel({
               type="text"
               value={settings.taxNumber || ''}
               onChange={(e) => onUpdateSetting('taxNumber', e.target.value)}
-              className="glass-input w-full px-4 py-2.5 rounded-xl"
+              className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground font-mono focus:outline-none focus:border-foreground/50 transition-colors"
             />
           </div>
           <div className="md:col-span-2">
             <label
               htmlFor="set-store-address"
-              className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+              className="block text-xs font-medium text-muted-foreground mb-1.5"
             >
               {t('settings.storeAddress')}
             </label>
@@ -111,13 +111,13 @@ export function ProfilePanel({
               type="text"
               value={settings.storeAddress}
               onChange={(e) => onUpdateSetting('storeAddress', e.target.value)}
-              className="glass-input w-full px-4 py-2.5 rounded-xl"
+              className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
             />
           </div>
           <div className="md:col-span-2">
             <label
               htmlFor="set-store-logo-url"
-              className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+              className="block text-xs font-medium text-muted-foreground mb-1.5"
             >
               {t('settings.storeLogoUrl')}
             </label>
@@ -128,9 +128,9 @@ export function ProfilePanel({
                 placeholder={t('settings.logoUrlPlaceholder')}
                 value={settings.storeLogo || ''}
                 onChange={(e) => onUpdateSetting('storeLogo', e.target.value)}
-                className="glass-input w-full px-4 py-2.5 rounded-xl"
+                className="flex-1 bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
               />
-              <label className="cursor-pointer bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center shrink-0 transition-colors">
+              <label className="btn-secondary h-9 px-3 text-xs cursor-pointer flex items-center shrink-0">
                 {t('settings.uploadFile')}
                 <input
                   type="file"
@@ -150,30 +150,30 @@ export function ProfilePanel({
               </label>
             </div>
             {safeImageUrl(settings.storeLogo) && (
-              <div className="mt-4 p-4 surface border border-slate-200 dark:border-slate-700 rounded-xl inline-block shadow-sm">
+              <div className="mt-3 p-3 bg-secondary/30 border border-border rounded-lg inline-block">
                 <img
                   src={safeImageUrl(settings.storeLogo)}
                   alt="Store Logo"
-                  className="h-16 w-auto object-contain rounded-lg"
+                  className="h-14 w-auto object-contain rounded"
                 />
               </div>
             )}
           </div>
 
           <div className="md:col-span-2">
-            <label className="flex items-start gap-3 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl cursor-pointer">
+            <label className="flex items-start gap-3 p-3.5 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
               <input
                 id="set-show-product-images"
                 type="checkbox"
                 checked={showProductImages}
                 onChange={(e) => onShowProductImagesChange(e.target.checked)}
-                className="size-5 mt-0.5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 shrink-0"
+                className="size-4 mt-0.5 rounded border-border text-foreground focus:ring-foreground shrink-0 accent-foreground"
               />
               <span>
-                <span className="block text-sm font-semibold text-slate-800 dark:text-slate-200">
+                <span className="block text-xs font-semibold text-foreground">
                   {t('settings.showProductImages')}
                 </span>
-                <span className="block text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <span className="block text-[11px] text-muted-foreground mt-0.5">
                   {t('settings.showProductImagesHint')}
                 </span>
               </span>
@@ -183,16 +183,16 @@ export function ProfilePanel({
       </div>
 
       {/* Regional & Loyalty Settings */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="surface rounded-2xl p-6">
-          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
+          <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono mb-4">
             {t('settings.regional')}
           </h3>
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div>
               <label
                 htmlFor="set-currency-symbol"
-                className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                className="block text-xs font-medium text-muted-foreground mb-1.5"
               >
                 {t('settings.currencySymbol')}
               </label>
@@ -201,13 +201,13 @@ export function ProfilePanel({
                 type="text"
                 value={settings.currency}
                 onChange={(e) => onUpdateSetting('currency', e.target.value)}
-                className="glass-input w-full px-4 py-2.5 rounded-xl"
+                className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors font-mono"
               />
             </div>
             <div>
               <label
                 htmlFor="set-tax-rate"
-                className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                className="block text-xs font-medium text-muted-foreground mb-1.5"
               >
                 {t('settings.taxRate')}
               </label>
@@ -219,9 +219,9 @@ export function ProfilePanel({
                   step="0.1"
                   value={settings.taxRate}
                   onChange={(e) => onUpdateSetting('taxRate', parseFloat(e.target.value) || 0)}
-                  className="glass-input w-full px-4 py-2.5 rounded-xl pe-8"
+                  className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors font-mono pe-8"
                 />
-                <span className="absolute inset-e-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm">
+                <span className="absolute inset-e-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-mono">
                   %
                 </span>
               </div>
@@ -229,7 +229,7 @@ export function ProfilePanel({
             <div>
               <label
                 htmlFor="set-language"
-                className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                className="block text-xs font-medium text-muted-foreground mb-1.5"
               >
                 {t('settings.language')}
               </label>
@@ -237,7 +237,7 @@ export function ProfilePanel({
                 id="set-language"
                 value={language}
                 onChange={(e) => onLanguageChange(e.target.value as 'en' | 'ar')}
-                className="glass-input w-full px-4 py-2.5 rounded-xl appearance-none"
+                className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
               >
                 <option value="en">{t('settings.english')}</option>
                 <option value="ar">{t('settings.arabic')}</option>
@@ -246,15 +246,15 @@ export function ProfilePanel({
           </div>
         </div>
 
-        <div className="surface rounded-2xl p-6">
-          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-6">
+        <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
+          <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono mb-4">
             {t('settings.loyaltyProgram')}
           </h3>
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div>
               <label
                 htmlFor="set-loyalty-points-rate"
-                className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                className="block text-xs font-medium text-muted-foreground mb-1.5"
               >
                 {t('settings.loyaltyPointsRate', 'Points Earned per Currency Unit')}
               </label>
@@ -267,19 +267,19 @@ export function ProfilePanel({
                 onChange={(e) =>
                   onUpdateSetting('loyaltyPointsRate', parseFloat(e.target.value) || 0)
                 }
-                className="glass-input w-full px-4 py-2.5 rounded-xl"
+                className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground font-mono focus:outline-none focus:border-foreground/50 transition-colors"
                 placeholder="e.g. 1 point per $1"
               />
             </div>
             <div>
               <label
                 htmlFor="set-loyalty-point-value"
-                className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                className="block text-xs font-medium text-muted-foreground mb-1.5"
               >
                 {t('settings.loyaltyPointValue', 'Discount Value per Point')}
               </label>
               <div className="relative">
-                <span className="absolute inset-s-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm">
+                <span className="absolute inset-s-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-mono">
                   {settings.currency}
                 </span>
                 <input
@@ -291,7 +291,7 @@ export function ProfilePanel({
                   onChange={(e) =>
                     onUpdateSetting('loyaltyPointValue', parseFloat(e.target.value) || 0)
                   }
-                  className="glass-input w-full px-4 py-2.5 rounded-xl ps-8"
+                  className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground font-mono focus:outline-none focus:border-foreground/50 transition-colors ps-7"
                   placeholder="e.g. $0.05"
                 />
               </div>
@@ -301,19 +301,19 @@ export function ProfilePanel({
       </div>
 
       {/* Receipt Email Template */}
-      <div className="surface rounded-2xl p-6">
-        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider mb-2 flex items-center gap-2">
-          <Mail size={16} className="text-emerald-500" />
+      <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
+        <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono mb-1.5 flex items-center gap-2">
+          <Mail size={14} className="text-muted-foreground" />
           {t('settings.emailTemplateTitle')}
         </h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+        <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
           {t('settings.emailTemplateHint')}
         </p>
         <div className="space-y-4">
           <div>
             <label
               htmlFor="set-email-subject"
-              className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+              className="block text-xs font-medium text-muted-foreground mb-1.5"
             >
               {t('settings.emailSubject')}
             </label>
@@ -322,52 +322,52 @@ export function ProfilePanel({
               type="text"
               value={emailTemplate.subject}
               onChange={(e) => onEmailTemplateChange({ ...emailTemplate, subject: e.target.value })}
-              className="glass-input w-full px-4 py-2.5 rounded-xl font-mono text-sm"
+              className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors font-mono"
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label
                 htmlFor="set-email-header"
-                className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                className="block text-xs font-medium text-muted-foreground mb-1.5"
               >
                 {t('settings.emailHeader')}
               </label>
               <textarea
                 id="set-email-header"
-                rows={4}
+                rows={3}
                 value={emailTemplate.header}
                 onChange={(e) =>
                   onEmailTemplateChange({ ...emailTemplate, header: e.target.value })
                 }
-                className="glass-input w-full px-4 py-2.5 rounded-xl text-sm resize-y"
+                className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors resize-y font-mono"
               />
             </div>
             <div>
               <label
                 htmlFor="set-email-footer"
-                className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2"
+                className="block text-xs font-medium text-muted-foreground mb-1.5"
               >
                 {t('settings.emailFooter')}
               </label>
               <textarea
                 id="set-email-footer"
-                rows={4}
+                rows={3}
                 value={emailTemplate.footer}
                 onChange={(e) =>
                   onEmailTemplateChange({ ...emailTemplate, footer: e.target.value })
                 }
-                className="glass-input w-full px-4 py-2.5 rounded-xl text-sm resize-y"
+                className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors resize-y font-mono"
               />
             </div>
           </div>
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-1">
             <button
               type="button"
               onClick={() => onEmailTemplateChange(DEFAULT_EMAIL_TEMPLATE)}
-              className="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center gap-2 transition-colors"
+              className="btn-secondary h-8 px-3 text-xs gap-1.5"
             >
-              <RotateCcw size={14} />
+              <RotateCcw size={13} />
               {t('settings.resetTemplate')}
             </button>
           </div>

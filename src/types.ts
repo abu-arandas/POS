@@ -41,6 +41,29 @@ export interface ProductVariant {
   image?: string;
 }
 
+export interface ModifierOption {
+  id: string;
+  name: string;
+  priceDelta: number; // Additional price (e.g. +0.50 JD) or 0
+  isDefault?: boolean;
+}
+
+export interface ModifierGroup {
+  id: string;
+  name: string; // e.g. "Toppings", "Sauce", "Doneness"
+  minSelections?: number; // 1 if required, 0 if optional
+  maxSelections?: number; // 1 for single-choice (radio), >1 for multiple (checkboxes)
+  options: ModifierOption[];
+}
+
+export interface SelectedModifier {
+  groupId: string;
+  groupName: string;
+  optionId: string;
+  optionName: string;
+  priceDelta: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -62,6 +85,8 @@ export interface Product {
   variantTypes?: VariantType[];
   /** The sellable combinations. Absent or empty = a plain product. */
   variants?: ProductVariant[];
+  /** Optional customization groups (e.g. Extras, Temperature, Sauces). */
+  modifierGroups?: ModifierGroup[];
 }
 
 export interface Category {
@@ -92,7 +117,9 @@ export interface OrderItem {
    * renamed or deleted still shows what the customer bought.
    */
   variantName?: string;
-  price: number; // Purchase price
+  /** Chosen modifiers / add-ons (e.g. "+ Extra Cheese", "No Onions"). */
+  modifiers?: SelectedModifier[];
+  price: number; // Purchase price (including modifier price deltas)
   cost: number; // Product cost at purchase time
   quantity: number;
   total: number;
@@ -226,6 +253,7 @@ export interface HeldOrderItem {
   /** The variant held, on a product that sells through variants. */
   variantId?: string;
   variantName?: string;
+  modifiers?: SelectedModifier[];
   price: number;
   cost: number;
   quantity: number;
@@ -390,18 +418,95 @@ export interface ReceiptEmailTemplate {
 export interface SupabaseConfig {
   url: string;
   anonKey: string;
-  // Optional Supabase Auth "device" account. When set, the sync client signs in
-  // with it so the terminal operates as an authenticated role — required once
-  // RLS is enabled (see src/db/schema.sql). Left blank = anonymous (demo mode).
   authEmail?: string;
   authPassword?: string;
-  // Whether a device account was configured when this config was last saved.
-  // The credentials themselves are session-only (settingsStore strips them from
-  // what it persists), so after a restart nothing else can tell "no device
-  // account, sync works anonymously" apart from "device account required, but
-  // its password is gone". `status` is restored against this — see the
-  // rehydrate handling in stores/settingsStore.ts.
   deviceAuthConfigured?: boolean;
   enabled: boolean;
   status: 'disconnected' | 'connected' | 'error';
 }
+
+// -------------------------------------------------------------
+// RESTAURANT & OPERATIONAL EXPANSION TYPES
+// -------------------------------------------------------------
+
+export type OrderType = 'dine_in' | 'takeaway' | 'delivery';
+
+export type KitchenTicketStatus = 'pending' | 'preparing' | 'ready' | 'completed';
+
+export interface KitchenTicketItem {
+  id: string;
+  productId: string;
+  productName: string;
+  variantName?: string;
+  modifiers?: SelectedModifier[];
+  quantity: number;
+  stationId?: string;
+  stationName?: string;
+  notes?: string;
+  completed?: boolean;
+}
+
+export interface KitchenTicket {
+  id: string;
+  orderNumber: string;
+  saleId?: string;
+  orderType: OrderType;
+  tableNumber?: string;
+  customerName?: string;
+  serverName?: string;
+  createdAt: string;
+  updatedAt?: string;
+  status: KitchenTicketStatus;
+  items: KitchenTicketItem[];
+  notes?: string;
+  completedAt?: string;
+}
+
+export type TableStatus = 'available' | 'occupied' | 'bill_requested' | 'reserved';
+
+export interface DiningTable {
+  id: string;
+  name: string;
+  seats: number;
+  status: TableStatus;
+  currentOrderId?: string;
+  currentGuests?: number;
+  activeSince?: string;
+  totalAmount?: number;
+  section?: string;
+}
+
+export type CashMovementType = 'pay_in' | 'pay_out';
+
+export interface CashMovement {
+  id: string;
+  shiftId: string;
+  type: CashMovementType;
+  amount: number;
+  reason: string;
+  performedBy: string;
+  createdAt: string;
+}
+
+export interface PromoCode {
+  code: string;
+  discountType: 'percentage' | 'fixed';
+  value: number;
+  minOrderTotal?: number;
+  maxUses?: number;
+  usedCount: number;
+  expiresAt?: string;
+  enabled: boolean;
+}
+
+export interface HappyHourRule {
+  id: string;
+  name: string;
+  discountPercentage: number;
+  daysOfWeek: number[]; // 0 = Sun, 1 = Mon ...
+  startTime: string; // "17:00"
+  endTime: string; // "20:00"
+  enabled: boolean;
+  categoryIds?: string[];
+}
+
