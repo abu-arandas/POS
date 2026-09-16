@@ -144,7 +144,9 @@ export function ConnectedPrinters({
                     {p.name}
                   </span>
                   {p.detail && (
-                    <span className="text-[11px] text-muted-foreground block truncate font-mono">{p.detail}</span>
+                    <span className="text-[11px] text-muted-foreground block truncate font-mono">
+                      {p.detail}
+                    </span>
                   )}
                 </div>
               </div>

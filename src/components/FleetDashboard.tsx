@@ -171,9 +171,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
           <h2 className="font-semibold tracking-tight text-foreground text-lg sm:text-xl flex items-center gap-2">
             <Activity className="text-foreground" size={20} /> {t('fleetReport.title')}
           </h2>
-          <p className="text-muted-foreground text-xs mt-0.5">
-            {t('fleetReport.subtitle')}
-          </p>
+          <p className="text-muted-foreground text-xs mt-0.5">{t('fleetReport.subtitle')}</p>
         </motion.div>
         <div className="flex items-center gap-2">
           {/* Store filter (drill-in) */}
@@ -273,8 +271,16 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                     <AreaChart data={series} margin={trendChartMargin}>
                       <defs>
                         <linearGradient id="fleetRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="var(--color-foreground, #18181b)" stopOpacity={0.15} />
-                          <stop offset="95%" stopColor="var(--color-foreground, #18181b)" stopOpacity={0} />
+                          <stop
+                            offset="5%"
+                            stopColor="var(--color-foreground, #18181b)"
+                            stopOpacity={0.15}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="var(--color-foreground, #18181b)"
+                            stopOpacity={0}
+                          />
                         </linearGradient>
                       </defs>
                       <CartesianGrid {...trendChartGrid} strokeDasharray="3 3" opacity={0.3} />
@@ -287,7 +293,12 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                         stroke="var(--color-foreground, #18181b)"
                         strokeWidth={2}
                         fill="url(#fleetRevenue)"
-                        activeDot={{ r: 4, fill: 'var(--color-foreground, #18181b)', stroke: 'var(--color-background, #ffffff)', strokeWidth: 2 }}
+                        activeDot={{
+                          r: 4,
+                          fill: 'var(--color-foreground, #18181b)',
+                          stroke: 'var(--color-background, #ffffff)',
+                          strokeWidth: 2,
+                        }}
                       />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -313,9 +324,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                       <button
                         onClick={() => setStoreFilter(selected ? '' : s.storeId)}
                         className={`w-full text-start px-5 py-3.5 transition-colors ${
-                          selected
-                            ? 'bg-secondary'
-                            : 'hover:bg-secondary/40'
+                          selected ? 'bg-secondary' : 'hover:bg-secondary/40'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-4 mb-2">

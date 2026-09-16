@@ -25,7 +25,11 @@ export function DashboardHeader({
 
   return (
     <div id="dashboard-header" className="mb-6 shrink-0 flex items-center justify-between">
-      <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3">
+      <motion.div
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="flex items-center gap-3"
+      >
         <div className="size-10 rounded-xl bg-secondary/80 border border-border flex items-center justify-center text-foreground shrink-0">
           <TrendingUp size={20} />
         </div>
@@ -33,9 +37,7 @@ export function DashboardHeader({
           <h2 className="font-sans font-semibold tracking-tight text-foreground text-xl">
             {t('dashboard.title')}
           </h2>
-          <p className="text-muted-foreground text-xs mt-0.5">
-            {t('dashboard.subtitle')}
-          </p>
+          <p className="text-muted-foreground text-xs mt-0.5">{t('dashboard.subtitle')}</p>
         </div>
       </motion.div>
 
@@ -88,4 +90,3 @@ export function DashboardHeader({
     </div>
   );
 }
-

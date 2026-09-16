@@ -97,4 +97,7 @@ export const register = {
   variantUnavailable: 'That combination is not stocked',
   variantOptionsCount: '{{count}} options',
   priceFrom: 'from',
+  customizeItem: 'Select modifiers & add-ons',
+  maxCount: 'Max {{count}}',
+  included: 'Included',
 };

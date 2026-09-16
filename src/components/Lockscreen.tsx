@@ -10,6 +10,7 @@ import { shortId } from '../lib/utils/ids';
 import { usePinAttemptStore } from '../stores/pinAttemptStore';
 import { lockoutStatus, formatRemaining, FREE_ATTEMPTS } from '../lib/pinThrottle';
 import { useTranslation } from 'react-i18next';
+import { playErrorSound, playKeySound } from '../lib/audioFeedback';
 
 const ROLE_CONFIG = {
   admin: {
@@ -74,6 +75,7 @@ export default function Lockscreen() {
   }, [lockout.locked]);
 
   const rejectPin = useCallback(() => {
+    playErrorSound();
     setError(true);
     setPin('');
     setTimeout(() => setError(false), 900);
@@ -104,11 +106,11 @@ export default function Lockscreen() {
   const handleFirstRunSetup = async () => {
     const name = setupName.trim();
     if (!name) {
-      setSetupError(t('lockscreen.setupNameRequired', 'Enter an administrator name.'));
+      setSetupError(t('lockscreen.setupNameRequired'));
       return;
     }
     if (!/^\d{4}$/.test(setupPin)) {
-      setSetupError(t('lockscreen.setupPinRequired', 'Choose a four-digit PIN.'));
+      setSetupError(t('lockscreen.setupPinRequired'));
       return;
     }
     const id = `user-${shortId()}`;
@@ -249,6 +251,7 @@ export default function Lockscreen() {
     async (num: string) => {
       if (error || checking || lockout.locked) return;
       if (pin.length >= 4) return;
+      playKeySound();
       const nextPin = pin + num;
       setPin(nextPin);
       if (nextPin.length === 4 && selectedUser) await attemptSignIn(selectedUser, nextPin);
@@ -309,9 +312,7 @@ export default function Lockscreen() {
           <div className="size-9 flex items-center justify-center">
             <Logo size={36} title="Arandas IT Solutions" />
           </div>
-          <span className="font-mono text-xl font-bold tracking-tight text-foreground">
-            EA POS
-          </span>
+          <span className="font-mono text-xl font-bold tracking-tight text-foreground">EA POS</span>
         </div>
         <p className="text-xs text-muted-foreground font-medium">{t('lockscreen.subtitle')}</p>
       </motion.div>
@@ -326,16 +327,16 @@ export default function Lockscreen() {
         {users.length === 0 ? (
           <div className="p-6">
             <h2 className="text-sm font-semibold text-foreground mb-1 text-center">
-              {t('lockscreen.setupTitle', 'Set up your administrator account')}
+              {t('lockscreen.setupTitle')}
             </h2>
             <p className="text-xs text-muted-foreground text-center mb-5">
-              {t('lockscreen.setupSubtitle', 'This terminal has no staff accounts yet.')}
+              {t('lockscreen.setupSubtitle')}
             </p>
             <label
               className="block text-xs font-medium text-muted-foreground mb-1.5"
               htmlFor="first-run-name"
             >
-              {t('lockscreen.setupName', 'Administrator name')}
+              {t('lockscreen.setupName')}
             </label>
             <input
               id="first-run-name"
@@ -348,7 +349,7 @@ export default function Lockscreen() {
               className="block text-xs font-medium text-muted-foreground mb-1.5"
               htmlFor="first-run-pin"
             >
-              {t('lockscreen.setupPin', 'Four-digit PIN')}
+              {t('lockscreen.setupPin')}
             </label>
             <input
               id="first-run-pin"
@@ -371,7 +372,7 @@ export default function Lockscreen() {
               onClick={handleFirstRunSetup}
               className="btn-primary mt-5 w-full py-2.5 rounded-xl text-xs font-medium"
             >
-              {t('lockscreen.setupButton', 'Create administrator')}
+              {t('lockscreen.setupButton')}
             </button>
           </div>
         ) : (
@@ -407,9 +408,7 @@ export default function Lockscreen() {
                       >
                         <div className="flex items-center gap-3">
                           {/* Avatar */}
-                          <div
-                            className="w-9 h-9 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight shrink-0"
-                          >
+                          <div className="w-9 h-9 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight shrink-0">
                             {getInitials(user.name)}
                           </div>
                           <div>
@@ -454,18 +453,14 @@ export default function Lockscreen() {
                   </button>
                   <div className="flex items-center gap-2">
                     <div className="text-end">
-                      <p className="text-foreground text-xs font-semibold">
-                        {selectedUser.name}
-                      </p>
+                      <p className="text-foreground text-xs font-semibold">{selectedUser.name}</p>
                       <span
                         className={`text-[9px] font-mono uppercase tracking-wider ${roleCfg.badge} px-1.5 py-0.2 rounded border inline-block mt-0.5`}
                       >
                         {selectedUser.role}
                       </span>
                     </div>
-                    <div
-                      className="w-7 h-7 rounded-md bg-foreground text-background flex items-center justify-center font-bold text-[11px] shrink-0"
-                    >
+                    <div className="w-7 h-7 rounded-md bg-foreground text-background flex items-center justify-center font-bold text-[11px] shrink-0">
                       {getInitials(selectedUser.name)}
                     </div>
                   </div>
@@ -590,7 +585,9 @@ export default function Lockscreen() {
           transition={{ delay: 0.5 }}
           className="mt-6 z-10 bg-card/80 border border-border rounded-xl px-4 py-2 text-center"
         >
-          <p className="text-muted-foreground font-mono text-[10px]">{t('lockscreen.defaultPins')}</p>
+          <p className="text-muted-foreground font-mono text-[10px]">
+            {t('lockscreen.defaultPins')}
+          </p>
           <div className="flex gap-3 justify-center mt-1">
             {[
               ['Admin', '1234', 'text-foreground'],

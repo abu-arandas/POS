@@ -23,18 +23,16 @@ export function DangerZonePanel({
           <div>
             <h3 className="text-sm font-semibold text-destructive flex items-center gap-2 mb-1">
               <AlertTriangle size={16} />
-              {t('settings.dangerZone', 'Danger Zone')}
+              {t('settings.dangerZone')}
             </h3>
-            <p className="text-xs text-muted-foreground">
-              {t('settings.dangerWarning', 'Be careful! These actions cannot be undone.')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('settings.dangerWarning')}</p>
           </div>
 
           <div className="space-y-2.5">
             <div className="flex items-center justify-between p-3.5 bg-card border border-border rounded-lg shadow-2xs">
               <div>
                 <h4 className="text-xs font-semibold text-foreground">
-                  {t('settings.deleteAllTransactions', 'Delete All Transactions')}
+                  {t('settings.deleteAllTransactions')}
                 </h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   {t('settings.deleteAllTransactionsHint')}
@@ -45,16 +43,18 @@ export function DangerZonePanel({
                 className="btn-destructive h-8 px-3 text-xs font-medium gap-1.5 shrink-0"
               >
                 <Trash2 size={13} />
-                {t('settings.deleteNow', 'Delete')}
+                {t('settings.deleteNow')}
               </button>
             </div>
 
             <div className="flex items-center justify-between p-3.5 bg-card border border-border rounded-lg shadow-2xs">
               <div>
                 <h4 className="text-xs font-semibold text-foreground">
-                  {t('settings.resetToDefaults', 'Reset to Defaults')}
+                  {t('settings.resetToDefaults')}
                 </h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{t('settings.resetToDefaultsHint')}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {t('settings.resetToDefaultsHint')}
+                </p>
               </div>
               <button
                 onClick={onResetDefaults}

@@ -79,9 +79,7 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
           <h2 className="font-semibold tracking-tight text-foreground text-lg sm:text-xl flex items-center gap-2">
             <Building2 className="text-foreground" size={20} /> {t('fleet.title')}
           </h2>
-          <p className="text-muted-foreground text-xs mt-0.5">
-            {t('fleet.subtitle')}
-          </p>
+          <p className="text-muted-foreground text-xs mt-0.5">{t('fleet.subtitle')}</p>
         </motion.div>
         <button
           onClick={load}
@@ -105,7 +103,10 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
             </div>
             <p className="font-mono num font-semibold text-foreground text-2xl">
               {summary.onlineCount}
-              <span className="text-muted-foreground text-base font-normal"> / {summary.storeCount}</span>
+              <span className="text-muted-foreground text-base font-normal">
+                {' '}
+                / {summary.storeCount}
+              </span>
             </p>
           </div>
           <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
@@ -136,9 +137,7 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
         {/* Store list */}
         <div className="bg-card border border-border rounded-xl shadow-2xs overflow-hidden">
           <div className="px-5 py-3.5 border-b border-border bg-muted/20">
-            <h3 className="font-semibold text-foreground text-sm">
-              {t('fleet.stores')}
-            </h3>
+            <h3 className="font-semibold text-foreground text-sm">{t('fleet.stores')}</h3>
           </div>
           {summary.stores.length === 0 ? (
             <div className="py-16 flex flex-col items-center justify-center text-muted-foreground gap-3">
@@ -155,9 +154,7 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
                   className="px-5 py-3.5 flex items-center justify-between gap-4 hover:bg-secondary/40 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <span
-                      className={`size-2 rounded-full shrink-0 ${PRESENCE_DOT[s.presence]}`}
-                    />
+                    <span className={`size-2 rounded-full shrink-0 ${PRESENCE_DOT[s.presence]}`} />
                     <div className="min-w-0">
                       <span className="text-sm font-semibold text-foreground block truncate">
                         {s.storeName}
@@ -179,7 +176,9 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
                         {s.orders} {t('fleet.ordersLabel')}
                       </span>
                     </div>
-                    <span className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-md border ${PRESENCE_BADGE[s.presence]}`}>
+                    <span
+                      className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-md border ${PRESENCE_BADGE[s.presence]}`}
+                    >
                       {t(`fleet.presence_${s.presence}`)}
                     </span>
                   </div>

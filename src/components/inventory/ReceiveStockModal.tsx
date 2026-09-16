@@ -57,7 +57,11 @@ export function ReceiveStockModal({
   const selectedProduct = products.find((p) => p.id === recvProductId);
   const variants = selectedProduct?.variants ?? [];
   return (
-    <ModalShell modalRef={modalRef} titleId="receive-stock-title" className="max-w-md w-full rounded-2xl border border-border bg-card shadow-lg overflow-hidden">
+    <ModalShell
+      modalRef={modalRef}
+      titleId="receive-stock-title"
+      className="max-w-md w-full rounded-2xl border border-border bg-card shadow-lg overflow-hidden"
+    >
       <div className="px-6 py-4 border-b border-border bg-card flex items-center justify-between">
         <h3
           id="receive-stock-title"
@@ -208,7 +212,7 @@ export function ReceiveStockModal({
       </div>
       <ModalFooter
         cancelLabel={t('inventory.cancel')}
-        confirmLabel={t('inventory.confirmReceive', 'Confirm')}
+        confirmLabel={t('inventory.confirmReceive')}
         onCancel={onClose}
         onConfirm={onSubmit}
         confirmDisabled={!recvProductId || !recvQty || isNaN(parseInt(recvQty, 10))}

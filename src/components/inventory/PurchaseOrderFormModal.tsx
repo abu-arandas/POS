@@ -63,7 +63,8 @@ export function PurchaseOrderFormModal({
           id="po-form-title"
           className="font-semibold text-foreground text-base flex items-center gap-2.5"
         >
-          <ClipboardList size={18} className="text-muted-foreground" /> {t('inventory.newPurchaseOrder')}
+          <ClipboardList size={18} className="text-muted-foreground" />{' '}
+          {t('inventory.newPurchaseOrder')}
         </h3>
         <button
           onClick={onClose}
@@ -123,9 +124,7 @@ export function PurchaseOrderFormModal({
               <div key={idx} className="flex items-center gap-2 flex-wrap">
                 <select
                   value={lineRow.productId}
-                  onChange={(e) =>
-                    onLineChange(idx, { productId: e.target.value, variantId: '' })
-                  }
+                  onChange={(e) => onLineChange(idx, { productId: e.target.value, variantId: '' })}
                   aria-label={t('inventory.products')}
                   className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-foreground min-w-40"
                 >
@@ -164,7 +163,9 @@ export function PurchaseOrderFormModal({
                   className="w-20 bg-background border border-border rounded-lg px-2.5 py-2 text-sm text-foreground font-mono text-center focus:outline-none focus:border-foreground"
                 />
                 <div className="w-28 flex items-center bg-background border border-border rounded-lg overflow-hidden focus-within:border-foreground">
-                  <span className="ps-2 text-muted-foreground font-mono text-xs">{settings.currency}</span>
+                  <span className="ps-2 text-muted-foreground font-mono text-xs">
+                    {settings.currency}
+                  </span>
                   <input
                     type="number"
                     min="0"

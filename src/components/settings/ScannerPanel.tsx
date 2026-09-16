@@ -32,9 +32,7 @@ export function ScannerPanel({
           <ScanLine size={14} className="text-muted-foreground" />
           {t('settings.scannerTitle')}
         </h3>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          {t('settings.scannerHint')}
-        </p>
+        <p className="text-xs text-muted-foreground leading-relaxed">{t('settings.scannerHint')}</p>
       </div>
 
       <label className="flex items-center gap-3 p-3 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
@@ -44,9 +42,7 @@ export function ScannerPanel({
           onChange={(e) => onScannerFormChange({ ...scannerForm, enabled: e.target.checked })}
           className="size-4 rounded border-border text-foreground focus:ring-foreground accent-foreground"
         />
-        <span className="text-xs font-medium text-foreground">
-          {t('settings.scannerEnabled')}
-        </span>
+        <span className="text-xs font-medium text-foreground">{t('settings.scannerEnabled')}</span>
       </label>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -70,7 +66,9 @@ export function ScannerPanel({
             }
             className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground font-mono focus:outline-none focus:border-foreground/50 transition-colors"
           />
-          <p className="text-[11px] text-muted-foreground mt-1">{t('settings.scannerMinLengthHint')}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {t('settings.scannerMinLengthHint')}
+          </p>
         </div>
         <div>
           <label
@@ -102,9 +100,7 @@ export function ScannerPanel({
         <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono mb-1 flex items-center gap-1.5">
           <ScanLine size={13} className="text-muted-foreground" /> {t('settings.scannerTest')}
         </h4>
-        <p className="text-[11px] text-muted-foreground mb-3">
-          {t('settings.scannerTestHint')}
-        </p>
+        <p className="text-[11px] text-muted-foreground mb-3">{t('settings.scannerTestHint')}</p>
         <div
           className="rounded-lg bg-secondary/40 border border-border px-3 py-2.5 font-mono text-xs"
           role="status"
@@ -112,15 +108,14 @@ export function ScannerPanel({
         >
           {lastTestScan ? (
             <span className="text-foreground font-semibold">
-              {t('settings.scannerLastScan')}: <strong className="font-mono">{lastTestScan.code}</strong>
+              {t('settings.scannerLastScan')}:{' '}
+              <strong className="font-mono">{lastTestScan.code}</strong>
               <span className="text-muted-foreground ms-2 text-[11px] font-normal">
                 {lastTestScan.at}
               </span>
             </span>
           ) : (
-            <span className="text-muted-foreground">
-              {t('settings.scannerNoScan')}
-            </span>
+            <span className="text-muted-foreground">{t('settings.scannerNoScan')}</span>
           )}
         </div>
       </div>

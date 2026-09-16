@@ -175,10 +175,7 @@ export function RefundModal({
         className="bg-card border border-border max-w-md w-full overflow-hidden flex flex-col max-h-[90vh] rounded-2xl shadow-xl"
       >
         <div className="px-6 py-4 border-b border-border bg-card flex justify-between items-center">
-          <h3
-            id="refund-modal-title"
-            className="font-sans font-semibold text-foreground text-base"
-          >
+          <h3 id="refund-modal-title" className="font-sans font-semibold text-foreground text-base">
             {step === 1 ? t('history.refundStep1') : t('history.refundStep2')}
           </h3>
           <button
@@ -193,9 +190,7 @@ export function RefundModal({
         <div className="p-6 overflow-y-auto flex-1">
           {step === 1 && (
             <div className="space-y-3">
-              <p className="text-xs text-muted-foreground mb-3">
-                {t('history.selectQtyHint')}
-              </p>
+              <p className="text-xs text-muted-foreground mb-3">{t('history.selectQtyHint')}</p>
               {transaction.items.map((item, idx) => {
                 const lineId = orderItemKey(item);
                 const displayName = item.variantName

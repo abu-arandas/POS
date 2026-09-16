@@ -88,6 +88,8 @@ export default function Settings() {
     setAutoScanPrinters,
     showProductImages,
     setShowProductImages,
+    soundEffects,
+    setSoundEffects,
     storeId,
     setStoreId,
   } = useSettingsStore();
@@ -222,15 +224,17 @@ export default function Settings() {
   });
 
   // --- Supabase form state ---
-  const [sbUrl, setSbUrl] = useState(supabaseConfig.url || DEFAULT_SUPABASE.url);
-  const [sbKey, setSbKey] = useState(supabaseConfig.anonKey || DEFAULT_SUPABASE.anonKey);
-  const [sbAuthEmail, setSbAuthEmail] = useState(
-    supabaseConfig.authEmail || DEFAULT_SUPABASE.authEmail || '',
-  );
-  const [sbAuthPassword, setSbAuthPassword] = useState(
-    supabaseConfig.authPassword || DEFAULT_SUPABASE.authPassword || '',
-  );
-  const [sbEnabled, setSbEnabled] = useState(supabaseConfig.enabled || DEFAULT_SUPABASE.enabled);
+  //
+  // Seeded from the persisted config alone, never from DEFAULT_SUPABASE. These
+  // fields used to fall back to it, which was harmless only while the defaults
+  // were blank: a build that shipped real credentials in that constant put the
+  // device password straight back into this form on every terminal, defeating
+  // the partialize() above that deliberately keeps it out of IndexedDB.
+  const [sbUrl, setSbUrl] = useState(supabaseConfig.url);
+  const [sbKey, setSbKey] = useState(supabaseConfig.anonKey);
+  const [sbAuthEmail, setSbAuthEmail] = useState(supabaseConfig.authEmail ?? '');
+  const [sbAuthPassword, setSbAuthPassword] = useState(supabaseConfig.authPassword ?? '');
+  const [sbEnabled, setSbEnabled] = useState(supabaseConfig.enabled);
   const [sbStoreId, setSbStoreId] = useState(storeId);
   const [busy, setBusy] = useState<null | 'test' | 'push' | 'pull'>(null);
 
@@ -516,19 +520,12 @@ export default function Settings() {
    * before it acts and cannot be undone afterwards.
    */
   const handleDeleteAllTransactions = async () => {
-    if (
-      await askConfirmation(
-        t(
-          'settings.confirmDeleteAllTransactions',
-          'Are you sure you want to permanently delete ALL transactions? This cannot be undone.',
-        ),
-      )
-    ) {
+    if (await askConfirmation(t('settings.confirmDeleteAllTransactions'))) {
       // deleteTransactions already propagates the deletion to the cloud; calling
       // deleteTransactionsCloudIfEnabled here as well doubled the largest
       // request the app makes.
       deleteTransactions(transactions.map((tx) => tx.id));
-      notify(t('settings.transactionsDeleted', 'All transactions deleted.'));
+      notify(t('settings.transactionsDeleted'));
     }
   };
 
@@ -537,14 +534,7 @@ export default function Settings() {
    * Transactions, customers and staff accounts are left alone.
    */
   const handleResetDefaults = async () => {
-    if (
-      await askConfirmation(
-        t(
-          'settings.confirmResetDefaults',
-          'Reset all settings to default values? This will not delete your transactions or users.',
-        ),
-      )
-    ) {
+    if (await askConfirmation(t('settings.confirmResetDefaults'))) {
       setSettings(DEFAULT_SETTINGS);
       setPrinterConfig(DEFAULT_PRINTER);
       setPrinterForm(DEFAULT_PRINTER);
@@ -555,6 +545,10 @@ export default function Settings() {
       setStationForm([]);
       setAutoScanPrinters(true);
       setShowProductImages(false);
+      // Same class of per-terminal toggle as the two above, and it sits beside
+      // them in the Profile panel. Leaving it out made Reset restore two of
+      // three sibling switches.
+      setSoundEffects(true);
       setSupabaseConfig(DEFAULT_SUPABASE);
       setSbUrl('');
       setSbKey('');
@@ -563,7 +557,7 @@ export default function Settings() {
       setSbEnabled(false);
       setStoreId('');
       setSbStoreId('');
-      notify(t('settings.defaultsReset', 'Settings reset to defaults.'));
+      notify(t('settings.defaultsReset'));
     }
   };
 
@@ -573,19 +567,19 @@ export default function Settings() {
     icon: typeof SettingsIcon;
     danger?: boolean;
   }> = [
-    { id: 'profile', label: t('settings.title', 'Store'), icon: SettingsIcon },
-    { id: 'printer', label: t('settings.printerTab', 'Receipt Printer'), icon: PrinterIcon },
+    { id: 'profile', label: t('settings.title'), icon: SettingsIcon },
+    { id: 'printer', label: t('settings.printerTab'), icon: PrinterIcon },
     {
       id: 'kitchen_printer',
-      label: t('settings.kitchenPrinterTab', 'Kitchen Printer'),
+      label: t('settings.kitchenPrinterTab'),
       icon: ChefHat,
     },
-    { id: 'scanner', label: t('settings.scannerTab', 'Scanner'), icon: ScanLine },
-    { id: 'supabase', label: t('settings.supabaseSync', 'Supabase Sync'), icon: Cloud },
-    { id: 'users', label: t('settings.usersTab', 'Users'), icon: Users },
+    { id: 'scanner', label: t('settings.scannerTab'), icon: ScanLine },
+    { id: 'supabase', label: t('settings.supabaseSync'), icon: Cloud },
+    { id: 'users', label: t('settings.usersTab'), icon: Users },
     {
       id: 'danger',
-      label: t('settings.dangerZone', 'Danger Zone'),
+      label: t('settings.dangerZone'),
       icon: AlertTriangle,
       danger: true,
     },
@@ -641,7 +635,16 @@ export default function Settings() {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Icon size={14} className={isActive ? (tab.danger ? 'text-destructive' : 'text-foreground') : 'text-muted-foreground'} />
+                <Icon
+                  size={14}
+                  className={
+                    isActive
+                      ? tab.danger
+                        ? 'text-destructive'
+                        : 'text-foreground'
+                      : 'text-muted-foreground'
+                  }
+                />
                 {tab.label}
                 {isActive && (
                   <motion.div
@@ -676,6 +679,8 @@ export default function Settings() {
                   emailTemplate={emailTemplate}
                   showProductImages={showProductImages}
                   onShowProductImagesChange={setShowProductImages}
+                  soundEffects={soundEffects}
+                  onSoundEffectsChange={setSoundEffects}
                   onUpdateSetting={handleUpdateSetting}
                   onLanguageChange={setLanguage}
                   onEmailTemplateChange={setEmailTemplate}

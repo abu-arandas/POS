@@ -33,7 +33,6 @@ export interface InventoryProductsTabProps {
   sortedAndFilteredProducts: Product[];
   onToggleSort(field: ProductSortField): void;
   getProductCategoryName(catId: string): string;
-  getProductCategoryColor(catId: string): string;
   onEditProduct(product: Product): void;
   onDeleteProduct(id: string): void;
 }
@@ -58,7 +57,6 @@ export function InventoryProductsTab({
   sortedAndFilteredProducts,
   onToggleSort,
   getProductCategoryName,
-  getProductCategoryColor,
   onEditProduct,
   onDeleteProduct,
 }: InventoryProductsTabProps) {
@@ -76,7 +74,10 @@ export function InventoryProductsTab({
       >
         {/* Search */}
         <div className="flex-1 min-w-48 relative flex items-center">
-          <Search size={14} className="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Search
+            size={14}
+            className="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+          />
           <input
             id="inventory-search-input"
             type="text"
@@ -283,7 +284,9 @@ export function InventoryProductsTab({
                       <td className="p-3 text-end font-mono font-medium">
                         <span
                           className={
-                            margin >= 50 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+                            margin >= 50
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-muted-foreground'
                           }
                         >
                           {margin.toFixed(0)}%

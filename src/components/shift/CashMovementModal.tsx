@@ -1,20 +1,12 @@
-import React, { useState } from 'react';
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  DollarSign,
-  X,
-  Check,
-  Tag,
-  FileText,
-} from 'lucide-react';
-import { motion } from 'motion/react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowDownLeft, ArrowUpRight, X, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { CashMovementType, StoreSettings } from '../../types';
 import { useShiftStore } from '../../stores/shiftStore';
 import { useAuthStore } from '../../stores/authStore';
 import { playSuccessChime } from '../../lib/audioFeedback';
 import { notify } from '../../lib/utils/ui';
+import { ModalShell } from '../shared/ModalShell';
 
 interface CashMovementModalProps {
   initialType?: CashMovementType;
@@ -24,7 +16,13 @@ interface CashMovementModalProps {
 
 const COMMON_REASONS: Record<CashMovementType, string[]> = {
   pay_in: ['Drawer Float Top-up', 'Bank Coin Roll', 'Change replenishment', 'Customer Overpayment'],
-  pay_out: ['Supplier CoD Cash', 'Grocery/Ingredient Run', 'Staff Tips Payout', 'Cleaning Supplies', 'Courier Fee'],
+  pay_out: [
+    'Supplier CoD Cash',
+    'Grocery/Ingredient Run',
+    'Staff Tips Payout',
+    'Cleaning Supplies',
+    'Courier Fee',
+  ],
 };
 
 const PRESET_AMOUNTS = [10, 20, 50, 100];
@@ -38,18 +36,31 @@ export function CashMovementModal({
   const [type, setType] = useState<CashMovementType>(initialType);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  const modalRef = useRef<HTMLDivElement>(null);
   const addCashMovement = useShiftStore((s) => s.addCashMovement);
+
+  useEffect(() => {
+    modalRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
   const currentUser = useAuthStore((s) => s.currentUser);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      notify(t('shift.invalidAmount', { defaultValue: 'Please enter a valid cash amount.' }));
+      notify(t('shift.invalidAmount'));
       return;
     }
     if (!reason.trim()) {
-      notify(t('shift.reasonRequired', { defaultValue: 'Please provide a reason for this cash movement.' }));
+      notify(t('shift.reasonRequired'));
       return;
     }
 
@@ -61,39 +72,38 @@ export function CashMovementModal({
     });
 
     playSuccessChime();
-    notify(
-      type === 'pay_in'
-        ? t('shift.payInRecorded', { defaultValue: `Recorded deposit of ${settings.currency}${parsedAmount.toFixed(2)}` })
-        : t('shift.payOutRecorded', { defaultValue: `Recorded expense of ${settings.currency}${parsedAmount.toFixed(2)}` }),
-    );
+    notify(type === 'pay_in' ? t('shift.payInRecorded') : t('shift.payOutRecorded'));
     onClose();
   };
 
   const isPayIn = type === 'pay_in';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
-      >
+    <ModalShell
+      id="cash-movement-modal"
+      modalRef={modalRef}
+      titleId="cash-movement-title"
+      className="w-full max-w-md p-6"
+      compactAnimation
+    >
+      <>
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className={`size-8 rounded-lg flex items-center justify-center ${
-              isPayIn ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-            }`}>
+            <div
+              className={`size-8 rounded-lg flex items-center justify-center ${
+                isPayIn
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+              }`}
+            >
               {isPayIn ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
             </div>
             <div>
-              <h3 className="font-semibold text-foreground text-base">
-                {t('shift.cashMovement', { defaultValue: 'Drawer Cash Movement' })}
+              <h3 id="cash-movement-title" className="font-semibold text-foreground text-base">
+                {t('shift.cashMovement')}
               </h3>
-              <p className="text-[11px] text-muted-foreground">
-                Petty cash audit & cash drawer float adjustments
-              </p>
+              <p className="text-[11px] text-muted-foreground">{t('shift.cashMovementHint')}</p>
             </div>
           </div>
           <button
@@ -164,7 +174,8 @@ export function CashMovementModal({
                   onClick={() => setAmount(String(amt))}
                   className="flex-1 py-1 rounded-lg border border-border bg-secondary hover:bg-muted text-xs font-mono font-medium transition-colors"
                 >
-                  +{settings.currency}{amt}
+                  +{settings.currency}
+                  {amt}
                 </button>
               ))}
             </div>
@@ -206,7 +217,7 @@ export function CashMovementModal({
               onClick={onClose}
               className="btn-secondary h-9 px-4 rounded-xl text-xs font-medium"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -215,11 +226,11 @@ export function CashMovementModal({
               }`}
             >
               <Check size={14} className="stroke-3" />
-              <span>Confirm {isPayIn ? 'Pay-In' : 'Pay-Out'}</span>
+              <span>{isPayIn ? t('shift.confirmPayIn') : t('shift.confirmPayOut')}</span>
             </button>
           </div>
         </form>
-      </motion.div>
-    </div>
+      </>
+    </ModalShell>
   );
 }

@@ -41,9 +41,7 @@ export function OperatorPanel({ rows, currency }: OperatorPanelProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-end mb-1">
-                    <span className="text-xs font-medium text-foreground truncate">
-                      {op.name}
-                    </span>
+                    <span className="text-xs font-medium text-foreground truncate">{op.name}</span>
                     <span className="font-mono font-semibold text-xs text-foreground">
                       {currency}
                       {op.revenue.toFixed(2)}

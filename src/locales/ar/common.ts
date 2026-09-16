@@ -4,4 +4,6 @@ export const common = {
   cancel: 'إلغاء',
   prompt: 'مطلوب إدخال',
   promptValue: 'القيمة',
+  required: 'مطلوب',
+  optional: 'اختياري',
 };

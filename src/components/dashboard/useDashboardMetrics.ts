@@ -6,6 +6,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { useSupplyStore } from '../../stores/supplyStore';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../../lib/csv';
 import { buildPoReport } from '../../lib/poReport';
+import { localDateKey } from '../../lib/utils/dates';
 import {
   assignSeriesColors,
   foldToCap,
@@ -184,10 +185,7 @@ export function useDashboardMetrics(t: TFunction, language: string) {
   );
 
   const exportRange = useCallback(() => {
-    downloadCsv(
-      `sales-${range}-${new Date().toISOString().slice(0, 10)}.csv`,
-      toCsv(transactionsToCsvRows(rangeTxns)),
-    );
+    downloadCsv(`sales-${range}-${localDateKey()}.csv`, toCsv(transactionsToCsvRows(rangeTxns)));
   }, [rangeTxns, range]);
 
   return {

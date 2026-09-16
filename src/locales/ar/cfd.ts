@@ -1,0 +1,15 @@
+export const cfd = {
+  active: 'شاشة العميل نشطة',
+  toggleFullscreen: 'ملء الشاشة',
+  welcome: 'أهلاً بك في {{store}}',
+  idleHeadline: 'جاهزون لخدمتك.',
+  idleBody: 'قدّم طلبك لدى الكاشير. ستظهر أصنافك والمجموع هنا فور مسحها.',
+  contactlessTitle: 'الدفع اللاتلامسي متاح',
+  contactlessBody: 'بطاقة، محفظة إلكترونية، نقداً',
+  currentOrder: 'الطلب الحالي ({{count}} صنف)',
+  payPromptTitle: 'يرجى تمرير البطاقة أو المسح للدفع',
+  payPromptBody: 'اتبع التعليمات على شاشة الكاشير',
+  thankYouTitle: 'شكراً لطلبك!',
+  thankYouBody: 'تمت معالجة الدفع بنجاح. يرجى استلام إيصالك.',
+  footer: 'شكراً لتسوقك معنا',
+};

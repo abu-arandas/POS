@@ -39,14 +39,9 @@ export function DeleteTransactionsModal({
         <h3 id="delete-tx-title" className="text-base font-semibold text-foreground mb-1.5">
           {t('history.deleteTitle')}
         </h3>
-        <p className="text-xs text-muted-foreground mb-5">
-          {t('history.deleteBody', { count })}
-        </p>
+        <p className="text-xs text-muted-foreground mb-5">{t('history.deleteBody', { count })}</p>
         <div className="flex gap-2">
-          <button
-            onClick={onCancel}
-            className="btn-secondary flex-1 text-xs h-9 px-3 rounded-lg"
-          >
+          <button onClick={onCancel} className="btn-secondary flex-1 text-xs h-9 px-3 rounded-lg">
             {t('history.cancel')}
           </button>
           <button

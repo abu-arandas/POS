@@ -42,9 +42,7 @@ function KpiCard({ label, icon, value, footer, delay }: KpiCardProps) {
         </div>
       </div>
       <div>
-        <h3 className="font-mono font-semibold num text-foreground text-2xl mb-1.5">
-          {value}
-        </h3>
+        <h3 className="font-mono font-semibold num text-foreground text-2xl mb-1.5">{value}</h3>
         <div className="flex items-center gap-2 text-xs font-medium">{footer}</div>
       </div>
     </motion.div>
@@ -99,7 +97,9 @@ export function KpiRow({ kpis, currency }: KpiRowProps) {
             <span className="badge badge-blue px-2 py-0.5">
               {t('dashboard.margin').replace(':', '')} {margin}%
             </span>
-            <span className="text-muted-foreground font-mono text-[11px]">{t('dashboard.exclTax')}</span>
+            <span className="text-muted-foreground font-mono text-[11px]">
+              {t('dashboard.exclTax')}
+            </span>
           </>
         }
       />

@@ -159,10 +159,7 @@ export function VariantsEditor({
       {/* Option types */}
       <div className="space-y-3">
         {variantTypes.map((type) => (
-          <div
-            key={type.id}
-            className="rounded-xl border border-border p-3 bg-secondary/30"
-          >
+          <div key={type.id} className="rounded-xl border border-border p-3 bg-secondary/30">
             <div className="flex items-center gap-2 mb-2.5">
               <input
                 type="text"

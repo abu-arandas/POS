@@ -90,13 +90,13 @@ function pushStoreHeader(rows: DocRow[], { settings, layout: L }: ReceiptContext
   if (S.phone && settings.storePhone)
     rows.push({
       kind: 'center',
-      text: `${i18n.t('receipt.phone', 'Phone')}: ${settings.storePhone}`,
+      text: `${i18n.t('receipt.phone')}: ${settings.storePhone}`,
       style: 'muted',
     });
   if (S.taxNumber && settings.taxNumber)
     rows.push({
       kind: 'center',
-      text: `${i18n.t('receipt.vat', 'VAT')}: ${settings.taxNumber}`,
+      text: `${i18n.t('receipt.vat')}: ${settings.taxNumber}`,
       style: 'muted',
     });
 }
@@ -112,13 +112,13 @@ function pushWhen(rows: DocRow[], layout: ReceiptLayout, date: Date): void {
   if (S.date)
     rows.push({
       kind: 'pair',
-      label: i18n.t('history.date', 'DATE:'),
+      label: i18n.t('history.date'),
       value: formatDateTime(date, layout.dateFormat),
     });
   if (S.time)
     rows.push({
       kind: 'pair',
-      label: `${i18n.t('receiptCfg.tg_time', 'Time').toUpperCase()}:`,
+      label: `${i18n.t('receiptCfg.tg_time').toUpperCase()}:`,
       value: formatDateTime(date, layout.timeFormat),
     });
 }
@@ -130,20 +130,20 @@ function pushSaleMeta(rows: DocRow[], { tx, layout: L, date: d }: ReceiptContext
   if (S.receiptNumber)
     rows.push({
       kind: 'pair',
-      label: i18n.t('history.receipt', 'RECEIPT:'),
+      label: i18n.t('history.receipt'),
       value: tx.id,
       style: 'bold',
     });
   if (S.operator && tx.operatorName)
     rows.push({
       kind: 'pair',
-      label: i18n.t('history.operator', 'OPERATOR:'),
+      label: i18n.t('history.operator'),
       value: tx.operatorName,
     });
   if (S.customer && tx.customerName)
     rows.push({
       kind: 'pair',
-      label: i18n.t('history.member', 'MEMBER:'),
+      label: i18n.t('history.member'),
       value: tx.customerName,
       style: 'bold',
     });
@@ -174,7 +174,7 @@ function pushItems(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptCont
     if (S.itemUnitPrice && item.quantity > 1) {
       rows.push({
         kind: 'line',
-        text: `@ ${money(cur, item.price)} ${i18n.t('register.each', 'ea')}`,
+        text: `@ ${money(cur, item.price)} ${i18n.t('register.each')}`,
         style: 'muted',
       });
     }
@@ -188,19 +188,19 @@ function pushTotals(rows: DocRow[], ctx: ReceiptContext): void {
   const itemCount = tx.items.reduce((s, i) => s + i.quantity, 0);
   rows.push({
     kind: 'pair',
-    label: i18n.t('history.itemsUpper', 'ITEMS:'),
+    label: i18n.t('history.itemsUpper'),
     value: String(itemCount),
     style: 'muted',
   });
   rows.push({
     kind: 'pair',
-    label: i18n.t('history.subtotal', 'SUBTOTAL:'),
+    label: i18n.t('history.subtotal'),
     value: money(cur, tx.subtotal),
   });
   if (tx.discount > 0)
     rows.push({
       kind: 'pair',
-      label: i18n.t('history.discount', 'DISCOUNT:'),
+      label: i18n.t('history.discount'),
       value: `-${money(cur, tx.discount)}`,
     });
   const taxLabel = taxLineLabel(tx.taxRate);
@@ -211,7 +211,7 @@ function pushTotals(rows: DocRow[], ctx: ReceiptContext): void {
   });
   rows.push({
     kind: 'pair',
-    label: i18n.t('history.totalPaid', 'TOTAL PAID:'),
+    label: i18n.t('history.totalPaid'),
     value: money(cur, tx.total),
     style: 'large',
     boxed: true,
@@ -219,7 +219,7 @@ function pushTotals(rows: DocRow[], ctx: ReceiptContext): void {
   if (tx.discount > 0)
     rows.push({
       kind: 'center',
-      text: `${i18n.t('history.savings', 'YOU SAVED')} ${money(cur, tx.discount)}`,
+      text: `${i18n.t('history.savings')} ${money(cur, tx.discount)}`,
       style: 'bold',
     });
 }
@@ -230,7 +230,7 @@ function pushPayment(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptCo
   if (S.paymentDetails) {
     rows.push({
       kind: 'pair',
-      label: i18n.t('history.payMethod', 'METHOD:'),
+      label: i18n.t('history.payMethod'),
       value: payLabel(tx.paymentMethod),
       style: 'bold',
     });
@@ -246,12 +246,12 @@ function pushPayment(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptCo
   if (S.changeDue && isCash) {
     rows.push({
       kind: 'pair',
-      label: i18n.t('history.cashPaid', 'CASH PAID:'),
+      label: i18n.t('history.cashPaid'),
       value: money(cur, tx.cashPaid ?? 0),
     });
     rows.push({
       kind: 'pair',
-      label: i18n.t('history.cashChange', 'CHANGE:'),
+      label: i18n.t('history.cashChange'),
       value: money(cur, tx.cashChange ?? 0),
       style: 'bold',
     });
@@ -259,7 +259,7 @@ function pushPayment(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptCo
   if (S.loyalty && tx.customerName && (tx.pointsEarned ?? 0) > 0) {
     rows.push({
       kind: 'pair',
-      label: i18n.t('history.pointsEarned', 'POINTS EARNED:'),
+      label: i18n.t('history.pointsEarned'),
       value: String(tx.pointsEarned),
       style: 'bold',
     });
@@ -283,7 +283,7 @@ function pushFooter(rows: DocRow[], { tx, layout: L }: ReceiptContext): void {
     if (!Number.isNaN(refundDate.getTime())) {
       rows.push({
         kind: 'center',
-        text: `${i18n.t('history.refund', 'REFUND:')} ${formatDateTime(refundDate, L.dateFormat)}`,
+        text: `${i18n.t('history.refund')} ${formatDateTime(refundDate, L.dateFormat)}`,
         style: 'muted',
       });
     }
@@ -291,7 +291,7 @@ function pushFooter(rows: DocRow[], { tx, layout: L }: ReceiptContext): void {
   if (tx.refundAuthorizedBy)
     rows.push({
       kind: 'center',
-      text: `${i18n.t('history.refundAuthBy', 'REFUND AUTH:')} ${tx.refundAuthorizedBy}`,
+      text: `${i18n.t('history.refundAuthBy')} ${tx.refundAuthorizedBy}`,
       style: 'muted',
     });
   if (L.footer) rows.push({ kind: 'center', text: L.footer, style: 'muted' });
@@ -354,7 +354,7 @@ export function buildKitchenDoc(
 
   const title = stationName
     ? stationName.toUpperCase()
-    : i18n.t('receiptCfg.kitchenTitle', 'KITCHEN').toUpperCase();
+    : i18n.t('receiptCfg.kitchenTitle').toUpperCase();
   rows.push({ kind: 'center', text: `*** ${title} ***`, style: 'title' });
   if (L.header) rows.push({ kind: 'center', text: L.header, style: 'bold' });
   if (S.storeName) rows.push({ kind: 'center', text: settings.storeName });
@@ -363,7 +363,7 @@ export function buildKitchenDoc(
   if (S.receiptNumber)
     rows.push({
       kind: 'pair',
-      label: `${i18n.t('receiptCfg.tg_receiptNumber', 'ORDER').toUpperCase()}:`,
+      label: `${i18n.t('receiptCfg.tg_receiptNumber').toUpperCase()}:`,
       value: tx.id,
       style: 'bold',
     });
@@ -371,13 +371,13 @@ export function buildKitchenDoc(
   if (S.operator && tx.operatorName)
     rows.push({
       kind: 'pair',
-      label: i18n.t('history.operator', 'OPERATOR:'),
+      label: i18n.t('history.operator'),
       value: tx.operatorName,
     });
   if (S.customer && tx.customerName)
     rows.push({
       kind: 'pair',
-      label: i18n.t('history.customer', 'CUSTOMER:'),
+      label: i18n.t('history.customer'),
       value: tx.customerName,
     });
   rows.push({ kind: 'divider' });
@@ -390,7 +390,7 @@ export function buildKitchenDoc(
   rows.push({
     kind: 'center',
     text: `${tx.items.reduce((s, i) => s + i.quantity, 0)} ${i18n
-      .t('history.itemsUpper', 'ITEMS')
+      .t('history.itemsUpper')
       .replace(':', '')}`,
     style: 'bold',
   });

@@ -23,8 +23,16 @@ interface ProductState {
   handleDeleteCategory: (id: string) => boolean;
 }
 
-const DEFAULT_PRODUCTS: Product[] = INITIAL_PRODUCTS;
-const DEFAULT_CATEGORIES: Category[] = INITIAL_CATEGORIES;
+/**
+ * Demo catalogue, development only — the same gate authStore, customerStore and
+ * settingsStore put on their fixtures. Without it a production terminal booted
+ * holding the 74-product demo café menu, and the `merge` below handed it back
+ * every time the operator emptied the catalogue: delete every product, reload,
+ * and the demo is there again.
+ */
+const seedCatalogue = import.meta.env.DEV || import.meta.env.MODE === 'test';
+const DEFAULT_PRODUCTS: Product[] = seedCatalogue ? INITIAL_PRODUCTS : [];
+const DEFAULT_CATEGORIES: Category[] = seedCatalogue ? INITIAL_CATEGORIES : [];
 
 /**
  * The product catalog and its categories, including stock levels. Persisted to
@@ -102,8 +110,13 @@ export const useProductStore = create<ProductState>()(
         return {
           ...current,
           ...p,
-          products: p.products && p.products.length > 0 ? p.products : INITIAL_PRODUCTS,
-          categories: p.categories && p.categories.length > 0 ? p.categories : INITIAL_CATEGORIES,
+          // An empty stored list is respected, not overwritten. Re-seeding on
+          // empty treated "the operator deleted everything" and "nothing was
+          // ever saved" as the same state, so a deliberately cleared catalogue
+          // came back on the next reload. A first run has no persisted blob at
+          // all and still gets DEFAULT_PRODUCTS from the initialiser above.
+          products: p.products ?? DEFAULT_PRODUCTS,
+          categories: p.categories ?? DEFAULT_CATEGORIES,
         };
       },
     },

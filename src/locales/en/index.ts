@@ -18,6 +18,9 @@ import { inventory } from './inventory';
 import { history } from './history';
 import { customers } from './customers';
 import { categories } from './categories';
+import { kds } from './kds';
+import { tables } from './tables';
+import { cfd } from './cfd';
 
 export const en = {
   translation: {
@@ -41,5 +44,8 @@ export const en = {
     history,
     customers,
     categories,
+    kds,
+    tables,
+    cfd,
   },
 } as const;

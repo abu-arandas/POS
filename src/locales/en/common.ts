@@ -4,4 +4,6 @@ export const common = {
   cancel: 'Cancel',
   prompt: 'Input required',
   promptValue: 'Value',
+  required: 'Required',
+  optional: 'Optional',
 };

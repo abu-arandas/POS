@@ -13,4 +13,6 @@ export const sidebar = {
   lockTerminal: 'قفل الجهاز',
   mainNavigation: 'التنقل الرئيسي',
   menu: 'القائمة',
+  tables: 'الطاولات',
+  kitchen: 'المطبخ',
 };

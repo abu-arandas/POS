@@ -6,6 +6,32 @@ This document records the source-level disposition of the Aug. 30, 2026 analysis
 
 A scanner report is still useful as a prompt to verify the authoritative boundary. For sales, the authoritative boundary is `buildSaleTransaction`, not a display-only subtotal. The transaction builder now rejects any line quantity that is not a positive safe integer before it validates tenders or assembles persisted monetary data. Pricing continues to sanitize hostile numeric inputs for display. Inventory adjustments remain a separate domain: negative stock deltas are legitimate waste/correction operations and are not subject to the sale-line predicate.
 
+## Committed credentials (resolved)
+
+The statement above — that the Aug. 30, 2026 report contained no actionable secret findings —
+described the tree as it stood then. It stopped being true later: a subsequent feature commit
+landed a live Supabase project URL, anon key, device-account email and device-account
+**password** as literals in `src/stores/settingsStore.ts` and `scripts/upload_to_supabase.mjs`,
+with `enabled: true` and `status: 'connected'`.
+
+Three things made it worse than a stray constant:
+
+- RLS grants `authenticated` full access to application data, so the device password was a
+  working session against that project for anyone holding the repository **or a built
+  installer** — the value was in the renderer bundle.
+- `Settings.tsx` seeded its credential form from `DEFAULT_SUPABASE`, so the password was
+  typed back into the UI on every terminal. The `partialize` that deliberately keeps device
+  credentials out of IndexedDB bought nothing while the bundle carried them.
+- Sync being on by default meant the test suite made live calls to that project.
+
+Resolved in source: the defaults are blank, sync is off, the seeding fallback is gone, and
+the script reads `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_DEVICE_EMAIL` and
+`SUPABASE_DEVICE_PASSWORD` from the environment, refusing to run without them.
+
+**Source is not the whole remediation.** The values are in git history and on every clone and
+build that has been distributed. The device password and the anon key have to be rotated in
+the Supabase dashboard; until they are, they should be treated as public.
+
 ## Dependency advisory
 
 The report identified `cacheable-request@7.0.4` through the development-only `electron-builder → app-builder-lib → @electron/get → got` chain. The existing override resolved its transitive `http-cache-semantics` dependency to `4.2.0`; it is now pinned explicitly to that verified patched version in `package.json`. The upstream GitHub advisory marks GHSA-8x6c-cv3v-vp6g as **withdrawn** while listing versions before `10.2.7` as affected, and the upstream Got discussion explains that upgrading the older CommonJS chain is not a simple dependency-only backport.[^1] [^2]
@@ -41,19 +67,16 @@ Run the following commands from the repository root after dependency or renderer
 ```bash
 npm ci
 npm run lint
-npm test
 npm run build
 npm audit --omit=dev
 npm audit --audit-level=high
 ```
 
-The focused security tests are:
-
-```bash
-npm test -- --run test/lib/quantity.test.ts test/lib/checkout.test.ts test/lib/ids.test.ts test/lib/printWindow.test.ts
-```
-
-The end-to-end suite additionally exercises the browser checkout and role-navigation flows. Electron packaging and physical printer/network hardware should be verified in the supported desktop and device environment before release.
+The security-sensitive paths — checkout arithmetic, identifier generation and the
+escaping used by the detached print window — carry no automated coverage, so changes
+to them need manual verification. Electron packaging and physical printer/network
+hardware should be verified in the supported desktop and device environment before
+release.
 
 ## Residual considerations
 

@@ -1,7 +1,14 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Plus, Layers, PackagePlus, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ModifierGroup, Product, ProductVariant, PurchaseOrder, PurchaseOrderStatus, VariantType } from '../types';
+import {
+  ModifierGroup,
+  Product,
+  ProductVariant,
+  PurchaseOrder,
+  PurchaseOrderStatus,
+  VariantType,
+} from '../types';
 import { hasVariants, totalVariantStock, variantCost, variantLabel } from '../lib/variants';
 import { normalizePoLines } from '../lib/purchaseOrders';
 import { type InventoryTabId, allowedInventoryTabs, isInventoryTabAllowed } from '../lib/access';
@@ -531,10 +538,6 @@ export default function Inventory() {
     return categoryMap.get(catId)?.name || 'General';
   };
 
-  const getProductCategoryColor = (catId: string) => {
-    return categoryMap.get(catId)?.color || 'badge badge-slate';
-  };
-
   const TAB_LABELS: Record<InventoryTabId, string> = {
     products: t('inventory.products'),
     categories: t('inventory.categories'),
@@ -683,7 +686,6 @@ export default function Inventory() {
             sortedAndFilteredProducts={sortedAndFilteredProducts}
             onToggleSort={toggleSort}
             getProductCategoryName={getProductCategoryName}
-            getProductCategoryColor={getProductCategoryColor}
             onEditProduct={handleOpenEditProduct}
             onDeleteProduct={handleDeleteProduct}
           />

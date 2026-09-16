@@ -41,7 +41,7 @@ export function receiptDocHtml(
   return `<html lang="${lang}" dir="${rtl ? 'rtl' : 'ltr'}">
       <head>
         <meta charset="utf-8" />
-        <title>${esc(i18n.t('receiptCfg.docTitle', 'POS Receipts'))}</title>
+        <title>${esc(i18n.t('receiptCfg.docTitle'))}</title>
         <style>
           /* The roll is a hard edge. Without border-box the padding below was
              ADDED to the roll width, so the document came out 2x${RECEIPT_MARGIN_MM}mm wider

@@ -95,8 +95,8 @@ export function useHistoryFilters(
         day: 'numeric',
         year: 'numeric',
       });
-      if (date.getTime() === today.getTime()) label = t('history.today', 'Today');
-      else if (date.getTime() === yesterday.getTime()) label = t('history.yesterday', 'Yesterday');
+      if (date.getTime() === today.getTime()) label = t('history.today');
+      else if (date.getTime() === yesterday.getTime()) label = t('history.yesterday');
       (groups[label] ??= []).push(transaction);
     }
     return groups;

@@ -4,6 +4,7 @@ import { Customer } from '../types';
 import { INITIAL_CUSTOMERS } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
 import { shortId } from '../lib/utils/ids';
+import { localDateKey } from '../lib/utils/dates';
 import { deleteCustomersCloudIfEnabled } from '../lib/sync';
 
 interface CustomerState {
@@ -36,7 +37,7 @@ export const useCustomerStore = create<CustomerState>()(
           phone,
           email,
           points: 0,
-          createdAt: new Date().toISOString().split('T')[0],
+          createdAt: localDateKey(),
         };
         set({ customers: [...get().customers, newCustomer] });
         return newCustomer;

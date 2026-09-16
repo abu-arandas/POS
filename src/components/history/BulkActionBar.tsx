@@ -31,9 +31,7 @@ export function BulkActionBar({
         <div className="size-6 rounded-full bg-foreground text-background flex items-center justify-center font-mono font-semibold text-xs">
           {count}
         </div>
-        <span className="text-foreground font-medium text-xs">
-          {t('history.selected')}
-        </span>
+        <span className="text-foreground font-medium text-xs">{t('history.selected')}</span>
       </div>
       <div className="flex items-center gap-2">
         <button

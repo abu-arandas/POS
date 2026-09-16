@@ -39,9 +39,7 @@ export function InventoryCategoriesTab({
         <div className="size-10 rounded-xl bg-muted text-foreground flex items-center justify-center group-hover:scale-105 transition-transform">
           <Plus size={20} />
         </div>
-        <span className="font-medium text-xs text-foreground">
-          {t('inventory.addCategory')}
-        </span>
+        <span className="font-medium text-xs text-foreground">{t('inventory.addCategory')}</span>
       </button>
 
       {categories.map((cat) => {

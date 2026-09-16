@@ -29,9 +29,12 @@ export function UsersPanel({
     cashier: t('settings.roleCashier'),
   };
   const roleStyle: Record<UserAccount['role'], string> = {
-    admin: 'text-[10px] uppercase font-semibold px-2 py-0.5 rounded border bg-foreground/10 text-foreground border-foreground/20',
-    manager: 'text-[10px] uppercase font-semibold px-2 py-0.5 rounded border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-    cashier: 'text-[10px] uppercase font-semibold px-2 py-0.5 rounded border bg-secondary text-muted-foreground border-border',
+    admin:
+      'text-[10px] uppercase font-semibold px-2 py-0.5 rounded border bg-foreground/10 text-foreground border-foreground/20',
+    manager:
+      'text-[10px] uppercase font-semibold px-2 py-0.5 rounded border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    cashier:
+      'text-[10px] uppercase font-semibold px-2 py-0.5 rounded border bg-secondary text-muted-foreground border-border',
   };
 
   return (
@@ -42,9 +45,7 @@ export function UsersPanel({
             <Users size={16} className="text-muted-foreground" />
             {t('settings.staffAccounts')}
           </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {t('settings.manageStaff')}
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('settings.manageStaff')}</p>
         </div>
         <button
           id="add-user-btn"

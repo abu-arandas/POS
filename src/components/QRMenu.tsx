@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { QrCode, Wifi, Printer, Copy, Check, RefreshCw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
 
 /**
  * QR digital-menu screen: starts and stops the local menu server and shows the
@@ -86,7 +85,7 @@ export default function QRMenu() {
           className="btn-secondary h-8 px-3 text-xs gap-1.5"
         >
           <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
-          {t('common.refresh', 'Refresh')}
+          {t('common.refresh')}
         </button>
       </div>
 
@@ -99,9 +98,7 @@ export default function QRMenu() {
           <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-1">
             {t('qrmenu.scanToOrder')}
           </h3>
-          <p className="text-muted-foreground text-xs mb-6">
-            {t('qrmenu.scanHint')}
-          </p>
+          <p className="text-muted-foreground text-xs mb-6">{t('qrmenu.scanHint')}</p>
 
           {!menuHost.running && (
             <p

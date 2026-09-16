@@ -41,9 +41,7 @@ export function SalesTrendChart({ data, currency }: SalesTrendChartProps) {
             <Activity size={16} className="text-muted-foreground" />
             {t('dashboard.salesTrend')}
           </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {t('dashboard.historicalPerf')}
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.historicalPerf')}</p>
         </div>
         <div className="flex items-center gap-3 text-xs font-mono bg-secondary px-3 py-1.5 rounded-lg border border-border">
           <span className="flex items-center gap-1.5 text-foreground">
@@ -69,9 +67,19 @@ export function SalesTrendChart({ data, currency }: SalesTrendChartProps) {
                 <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid {...trendChartGrid} stroke="var(--border)" strokeDasharray="3 3" opacity={0.5} />
+            <CartesianGrid
+              {...trendChartGrid}
+              stroke="var(--border)"
+              strokeDasharray="3 3"
+              opacity={0.5}
+            />
             <XAxis {...trendTimeAxis} stroke="var(--muted-foreground)" dy={10} />
-            <YAxis {...trendValueAxis} stroke="var(--muted-foreground)" dx={-10} tickFormatter={(val) => `${val}`} />
+            <YAxis
+              {...trendValueAxis}
+              stroke="var(--muted-foreground)"
+              dx={-10}
+              tickFormatter={(val) => `${val}`}
+            />
             <Tooltip content={<ChartTooltip currency={currency} />} />
             <Area
               type="monotone"

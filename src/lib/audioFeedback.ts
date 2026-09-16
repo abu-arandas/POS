@@ -2,13 +2,16 @@
  * Synthesized audio feedback engine using the native Web Audio API.
  * 100% offline, zero external asset downloads or network latency.
  */
+import { useSettingsStore } from '../stores/settingsStore';
 
 let audioCtx: AudioContext | null = null;
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
   if (!audioCtx) {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (AudioCtx) {
       audioCtx = new AudioCtx();
     }
@@ -19,15 +22,17 @@ function getAudioContext(): AudioContext | null {
   return audioCtx;
 }
 
+/**
+ * Whether the terminal plays feedback sounds.
+ *
+ * Read from the settings store rather than a bare localStorage key. The key was
+ * a settings surface nothing else knew about: it did not appear in Settings, it
+ * was not persisted with the rest of the configuration, and "Reset to defaults"
+ * did not touch it — so an operator who wanted the till quiet had no way to say
+ * so, and no way to find out why it was.
+ */
 export function isAudioFeedbackEnabled(): boolean {
-  if (typeof localStorage === 'undefined') return true;
-  return localStorage.getItem('pos_sound_fx') !== 'false';
-}
-
-export function setAudioFeedbackEnabled(enabled: boolean): void {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem('pos_sound_fx', enabled ? 'true' : 'false');
-  }
+  return useSettingsStore.getState().soundEffects;
 }
 
 /**
@@ -53,7 +58,11 @@ export function playKeySound(): void {
 
     osc.start();
     osc.stop(ctx.currentTime + 0.04);
-  } catch {}
+  } catch {
+    // Audio is a nicety, never a blocker: a browser that refuses to build an
+    // AudioContext (autoplay policy, no output device, a locked-down kiosk)
+    // must not stop a sale going through.
+  }
 }
 
 /**
@@ -80,7 +89,11 @@ export function playCartSound(): void {
 
     osc.start();
     osc.stop(ctx.currentTime + 0.09);
-  } catch {}
+  } catch {
+    // Audio is a nicety, never a blocker: a browser that refuses to build an
+    // AudioContext (autoplay policy, no output device, a locked-down kiosk)
+    // must not stop a sale going through.
+  }
 }
 
 /**
@@ -111,7 +124,11 @@ export function playKitchenBell(): void {
       osc.start(start);
       osc.stop(start + duration);
     });
-  } catch {}
+  } catch {
+    // Audio is a nicety, never a blocker: a browser that refuses to build an
+    // AudioContext (autoplay policy, no output device, a locked-down kiosk)
+    // must not stop a sale going through.
+  }
 }
 
 /**
@@ -146,7 +163,11 @@ export function playSuccessChime(): void {
       osc.start(time);
       osc.stop(time + 0.4);
     });
-  } catch {}
+  } catch {
+    // Audio is a nicety, never a blocker: a browser that refuses to build an
+    // AudioContext (autoplay policy, no output device, a locked-down kiosk)
+    // must not stop a sale going through.
+  }
 }
 
 /**
@@ -173,5 +194,9 @@ export function playErrorSound(): void {
 
     osc.start();
     osc.stop(ctx.currentTime + 0.15);
-  } catch {}
+  } catch {
+    // Audio is a nicety, never a blocker: a browser that refuses to build an
+    // AudioContext (autoplay policy, no output device, a locked-down kiosk)
+    // must not stop a sale going through.
+  }
 }

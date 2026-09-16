@@ -22,7 +22,7 @@ import i18n from '../i18n';
  * either way.
  */
 export function taxLineLabel(taxRate: number | undefined): string {
-  const base = i18n.t('history.tax', 'TAX:').replace(':', '');
+  const base = i18n.t('history.tax').replace(':', '');
   return taxRate !== undefined && taxRate > 0 ? `${base} (${taxRate}%)` : base;
 }
 

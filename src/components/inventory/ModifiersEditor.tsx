@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { Plus, X, UtensilsCrossed, Trash2 } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import type { ModifierGroup, ModifierOption, StoreSettings } from '../../types';
@@ -11,21 +11,14 @@ export interface ModifiersEditorProps {
   onChange: (groups: ModifierGroup[]) => void;
 }
 
-export function ModifiersEditor({
-  t,
-  settings,
-  modifierGroups,
-  onChange,
-}: ModifiersEditorProps) {
+export function ModifiersEditor({ t, settings, modifierGroups, onChange }: ModifiersEditorProps) {
   const addGroup = useCallback(() => {
     const newGroup: ModifierGroup = {
       id: shortId(),
       name: '',
       minSelections: 0,
       maxSelections: 1,
-      options: [
-        { id: shortId(), name: '', priceDelta: 0 },
-      ],
+      options: [{ id: shortId(), name: '', priceDelta: 0 }],
     };
     onChange([...modifierGroups, newGroup]);
   }, [modifierGroups, onChange]);
@@ -39,9 +32,7 @@ export function ModifiersEditor({
 
   const updateGroup = useCallback(
     (groupId: string, patch: Partial<ModifierGroup>) => {
-      onChange(
-        modifierGroups.map((g) => (g.id === groupId ? { ...g, ...patch } : g)),
-      );
+      onChange(modifierGroups.map((g) => (g.id === groupId ? { ...g, ...patch } : g)));
     },
     [modifierGroups, onChange],
   );
@@ -68,9 +59,7 @@ export function ModifiersEditor({
           if (g.id !== groupId) return g;
           return {
             ...g,
-            options: g.options.map((opt) =>
-              opt.id === optionId ? { ...opt, ...patch } : opt,
-            ),
+            options: g.options.map((opt) => (opt.id === optionId ? { ...opt, ...patch } : opt)),
           };
         }),
       );
@@ -98,7 +87,7 @@ export function ModifiersEditor({
       <div className="flex items-center justify-between border-b border-border/60 pb-2">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
           <UtensilsCrossed size={14} className="text-muted-foreground" />
-          {t('inventory.itemModifiers', { defaultValue: 'Item Modifiers & Add-ons' })}
+          {t('inventory.itemModifiers')}
         </h4>
         <button
           type="button"
@@ -106,18 +95,13 @@ export function ModifiersEditor({
           className="text-xs font-medium text-foreground hover:text-foreground/80 flex items-center gap-1.5 transition-colors"
         >
           <Plus size={14} />
-          <span>{t('inventory.addModifierGroup', { defaultValue: 'Add Group' })}</span>
+          <span>{t('inventory.addModifierGroup')}</span>
         </button>
       </div>
 
       {modifierGroups.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border/80 p-4 text-center">
-          <p className="text-xs text-muted-foreground">
-            {t(
-              'inventory.noModifiersHint',
-              { defaultValue: 'No custom modifiers configured. Add groups like "Doneness", "Cheese", or "Sauces".' },
-            )}
-          </p>
+          <p className="text-xs text-muted-foreground">{t('inventory.noModifiersHint')}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -132,7 +116,7 @@ export function ModifiersEditor({
                 </span>
                 <input
                   type="text"
-                  placeholder={t('inventory.modifierGroupNamePlaceholder', { defaultValue: 'Group Name (e.g. Cheese, Doneness)' })}
+                  placeholder={t('inventory.modifierGroupNamePlaceholder')}
                   value={group.name}
                   onChange={(e) => updateGroup(group.id, { name: e.target.value })}
                   className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-foreground"
@@ -141,26 +125,26 @@ export function ModifiersEditor({
                   <label className="text-[10px] uppercase font-mono text-muted-foreground cursor-pointer flex items-center gap-1">
                     <input
                       type="checkbox"
-                      checked={group.minSelections > 0}
+                      checked={(group.minSelections ?? 0) > 0}
                       onChange={(e) =>
                         updateGroup(group.id, { minSelections: e.target.checked ? 1 : 0 })
                       }
                       className="rounded accent-foreground"
                     />
-                    <span>{t('inventory.required', { defaultValue: 'Required' })}</span>
+                    <span>{t('inventory.required')}</span>
                   </label>
                 </div>
                 <div className="flex items-center gap-1.5 bg-background border border-border rounded-lg px-2 py-1">
                   <label className="text-[10px] uppercase font-mono text-muted-foreground cursor-pointer flex items-center gap-1">
                     <input
                       type="checkbox"
-                      checked={group.maxSelections > 1}
+                      checked={(group.maxSelections ?? 1) > 1}
                       onChange={(e) =>
                         updateGroup(group.id, { maxSelections: e.target.checked ? 99 : 1 })
                       }
                       className="rounded accent-foreground"
                     />
-                    <span>{t('inventory.multiSelect', { defaultValue: 'Multi' })}</span>
+                    <span>{t('inventory.multiSelect')}</span>
                   </label>
                 </div>
                 <button
@@ -179,7 +163,7 @@ export function ModifiersEditor({
                   <div key={opt.id} className="flex items-center gap-2">
                     <input
                       type="text"
-                      placeholder={t('inventory.optionNamePlaceholder', { defaultValue: 'Option name (e.g. Cheddar, Well Done)' })}
+                      placeholder={t('inventory.optionNamePlaceholder')}
                       value={opt.name}
                       onChange={(e) => updateOption(group.id, opt.id, { name: e.target.value })}
                       className="flex-1 bg-background border border-border rounded-md px-2.5 py-1 text-xs text-foreground focus:outline-none focus:border-foreground"
@@ -218,7 +202,7 @@ export function ModifiersEditor({
                   className="text-[11px] font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors pt-1"
                 >
                   <Plus size={11} />
-                  <span>{t('inventory.addOption', { defaultValue: 'Add Choice / Option' })}</span>
+                  <span>{t('inventory.addOption')}</span>
                 </button>
               </div>
             </div>

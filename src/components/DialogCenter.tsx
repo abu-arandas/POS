@@ -41,21 +41,19 @@ function DialogContent({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={
-          dialog.kind === 'confirm'
-            ? t('common.confirm', 'Confirm')
-            : t('common.prompt', 'Input required')
-        }
+        aria-label={dialog.kind === 'confirm' ? t('common.confirm') : t('common.prompt')}
         className="w-full max-w-sm rounded-xl border border-border bg-card p-5 text-foreground shadow-xl"
       >
-        <p className="whitespace-pre-wrap text-xs sm:text-sm text-foreground leading-relaxed">{dialog.message}</p>
+        <p className="whitespace-pre-wrap text-xs sm:text-sm text-foreground leading-relaxed">
+          {dialog.message}
+        </p>
         {dialog.kind === 'prompt' && (
           <input
             ref={inputRef}
             value={value}
             onChange={(event) => setValue(event.target.value)}
             className="mt-3.5 w-full rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs sm:text-sm text-foreground outline-none focus:border-foreground/50 transition-colors"
-            aria-label={t('common.promptValue', 'Value')}
+            aria-label={t('common.promptValue')}
           />
         )}
         <div className="mt-4 flex justify-end gap-2">
@@ -64,14 +62,14 @@ function DialogContent({
             onClick={() => resolveCurrent(dialog.kind === 'confirm' ? false : null)}
             className="btn-secondary h-8 px-3 text-xs"
           >
-            {t('common.cancel', 'Cancel')}
+            {t('common.cancel')}
           </button>
           <button
             type="button"
             onClick={() => resolveCurrent(dialog.kind === 'confirm' ? true : value)}
             className="btn-primary h-8 px-3 text-xs font-medium"
           >
-            {t('common.confirm', 'Confirm')}
+            {t('common.confirm')}
           </button>
         </div>
       </div>

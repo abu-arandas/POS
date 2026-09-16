@@ -3,16 +3,19 @@ import { Mail, RotateCcw } from 'lucide-react';
 import type { StoreSettings, ReceiptEmailTemplate } from '../../types';
 import { safeImageUrl } from '../../lib/imageUrl';
 import { DEFAULT_EMAIL_TEMPLATE } from '../../stores/settingsStore';
+import type { Locale } from '../../lib/i18n';
 
 export interface ProfilePanelProps {
   t: TFunction;
   settings: StoreSettings;
-  language: 'en' | 'ar';
+  language: Locale;
   emailTemplate: ReceiptEmailTemplate;
   showProductImages: boolean;
+  soundEffects: boolean;
   onShowProductImagesChange(value: boolean): void;
+  onSoundEffectsChange(value: boolean): void;
   onUpdateSetting(key: keyof StoreSettings, value: string | number): void;
-  onLanguageChange(value: 'en' | 'ar'): void;
+  onLanguageChange(value: Locale): void;
   onEmailTemplateChange(value: ReceiptEmailTemplate): void;
 }
 
@@ -26,7 +29,9 @@ export function ProfilePanel({
   language,
   emailTemplate,
   showProductImages,
+  soundEffects,
   onShowProductImagesChange,
+  onSoundEffectsChange,
   onUpdateSetting,
   onLanguageChange,
   onEmailTemplateChange,
@@ -179,6 +184,57 @@ export function ProfilePanel({
               </span>
             </label>
           </div>
+
+          <div className="md:col-span-2">
+            <label className="flex items-start gap-3 p-3.5 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
+              <input
+                id="set-sound-effects"
+                type="checkbox"
+                checked={soundEffects}
+                onChange={(e) => onSoundEffectsChange(e.target.checked)}
+                className="size-4 mt-0.5 rounded border-border text-foreground focus:ring-foreground shrink-0 accent-foreground"
+              />
+              <span>
+                <span className="block text-xs font-semibold text-foreground">
+                  {t('settings.soundEffects')}
+                </span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">
+                  {t('settings.soundEffectsHint')}
+                </span>
+              </span>
+            </label>
+          </div>
+
+          {/* Customer-facing display. It is a second browser window on the
+              counter's second screen, mirrored from the register over a
+              BroadcastChannel, so the only thing needed here is a way to open
+              it. Opened with noopener: it must not be able to script this
+              window back. */}
+          <div className="md:col-span-2">
+            <div className="flex items-start justify-between gap-3 p-3.5 bg-secondary/20 border border-border rounded-lg">
+              <span>
+                <span className="block text-xs font-semibold text-foreground">
+                  {t('settings.customerDisplay')}
+                </span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">
+                  {t('settings.customerDisplayHint')}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  window.open(
+                    `${window.location.pathname}?display=customer`,
+                    'ea-pos-customer-display',
+                    'noopener,noreferrer',
+                  )
+                }
+                className="btn-secondary h-8 px-3 rounded-lg text-xs shrink-0"
+              >
+                {t('settings.openCustomerDisplay')}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -236,7 +292,7 @@ export function ProfilePanel({
               <select
                 id="set-language"
                 value={language}
-                onChange={(e) => onLanguageChange(e.target.value as 'en' | 'ar')}
+                onChange={(e) => onLanguageChange(e.target.value as Locale)}
                 className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors"
               >
                 <option value="en">{t('settings.english')}</option>
@@ -256,7 +312,7 @@ export function ProfilePanel({
                 htmlFor="set-loyalty-points-rate"
                 className="block text-xs font-medium text-muted-foreground mb-1.5"
               >
-                {t('settings.loyaltyPointsRate', 'Points Earned per Currency Unit')}
+                {t('settings.loyaltyPointsRate')}
               </label>
               <input
                 id="set-loyalty-points-rate"
@@ -276,7 +332,7 @@ export function ProfilePanel({
                 htmlFor="set-loyalty-point-value"
                 className="block text-xs font-medium text-muted-foreground mb-1.5"
               >
-                {t('settings.loyaltyPointValue', 'Discount Value per Point')}
+                {t('settings.loyaltyPointValue')}
               </label>
               <div className="relative">
                 <span className="absolute inset-s-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-mono">

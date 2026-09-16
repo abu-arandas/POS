@@ -11,10 +11,10 @@ import {
   ChefHat,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, ProductVariant, SaleTransaction, HeldOrder, Payment } from '../types';
+import { SaleTransaction, HeldOrder, Payment } from '../types';
 import ProductGrid from './ProductGrid';
 import CartPanel from './CartPanel';
-import { useRegisterCart } from './register/useRegisterCart';
+import { useRegisterCart, type RegisterCartLine } from './register/useRegisterCart';
 const HeldOrdersModal = lazy(() =>
   import('./register/HeldOrdersModal').then(({ HeldOrdersModal }) => ({
     default: HeldOrdersModal,
@@ -51,6 +51,9 @@ import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
 import { askConfirmation, askText, notify } from '../lib/utils/ui';
+import { broadcastCfdUpdate } from '../lib/cfdChannel';
+import { playErrorSound, playSuccessChime } from '../lib/audioFeedback';
+import { cartLineKey } from './register/useRegisterCart';
 
 /**
  * The register screen: product grid, cart, discounts, held orders, and the
@@ -140,6 +143,56 @@ export default function Register() {
 
   const cashChangeDue = calculateCashChangeDue(cashPaidText);
 
+  // Mirror the sale onto the customer-facing display (see src/lib/cfdChannel and
+  // the ?display=customer entry point in main.tsx). Nothing published this
+  // before, so the display subscribed to a channel no one wrote to and sat on
+  // its idle screen through every transaction.
+  //
+  // The payload is display-only by construction: line names, quantities and
+  // money. No cost, no stock, no customer record — the screen faces the shop.
+  useEffect(() => {
+    broadcastCfdUpdate({
+      status: receiptModalOpen
+        ? 'completed'
+        : checkoutModalOpen
+          ? 'paying'
+          : cart.length > 0
+            ? 'scanning'
+            : 'idle',
+      storeName: settings.storeName,
+      currency: settings.currency,
+      items: cart.map((line) => ({
+        id: cartLineKey(line),
+        name: line.product.name,
+        variantName: line.variant ? variantLabel(line.product, line.variant) : undefined,
+        modifiers: line.modifiers?.map((m) => m.optionName),
+        quantity: line.quantity,
+        unitPrice: variantPrice(line.product, line.variant),
+        totalPrice: Number((variantPrice(line.product, line.variant) * line.quantity).toFixed(2)),
+      })),
+      subtotal,
+      discount: discountAmount,
+      tax: taxAmount,
+      total: receiptModalOpen && activeReceipt ? activeReceipt.total : totalAmount,
+      paidAmount: activeReceipt?.cashPaid,
+      changeDue: receiptModalOpen ? activeReceipt?.cashChange : undefined,
+      paymentMethod: receiptModalOpen ? activeReceipt?.paymentMethod : paymentMethod,
+      orderNumber: receiptModalOpen ? activeReceipt?.id : undefined,
+    });
+  }, [
+    cart,
+    subtotal,
+    discountAmount,
+    taxAmount,
+    totalAmount,
+    settings.storeName,
+    settings.currency,
+    checkoutModalOpen,
+    receiptModalOpen,
+    activeReceipt,
+    paymentMethod,
+  ]);
+
   // Barcode scan: match an exact SKU and add it, with brief feedback.
   //
   // Variant SKUs are matched too, and matched FIRST: on a varianted product the
@@ -157,12 +210,14 @@ export default function Register() {
       if (!product) product = products.find((p) => p.sku.toLowerCase() === norm);
 
       if (!product) {
+        playErrorSound();
         setScanFeedback({ ok: false, text: t('register.scanNotFound', { code }) });
         return;
       }
       const label = variant ? variantLabel(product, variant) : '';
       const name = label ? `${product.name} — ${label}` : product.name;
       if (availableStock(product, variant?.id) <= 0) {
+        playErrorSound();
         setScanFeedback({ ok: false, text: `${name} — ${t('register.outOfStock')}` });
         return;
       }
@@ -236,7 +291,7 @@ export default function Register() {
       const liveMap = new Map(liveProducts.map((p) => [p.id, p]));
       const adjustedItems: string[] = [];
       const rebuilt = order.items
-        .map((i) => {
+        .map((i): RegisterCartLine | null => {
           const product = liveMap.get(i.productId);
           if (!product) {
             adjustedItems.push(i.productName);
@@ -258,10 +313,7 @@ export default function Register() {
           if (quantity !== i.quantity) adjustedItems.push(product.name);
           return { product, variant, modifiers: i.modifiers, quantity };
         })
-        .filter(
-          (x): x is { product: Product; variant: ProductVariant | undefined; modifiers?: import('../types').SelectedModifier[]; quantity: number } =>
-            x !== null && x.quantity > 0,
-        );
+        .filter((line): line is RegisterCartLine => line !== null && line.quantity > 0);
       if (adjustedItems.length > 0) {
         setScanFeedback({
           ok: false,
@@ -392,6 +444,7 @@ export default function Register() {
 
     const { transaction, isCashSale } = result.sale;
 
+    playSuccessChime();
     setActiveReceipt(transaction);
     setReceiptPrinted(false);
     setCheckoutModalOpen(false);
@@ -622,7 +675,9 @@ export default function Register() {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-lg border text-xs font-medium ${
-              scanFeedback.ok ? 'bg-card text-foreground border-border' : 'bg-destructive text-destructive-foreground border-destructive'
+              scanFeedback.ok
+                ? 'bg-card text-foreground border-border'
+                : 'bg-destructive text-destructive-foreground border-destructive'
             }`}
           >
             <ScanLine size={18} className="opacity-90" />
@@ -641,9 +696,7 @@ export default function Register() {
             onClose={() => setHeldModalOpen(false)}
             onResume={resumeHeldOrder}
             onRemove={async (id) => {
-              if (
-                await askConfirmation(t('register.deleteHeldConfirm', 'Delete this held order?'))
-              ) {
+              if (await askConfirmation(t('register.deleteHeldConfirm'))) {
                 removeHeldOrder(id);
               }
             }}

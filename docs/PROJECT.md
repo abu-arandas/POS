@@ -7,7 +7,7 @@ code.
 - **Package:** `ea-pos` v1.0.4 (private)
 - **Repository:** [abu-arandas/POS](https://github.com/abu-arandas/POS)
 - **Runtime:** Node ≥ 22.22.2, React 19, Vite 6, Electron 43
-- **Scale:** ~289 files, ~34,000 lines of TS/TSX/CJS/MJS
+- **Scale:** ~330 files, ~36,000 lines of TS/TSX/CJS/MJS
 - **License:** demonstration project; use, modify and distribute freely
 
 ---
@@ -83,6 +83,17 @@ until the server accepts it.
   register's writes within ~400 ms.
 - **Multi-store fleet console** — a super-admin board with live store presence,
   consolidated cross-store reporting, store & staff management, and central catalog push.
+- **Item modifiers** — per-product add-on groups (Sauces, Doneness, Extras) with required /
+  multi-select rules and price deltas. Two lines of one product with different modifiers are
+  two cart lines, keyed by `modifierSignature`.
+- **Kitchen Display System** — sales raise live tickets routed to the station their category
+  belongs to, with an elapsed timer, item-level ticking, a bump ladder and a recall buffer.
+  Only when kitchen stations are configured; a retail counter raises none.
+- **Table management** — a floor plan with occupancy, bill-requested and reserved states, and
+  "open this table on the register".
+- **Petty cash** — pay-ins and pay-outs against the open drawer, carried into the Z-report.
+- **Customer-facing display** — a second window (`?display=customer`) mirroring the sale for
+  the customer over a `BroadcastChannel`; no cost, no stock, no customer record crosses.
 - **Full RTL + Arabic** — every string translated; receipts, canvases and print documents
   restate direction and font because they render in isolated documents.
 
@@ -159,21 +170,19 @@ POS/
 │   ├── locales/{en,ar}/         20 translation namespaces each
 │   ├── components/              screens + register/ inventory/ settings/ history/ shared/
 │   ├── db/                      SQL schemas and the Supabase seeder
-│   ├── build/                   bundle-budget guard
-│   └── e2e/                     Playwright end-to-end suite
+│   └── build/                   bundle-budget guard
 ├── electron/                    main, preload, and 4 pure decision modules + menu.html
-├── test/                        63 Vitest files (lib, stores, components, a11y, i18n, styles)
 ├── docs/                        security notes and this file
 ├── public/                      favicons
 ├── buildResources/              Electron app icons
-└── .github/workflows/           ci.yml, build-windows.yml, sonarcloud.yml
+└── .github/workflows/           build-windows.yml, cleanup-runs.yml
 ```
 
 ---
 
 ## 4. Domain model (`src/types.ts`)
 
-One file, no barrel, ~323 lines. Every interface carries a comment explaining _why_ the
+One file, no barrel, ~490 lines. Every interface carries a comment explaining _why_ the
 field exists where that is not obvious.
 
 ### Catalog
@@ -231,7 +240,7 @@ them.
 
 ## 5. State layer — Zustand stores
 
-Eleven stores in `src/stores/`. All persisted stores use `createJSONStorage(() =>
+Thirteen stores in `src/stores/`. All persisted stores use `createJSONStorage(() =>
 idbStorage)` — IndexedDB via `idb-keyval`, chosen because a terminal's catalog and
 history outgrow the 5 MB `localStorage` quota.
 
@@ -248,6 +257,8 @@ history outgrow the 5 MB `localStorage` quota.
 | `pinAttemptStore`   | `pos-pin-attempt-storage` | ✅                 | ✗            | Failed-PIN counters (survive reload)        |
 | `notificationStore` | —                         | ✗                  | ✗            | Toast queue, capped at 5, auto-dismissed    |
 | `dialogStore`       | —                         | ✗                  | ✗            | Confirm/prompt queue with promise resolvers |
+| `kdsStore`          | `pos-kds-storage`         | ✅                 | ✗            | Kitchen tickets + the recall buffer         |
+| `tableStore`        | `pos-table-storage`       | ✅                 | ✗            | Dining tables and their occupancy           |
 
 ### Notable store behaviours
 
@@ -283,6 +294,18 @@ without limit on a busy terminal. `setPurchaseOrderStatus` consults
 what lets `askConfirmation` / `askText` read as ordinary `await`s while `DialogCenter`
 renders translated, focus-managed, in-app dialogs in place of the browser's native
 `confirm`/`prompt`.
+
+**`kdsStore`** — order numbers come from a persisted `ticketSeq`, not from `tickets.length`:
+bumping a ticket removes it from the list, so a length-derived number was reused on a docket
+already in the kitchen. `bumpTicket` walks `pending → preparing → ready → completed` and
+moves a completed ticket into `recentlyBumped` (capped at 15) so `recallTicket` can put it
+back. The store plays no sound — `KitchenDisplay` rings the bell when a new ticket arrives,
+because `addTicket` runs inside `commitSale`, which is the _cashier's_ tab.
+
+**`tableStore`** — the floor plan and its occupancy. `DEFAULT_TABLES` is DEV-gated: it once
+shipped eight demo tables to production, two of them pre-set as `occupied` and
+`bill_requested` carrying invented totals, so a new terminal opened on tables that owed money
+nobody had ordered.
 
 ---
 
@@ -460,11 +483,11 @@ caller owns storage (`pinAttemptStore`) and supplies `now`.
 which screen, read by the sidebar, the mobile menu and the App-level render guard so they
 can never disagree.
 
-| Screen                                  | admin | manager | cashier |
-| --------------------------------------- | :---: | :-----: | :-----: |
-| register, history, shift                |  ✅   |   ✅    |   ✅    |
-| dashboard, inventory, customers, qrmenu |  ✅   |   ✅    |    —    |
-| settings, fleet                         |  ✅   |    —    |    —    |
+| Screen                                    | admin | manager | cashier |
+| ----------------------------------------- | :---: | :-----: | :-----: |
+| register, history, shift, tables, kitchen |  ✅   |   ✅    |   ✅    |
+| dashboard, inventory, customers, qrmenu   |  ✅   |   ✅    |    —    |
+| settings, fleet                           |  ✅   |    —    |    —    |
 
 `fleet` is additionally gated on a resolved super-admin cloud membership; it is listed as
 admin-only here so the type stays exhaustive and a non-admin can never reach it even if
@@ -593,7 +616,7 @@ m ss s a`. Longer tokens are matched first so `yyyy-MM-dd` and `h:mm a` resolve
   `legacyLayout` reproduces the pre-settings output exactly for a store that never
   customised a layout.
 
-### 7.3 HTML rendering — `src/lib/receipt/`
+### 7.3 HTML rendering — `src/lib/printing/receipt/`
 
 ```
 receipt/
@@ -659,11 +682,9 @@ the setting appeared to work and did nothing:
    to the printer, and `onload`/`onerror` do not cover an image that reports neither — that
    promise would stay pending forever and the receipt would never be sent.
 
-`test/lib/receipt/rendererConsistency.test.ts` walks all eighteen toggles and asserts the
-HTML and DocRow descriptions agree on whether each block is present. The renderers may
-differ in _how_ they draw a block — one has CSS, the other has dots — but never in
-_whether_. `htmlCharacterization.test.ts` snapshots the exact markup, including the 46
-`.ltr` spans that keep numerals from reordering on an Arabic receipt.
+The renderers may differ in _how_ they draw a block — one has CSS, the other has dots — but
+never in _whether_. Nothing enforces that now, so a toggle added to one renderer and not the
+other will ship: add it to all three paths in the same change.
 
 `escposRaster.ts` is the pure half:
 
@@ -738,13 +759,13 @@ Two rules carry real history:
 Assigning one category to several stations intentionally fans an item out to each (an expo
 copy). Only tickets with at least one item are returned, in the given station order.
 
-### 7.8 Print window transport — `src/lib/print/`
+### 7.8 Print window transport — `src/lib/printing/print/`
 
-`print/transport/system.ts` opens the detached window and writes the document;
-`print/system.ts` composes receipts (joined by `<div class="page-break">`) or a kitchen
-ticket; `print/types.ts` defines `PrintOutcome = 'printed' | 'popup-blocked' | 'esc-pos'`.
-The former `receiptPrinter.ts` facade has been deleted; callers import from `receipt/` or
-`print/` directly.
+`printing/print/transport/system.ts` opens the detached window and writes the document;
+`printing/print/system.ts` composes receipts (joined by `<div class="page-break">`) or a kitchen
+ticket; `printing/print/types.ts` defines `PrintOutcome = 'printed' | 'popup-blocked' | 'esc-pos'`.
+The former `receiptPrinter.ts` facade has been deleted; callers import from `printing/receipt/`
+or `printing/print/` directly.
 
 ### 7.9 Printer discovery — `printerDiscovery.ts`
 
@@ -1071,18 +1092,20 @@ qrcode.react and the fleet console stay out of the initial bundle.
 
 ### 10.2 Screens
 
-| Screen          | File                           | Responsibility                                                                                    |
-| --------------- | ------------------------------ | ------------------------------------------------------------------------------------------------- |
-| **Lockscreen**  | `Lockscreen.tsx`               | Staff picker + PIN pad, first-run administrator setup, lockout countdown, hardware-keyboard entry |
-| **Register**    | `Register.tsx`                 | Product grid, cart, held orders, checkout → payment → receipt, barcode scanning, printing         |
-| **Inventory**   | `Inventory.tsx` + `inventory/` | Products, categories, suppliers, purchase orders, stock log, label printing                       |
-| **History**     | `History.tsx` + `history/`     | Search/filter sales, reprint, bulk print/delete, full and partial refunds                         |
-| **Customers**   | `Customers.tsx`                | Customer book, per-customer stats and transaction list                                            |
-| **Dashboard**   | `Dashboard.tsx`                | KPIs, trends, best-sellers, category/payment/operator breakdowns, PO spend, CSV export            |
-| **ShiftScreen** | `ShiftScreen.tsx`              | Open/close drawer, live Z-report, printable report                                                |
-| **QRMenu**      | `QRMenu.tsx`                   | LAN menu server address, QR code, copy/print                                                      |
-| **Settings**    | `Settings.tsx` + `settings/`   | Seven tabs: profile, printer, kitchen printer, scanner, Supabase, users, danger zone              |
-| **FleetView**   | `FleetView.tsx`                | Tab container for the four super-admin surfaces                                                   |
+| Screen              | File                           | Responsibility                                                                                    |
+| ------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| **Lockscreen**      | `Lockscreen.tsx`               | Staff picker + PIN pad, first-run administrator setup, lockout countdown, hardware-keyboard entry |
+| **Register**        | `Register.tsx`                 | Product grid, cart, held orders, checkout → payment → receipt, barcode scanning, printing         |
+| **Inventory**       | `Inventory.tsx` + `inventory/` | Products, categories, suppliers, purchase orders, stock log, label printing                       |
+| **History**         | `History.tsx` + `history/`     | Search/filter sales, reprint, bulk print/delete, full and partial refunds                         |
+| **Customers**       | `Customers.tsx`                | Customer book, per-customer stats and transaction list                                            |
+| **Dashboard**       | `Dashboard.tsx`                | KPIs, trends, best-sellers, category/payment/operator breakdowns, PO spend, CSV export            |
+| **ShiftScreen**     | `ShiftScreen.tsx`              | Open/close drawer, live Z-report, printable report                                                |
+| **QRMenu**          | `QRMenu.tsx`                   | LAN menu server address, QR code, copy/print                                                      |
+| **Settings**        | `Settings.tsx` + `settings/`   | Seven tabs: profile, printer, kitchen printer, scanner, Supabase, users, danger zone              |
+| **FleetView**       | `FleetView.tsx`                | Tab container for the four super-admin surfaces                                                   |
+| **KitchenDisplay**  | `KitchenDisplay.tsx`           | Live kitchen tickets: status filters, station filter, timers, bump and recall                     |
+| **TableManagement** | `TableManagement.tsx`          | Floor plan, occupancy, open checks, and handing a table to the register                           |
 
 ### 10.3 Screen details worth knowing
 
@@ -1194,7 +1217,7 @@ hits so repeated scans cannot accumulate stale entries.
 `.font-arabic` (Cairo). The layout uses logical properties (`ps-`, `pe-`, `border-s-`) so it
 mirrors without per-direction overrides.
 
-**`test/i18n/keyCoverage.test.ts` enforces three rules:**
+**Three rules the catalogue has to satisfy, now by hand:**
 
 1. every `t('a.b')` in `src/` resolves in English,
 2. every English key has an Arabic counterpart,
@@ -1212,7 +1235,7 @@ four files sitting directly in `src/`, `App.tsx` among them.
 
 ## 12. Styling system
 
-Tailwind CSS v4 via `@tailwindcss/vite`, with `src/index.css` (941 lines) as the single
+Tailwind CSS v4 via `@tailwindcss/vite`, with `src/index.css` (~950 lines) as the single
 entry.
 
 - **Fonts** — seven self-hosted `.woff2` faces (Inter, JetBrains Mono, Cairo × latin,
@@ -1233,14 +1256,12 @@ entry.
   drifts) plus `@media (prefers-reduced-motion: reduce)`. React animation goes through
   `<MotionConfig reducedMotion="user">`.
 
-**`test/styles/deadClasses.test.ts`** asserts that every class the stylesheet defines is
-named somewhere the app can reach. The stylesheet had accumulated 38 component classes
+**Every class the stylesheet defines should be named somewhere the app can reach**, though
+nothing checks it any more. The stylesheet had accumulated 38 component classes
 nothing rendered any more — gradient text, neon borders, a skeleton loader, a whole
 z-report table — plus the 19 `@keyframes` only they animated: ~5 KB shipped to every
 terminal, and worse, a reader could not tell which of two similar-looking classes the app
-actually used. The test parses only selector preludes (scanning the whole file would collect
-`woff2` from a `@font-face` URL) and strips comments repeatedly, because one pass can splice
-neighbouring delimiters into a fresh surviving comment.
+actually used.
 
 ---
 
@@ -1483,8 +1504,8 @@ because a PIN set on one terminal has to reach the others; since every terminal 
 Supabase device account, the database cannot tell an admin's terminal from a cashier's, and
 role enforcement for that lives in the app. Treat the device account as the store's
 credential, scope it per store, rotate it when a terminal is lost.
-`test/db/schemaContract.test.ts` locks the grant shape down in CI and
-`src/db/verify-policies.sql` checks it against a live database.
+`src/db/verify-policies.sql` checks the grant shape against a live database; nothing checks
+it at build time, so run it after touching either SQL file.
 
 Both the view and the grants are built inside a `DO` block that detects whether `store_id`
 exists, because re-running this file on a fleet deployment broke twice over:
@@ -1657,8 +1678,6 @@ and port 9100 only.
 | `portable`                | `vite build --config vite.portable.config.ts` → `portable/index.html` |
 | `lint`                    | `tsc --noEmit && eslint .`                                            |
 | `format` / `format:check` | Prettier                                                              |
-| `test` / `test:coverage`  | Vitest                                                                |
-| `test:e2e`                | Playwright                                                            |
 | `perf:check`              | `node src/build/check-bundle-budget.mjs`                              |
 | `electron:dev`            | `concurrently` Vite + Electron with `wait-on`                         |
 | `electron:build`          | `vite build && electron-builder --config electron-builder.config.cjs` |
@@ -1685,12 +1704,11 @@ transpiles.
 
 ### ESLint (flat config)
 
-Four scoped blocks: TS/TSX with react-hooks and react-refresh; `electron/**/*.cjs` (which
+Two scoped blocks: TS/TSX with react-hooks and react-refresh; and `electron/**/*.cjs` (which
 had been excluded entirely, leaving the most privileged code in the project — IPC handlers,
 the PowerShell spawn, the navigation lockdown, the auto-updater — checked by nothing but a
-syntax pass); Node-context configs and e2e; and `test/**` with `no-explicit-any` off,
-because tests mock large third-party surfaces. **Production code under `src/` carries zero
-`any`.** CI runs `eslint . --max-warnings 0`.
+syntax pass). **Production code under `src/` carries zero `any`.** Run
+`eslint . --max-warnings 0`.
 
 ### electron-builder
 
@@ -1704,58 +1722,30 @@ path taken, so an unsigned build is never mistaken for a signed one in CI output
 
 ## 17. Testing
 
-### Unit and component — Vitest
+The project carries **no automated tests**. The Vitest suite under `test/`, the Playwright
+specs under `src/e2e/`, and their configs were removed deliberately; `git log` has them if
+they are ever wanted back.
 
-69 files under `test/`, mirroring `src/`. Environment `jsdom`; `test/setup.ts` loads
-`fake-indexeddb/auto` (stores persist through idb-keyval), `@testing-library/jest-dom`,
-real i18n so `t()` returns English strings, an explicit `cleanup()` (auto-cleanup only
-registers itself with vitest globals enabled, which they are not), and stubs
-`offsetWidth`/`offsetHeight` to 1 because jsdom has no layout engine and `useModalA11y`
-filters focusables by them.
+What that costs is worth stating plainly, because the guards were not only regression nets —
+several encoded invariants that nothing else in the repo expresses: every `t()` key resolving
+in both locales, every CSS class the stylesheet defines being reachable, the two receipt
+renderers agreeing on which blocks exist, the SQL grants never exposing the PIN hash, and
+every repository path named in a comment still resolving. Those rules still hold; they are
+now maintained by reading.
 
-Coverage (v8) includes `src/lib/**`, `src/stores/**` and `src/components/**`. The Vitest
-`include` is scoped to `test/**` so it can never collect a Playwright spec, whose `test()`
-and `expect()` come from a different runner.
-
-| Area                              | Files                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/lib/`                       | 48 files — pricing, checkout, refunds, payments, shift/PO/fleet reports, ESC/POS text + raster, receipt doc/format/layout/printer, hardware print, printer discovery, kitchen routing, barcode, CSV, digital receipts, product labels, purchase orders, hashing, PIN throttle, access, validation, ids, concurrency, image URLs, modal a11y, barcode scanner, sync, realtime sync, Supabase client/paging/store-stamping/device sign-in, fleet client, catalog push, store form, and the Electron pure modules (`menuServer`, `updatePolicy`, `validation`, `windowsSigning`) |
-| `test/stores/`                    | product, shift, supply, dialog                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `test/components/`                | Register, CartPanel, History, Inventory, Lockscreen, plus the two extracted hooks                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `test/a11y/formLabels.test.tsx`   | Accessible-name algorithm for initial screens and controls revealed in Settings, Inventory, Customers and receipt-layout surfaces                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `test/i18n/keyCoverage.test.ts`   | The three catalogue rules                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `test/styles/deadClasses.test.ts` | Every defined CSS class is reachable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-
-The Electron pure modules exist in their own `.cjs` files **precisely so they can be
-tested** — CI otherwise only reaches `main.cjs` through `node --check`.
-
-### End-to-end — Playwright
-
-`src/e2e/checkout.spec.ts` drives the real app across Chromium, Firefox and WebKit: PIN login,
-adding to the cart, card checkout, cash checkout with change, and role-based navigation. The
-config boots the Vite dev server automatically, retries twice in CI, records a trace on
-first retry and a screenshot on failure.
-
-Note that `npm run test:e2e` runs all three projects. Installing only Chromium leaves the
-other two failing with _"Executable doesn't exist"_, which reads like a broken test rather
-than a missing browser — iterate with `npm run test:e2e -- --project=chromium`.
+The checks that remain are `npm run lint` (`tsc --noEmit && eslint .`), `npm run format:check`,
+`npm run build`, and `npm run perf:check` for the bundle budget. The Electron pure modules
+(`menuServer`, `updatePolicy`, `validation`, `windowsSigning`) still live in their own `.cjs`
+files, which is now only a separation-of-concerns benefit — `main.cjs` is reached by
+`node --check` alone, a parse and nothing more.
 
 ---
 
 ## 18. CI/CD
 
-### `ci.yml` — on push to main and every PR
-
-`checks` job (Node 22, 20-minute timeout): `npm ci` → `npm audit --audit-level=high` →
-`tsc --noEmit && eslint` → `eslint . --max-warnings 0` → `prettier --check` → Vitest →
-`vite build` → bundle budget → `node --check` on all six Electron/seed files → a config
-smoke test asserting the unsigned path claims **no** publisher and the appId is unchanged.
-
-`e2e` job (30-minute timeout): installs all three browser engines and runs Playwright,
-uploading the HTML report as an artifact with 7-day retention.
-
-Concurrency cancels superseded **pull-request** runs only — a run on `main` is the record
-for that commit and is left to finish.
+There is no general `ci.yml`; it was removed with the test suites. Nothing runs `tsc`,
+`eslint`, `prettier` or the bundle budget on a push — run them locally before opening a
+pull request. The two workflows below remain.
 
 ### `build-windows.yml` — on push to main, PRs, and manual dispatch
 
@@ -1774,16 +1764,24 @@ unsigned ones become **pre-releases** with a prominent warning, so electron-upda
 offer them to installed terminals. The workflow is deliberately input-free: build provenance
 only holds if the output cannot be steered by run parameters.
 
-### `sonarcloud.yml` — opt-in, no-op until configured
+### `cleanup-runs.yml` — manual, dry-run by default
 
-Started as GitHub's starter template committed unchanged, which failed on every push for
-four reasons at once: empty scanner arguments, no `SONAR_TOKEN`, no checkout step (so even a
-configured run would have scanned an empty directory), and a permissions block missing
-`contents: read`. It now resolves configuration in a step (the secrets context is not
-available in a job-level `if`) and emits a notice instead of a failure when unconfigured.
-The scanner action is pinned to a commit. Coverage is not reported because
-`vitest.config.ts` declares only text reporters — the header documents exactly how to wire
-lcov up.
+Deletes old workflow run _records_ from the Actions tab. Logs and artifacts age out on
+their own retention schedule, but the run entry never does, so the list grows without
+limit and the runs worth reading get buried.
+
+Deliberately `workflow_dispatch` only, and `dry_run` defaults to **true**. A deleted run is
+unrecoverable — logs, artifacts and job timings go with it — so the first press shows what
+would go and deleting takes a second, deliberate one. Both numeric inputs are validated and
+forced to base 10 before they reach `date -d` or `tail -n`, because `08` passes a digit test
+and then aborts the run as invalid octal. Permissions are `actions: write` and
+`contents: none` — nothing here reads the repository.
+
+A failed _listing_ fails the job rather than reporting an empty one: a denied token, a rate
+limit and an API error all yield zero rows, and swallowing that would print "Nothing to do"
+and finish green, having never seen a single run. Individual deletions are allowed to fail
+(a run can vanish between listing and deleting, and GitHub refuses to delete some of its
+own), but every deletion failing is an error.
 
 ---
 
@@ -1876,8 +1874,21 @@ A budget failure should trigger a fresh bundle analysis, not an arbitrary limit 
    Postgres ORs permissive policies together.
 9. **`node --check` is a parse, not a test.** Logic that matters belongs in a `.cjs` module
    with unit tests, not inline in `main.cjs`.
-10. **A dev fixture is not a production default.** `DEFAULT_SETTINGS` and `DEFAULT_USERS` are
-    environment-gated for exactly this reason.
+10. **A dev fixture is not a production default.** `DEFAULT_SETTINGS`, `DEFAULT_USERS`,
+    `DEFAULT_PRODUCTS`, `DEFAULT_CATEGORIES` and `DEFAULT_TABLES` are environment-gated for
+    exactly this reason.
+11. **A pull replaces local data, so a field the mapper drops is that field deleted.** Adding
+    anything to `Product` means adding it to the column list, `toProductRow`, `pullProducts`
+    and `push_store_catalog` in the same change — `modifierGroups` reached production with
+    none of them, and every realtime product event silently erased it.
+12. **No credential belongs in source.** `DEFAULT_SUPABASE` is blank and sync is off by
+    default. A build that ships a device password ships it to everyone holding the installer,
+    and `partialize` keeping it out of IndexedDB buys nothing if the bundle carries it.
+13. **A calendar day is a local day.** `new Date().toISOString().slice(0, 10)` names the
+    _UTC_ day: at UTC+3 it files the first three hours of every night under yesterday, and
+    at UTC-5 it stamps an evening with tomorrow. Use `localDateKey()` from
+    `src/lib/utils/dates.ts`, which is what the dashboard's own `toDateString()` bucketing
+    already agrees with.
 
 ### Adding things
 
@@ -1895,45 +1906,49 @@ A budget failure should trigger a fresh bundle analysis, not an arbitrary limit 
 
 ### `src/lib` (~60 modules)
 
-| Module                                           | Purpose                                             |
-| ------------------------------------------------ | --------------------------------------------------- |
-| `access.ts`                                      | Screen/role matrix                                  |
-| `barcode.ts`                                     | Pure Code 128 encoder + SVG                         |
-| `catalogPush.ts`                                 | Cross-store catalog diff planning                   |
-| `checkout.ts`                                    | Sale assembly + tender validation                   |
-| `concurrency.ts`                                 | Bounded-parallelism map                             |
-| `csv.ts`                                         | RFC-4180 CSV + formula neutralisation + download    |
-| `digitalReceipt.ts`                              | Plain-text receipt, share, email templates          |
-| `escpos.ts`                                      | ESC/POS text encoder                                |
-| `escposRaster.ts`                                | 1bpp packing + `GS v 0` bands + `needsRaster`       |
-| `fleet.ts` / `fleetClient.ts` / `fleetReport.ts` | Fleet pure logic / RPCs / reporting                 |
-| `hardwarePrint.ts`                               | Transport dispatch                                  |
-| `hash.ts`                                        | SHA-256, HMAC, PBKDF2, versioned PIN hashes         |
-| `i18n.ts`                                        | i18next init                                        |
-| `idbStorage.ts`                                  | Zustand ↔ idb-keyval adapter                        |
-| `imageUrl.ts`                                    | Image URL sanitiser                                 |
-| `outbox.ts`                                      | Durable queue of cloud writes still owed            |
-| `kitchenRouting.ts`                              | Category → station routing                          |
-| `payments.ts`                                    | Tender summarisation                                |
-| `pinThrottle.ts`                                 | Lockout ladder                                      |
-| `poReport.ts` / `purchaseOrders.ts`              | PO reporting / state machine                        |
-| `pricing.ts`                                     | Order totals                                        |
-| `print/*`                                        | System print-window transport                       |
-| `printerDiscovery.ts`                            | OS/serial/network printer detection                 |
-| `productLabels.ts`                               | Shelf-label sheets                                  |
-| `realtimeSync.ts`                                | Realtime subscription + generation-guarded teardown |
-| `receipt/*`                                      | HTML receipt documents                              |
-| `receiptCanvas.ts`                               | Canvas raster renderer                              |
-| `receiptDoc.ts`                                  | Renderer-independent document model                 |
-| `receiptFormat.ts`                               | Layout defaults, token formatter, font whitelist    |
-| `refunds.ts`                                     | Refund computation                                  |
-| `shiftReport.ts`                                 | Z-report tallies                                    |
-| `storeForm.ts`                                   | Store form validation + slugs                       |
-| `supabase/*`                                     | Cloud client, paging, per-table push/pull           |
-| `sync.ts`                                        | Sync orchestration + outbox replay loop             |
-| `useBarcodeScanner.ts`                           | Wedge-scanner hook                                  |
-| `useModalA11y.ts`                                | Dialog focus trap                                   |
-| `utils/*`                                        | validation, formatting, ids, ui, dom                |
+| Module                                           | Purpose                                                      |
+| ------------------------------------------------ | ------------------------------------------------------------ |
+| `access.ts`                                      | Screen/role matrix                                           |
+| `barcode.ts`                                     | Pure Code 128 encoder + SVG                                  |
+| `catalogPush.ts`                                 | Cross-store catalog diff planning                            |
+| `checkout.ts`                                    | Sale assembly + tender validation                            |
+| `concurrency.ts`                                 | Bounded-parallelism map                                      |
+| `csv.ts`                                         | RFC-4180 CSV + formula neutralisation + download             |
+| `digitalReceipt.ts`                              | Plain-text receipt, share, email templates                   |
+| `escpos.ts`                                      | ESC/POS text encoder                                         |
+| `escposRaster.ts`                                | 1bpp packing + `GS v 0` bands + `needsRaster`                |
+| `fleet.ts` / `fleetClient.ts` / `fleetReport.ts` | Fleet pure logic / RPCs / reporting                          |
+| `hardwarePrint.ts`                               | Transport dispatch                                           |
+| `hash.ts`                                        | SHA-256, HMAC, PBKDF2, versioned PIN hashes                  |
+| `i18n.ts`                                        | i18next init                                                 |
+| `idbStorage.ts`                                  | Zustand ↔ idb-keyval adapter                                 |
+| `imageUrl.ts`                                    | Image URL sanitiser                                          |
+| `outbox.ts`                                      | Durable queue of cloud writes still owed                     |
+| `kitchenRouting.ts`                              | Category → station routing                                   |
+| `modifiers.ts`                                   | Modifier signatures, price deltas, required-group validation |
+| `cfdChannel.ts`                                  | Customer-display BroadcastChannel                            |
+| `audioFeedback.ts`                               | Synthesised feedback sounds (Web Audio, offline)             |
+| `dailySummaryReport.ts`                          | End-of-day summary text + share transports                   |
+| `payments.ts`                                    | Tender summarisation                                         |
+| `pinThrottle.ts`                                 | Lockout ladder                                               |
+| `poReport.ts` / `purchaseOrders.ts`              | PO reporting / state machine                                 |
+| `pricing.ts`                                     | Order totals                                                 |
+| `print/*`                                        | System print-window transport                                |
+| `printerDiscovery.ts`                            | OS/serial/network printer detection                          |
+| `productLabels.ts`                               | Shelf-label sheets                                           |
+| `realtimeSync.ts`                                | Realtime subscription + generation-guarded teardown          |
+| `receipt/*`                                      | HTML receipt documents                                       |
+| `receiptCanvas.ts`                               | Canvas raster renderer                                       |
+| `receiptDoc.ts`                                  | Renderer-independent document model                          |
+| `receiptFormat.ts`                               | Layout defaults, token formatter, font whitelist             |
+| `refunds.ts`                                     | Refund computation                                           |
+| `shiftReport.ts`                                 | Z-report tallies                                             |
+| `storeForm.ts`                                   | Store form validation + slugs                                |
+| `supabase/*`                                     | Cloud client, paging, per-table push/pull                    |
+| `sync.ts`                                        | Sync orchestration + outbox replay loop                      |
+| `useBarcodeScanner.ts`                           | Wedge-scanner hook                                           |
+| `useModalA11y.ts`                                | Dialog focus trap                                            |
+| `utils/*`                                        | validation, formatting, ids, ui, dom                         |
 
 ### `src/components` (43 files)
 

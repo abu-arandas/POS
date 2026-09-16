@@ -12,6 +12,7 @@ import {
 import { INITIAL_SETTINGS } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
 import { defaultReceiptLayout, defaultKitchenLayout } from '../lib/printing/receiptFormat';
+import type { Locale } from '../lib/i18n';
 
 interface SettingsState {
   settings: StoreSettings;
@@ -33,12 +34,17 @@ interface SettingsState {
   // photography. Product.image is untouched either way, so switching this on
   // brings back whatever was already set.
   showProductImages: boolean;
+  // Feedback sounds: the cart blip, the PIN keypad tick, the error bump, the
+  // checkout chime and the kitchen bell. On by default — a busy counter reads
+  // a sound faster than a toast — but a quiet room wants it off, and it is a
+  // per-terminal preference like the printer, not an account setting.
+  soundEffects: boolean;
   // This terminal's store id for multi-store cloud scoping (see
   // src/db/multi-store-schema.sql). Empty = single-store mode: sync behaves exactly
   // as before (no store_id stamped or filtered).
   storeId: string;
   darkMode: boolean;
-  language: 'en' | 'ar';
+  language: Locale;
 
   setSettings: (settings: StoreSettings) => void;
   setPrinterConfig: (config: PrinterConfig) => void;
@@ -50,9 +56,10 @@ interface SettingsState {
   setKitchenLayout: (layout: ReceiptLayout) => void;
   setAutoScanPrinters: (on: boolean) => void;
   setShowProductImages: (on: boolean) => void;
+  setSoundEffects: (on: boolean) => void;
   setStoreId: (storeId: string) => void;
   setDarkMode: (darkMode: boolean) => void;
-  setLanguage: (lang: 'en' | 'ar') => void;
+  setLanguage: (lang: Locale) => void;
 }
 
 /**
@@ -92,14 +99,12 @@ export const DEFAULT_PRINTER: PrinterConfig = {
  * Cloud sync off and unconfigured — the offline-first default.
  */
 export const DEFAULT_SUPABASE: SupabaseConfig = {
-  url: 'https://fwwgksbubwlnfzokflhz.supabase.co/',
-  anonKey:
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3d2drc2J1YndsbmZ6b2tmbGh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzA2NjgsImV4cCI6MjEwNDgwNjY2OH0.BSZ5Jxcimp3wlvD3jODjfbM2s2DHF8jQD3LYDYqf2FA',
-  authEmail: 'sjgrill9@gmail.com',
-  authPassword: 'Sult@n2005',
-  deviceAuthConfigured: true,
-  enabled: true,
-  status: 'connected',
+  url: '',
+  anonKey: '',
+  authEmail: '',
+  authPassword: '',
+  enabled: false,
+  status: 'disconnected',
 };
 
 /**
@@ -141,6 +146,7 @@ export const useSettingsStore = create<SettingsState>()(
       kitchenLayout: defaultKitchenLayout(),
       autoScanPrinters: true,
       showProductImages: false,
+      soundEffects: true,
       storeId: '',
       // Dark-first: the whole UI is designed for a dark canvas. New terminals
       // start dark and stay cohesive; a saved light preference is restored on
@@ -158,6 +164,7 @@ export const useSettingsStore = create<SettingsState>()(
       setKitchenLayout: (kitchenLayout) => set({ kitchenLayout }),
       setAutoScanPrinters: (autoScanPrinters) => set({ autoScanPrinters }),
       setShowProductImages: (showProductImages) => set({ showProductImages }),
+      setSoundEffects: (soundEffects) => set({ soundEffects }),
       setStoreId: (storeId) => set({ storeId }),
       setDarkMode: (darkMode) => {
         // Apply the theme class immediately; without this the `dark:` variants

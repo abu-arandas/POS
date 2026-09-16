@@ -38,24 +38,4 @@ export default tseslint.config(
       globals: globals.node,
     },
   },
-  {
-    // Playwright e2e tests and the test/build config files run under Node, not
-    // the browser/React fast-refresh model, so drop the React-specific rules.
-    files: ['src/e2e/**/*.ts', 'playwright.config.ts', 'vitest.config.ts'],
-    languageOptions: { globals: globals.node },
-    rules: {
-      'react-refresh/only-export-components': 'off',
-    },
-  },
-  {
-    // Unit/component tests mock third-party SDKs whose surfaces are large and
-    // awkward to reproduce exactly (the Supabase client, Web Serial, fake
-    // timers). Partial test doubles legitimately need `any`, so scope that rule
-    // off for tests only — production code under src/** stays fully strict and
-    // carries zero `any`.
-    files: ['test/**/*.{ts,tsx}'],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-    },
-  },
 );

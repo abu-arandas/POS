@@ -55,7 +55,7 @@ export function TopProductsChart({ data, currency }: TopProductsChartProps) {
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" margin={horizontalBarMargin}>
-              <CartesianGrid {...horizontalBarGrid} stroke="var(--border)" strokeDasharray="3 3" opacity={0.5} />
+              <CartesianGrid {...horizontalBarGrid} strokeDasharray="3 3" opacity={0.5} />
               <XAxis {...barValueAxis} stroke="var(--muted-foreground)" />
               <YAxis {...barCategoryAxis} stroke="var(--muted-foreground)" width={120} />
               <Tooltip
@@ -64,7 +64,10 @@ export function TopProductsChart({ data, currency }: TopProductsChartProps) {
               />
               <Bar dataKey="quantity" radius={[0, 6, 6, 0]} barSize={20}>
                 {data.map((_entry, index) => (
-                  <Cell key={`cell-${index}`} fill={index === 0 ? 'var(--foreground)' : 'var(--muted-foreground)'} />
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={index === 0 ? 'var(--foreground)' : 'var(--muted-foreground)'}
+                  />
                 ))}
               </Bar>
             </BarChart>

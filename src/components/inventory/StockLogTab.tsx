@@ -44,10 +44,7 @@ export function InventoryStockLogTab({ t, adjustments }: InventoryStockLogTabPro
               </tr>
             ) : (
               adjustments.map((a) => (
-                <tr
-                  key={a.id}
-                  className="hover:bg-muted/40 transition-colors"
-                >
+                <tr key={a.id} className="hover:bg-muted/40 transition-colors">
                   <td className="py-3 px-4 font-mono text-xs text-muted-foreground whitespace-nowrap">
                     {new Date(a.createdAt).toLocaleString()}
                   </td>

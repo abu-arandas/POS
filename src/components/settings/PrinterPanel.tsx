@@ -246,9 +246,7 @@ export function PrinterPanel({
             onChange={(e) => onPrinterFormChange({ ...printerForm, showBarcode: e.target.checked })}
             className="size-4 rounded border-border text-foreground focus:ring-foreground accent-foreground"
           />
-          <span className="text-xs font-medium text-foreground">
-            {t('settings.showBarcode')}
-          </span>
+          <span className="text-xs font-medium text-foreground">{t('settings.showBarcode')}</span>
         </label>
 
         <label className="flex items-center gap-3 p-3 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
@@ -260,9 +258,7 @@ export function PrinterPanel({
             }
             className="size-4 rounded border-border text-foreground focus:ring-foreground accent-foreground"
           />
-          <span className="text-xs font-medium text-foreground">
-            {t('settings.autoPrint')}
-          </span>
+          <span className="text-xs font-medium text-foreground">{t('settings.autoPrint')}</span>
         </label>
 
         <label className="flex items-center gap-3 p-3 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
