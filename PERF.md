@@ -11,17 +11,17 @@ This ledger records the Phase 4 baseline and the guards that should be run befor
 | TypeScript and ESLint   | Passing; zero ESLint errors and warnings | `npm run lint`                         |
 | Formatting              |                                  Passing | `npm run format:check`                 |
 | Production build        |                      6–7 seconds locally | `npm run build`                        |
-| Initial JavaScript      |   478,980 raw bytes / 151,632 gzip bytes | `npm run build` + `npm run perf:check` |
+| Initial JavaScript      |   496,650 raw bytes / 155,926 gzip bytes | `npm run build` + `npm run perf:check` |
 | Initial CSS             |    108,000 raw bytes / 16,408 gzip bytes | `npm run build` + `npm run perf:check` |
 | Instrumented statements |                                   62.62% | `npm run test:coverage`                |
 | Instrumented branches   |                                   53.73% | `npm run test:coverage`                |
 | Instrumented functions  |                                   54.35% | `npm run test:coverage`                |
 | Instrumented lines      |                                   64.04% | `npm run test:coverage`                |
 
-The initial JavaScript figure grew by 15,092 gzip bytes against the earlier
+The initial JavaScript figure grew by 19,386 gzip bytes against the earlier
 436,340/136,540 baseline. That is the restaurant feature set — item modifiers,
 the kitchen display, table management, petty cash and the customer-facing
-display — together with the two locale namespaces they added. It leaves 48,368
+display — together with the two locale namespaces they added. It leaves 44,074
 gzip bytes of headroom against the 200,000 budget.
 
 Initial CSS fell by 1,103 gzip bytes: 22 component classes and the five
