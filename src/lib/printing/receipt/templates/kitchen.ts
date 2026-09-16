@@ -54,7 +54,7 @@ export function buildKitchenTicketHtml(
           // extra shot is not a short ticket, it is the wrong drink — and this
           // is the path every kitchen ticket takes, on every printer type.
           const line = `<div class="kitchen-item">${item.quantity}x ${esc(itemLabel(item))}</div>`;
-          const mods = itemModifierNames(item)
+          const mods = (S.modifiers ? itemModifierNames(item) : [])
             .map((modifier) => `<div class="kitchen-mod">• ${esc(modifier)}</div>`)
             .join('');
           return line + mods;

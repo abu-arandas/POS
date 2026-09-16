@@ -157,7 +157,13 @@ function pushSaleMeta(rows: DocRow[], { tx, layout: L, date: d }: ReceiptContext
  * a single run: on a 58mm roll a joined list wraps mid-name, and "No Onions"
  * broken across two lines is exactly the instruction that gets misread.
  */
-function pushModifiers(rows: DocRow[], item: OrderItem, style: RowStyle = 'muted'): void {
+function pushModifiers(
+  rows: DocRow[],
+  item: OrderItem,
+  show: boolean,
+  style: RowStyle = 'muted',
+): void {
+  if (!show) return;
   for (const name of itemModifierNames(item)) {
     rows.push({ kind: 'line', text: `  • ${name}`, style });
   }
@@ -170,11 +176,11 @@ function pushItems(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptCont
     const name = `${item.quantity}x ${itemLabel(item)}`;
     if (!S.priceColumn) {
       rows.push({ kind: 'line', text: name });
-      pushModifiers(rows, item);
+      pushModifiers(rows, item, S.modifiers);
       continue;
     }
     rows.push({ kind: 'pair', label: name, value: money(cur, item.total) });
-    pushModifiers(rows, item);
+    pushModifiers(rows, item, S.modifiers);
     if (S.itemUnitPrice && item.quantity > 1) {
       rows.push({
         kind: 'line',
@@ -392,7 +398,7 @@ export function buildKitchenDoc(
     // instruction on a kitchen ticket — "No Onions" is the whole reason the
     // ticket differs from the menu — so it prints at normal weight rather than
     // in the small type reserved for a customer's price breakdown.
-    pushModifiers(rows, item, 'normal');
+    pushModifiers(rows, item, S.modifiers, 'normal');
   }
 
   rows.push({ kind: 'divider' });

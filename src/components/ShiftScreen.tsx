@@ -25,6 +25,7 @@ import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { summarizeShift } from '../lib/shiftReport';
+import { pendingCloudWrites } from '../lib/sync';
 import { escapeHtml } from '../lib/utils/formatting';
 import { openDetachedPrintWindow } from '../lib/utils/dom';
 import { CashMovementType, Shift } from '../types';
@@ -106,7 +107,22 @@ export default function ShiftScreen() {
   const handleClose = async () => {
     if (!currentShift) return;
     const counted = parseFloat(countedCash) || 0;
-    if (!(await askConfirmation(t('shift.confirmClose')))) return;
+
+    // Closing a shift is the moment an unpushed sale stops being a detail.
+    // The Z-report is produced from local data and reconciles correctly either
+    // way, but the head office sees the cloud — so a drawer closed with a
+    // backlog reconciles here and is short there, and nobody finds out until
+    // the numbers are compared days later. The count is read fresh rather than
+    // from the badge: the operator may have been sitting on this screen while
+    // the queue drained, and a stale warning is worse than none.
+    const owed = await pendingCloudWrites();
+    if (owed > 0) {
+      const proceed = await askConfirmation(t('shift.confirmCloseWithPending', { count: owed }));
+      if (!proceed) return;
+    } else if (!(await askConfirmation(t('shift.confirmClose')))) {
+      return;
+    }
+
     closeShift(currentShift.id, counted, closeNote, currentUser?.name ?? 'Unknown');
     setCountedCash('');
     setCloseNote('');

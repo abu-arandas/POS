@@ -125,7 +125,7 @@ export function buildReceiptHtml(
       // The add-ons the customer chose and paid for. Their price deltas are
       // already inside item.price and item.total, so they are named and not
       // priced again — see itemModifierNames.
-      const mods = itemModifierNames(item)
+      const mods = (S.modifiers ? itemModifierNames(item) : [])
         .map((modifier) => `<div class="item-mod">• ${esc(modifier)}</div>`)
         .join('');
       const unit =

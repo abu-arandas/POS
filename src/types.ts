@@ -300,6 +300,11 @@ export interface ReceiptToggles {
   operator: boolean;
   customer: boolean;
   itemUnitPrice: boolean; // the "@ price ea" breakdown line
+  // The chosen add-ons under a line ("Oat Milk", "No Onions"). On by default
+  // everywhere, and especially on a kitchen ticket, where the modifier IS the
+  // instruction — but a shop that prints a receipt purely as a payment record
+  // can turn it off like any other block.
+  modifiers: boolean;
   priceColumn: boolean; // per-line price/total column (kitchen tickets drop this)
   totals: boolean; // subtotal / discount / tax / total block
   paymentDetails: boolean; // method + split payments

@@ -123,6 +123,7 @@ export function allTogglesOn(): ReceiptToggles {
     operator: true,
     customer: true,
     itemUnitPrice: true,
+    modifiers: true,
     priceColumn: true,
     totals: true,
     paymentDetails: true,
@@ -170,6 +171,8 @@ export function defaultKitchenLayout(): ReceiptLayout {
       taxNumber: false,
       date: false,
       itemUnitPrice: false,
+      // modifiers deliberately stays ON: it is the one thing a kitchen ticket
+      // exists to carry that the menu does not already say.
       priceColumn: false,
       totals: false,
       paymentDetails: false,

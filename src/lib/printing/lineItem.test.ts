@@ -3,8 +3,10 @@ import { itemLabel, itemModifierNames } from './lineItem';
 import { buildReceiptHtml } from './receipt/templates/customer';
 import { buildKitchenTicketHtml } from './receipt/templates/kitchen';
 import { buildReceiptDoc, buildKitchenDoc } from './receiptDoc';
+import { defaultKitchenLayout, defaultReceiptLayout } from './receiptFormat';
 import type {
   OrderItem,
+  ReceiptLayout,
   PrinterConfig,
   SaleTransaction,
   SelectedModifier,
@@ -175,5 +177,36 @@ describe('modifier rendering', () => {
     const tx = sale([item()]);
     expect(buildReceiptHtml(tx, SETTINGS, PRINTER)).not.toContain('item-mod');
     expect(buildKitchenTicketHtml(tx, SETTINGS)).not.toContain('kitchen-mod');
+  });
+});
+
+describe('the modifiers toggle', () => {
+  const tx = sale([item({ modifiers: MODIFIERS })]);
+
+  it('is on by default for both the customer receipt and the kitchen ticket', () => {
+    expect(defaultReceiptLayout().show.modifiers).toBe(true);
+    // Especially here: a modifier is the one thing a kitchen ticket carries
+    // that the menu does not already say.
+    expect(defaultKitchenLayout().show.modifiers).toBe(true);
+  });
+
+  it('suppresses the block in every renderer when turned off', () => {
+    const off = (base: ReceiptLayout): ReceiptLayout => ({
+      ...base,
+      show: { ...base.show, modifiers: false },
+    });
+    const customer = off(defaultReceiptLayout());
+    const kitchen = off(defaultKitchenLayout());
+
+    expect(buildReceiptHtml(tx, SETTINGS, PRINTER, customer)).not.toContain('Oat Milk');
+    expect(buildKitchenTicketHtml(tx, SETTINGS, undefined, kitchen)).not.toContain('Oat Milk');
+    expect(docText(buildReceiptDoc(tx, SETTINGS, PRINTER, customer))).not.toContain('Oat Milk');
+    expect(docText(buildKitchenDoc(tx, SETTINGS, undefined, kitchen))).not.toContain('Oat Milk');
+  });
+
+  it('still prints the line itself when the block is off', () => {
+    const customer = defaultReceiptLayout();
+    customer.show.modifiers = false;
+    expect(buildReceiptHtml(tx, SETTINGS, PRINTER, customer)).toContain('Latte');
   });
 });

@@ -15,4 +15,12 @@ export const sidebar = {
   menu: 'Menu',
   tables: 'Tables',
   kitchen: 'Kitchen',
+  sync_synced: 'Synced',
+  sync_syncing: 'Syncing',
+  sync_offline: 'Offline',
+  sync_error: 'Sync error',
+  syncPendingHint_one:
+    '{{count}} change is saved on this terminal and not yet in the cloud. It will send itself when the connection returns.',
+  syncPendingHint_other:
+    '{{count}} changes are saved on this terminal and not yet in the cloud. They will send themselves when the connection returns.',
 };
