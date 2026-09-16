@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Customer } from '../../types';
 import { fetchAllPages, keyset, stampStoreId } from './sync-utils';
+import { localDateKey } from '../utils/dates';
 
 /**
  * Push local customers
@@ -51,7 +52,7 @@ export async function pullCustomers(
       email: r.email || '',
       phone: r.phone || '',
       points: Number(r.points || 0),
-      createdAt: r.created_at || new Date().toISOString().split('T')[0],
+      createdAt: r.created_at || localDateKey(),
     }));
   } catch (err) {
     console.error('Failed pulling customers:', err);

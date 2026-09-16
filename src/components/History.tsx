@@ -10,6 +10,7 @@ import { commitRefund } from '../services';
 import { printTransactions } from '../lib/printing/print';
 import { printReceipt, HardwarePrintOutcome } from '../lib/printing/hardwarePrint';
 import { notify } from '../lib/utils/ui';
+import { localDateKey } from '../lib/utils/dates';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../lib/csv';
 import {
   BulkActionBar,
@@ -135,7 +136,7 @@ export default function History() {
 
   const exportCsv = () => {
     const rows = transactionsToCsvRows(filteredTransactions);
-    downloadCsv(`transactions-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
+    downloadCsv(`transactions-${localDateKey()}.csv`, toCsv(rows));
   };
 
   return (
