@@ -2,11 +2,8 @@ import React, { useState } from 'react';
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  DollarSign,
   X,
   Check,
-  Tag,
-  FileText,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';

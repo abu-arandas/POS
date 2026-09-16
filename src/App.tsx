@@ -23,10 +23,16 @@ import { useTranslation } from 'react-i18next';
 import Sidebar from './components/Sidebar';
 import Register from './components/Register';
 import Lockscreen from './components/Lockscreen';
-import { KitchenDisplay } from './components/KitchenDisplay';
-import { TableManagement } from './components/TableManagement';
 // Non-default screens are code-split so heavy deps (recharts, qrcode.react, …)
 // stay out of the initial bundle and load only when their screen is opened.
+const KitchenDisplay = lazy(() =>
+  import('./components/KitchenDisplay').then(({ KitchenDisplay }) => ({ default: KitchenDisplay })),
+);
+const TableManagement = lazy(() =>
+  import('./components/TableManagement').then(({ TableManagement }) => ({
+    default: TableManagement,
+  })),
+);
 const Inventory = lazy(() => import('./components/Inventory'));
 const History = lazy(() => import('./components/History'));
 const Customers = lazy(() => import('./components/Customers'));
@@ -38,6 +44,7 @@ const FleetView = lazy(() => import('./components/FleetView'));
 import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
+import { useTableStore } from './stores/tableStore';
 import type { Product } from './types';
 import { variantPrice } from './lib/variants';
 import { ScreenId, isScreenAllowed } from './lib/access';
@@ -260,7 +267,11 @@ export default function App() {
       case 'tables':
         return (
           <TableManagement
+            // Record which table the order belongs to before navigating. The
+            // handler used to discard its argument and only switch screens, so
+            // "open this table on the register" lost the table on the way.
             onSelectTableForRegister={(table) => {
+              useTableStore.getState().setSelectedTableId(table.id);
               setScreen('register');
             }}
           />

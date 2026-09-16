@@ -68,6 +68,7 @@ describe('product sync', () => {
       image: 'https://example.com/fw.png',
       variant_types: null,
       variants: null,
+      modifier_groups: null,
     });
   });
 

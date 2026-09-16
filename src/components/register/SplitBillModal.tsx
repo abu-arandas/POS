@@ -1,18 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Users,
   Divide,
-  Receipt,
   X,
   Check,
   CreditCard,
   Banknote,
-  ArrowRight,
   Plus,
   Minus,
-  Sparkles,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { StoreSettings } from '../../types';
 import { RegisterCartLine, cartLineKey } from './useRegisterCart';

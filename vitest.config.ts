@@ -9,6 +9,13 @@ export default defineConfig({
     include: ['test/**/*.{test,spec}.{ts,tsx}'],
     environment: 'jsdom',
     setupFiles: ['./test/setup.ts'],
+    // Receipt snapshots render wall-clock times, so the suite is only
+    // reproducible under a fixed zone. Without this the snapshot encodes
+    // whichever offset the machine that last updated it was in — a snapshot
+    // regenerated at UTC+3 then failed for everyone else, CI included, with a
+    // three-hour diff that looks like a formatting bug rather than a timezone.
+    // UTC, because that is what CI runs in.
+    env: { TZ: 'UTC' },
     // Coverage includes the pure core, stores, and React components. Playwright
     // remains a separate end-to-end signal, but component branches should not
     // disappear from the unit-test coverage report.

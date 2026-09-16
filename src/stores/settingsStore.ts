@@ -92,14 +92,12 @@ export const DEFAULT_PRINTER: PrinterConfig = {
  * Cloud sync off and unconfigured — the offline-first default.
  */
 export const DEFAULT_SUPABASE: SupabaseConfig = {
-  url: 'https://fwwgksbubwlnfzokflhz.supabase.co/',
-  anonKey:
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3d2drc2J1YndsbmZ6b2tmbGh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzA2NjgsImV4cCI6MjEwNDgwNjY2OH0.BSZ5Jxcimp3wlvD3jODjfbM2s2DHF8jQD3LYDYqf2FA',
-  authEmail: 'sjgrill9@gmail.com',
-  authPassword: 'Sult@n2005',
-  deviceAuthConfigured: true,
-  enabled: true,
-  status: 'connected',
+  url: '',
+  anonKey: '',
+  authEmail: '',
+  authPassword: '',
+  enabled: false,
+  status: 'disconnected',
 };
 
 /**

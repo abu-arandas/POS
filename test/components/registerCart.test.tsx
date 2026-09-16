@@ -1,8 +1,22 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS } from '../../src/stores/settingsStore';
 import { useRegisterCart } from '../../src/components/register/useRegisterCart';
-import type { Product } from '../../src/types';
+import type { Product, StoreSettings } from '../../src/types';
+
+// Declared here rather than taken from DEFAULT_SETTINGS. That constant is the
+// demo fixture, and these assertions are arithmetic over a tax rate — pointing
+// them at a fixture made them fail the moment the demo store's rate changed,
+// which says nothing about the hook under test.
+const SETTINGS: StoreSettings = {
+  storeName: 'Test Store',
+  storeAddress: '',
+  storePhone: '',
+  storeLogo: '',
+  taxRate: 8.5,
+  currency: '$',
+  loyaltyPointsRate: 1,
+  loyaltyPointValue: 0.05,
+};
 
 const product: Product = {
   id: 'p-1',
@@ -18,7 +32,7 @@ const product: Product = {
 
 describe('useRegisterCart', () => {
   it('adds, increments, caps, and removes cart lines using live stock limits', () => {
-    const { result } = renderHook(() => useRegisterCart(DEFAULT_SETTINGS));
+    const { result } = renderHook(() => useRegisterCart(SETTINGS));
 
     act(() => {
       result.current.addToCart(product);
@@ -38,7 +52,7 @@ describe('useRegisterCart', () => {
   });
 
   it('derives totals and cash change from the cart state', () => {
-    const { result } = renderHook(() => useRegisterCart(DEFAULT_SETTINGS));
+    const { result } = renderHook(() => useRegisterCart(SETTINGS));
 
     act(() => result.current.addToCart(product));
     expect(result.current.cartItems).toEqual([
@@ -65,7 +79,7 @@ describe('useRegisterCart', () => {
   });
 
   it('clears cart, customer, and discount state together', () => {
-    const { result } = renderHook(() => useRegisterCart(DEFAULT_SETTINGS));
+    const { result } = renderHook(() => useRegisterCart(SETTINGS));
 
     act(() => {
       result.current.addToCart(product);
@@ -117,7 +131,7 @@ const large = tee.variants![1];
 
 describe('useRegisterCart with variants', () => {
   it('keeps two variants of one product as two lines', () => {
-    const { result } = renderHook(() => useRegisterCart(DEFAULT_SETTINGS));
+    const { result } = renderHook(() => useRegisterCart(SETTINGS));
 
     act(() => {
       result.current.addToCart(tee, small);
@@ -129,7 +143,7 @@ describe('useRegisterCart with variants', () => {
   });
 
   it('prices and names each line from its own variant', () => {
-    const { result } = renderHook(() => useRegisterCart(DEFAULT_SETTINGS));
+    const { result } = renderHook(() => useRegisterCart(SETTINGS));
 
     act(() => {
       result.current.addToCart(tee, small);
@@ -161,7 +175,7 @@ describe('useRegisterCart with variants', () => {
   });
 
   it('caps each line at its own variant’s stock, not the product’s', () => {
-    const { result } = renderHook(() => useRegisterCart(DEFAULT_SETTINGS));
+    const { result } = renderHook(() => useRegisterCart(SETTINGS));
 
     act(() => {
       // Only one Large exists, though the product holds three units.
@@ -178,7 +192,7 @@ describe('useRegisterCart with variants', () => {
   });
 
   it('refuses a variant with nothing left while the product still has stock', () => {
-    const { result } = renderHook(() => useRegisterCart(DEFAULT_SETTINGS));
+    const { result } = renderHook(() => useRegisterCart(SETTINGS));
     const soldOut = { ...large, id: 'v-gone', stock: 0 };
 
     act(() => result.current.addToCart({ ...tee, variants: [small, soldOut] }, soldOut));
@@ -187,7 +201,7 @@ describe('useRegisterCart with variants', () => {
   });
 
   it('edits and removes the named line, leaving the other variant alone', () => {
-    const { result } = renderHook(() => useRegisterCart(DEFAULT_SETTINGS));
+    const { result } = renderHook(() => useRegisterCart(SETTINGS));
 
     act(() => {
       result.current.addToCart(tee, small);
@@ -204,7 +218,7 @@ describe('useRegisterCart with variants', () => {
   });
 
   it('still addresses a plain product by its bare id', () => {
-    const { result } = renderHook(() => useRegisterCart(DEFAULT_SETTINGS));
+    const { result } = renderHook(() => useRegisterCart(SETTINGS));
 
     act(() => result.current.addToCart(product));
     act(() => result.current.updateCartQty('p-1', 1));

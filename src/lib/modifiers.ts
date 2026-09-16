@@ -1,4 +1,4 @@
-import type { ModifierGroup, ModifierOption, SelectedModifier } from '../types';
+import type { ModifierGroup, SelectedModifier } from '../types';
 
 /**
  * Generates a deterministic signature string for a list of selected modifiers.

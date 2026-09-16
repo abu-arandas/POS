@@ -11,6 +11,8 @@ import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useKdsStore } from '../stores/kdsStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { routeKitchenTickets } from '../lib/printing/kitchenRouting';
 import { syncToCloudIfEnabled } from '../lib/sync';
 
 /**
@@ -234,24 +236,51 @@ export function commitSale(request: CheckoutRequest): CommitSaleResult {
 
   useTransactionStore.getState().addTransaction(transaction);
 
-  // Dispatch live ticket to Kitchen Display System (KDS)
-  try {
-    useKdsStore.getState().addTicket({
-      orderNumber: `#${transaction.id.slice(-4)}`,
-      saleId: transaction.id,
-      orderType: 'dine_in',
-      customerName: transaction.customerName || undefined,
-      serverName: transaction.operatorName || undefined,
-      items: transaction.items.map((item) => ({
-        productId: item.productId,
-        productName: item.productName,
-        variantName: item.variantName,
-        modifiers: item.modifiers,
-        quantity: item.quantity,
-      })),
-    });
-  } catch (err) {
-    console.error('Failed to create KDS ticket:', err);
+  // Dispatch a live ticket to the Kitchen Display System.
+  //
+  // Gated on the terminal having kitchen stations configured. Unconditionally
+  // it meant a shop with no kitchen — a retail counter selling clothing — piled
+  // up a KDS ticket for every sale it ever rang up.
+  //
+  // Items carry the station that routeKitchenTickets assigns them, so the KDS
+  // station filter has something to match. Without it every item arrived with
+  // no stationId or stationName and selecting any station showed an empty
+  // board, while the routing rules the printed tickets already use sat unused.
+  const kitchenStations = useSettingsStore.getState().kitchenStations;
+  if (kitchenStations.length > 0) {
+    try {
+      const categoryOf = (productId: string) => liveById.get(productId)?.category;
+      const stationOfItem = new Map<string, { id: string; name: string }>();
+      for (const ticket of routeKitchenTickets(transaction, kitchenStations, categoryOf)) {
+        for (const item of ticket.items) {
+          const key = lineKey(item.productId, item.variantId);
+          if (!stationOfItem.has(key)) {
+            stationOfItem.set(key, { id: ticket.station.id, name: ticket.station.name });
+          }
+        }
+      }
+      useKdsStore.getState().addTicket({
+        orderNumber: `#${transaction.id.slice(-4)}`,
+        saleId: transaction.id,
+        orderType: 'dine_in',
+        customerName: transaction.customerName || undefined,
+        serverName: transaction.operatorName || undefined,
+        items: transaction.items.map((item) => {
+          const station = stationOfItem.get(lineKey(item.productId, item.variantId));
+          return {
+            productId: item.productId,
+            productName: item.productName,
+            variantName: item.variantName,
+            modifiers: item.modifiers,
+            quantity: item.quantity,
+            stationId: station?.id,
+            stationName: station?.name,
+          };
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to create KDS ticket:', err);
+    }
   }
 
   // Not awaited: a slow or failed network must never delay handing the customer

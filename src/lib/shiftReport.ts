@@ -1,4 +1,16 @@
-import { SaleTransaction } from '../types';
+import { CashMovement, SaleTransaction } from '../types';
+
+/**
+ * Net cash that petty-cash movements put into (or took out of) the drawer.
+ * Pay-ins add, pay-outs subtract; amounts are stored unsigned.
+ */
+export function netCashMovements(movements: readonly CashMovement[]): number {
+  return Number(
+    movements
+      .reduce((sum, m) => sum + (m.type === 'pay_in' ? m.amount : -m.amount), 0)
+      .toFixed(2),
+  );
+}
 
 /**
  * Net cash a sale contributes to the drawer: cash tendered minus change given.
@@ -31,7 +43,17 @@ export interface ShiftSummary {
   mobileSales: number;
   giftSales: number;
   cashRefunds: number; // cash paid back out
-  expectedCash: (openingFloat: number) => number;
+  /**
+   * What the drawer should hold at close.
+   *
+   * `movements` is a parameter rather than something the caller adds on
+   * afterwards, because adding it afterwards is exactly what went wrong: the
+   * Shift screen did `expectedCash(float) + payIns - payOuts` while the printed
+   * Z-report called `expectedCash(float)` alone, so any petty-cash movement put
+   * a different expected figure on the screen and on the document that
+   * reconciles the till. One function, one answer.
+   */
+  expectedCash: (openingFloat: number, movements?: readonly CashMovement[]) => number;
 }
 
 /**
@@ -73,7 +95,7 @@ export function summarizeShift(transactions: SaleTransaction[]): ShiftSummary {
     mobileSales: round(mobileSales),
     giftSales: round(giftSales),
     cashRefunds: round(cashRefunds),
-    expectedCash: (openingFloat: number) =>
-      round(openingFloat + round(cashSales) - round(cashRefunds)),
+    expectedCash: (openingFloat: number, movements: readonly CashMovement[] = []) =>
+      round(openingFloat + round(cashSales) - round(cashRefunds) + netCashMovements(movements)),
   };
 }

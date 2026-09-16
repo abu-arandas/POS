@@ -87,7 +87,7 @@ export default function ShiftScreen() {
   );
   const summary = useMemo(() => summarizeShift(shiftTxns), [shiftTxns]);
   const expectedCash = currentShift
-    ? summary.expectedCash(currentShift.openingFloat) + totalPayIns - totalPayOuts
+    ? summary.expectedCash(currentShift.openingFloat, currentShiftMovements)
     : 0;
   const variance =
     countedCash !== '' ? Number((parseFloat(countedCash) - expectedCash).toFixed(2)) : null;
@@ -113,8 +113,9 @@ export default function ShiftScreen() {
    */
   const printReport = (shift: Shift) => {
     const txns = transactions.filter((tx) => tx.shiftId === shift.id);
+    const movements = cashMovements.filter((m) => m.shiftId === shift.id);
     const s = summarizeShift(txns);
-    const expected = s.expectedCash(shift.openingFloat);
+    const expected = s.expectedCash(shift.openingFloat, movements);
     const counted = shift.countedCash ?? 0;
     const w = openDetachedPrintWindow();
     if (!w) return;
@@ -547,7 +548,10 @@ export default function ShiftScreen() {
                 <tbody className="divide-y divide-border">
                   {closedShifts.map((shift) => {
                     const s = summarizeShift(transactions.filter((tx) => tx.shiftId === shift.id));
-                    const expected = s.expectedCash(shift.openingFloat);
+                    const expected = s.expectedCash(
+                      shift.openingFloat,
+                      cashMovements.filter((m) => m.shiftId === shift.id),
+                    );
                     const v = Number(((shift.countedCash ?? 0) - expected).toFixed(2));
                     return (
                       <tr key={shift.id} className="hover:bg-secondary/15 transition-colors group">

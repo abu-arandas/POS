@@ -2,10 +2,23 @@ import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
 
-const SUPABASE_URL = 'https://fwwgksbubwlnfzokflhz.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3d2drc2J1YndsbmZ6b2tmbGh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzA2NjgsImV4cCI6MjEwNDgwNjY2OH0.BSZ5Jxcimp3wlvD3jODjfbM2s2DHF8jQD3LYDYqf2FA';
-const DEVICE_EMAIL = 'sjgrill9@gmail.com';
-const DEVICE_PASSWORD = 'Sult@n2005';
+// Credentials come from the environment, never from source. This file used to
+// carry a live project URL, anon key, device email and device password as
+// literals; anything committed here is public the moment the repository is.
+// Copy .env.example to .env and fill it in, or export these before running.
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const DEVICE_EMAIL = process.env.SUPABASE_DEVICE_EMAIL;
+const DEVICE_PASSWORD = process.env.SUPABASE_DEVICE_PASSWORD;
+
+const MISSING = [
+  ['SUPABASE_URL', SUPABASE_URL],
+  ['SUPABASE_ANON_KEY', SUPABASE_ANON_KEY],
+  ['SUPABASE_DEVICE_EMAIL', DEVICE_EMAIL],
+  ['SUPABASE_DEVICE_PASSWORD', DEVICE_PASSWORD],
+]
+  .filter(([, value]) => !value)
+  .map(([name]) => name);
 
 const CATEGORY_COLORS = [
   'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -18,6 +31,12 @@ const CATEGORY_COLORS = [
 ];
 
 export async function uploadData() {
+  if (MISSING.length > 0) {
+    return {
+      success: false,
+      error: `Missing required environment variable(s): ${MISSING.join(', ')}. See .env.example.`,
+    };
+  }
   console.log('Connecting to Supabase at:', SUPABASE_URL);
   const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false },
@@ -41,7 +60,10 @@ export async function uploadData() {
   await authedClient.auth.setSession(authData.session);
 
   // Read backup data
-  const raw = fs.readFileSync(path.join(process.cwd(), 'src/data/installed_device_backup.json'), 'utf-8');
+  const raw = fs.readFileSync(
+    path.join(import.meta.dirname, 'installed_device_backup.json'),
+    'utf-8',
+  );
   const backup = JSON.parse(raw);
 
   // Transform categories

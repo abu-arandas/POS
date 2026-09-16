@@ -7,12 +7,6 @@ import {
   variantCost,
   variantLabel,
   variantPrice,
-import {
-  availableStock,
-  lineKey,
-  variantCost,
-  variantLabel,
-  variantPrice,
 } from '../../lib/variants';
 import { calculateModifierPriceDelta, modifierSignature } from '../../lib/modifiers';
 import type { SelectedModifier } from '../../types';

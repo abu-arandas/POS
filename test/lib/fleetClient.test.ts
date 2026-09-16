@@ -84,6 +84,7 @@ describe('pushStoreCatalog', () => {
         image: '',
         variant_types: null,
         variants: null,
+        modifier_groups: null,
       },
     ]);
   });

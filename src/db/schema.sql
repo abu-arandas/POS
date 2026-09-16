@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS products (
   min_stock INTEGER NOT NULL,
   image TEXT NOT NULL,
   variant_types JSONB,                  -- the axes the product varies along (Size, Colour, …)
-  variants JSONB                        -- the sellable combinations, each with its own sku/stock
+  variants JSONB,                       -- the sellable combinations, each with its own sku/stock
+  modifier_groups JSONB                 -- optional add-on groups (Extras, Sauces, Doneness …)
 );
 
 -- 5. Create Customers Table
@@ -121,6 +122,14 @@ ALTER TABLE transactions ADD COLUMN IF NOT EXISTS tax_rate NUMERIC;
 -- adds one.
 ALTER TABLE products ADD COLUMN IF NOT EXISTS variant_types JSONB;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB;
+-- Modifier groups (Extras, Sauces, Doneness). Same reasoning as the variant
+-- pair: read and written whole with the product, never queried across products.
+--
+-- This column is not optional in practice on a terminal that uses modifiers.
+-- A pull REPLACES local products, so while the column was missing every Pull
+-- From Cloud — and every realtime product event, which calls the same pull —
+-- silently erased the modifier groups the shop had configured.
+ALTER TABLE products ADD COLUMN IF NOT EXISTS modifier_groups JSONB;
 
 -- Allow the new 'partial' refund status (the CHECK is recreated to include it):
 ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_status_check;

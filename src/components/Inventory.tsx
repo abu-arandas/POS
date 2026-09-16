@@ -531,10 +531,6 @@ export default function Inventory() {
     return categoryMap.get(catId)?.name || 'General';
   };
 
-  const getProductCategoryColor = (catId: string) => {
-    return categoryMap.get(catId)?.color || 'badge badge-slate';
-  };
-
   const TAB_LABELS: Record<InventoryTabId, string> = {
     products: t('inventory.products'),
     categories: t('inventory.categories'),
@@ -683,7 +679,6 @@ export default function Inventory() {
             sortedAndFilteredProducts={sortedAndFilteredProducts}
             onToggleSort={toggleSort}
             getProductCategoryName={getProductCategoryName}
-            getProductCategoryColor={getProductCategoryColor}
             onEditProduct={handleOpenEditProduct}
             onDeleteProduct={handleDeleteProduct}
           />

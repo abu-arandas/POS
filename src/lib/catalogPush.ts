@@ -158,6 +158,11 @@ export function planCatalogPush(
           image: sp.image,
           variantTypes: sp.variantTypes,
           variants: emptiedVariants(sp.variants),
+          // Add-on groups are catalogue shape, not inventory, so they cross
+          // with the product exactly as the variant matrix does. A copied item
+          // that arrived without its "Extras" group would ring up at the wrong
+          // price in the target store.
+          modifierGroups: sp.modifierGroups,
         });
         productsAdded += 1;
       }

@@ -27,6 +27,10 @@ export function toProductRow(p: Product) {
     // on the next pull.
     variant_types: p.variantTypes ?? null,
     variants: p.variants ?? null,
+    // Same null-not-undefined rule as the variant pair above, and for the same
+    // reason: a product whose modifier groups were removed must come back
+    // without them rather than keeping the cloud row's stale copy.
+    modifier_groups: p.modifierGroups ?? null,
   };
 }
 
@@ -51,17 +55,24 @@ export async function pushProducts(
     // levels and every sale's decrement from syncing over a feature the store
     // may not even use. Dropping the pair and retrying keeps inventory flowing
     // and leaves a warning pointing at the migration.
-    if (!isUnknownColumn(error, 'variant_types') && !isUnknownColumn(error, 'variants')) {
+    const OPTIONAL_COLUMNS = ['variant_types', 'variants', 'modifier_groups'] as const;
+    if (!OPTIONAL_COLUMNS.some((column) => isUnknownColumn(error, column))) {
       throw error;
     }
     console.warn(
-      'products.variant_types/variants are missing in Supabase — pushing without them. ' +
-        'Run the ALTER TABLE in src/db/schema.sql so product variants sync between terminals.',
+      'products.variant_types/variants/modifier_groups are missing in Supabase — pushing ' +
+        'without them. Run the ALTER TABLE in src/db/schema.sql so product variants and ' +
+        'modifiers sync between terminals.',
     );
-    const withoutVariants = records.map(
-      ({ variant_types: _types, variants: _variants, ...rest }) => rest,
+    const withoutOptional = records.map(
+      ({
+        variant_types: _types,
+        variants: _variants,
+        modifier_groups: _modifiers,
+        ...rest
+      }) => rest,
     );
-    const retry = await client.from('products').upsert(withoutVariants);
+    const retry = await client.from('products').upsert(withoutOptional);
     if (retry.error) throw retry.error;
     return true;
   } catch (err) {
@@ -99,6 +110,11 @@ export async function pullProducts(
       // hasVariants() disagree with itself across a sync.
       ...(r.variant_types ? { variantTypes: r.variant_types } : {}),
       ...(r.variants ? { variants: r.variants } : {}),
+      // Omitted entirely when absent, like the variant pair. Leaving this field
+      // out of the pull altogether — which it was — meant every Pull From Cloud
+      // and every realtime product event silently erased the modifier groups
+      // configured on this terminal, because the pull REPLACES local products.
+      ...(r.modifier_groups ? { modifierGroups: r.modifier_groups } : {}),
     }));
   } catch (err) {
     console.error('Failed pulling products:', err);

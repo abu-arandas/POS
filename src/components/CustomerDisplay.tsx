@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ShoppingBag,
   CheckCircle2,
@@ -8,7 +8,6 @@ import {
   Minimize,
   Clock,
   Flame,
-  ArrowRight,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { subscribeToCfd, CfdPayload } from '../lib/cfdChannel';

@@ -1,14 +1,20 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { KitchenTicket, KitchenTicketItem, KitchenTicketStatus, OrderType } from '../types';
+import { idbStorage } from '../lib/idbStorage';
 import { shortId } from '../lib/utils/ids';
-import { playKitchenBell } from '../lib/audioFeedback';
 
 interface KdsStore {
   tickets: KitchenTicket[];
   recentlyBumped: KitchenTicket[];
   activeStationFilter: string;
   autoSound: boolean;
+  /**
+   * Monotonic counter for generated order numbers. Derived from tickets.length
+   * before, which is not monotonic: bumping a ticket removes it from the list,
+   * so the next order reused a number already on a docket in the kitchen.
+   */
+  ticketSeq: number;
 
   addTicket: (params: {
     orderNumber?: string;
@@ -46,6 +52,7 @@ export const useKdsStore = create<KdsStore>()(
       recentlyBumped: [],
       activeStationFilter: 'all',
       autoSound: true,
+      ticketSeq: 0,
 
       addTicket: ({
         orderNumber,
@@ -63,9 +70,8 @@ export const useKdsStore = create<KdsStore>()(
           completed: false,
         }));
 
-        const existingCount = get().tickets.length + 1;
-        const generatedOrderNumber =
-          orderNumber || `#${String(existingCount).padStart(3, '0')}`;
+        const seq = get().ticketSeq + 1;
+        const generatedOrderNumber = orderNumber || `#${String(seq).padStart(3, '0')}`;
 
         const newTicket: KitchenTicket = {
           id: `KDS-${shortId().toUpperCase()}`,
@@ -83,11 +89,8 @@ export const useKdsStore = create<KdsStore>()(
 
         set((state) => ({
           tickets: [newTicket, ...state.tickets],
+          ticketSeq: seq,
         }));
-
-        if (get().autoSound) {
-          playKitchenBell();
-        }
 
         return newTicket;
       },
@@ -176,6 +179,8 @@ export const useKdsStore = create<KdsStore>()(
 
       toggleAutoSound: () => set((state) => ({ autoSound: !state.autoSound })),
 
+      // Clears the recall buffer and drops any ticket marked complete through
+      // updateTicketStatus (bumpTicket already moves those out of `tickets`).
       clearCompletedTickets: () =>
         set((state) => ({
           tickets: state.tickets.filter((t) => t.status !== 'completed'),
@@ -183,7 +188,11 @@ export const useKdsStore = create<KdsStore>()(
         })),
     }),
     {
-      name: 'pos_kds_store',
+      name: 'pos-kds-storage',
+      // IndexedDB, like every other persisted store here. These two
+      // defaulted to localStorage, whose 5 MB quota is shared with the
+      // whole origin and is exactly what idbStorage exists to avoid.
+      storage: createJSONStorage(() => idbStorage),
     },
   ),
 );

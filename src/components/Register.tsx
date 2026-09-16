@@ -11,10 +11,10 @@ import {
   ChefHat,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, ProductVariant, SaleTransaction, HeldOrder, Payment } from '../types';
+import { SaleTransaction, HeldOrder, Payment } from '../types';
 import ProductGrid from './ProductGrid';
 import CartPanel from './CartPanel';
-import { useRegisterCart } from './register/useRegisterCart';
+import { useRegisterCart, type RegisterCartLine } from './register/useRegisterCart';
 const HeldOrdersModal = lazy(() =>
   import('./register/HeldOrdersModal').then(({ HeldOrdersModal }) => ({
     default: HeldOrdersModal,
@@ -236,7 +236,7 @@ export default function Register() {
       const liveMap = new Map(liveProducts.map((p) => [p.id, p]));
       const adjustedItems: string[] = [];
       const rebuilt = order.items
-        .map((i) => {
+        .map((i): RegisterCartLine | null => {
           const product = liveMap.get(i.productId);
           if (!product) {
             adjustedItems.push(i.productName);
@@ -258,10 +258,7 @@ export default function Register() {
           if (quantity !== i.quantity) adjustedItems.push(product.name);
           return { product, variant, modifiers: i.modifiers, quantity };
         })
-        .filter(
-          (x): x is { product: Product; variant: ProductVariant | undefined; modifiers?: import('../types').SelectedModifier[]; quantity: number } =>
-            x !== null && x.quantity > 0,
-        );
+        .filter((line): line is RegisterCartLine => line !== null && line.quantity > 0);
       if (adjustedItems.length > 0) {
         setScanFeedback({
           ok: false,

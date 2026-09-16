@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { Plus, X, UtensilsCrossed, Trash2 } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import type { ModifierGroup, ModifierOption, StoreSettings } from '../../types';
@@ -141,7 +141,7 @@ export function ModifiersEditor({
                   <label className="text-[10px] uppercase font-mono text-muted-foreground cursor-pointer flex items-center gap-1">
                     <input
                       type="checkbox"
-                      checked={group.minSelections > 0}
+                      checked={(group.minSelections ?? 0) > 0}
                       onChange={(e) =>
                         updateGroup(group.id, { minSelections: e.target.checked ? 1 : 0 })
                       }
@@ -154,7 +154,7 @@ export function ModifiersEditor({
                   <label className="text-[10px] uppercase font-mono text-muted-foreground cursor-pointer flex items-center gap-1">
                     <input
                       type="checkbox"
-                      checked={group.maxSelections > 1}
+                      checked={(group.maxSelections ?? 1) > 1}
                       onChange={(e) =>
                         updateGroup(group.id, { maxSelections: e.target.checked ? 99 : 1 })
                       }

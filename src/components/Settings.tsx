@@ -222,15 +222,17 @@ export default function Settings() {
   });
 
   // --- Supabase form state ---
-  const [sbUrl, setSbUrl] = useState(supabaseConfig.url || DEFAULT_SUPABASE.url);
-  const [sbKey, setSbKey] = useState(supabaseConfig.anonKey || DEFAULT_SUPABASE.anonKey);
-  const [sbAuthEmail, setSbAuthEmail] = useState(
-    supabaseConfig.authEmail || DEFAULT_SUPABASE.authEmail || '',
-  );
-  const [sbAuthPassword, setSbAuthPassword] = useState(
-    supabaseConfig.authPassword || DEFAULT_SUPABASE.authPassword || '',
-  );
-  const [sbEnabled, setSbEnabled] = useState(supabaseConfig.enabled || DEFAULT_SUPABASE.enabled);
+  //
+  // Seeded from the persisted config alone, never from DEFAULT_SUPABASE. These
+  // fields used to fall back to it, which was harmless only while the defaults
+  // were blank: a build that shipped real credentials in that constant put the
+  // device password straight back into this form on every terminal, defeating
+  // the partialize() above that deliberately keeps it out of IndexedDB.
+  const [sbUrl, setSbUrl] = useState(supabaseConfig.url);
+  const [sbKey, setSbKey] = useState(supabaseConfig.anonKey);
+  const [sbAuthEmail, setSbAuthEmail] = useState(supabaseConfig.authEmail ?? '');
+  const [sbAuthPassword, setSbAuthPassword] = useState(supabaseConfig.authPassword ?? '');
+  const [sbEnabled, setSbEnabled] = useState(supabaseConfig.enabled);
   const [sbStoreId, setSbStoreId] = useState(storeId);
   const [busy, setBusy] = useState<null | 'test' | 'push' | 'pull'>(null);
 

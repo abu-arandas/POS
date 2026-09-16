@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Utensils,
   Clock,
@@ -6,21 +6,17 @@ import {
   Volume2,
   VolumeX,
   CheckCircle2,
-  AlertCircle,
   Flame,
   ChefHat,
   ShoppingBag,
   Truck,
   Check,
-  Printer,
-  ChevronRight,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { KitchenTicket, KitchenTicketStatus } from '../types';
 import { useKdsStore } from '../stores/kdsStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { formatModifierSummary } from '../lib/modifiers';
+import { playKitchenBell } from '../lib/audioFeedback';
 import { notify } from '../lib/utils/ui';
 
 function ElapsedTimer({ createdAt }: { createdAt: string }) {
@@ -71,6 +67,18 @@ export function KitchenDisplay() {
 
   // Status filtering
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'preparing' | 'ready'>('all');
+
+  // The service chime belongs here, not in the store. addTicket() runs inside
+  // commitSale — that is the CASHIER's tab, so ringing it there meant the
+  // kitchen display, which is the screen the sound is for, stayed silent.
+  // Keyed on the newest ticket id so a re-render never re-rings it.
+  const newestTicketId = tickets[0]?.id ?? null;
+  const lastRungRef = useRef<string | null>(newestTicketId);
+  useEffect(() => {
+    if (!newestTicketId || newestTicketId === lastRungRef.current) return;
+    lastRungRef.current = newestTicketId;
+    if (autoSound) playKitchenBell();
+  }, [newestTicketId, autoSound]);
 
   const filteredTickets = useMemo(() => {
     return tickets.filter((ticket) => {

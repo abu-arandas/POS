@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { QrCode, Wifi, Printer, Copy, Check, RefreshCw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
 
 /**
  * QR digital-menu screen: starts and stops the local menu server and shows the

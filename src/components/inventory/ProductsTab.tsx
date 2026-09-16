@@ -33,7 +33,6 @@ export interface InventoryProductsTabProps {
   sortedAndFilteredProducts: Product[];
   onToggleSort(field: ProductSortField): void;
   getProductCategoryName(catId: string): string;
-  getProductCategoryColor(catId: string): string;
   onEditProduct(product: Product): void;
   onDeleteProduct(id: string): void;
 }
@@ -58,7 +57,6 @@ export function InventoryProductsTab({
   sortedAndFilteredProducts,
   onToggleSort,
   getProductCategoryName,
-  getProductCategoryColor,
   onEditProduct,
   onDeleteProduct,
 }: InventoryProductsTabProps) {

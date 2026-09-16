@@ -5,12 +5,7 @@ import {
   Clock,
   DollarSign,
   Plus,
-  CheckCircle2,
-  AlertCircle,
-  CalendarCheck,
   ChevronRight,
-  MoreVertical,
-  Edit2,
   Trash2,
   Receipt,
   X,
@@ -304,6 +299,15 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
                         Clear
                       </button>
                     </>
+                  )}
+
+                  {table.status === 'available' && (
+                    <button
+                      onClick={() => reserveTable(table.id)}
+                      className="px-2.5 h-8 rounded-lg border border-border hover:bg-secondary text-xs"
+                    >
+                      {t('tables.reserve')}
+                    </button>
                   )}
 
                   {table.status === 'reserved' && (

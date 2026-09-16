@@ -493,29 +493,32 @@ BEGIN
     SET name  = EXCLUDED.name,
         color = EXCLUDED.color;
 
-  -- variant_types/variants travel with the product: a catalogue push that
-  -- dropped them would land a varianted item in the target store as a single
-  -- unsellable SKU. The counts inside them are already zeroed by the planner —
-  -- stock is per-store — so only the shape crosses.
+  -- variant_types/variants/modifier_groups travel with the product: a catalogue
+  -- push that dropped them would land a varianted item in the target store as a
+  -- single unsellable SKU, and an item with add-ons as one with none. The counts
+  -- inside them are already zeroed by the planner — stock is per-store — so only
+  -- the shape crosses.
   INSERT INTO products (id, name, price, cost, category, sku, stock, min_stock, image,
-                        variant_types, variants, store_id)
+                        variant_types, variants, modifier_groups, store_id)
   SELECT p.id, p.name, p.price, p.cost, NULLIF(p.category, ''), p.sku,
-         p.stock, p.min_stock, p.image, p.variant_types, p.variants, p_store_id
+         p.stock, p.min_stock, p.image, p.variant_types, p.variants,
+         p.modifier_groups, p_store_id
   FROM jsonb_to_recordset(COALESCE(p_products, '[]'::jsonb))
     AS p(id TEXT, name TEXT, price NUMERIC, cost NUMERIC, category TEXT,
          sku TEXT, stock INTEGER, min_stock INTEGER, image TEXT,
-         variant_types JSONB, variants JSONB)
+         variant_types JSONB, variants JSONB, modifier_groups JSONB)
   ON CONFLICT (id) DO UPDATE
-    SET name          = EXCLUDED.name,
-        price         = EXCLUDED.price,
-        cost          = EXCLUDED.cost,
-        category      = EXCLUDED.category,
-        sku           = EXCLUDED.sku,
-        stock         = EXCLUDED.stock,
-        min_stock     = EXCLUDED.min_stock,
-        image         = EXCLUDED.image,
-        variant_types = EXCLUDED.variant_types,
-        variants      = EXCLUDED.variants;
+    SET name            = EXCLUDED.name,
+        price           = EXCLUDED.price,
+        cost            = EXCLUDED.cost,
+        category        = EXCLUDED.category,
+        sku             = EXCLUDED.sku,
+        stock           = EXCLUDED.stock,
+        min_stock       = EXCLUDED.min_stock,
+        image           = EXCLUDED.image,
+        variant_types   = EXCLUDED.variant_types,
+        variants        = EXCLUDED.variants,
+        modifier_groups = EXCLUDED.modifier_groups;
 END;
 $$;
 REVOKE ALL ON FUNCTION public.push_store_catalog(TEXT, JSONB, JSONB) FROM PUBLIC;

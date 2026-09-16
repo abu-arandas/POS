@@ -15,7 +15,6 @@ import {
   ChefHat,
   Grid3X3,
 } from 'lucide-react';
-import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import Logo from './Logo';
 import { ScreenId, isScreenAllowed } from '../lib/access';
@@ -45,19 +44,7 @@ const NAV_ITEMS: Array<{ id: ScreenId; labelKey: string; icon: typeof ShoppingBa
   { id: 'settings', labelKey: 'sidebar.settings', icon: Settings },
 ];
 
-const ROLE_COLOR: Record<string, string> = {
-  super_admin: 'from-violet-500 to-purple-600',
-  admin: 'from-indigo-500 to-violet-600',
-  manager: 'from-amber-500 to-orange-500',
-  cashier: 'from-emerald-500 to-teal-500',
-};
 
-const ROLE_BADGE: Record<string, string> = {
-  super_admin: 'text-violet-300 bg-violet-500/12 border-violet-500/25',
-  admin: 'text-indigo-300 bg-indigo-500/12 border-indigo-500/25',
-  manager: 'text-amber-300 bg-amber-500/12 border-amber-500/25',
-  cashier: 'text-emerald-300 bg-emerald-500/12 border-emerald-500/25',
-};
 
 function getInitials(name: string) {
   return name
