@@ -22,7 +22,11 @@ import Logo from './Logo';
  * It holds no cart state of its own and never writes back — everything arrives
  * over the CFD BroadcastChannel. A display that computed its own totals could
  * disagree with the till the customer is about to pay, so it only ever renders
- * what the register last broadcast.
+ * what the register broadcast.
+ *
+ * Opened mid-sale it shows the idle screen rather than that sale: the channel
+ * has no replay, so the first paint waits on the register's next broadcast.
+ * See {@link CfdPayload}.
  */
 export function CustomerDisplay() {
   const { t } = useTranslation();

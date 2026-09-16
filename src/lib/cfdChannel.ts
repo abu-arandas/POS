@@ -19,8 +19,15 @@ export type CfdStatus = 'idle' | 'scanning' | 'paying' | 'completed';
 /**
  * One complete snapshot of the register, not a delta.
  *
- * A display that joins late, reloads, or misses a message still renders the
- * current sale correctly, because every broadcast carries the whole cart.
+ * Carrying the whole cart every time is what keeps a display from drifting: it
+ * has no history it needs to have seen, so whichever message it does receive
+ * resyncs it completely.
+ *
+ * That is not the same as recovering a sale already in progress. A
+ * BroadcastChannel delivers only to listeners already attached and replays
+ * nothing, so a display opened or reloaded after the last broadcast holds its
+ * idle screen until the register sends again — which it does on the next cart,
+ * modal or settings change, not on a timer.
  */
 export interface CfdPayload {
   type: 'CFD_UPDATE';
