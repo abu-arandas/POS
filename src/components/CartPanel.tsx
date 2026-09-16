@@ -15,6 +15,7 @@ import {
   Star,
   ShoppingCart,
   ChevronDown,
+  Receipt,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Customer } from '../types';
@@ -51,6 +52,9 @@ interface CartPanelProps {
   onHoldOrder: () => void;
   heldCount: number;
   onOpenHeldOrders: () => void;
+  /** Tabs still owing money on this terminal. */
+  openTabCount: number;
+  onOpenTabs: () => void;
 }
 
 /**
@@ -83,6 +87,8 @@ const CartPanel = ({
   onHoldOrder,
   heldCount,
   onOpenHeldOrders,
+  openTabCount,
+  onOpenTabs,
 }: CartPanelProps) => {
   const customers = useCustomerStore((s) => s.customers);
   const settings = useSettingsStore((s) => s.settings);
@@ -531,6 +537,22 @@ const CartPanel = ({
             <span>{t('register.checkout')}</span>
           </motion.button>
         </div>
+
+        {/* Open tabs. Unlike held orders this is shown even at zero, because
+            it is also how a tab is STARTED — and a control that only appears
+            once one exists is a feature nobody discovers. */}
+        <motion.button
+          id="open-tabs-btn"
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={onOpenTabs}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
+        >
+          <Receipt size={12} />
+          {openTabCount > 0
+            ? t('register.openTabsCount', { count: openTabCount })
+            : t('register.openTabs')}
+        </motion.button>
 
         {/* Held orders */}
         {heldCount > 0 && (

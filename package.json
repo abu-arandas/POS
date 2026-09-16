@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.4",
   "type": "module",
-  "description": "EA POS \u2014 offline-first point-of-sale for retail and caf\u00e9: inventory, checkout, QR digital menu server, and network thermal-printer support.",
+  "description": "EA POS — offline-first point-of-sale for retail and café: inventory, checkout, QR digital menu server, and network thermal-printer support.",
   "author": {
     "name": "abu-arandas",
     "email": "e00arandas@gmail.com"
@@ -52,6 +52,7 @@
     "eslint": "^10.7.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
+    "fake-indexeddb": "^6.2.5",
     "globals": "^17.7.0",
     "i18next": "^26.3.6",
     "idb-keyval": "^6.3.0",

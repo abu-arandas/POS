@@ -14,6 +14,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
+    // Shims IndexedDB so the persisted stores can run their real persist path.
+    setupFiles: ['src/test/setup.ts'],
     include: ['src/**/*.test.ts', 'electron/**/*.test.mjs'],
     reporters: 'dot',
   },

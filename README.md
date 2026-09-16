@@ -16,6 +16,7 @@ sync when you want several terminals to agree.
 - [Building](#building)
 - [Staff accounts and PINs](#staff-accounts-and-pins)
 - [Cloud sync (optional)](#cloud-sync-optional)
+- [Open tabs](#open-tabs)
 - [Multi-store fleets](#multi-store-fleets)
 - [Printing](#printing)
 - [How the code is arranged](#how-the-code-is-arranged)
@@ -37,6 +38,9 @@ sync when you want several terminals to agree.
   with different modifiers stay two cart lines
 - Split payments across cash, card, mobile and gift, with live change
 - Parked orders — hold a cart with its customer and discount, resume it later
+- Open tabs — a table or a regular orders across several rounds and settles once at the end.
+  Each round is kept separately (the kitchen has already been given it), and the bill merges
+  them for display and settlement
 - Partial and line-item refunds, with tax and loyalty points prorated, behind a manager override
 
 **Running the shop**
@@ -54,7 +58,7 @@ sync when you want several terminals to agree.
   with elapsed timers, item ticking, a bump ladder and a recall buffer. Tickets are only raised
   when kitchen stations are configured, so a retail counter raises none.
 - Table management — a floor plan with occupied / bill-requested / reserved states, and
-  "open this table on the register"
+  "open this table on the register". Settling a table's tab releases the table.
 - QR menu — generates and prints a QR code that serves the menu to a customer's phone over the LAN
 
 **Terminal**
@@ -240,6 +244,39 @@ and, if anything is still owed, says how many changes would be discarded before 
 confirm. It also means any field a mapper forgets is that field _deleted_ on every terminal —
 adding a column to a synced type means touching the SQL, the row mapper, the pull mapper and the
 catalog-push RPC in the same change.
+
+---
+
+## Open tabs
+
+A tab is an account that stays open across several rounds and is settled once. Open one from the
+cart (**Open tabs → Open a tab with N items**), add later rounds to it the same way, and settle it
+when the table asks for the bill.
+
+Three decisions are worth knowing about, because each has a consequence:
+
+**Rounds are stored separately.** Merging them on arrival would be simpler and would destroy the
+only record of what has already gone to the kitchen — so a second round can fire a ticket for the
+second round alone rather than cooking the first one twice. The bill merges them for display, and
+a line whose price changed between rounds deliberately stays separate rather than being averaged.
+
+**Stock moves at settlement, not as rounds are added.** An open tab reserves nothing, which is the
+same rule parked orders already follow. For a café that is right — the coffee is made and gone. For
+a shop holding goods back it is a real limitation rather than an oversight: reserving stock across
+an open tab needs a reservation that survives a crash and is released when a tab is discarded.
+
+**A tab lives on the terminal it was opened on.** Like held orders and shifts, tabs are not
+cloud-synced: nothing has been sold, no stock has moved and no money has changed hands, so
+replicating one would put an in-progress bar tab on every till in the fleet and let a realtime pull
+replace a round taken thirty seconds ago. The committed record is the _sale_ the tab settles into,
+and that syncs like any other. Opening a tab at the bar and settling it at the till would need tabs
+to be a synced entity with a merge story — two terminals adding a round at once is a merge, not a
+last-write-wins upsert.
+
+Settlement goes through `commitSale` unchanged, so stock validation, loyalty points, the KDS
+ticket, the transaction record and the cloud push behave exactly as they do for a walk-in sale. The
+tab is marked settled only _after_ the sale commits — a refused sale leaves the tab open, with the
+bill intact.
 
 ---
 
