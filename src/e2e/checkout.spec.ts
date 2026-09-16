@@ -1,4 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
+import { INITIAL_SETTINGS } from '../data/seedData';
+
+// The demo fixture the dev build boots with. Read rather than duplicated so a
+// change to the seeded store's currency or tax rate cannot silently invalidate
+// these assertions.
+const CURRENCY = INITIAL_SETTINGS.currency;
 
 // Signs in through the PIN lockscreen as one of the seeded staff accounts.
 // The PIN auto-submits once the fourth digit is entered.
@@ -49,7 +55,7 @@ test('admin logs in and the register loads with the seeded catalog', async ({ pa
 test('a card sale produces a receipt with the taxed total', async ({ page }) => {
   await login(page, 'Admin', '1234');
 
-  await addProduct(page, 'بطاطا ودجز صغير'); // $1.00
+  await addProduct(page, 'بطاطا ودجز صغير'); // 1.00
   const cart = page.locator('#cart-section');
   await expect(cart.getByText('بطاطا ودجز صغير')).toBeVisible();
 
@@ -63,22 +69,26 @@ test('a card sale produces a receipt with the taxed total', async ({ page }) => 
   await expect(receipt).toBeVisible();
   await expect(receipt.getByText(/Payment Successful/i)).toBeVisible();
   await expect(receipt.getByText(/TX-/).first()).toBeVisible();
-  // 1.00 + 8.5% tax (0.09) = 1.09
-  await expect(receipt.getByText('$1.09').first()).toBeVisible();
+  // The seeded demo store charges no tax, so the total is the line total.
+  // Asserted against INITIAL_SETTINGS rather than a hard-coded symbol and rate:
+  // this pair used to read "$1.09" from an 8.5% fixture, and went stale — while
+  // the suite could not reach the assertion at all, because every seeded
+  // product had negative stock and its card was disabled.
+  await expect(receipt.getByText(`${CURRENCY}1.00`).first()).toBeVisible();
 });
 
 test('a cash sale calculates change before completing', async ({ page }) => {
   await login(page, 'Admin', '1234');
 
-  await addProduct(page, 'كاسة بطاطا بالجبنة'); // $1.50
+  await addProduct(page, 'كاسة بطاطا بالجبنة'); // 1.50
   const cart = page.locator('#cart-section');
   await cart.getByRole('button', { name: /Checkout/i }).click();
   await expect(page.locator('#payment-modal')).toBeVisible();
 
   await page.locator('#pay-method-cash').click();
   await page.locator('#payment-modal input[type="number"]').first().fill('10');
-  // 10.00 − (1.50 + 8.5% tax 0.13 = 1.63) = 8.37 change due
-  await expect(page.locator('#payment-modal')).toContainText('8.37');
+  // 10.00 − 1.50 = 8.50 change due (the demo store charges no tax).
+  await expect(page.locator('#payment-modal')).toContainText('8.50');
 
   await page.getByRole('button', { name: /Complete Order/i }).click();
   await expect(page.locator('#receipt-modal').getByText(/TX-/).first()).toBeVisible();
