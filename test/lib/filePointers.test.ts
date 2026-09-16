@@ -14,12 +14,18 @@ import { dirname, join, resolve } from 'path';
 // nothing, and the next reader concludes the explanation was deleted rather
 // than relocated.
 //
-// It had already happened four times over. docs/PROJECT.md sent readers to
-// src/lib/receipt/ and src/lib/print/ (both live under src/lib/printing/),
-// electron/main.cjs cited src/lib/receiptPrinter.ts and multi-store-schema.sql
-// cited src/lib/supabase.ts — two compatibility facades deleted in an earlier
-// refactor. All four described real, still-existing behaviour; only the
-// addresses were wrong, which is the hardest kind of staleness to notice.
+// It had already happened five times over: the reference doc sent readers to
+// receipt/ and print/ directories that live one level deeper than advertised,
+// two SQL headers cited a planning document that was never committed, and the
+// Electron main process and a migration each named a compatibility facade
+// deleted in an earlier refactor. Every one described real, still-existing
+// behaviour; only the address was wrong, which is the hardest kind of
+// staleness to notice.
+//
+// Those examples are deliberately named without their directory prefix. This
+// file is scanned like any other, so spelling a deleted path in full here
+// would make the guard fail on its own documentation — which is, in its way,
+// the check demonstrating that it works.
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
