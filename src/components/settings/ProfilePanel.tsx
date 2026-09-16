@@ -158,8 +158,9 @@ export function ProfilePanel({
               <div className="mt-3 p-3 bg-secondary/30 border border-border rounded-lg inline-block">
                 <img
                   src={safeImageUrl(settings.storeLogo)}
-                  alt="Store Logo"
+                  alt={t('receiptCfg.tg_logo')}
                   className="h-14 w-auto object-contain rounded"
+                  referrerPolicy="no-referrer"
                 />
               </div>
             )}

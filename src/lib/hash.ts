@@ -162,19 +162,6 @@ async function pbkdf2Sha256Async(
   return result;
 }
 
-function pbkdf2Sha256Sync(pin: string, salt: Uint8Array, iterations: number): Uint8Array {
-  const password = new TextEncoder().encode(pin);
-  const block = new Uint8Array(4);
-  new DataView(block.buffer).setUint32(0, 1);
-  let u = hmacSha256Sync(password, concatBytes(salt, block));
-  const result = u.slice();
-  for (let iteration = 1; iteration < iterations; iteration += 1) {
-    u = hmacSha256Sync(password, u);
-    for (let i = 0; i < result.length; i += 1) result[i] ^= u[i];
-  }
-  return result;
-}
-
 /**
  * The 32-byte PBKDF2-SHA256 digest as hex, preferring WebCrypto and falling
  * back to the JavaScript implementation where `crypto.subtle` is unavailable.
@@ -211,15 +198,13 @@ export async function hashPinSaltedLegacy(userId: string, pin: string): Promise<
   return hashPin(`${userId}:${pin}`);
 }
 
-/**
- * Derives a v2 PIN hash without WebCrypto. Encodes version, iteration count
- * and salt alongside the digest so it stays verifiable across upgrades.
- */
-export function hashPinSaltedSync(userId: string, pin: string): string {
-  const salt = deriveSalt(userId);
-  const derived = pbkdf2Sha256Sync(pin, salt, PBKDF2_ITERATIONS);
-  return `${HASH_VERSION}$${PBKDF2_ITERATIONS}$${bytesToHex(salt)}$${bytesToHex(derived)}`;
-}
+// hashPinSaltedSync used to sit here, deriving a v2 hash on the blocking
+// pbkdf2Sha256Sync. Nothing called it — every PIN is written through
+// hashPinSalted, which awaits WebCrypto and falls back to the yielding
+// pbkdf2Sha256Async — and at 600,000 iterations the synchronous variant would
+// have frozen the lock screen for roughly fifteen seconds if anything ever had.
+// Removed rather than kept "just in case": an unused fast path to a blocked UI
+// is not a fallback, it is a trap for the next caller who finds it.
 
 /**
  * Derives a v2 PIN hash, preferring WebCrypto and falling back to the

@@ -11,6 +11,7 @@
 // screen's business, and none of them belong in a number.
 
 import { Category, Product, PurchaseOrder, SaleTransaction } from '../types';
+import { tenderBreakdown } from './payments';
 
 const round = (value: number) => Number(value.toFixed(2));
 
@@ -210,9 +211,14 @@ export function categoryName(categoryId: string, categories: Category[]): string
 /**
  * Net takings per tender, excluding methods that took nothing.
  *
- * Keyed by the sale's dominant method, which is what a split sale is filed
- * under everywhere else in the app; the per-tender breakdown lives on the
- * receipt.
+ * Split across the sale's REAL tender lines, not filed under its dominant
+ * method. Keying by the dominant method put all £30 of a £10-cash/£20-card
+ * sale under card and nothing under cash: the chart still added up to the right
+ * revenue while describing a day that never happened — and cash is exactly the
+ * column an owner reads this panel for.
+ *
+ * Refunds are prorated across a sale's methods in the ratio they were taken,
+ * matching summarizeShift, so the Z-report and this panel cannot disagree.
  */
 export function paymentTotals(
   transactions: SaleTransaction[],
@@ -225,8 +231,15 @@ export function paymentTotals(
   };
 
   for (const tx of transactions) {
-    if (tx.paymentMethod in totals) {
-      totals[tx.paymentMethod as keyof typeof totals] += netRevenue(tx);
+    // netRevenue/total is the share of the sale that was NOT returned; a sale
+    // with total 0 (fully discounted, or paid entirely in points) has no tender
+    // to attribute either way.
+    const keptShare = tx.total > 0 ? netRevenue(tx) / tx.total : 0;
+    if (keptShare <= 0) continue;
+    for (const [method, amount] of Object.entries(tenderBreakdown(tx))) {
+      if (method in totals) {
+        totals[method as keyof typeof totals] += amount * keptShare;
+      }
     }
   }
 

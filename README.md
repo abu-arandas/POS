@@ -333,11 +333,31 @@ nothing will now tell you when one breaks — so they are listed here rather tha
    `src/lib/utils/dates.ts`.
 8. **Production code under `src/` carries zero `any`.**
 
-Before opening a pull request, run the checks by hand — nothing runs them for you:
+Before opening a pull request:
 
 ```bash
-npm run lint && npm run format:check && npm run build && npm run perf:check
+npm run lint && npm run format:check && npm test && npm run build && npm run perf:check
 ```
+
+CI runs exactly that on every pull request (the `verify` job), and a release
+will not publish unless it passes.
+
+### Tests
+
+`npm test` runs Vitest over the pure modules — the money (`pricing`, `checkout`,
+`refunds`, `payments`, `shiftReport`, `dashboardMetrics`), the catalogue
+(`variants`), the lock-screen throttle (`pinThrottle`), the receipt renderers,
+and the four dependency-free Electron modules (`validation`, `updatePolicy`,
+`menuServer`, `windowsSigning`). `npm run test:watch` re-runs on save.
+
+There is no DOM environment and no component rendering, deliberately. The split
+this project already keeps — arithmetic in `src/lib/`, pixels in
+`src/components/` — is what lets the suite finish in about two seconds, and a
+module that needs a DOM to be tested is a module whose layout and arithmetic
+have grown together.
+
+Electron modules are CommonJS, so their tests sit beside them as `.mjs` (Vitest
+cannot be `require`d) and are excluded from the packaged installer.
 
 ---
 
@@ -350,6 +370,7 @@ npm run lint && npm run format:check && npm run build && npm run perf:check
 | `preview`                 | Serve the built output                               |
 | `portable`                | Single-file build to `portable/index.html`           |
 | `lint`                    | `tsc --noEmit && eslint .`                           |
+| `test` / `test:watch`     | Vitest over the pure modules                         |
 | `format` / `format:check` | Prettier                                             |
 | `perf:check`              | Assert the initial JS and CSS gzip budgets           |
 | `electron:dev`            | Vite + Electron together                             |

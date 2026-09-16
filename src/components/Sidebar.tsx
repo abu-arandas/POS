@@ -122,8 +122,9 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
             {safeImageUrl(settings.storeLogo) ? (
               <img
                 src={safeImageUrl(settings.storeLogo)}
-                alt="Logo"
+                alt={t('receiptCfg.tg_logo')}
                 className="size-full object-contain"
+                referrerPolicy="no-referrer"
               />
             ) : (
               <Logo size={28} />

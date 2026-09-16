@@ -291,3 +291,35 @@ export function subscribeToOutbox(listener: Listener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
+
+/** The push-operation field each synced table's rows are queued under. */
+const PUSH_FIELD = {
+  products: 'products',
+  categories: 'categories',
+  customers: 'customers',
+  transactions: 'transactions',
+  user_accounts: 'users',
+} as const satisfies Record<SyncTable, keyof Extract<OutboxOperation, { type: 'push' }>>;
+
+/**
+ * Row ids this terminal has written locally and the server has not accepted yet.
+ *
+ * This is what makes a realtime pull safe. A pull REPLACES the local table with
+ * the server's copy, and a sale rung up a moment ago exists only here until its
+ * push lands — so applying the snapshot verbatim erased it from the history and
+ * the Z-report until a later pull brought it back. The outbox already knows
+ * exactly which rows are in that state; it just could not be asked.
+ *
+ * Only pushes count. A queued DELETE means the row is already gone locally, and
+ * the pulled snapshot may legitimately still contain it — reinstating it here
+ * would undo the delete the operator just made.
+ */
+export async function pendingPushIds(table: SyncTable): Promise<Set<string>> {
+  const field = PUSH_FIELD[table];
+  const ids = new Set<string>();
+  for (const entry of await peekOutbox()) {
+    if (entry.operation.type !== 'push') continue;
+    for (const row of entry.operation[field] ?? []) ids.add(row.id);
+  }
+  return ids;
+}

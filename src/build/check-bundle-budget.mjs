@@ -1,8 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
-const root = path.resolve(new URL('../..', import.meta.url).pathname);
+// fileURLToPath, not `new URL(...).pathname`: on Windows the latter yields
+// "/C:/Users/..." — a leading slash that makes the path invalid — and it leaves
+// percent-escapes undecoded, so any directory with a space in it resolves to
+// somewhere that does not exist. This budget gates a Windows installer build.
+const root = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const assetsDir = path.join(root, 'dist', 'assets');
 const budgets = [
   {

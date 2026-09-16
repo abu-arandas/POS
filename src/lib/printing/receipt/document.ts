@@ -128,6 +128,12 @@ export function receiptDocHtml(
 
           .item { margin: 1.2mm 0; }
           .item-unit { font-size: 0.8em; padding-inline-start: 3mm; }
+          /* A chosen add-on, indented under the line it belongs to. Its price
+             delta is already in the line total, so it is named, not priced. */
+          .item-mod {
+            font-size: 0.85em; padding-inline-start: 3mm;
+            overflow-wrap: anywhere; unicode-bidi: plaintext;
+          }
 
           /* A tender line under its own PAY METHOD heading. */
           .tender > span:first-child { padding-inline-start: 3mm; }
@@ -169,6 +175,15 @@ export function receiptDocHtml(
           .kitchen-item {
             font-size: 1.3em; font-weight: 700; line-height: 1.25;
             margin: 2mm 0; overflow-wrap: anywhere;
+          }
+          /* Deliberately close in size to .kitchen-item. A modifier is the
+             instruction that makes this ticket differ from the menu, so it is
+             sized to be read across a pass counter, not tucked into small
+             print the way a customer's price breakdown is. */
+          .kitchen-mod {
+            font-size: 1.1em; font-weight: 700; line-height: 1.25;
+            padding-inline-start: 4mm; margin: 0.5mm 0 1.5mm;
+            overflow-wrap: anywhere; unicode-bidi: plaintext;
           }
           .kitchen-count { font-size: 1.05em; font-weight: 700; letter-spacing: 1px; }
 

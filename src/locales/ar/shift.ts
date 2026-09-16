@@ -34,4 +34,7 @@ export const shift = {
   confirmPayIn: 'تأكيد الإيداع',
   confirmPayOut: 'تأكيد المصروف',
   shareDailySummary: 'مشاركة ملخص نهاية اليوم',
+  zReportTitle: 'تقرير Z / ملخص الوردية',
+  payIns: 'إيداعات نقدية',
+  payOuts: 'مصروفات نقدية',
 };

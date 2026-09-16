@@ -14,6 +14,7 @@ import {
   ReceiptLayout,
 } from '../../types';
 import i18n from '../i18n';
+import { itemLabel, itemModifierNames } from './lineItem';
 import {
   formatDateTime,
   resolveCustomerLayout,
@@ -150,15 +151,16 @@ function pushSaleMeta(rows: DocRow[], { tx, layout: L, date: d }: ReceiptContext
 }
 
 /**
- * What a sold line is called on paper. The variant is part of the item's
- * identity, not decoration: a receipt reading "1x Tee" against three sizes on
- * the shelf tells neither the customer nor the returns desk which one was sold.
+ * The modifier sub-lines for one item, if it has any.
  *
- * Read off the transaction, never looked up in the catalogue — a receipt
- * reprinted after the variant was renamed has to show what was bought.
+ * Indented under the line they belong to, one per row rather than joined into
+ * a single run: on a 58mm roll a joined list wraps mid-name, and "No Onions"
+ * broken across two lines is exactly the instruction that gets misread.
  */
-function itemLabel(item: OrderItem): string {
-  return item.variantName ? `${item.productName} — ${item.variantName}` : item.productName;
+function pushModifiers(rows: DocRow[], item: OrderItem, style: RowStyle = 'muted'): void {
+  for (const name of itemModifierNames(item)) {
+    rows.push({ kind: 'line', text: `  • ${name}`, style });
+  }
 }
 
 /** One row per line item, with the unit price under any multi-unit line. */
@@ -168,9 +170,11 @@ function pushItems(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptCont
     const name = `${item.quantity}x ${itemLabel(item)}`;
     if (!S.priceColumn) {
       rows.push({ kind: 'line', text: name });
+      pushModifiers(rows, item);
       continue;
     }
     rows.push({ kind: 'pair', label: name, value: money(cur, item.total) });
+    pushModifiers(rows, item);
     if (S.itemUnitPrice && item.quantity > 1) {
       rows.push({
         kind: 'line',
@@ -384,6 +388,11 @@ export function buildKitchenDoc(
 
   for (const item of tx.items) {
     rows.push({ kind: 'line', text: `${item.quantity}x ${itemLabel(item)}`, style: 'large' });
+    // Not 'muted' here, unlike the customer receipt. A modifier IS the
+    // instruction on a kitchen ticket — "No Onions" is the whole reason the
+    // ticket differs from the menu — so it prints at normal weight rather than
+    // in the small type reserved for a customer's price breakdown.
+    pushModifiers(rows, item, 'normal');
   }
 
   rows.push({ kind: 'divider' });

@@ -70,9 +70,10 @@ declare global {
       >;
       // Scans the local /24 subnet for open TCP 9100 hosts; resolves responding IPs.
       scanNetworkPrinters?: (opts?: { port?: number; timeoutMs?: number }) => Promise<string[]>;
-      // The first argument is Electron's IpcRendererEvent. Typing it as unknown
-      // keeps the renderer free of an electron import; callers ignore it.
-      onMenuServerError?: (callback: (event: unknown, message: string) => void) => () => void;
+      // The preload strips Electron's IpcRendererEvent before calling back, so
+      // these receive the message alone — see electron/preload.cjs for why the
+      // event must not cross the bridge.
+      onMenuServerError?: (callback: (message: string) => void) => () => void;
       checkForUpdates?: () => Promise<{
         status: string;
         version?: string;
@@ -84,8 +85,8 @@ declare global {
         installSilently?: boolean;
       }>;
       installUpdate?: () => Promise<boolean>;
-      onUpdateAvailable?: (callback: (event: unknown, info: UpdateInfo) => void) => () => void;
-      onUpdateDownloaded?: (callback: (event: unknown, info: UpdateInfo) => void) => () => void;
+      onUpdateAvailable?: (callback: (info: UpdateInfo) => void) => () => void;
+      onUpdateDownloaded?: (callback: (info: UpdateInfo) => void) => () => void;
     };
   }
 }

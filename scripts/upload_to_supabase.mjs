@@ -11,6 +11,26 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const DEVICE_EMAIL = process.env.SUPABASE_DEVICE_EMAIL;
 const DEVICE_PASSWORD = process.env.SUPABASE_DEVICE_PASSWORD;
 
+// Which store these rows belong to. Required on a database that has run
+// multi-store-schema.sql: multi-store-rls-enforce.sql declares store_id NOT
+// NULL, so an unstamped upsert is rejected outright — and on a multi-store
+// database that has not reached the enforcement step, it silently writes rows
+// with a NULL store_id that no scoped pull will ever return. The application
+// refuses exactly this write for exactly this reason (isSyncBlocked() in
+// src/lib/supabase/storeScope.ts); a migration script must not be the back
+// door around it. Left empty for a single-store database, which has no store
+// dimension to stamp.
+const STORE_ID = process.env.SUPABASE_STORE_ID || '';
+
+// The export to import. Defaults to the sample alongside this script, but a
+// real migration passes its own: a device backup is a store's live catalogue —
+// names, costs, purchase prices, margins — and belongs in a file you point at,
+// not one committed to the repository.
+const BACKUP_PATH =
+  process.argv[2] ||
+  process.env.POS_BACKUP_FILE ||
+  path.join(import.meta.dirname, 'installed_device_backup.json');
+
 const MISSING = [
   ['SUPABASE_URL', SUPABASE_URL],
   ['SUPABASE_ANON_KEY', SUPABASE_ANON_KEY],
@@ -29,6 +49,13 @@ const CATEGORY_COLORS = [
   'bg-cyan-100 text-cyan-800 border-cyan-200',
   'bg-orange-100 text-orange-800 border-orange-200',
 ];
+
+/** Turns a bare store_id constraint failure into the instruction that fixes it. */
+function storeScopeHint(message) {
+  return /store_id/.test(message) && !STORE_ID
+    ? `${message} — this database is multi-store: set SUPABASE_STORE_ID in .env to the id of the store you are importing into.`
+    : message;
+}
 
 export async function uploadData() {
   if (MISSING.length > 0) {
@@ -60,11 +87,17 @@ export async function uploadData() {
   await authedClient.auth.setSession(authData.session);
 
   // Read backup data
-  const raw = fs.readFileSync(
-    path.join(import.meta.dirname, 'installed_device_backup.json'),
-    'utf-8',
-  );
-  const backup = JSON.parse(raw);
+  if (!fs.existsSync(BACKUP_PATH)) {
+    return {
+      success: false,
+      error:
+        `Backup file not found: ${BACKUP_PATH}. Pass one as the first argument ` +
+        '(node scripts/upload_to_supabase.mjs ./my-backup.json) or set POS_BACKUP_FILE.',
+    };
+  }
+  console.log('Reading backup:', BACKUP_PATH);
+  console.log('Store scope:', STORE_ID || 'none (single-store database)');
+  const backup = JSON.parse(fs.readFileSync(BACKUP_PATH, 'utf-8'));
 
   // Transform categories
   const categories = (backup.categories || []).map((cat, idx) => ({
@@ -92,23 +125,30 @@ export async function uploadData() {
     image: p.image || 'bg-amber-500',
   }));
 
+  // Stamped after mapping, on both tables at once, so neither can be the one
+  // that is forgotten when a third is added.
+  const scope = (records) =>
+    STORE_ID ? records.map((record) => ({ ...record, store_id: STORE_ID })) : records;
+  const scopedCategories = scope(categories);
+  const scopedProducts = scope(products);
+
   console.log(`Prepared ${categories.length} categories and ${products.length} products.`);
 
   // Try pushing categories
   console.log('Pushing categories to Supabase...');
-  const catRes = await authedClient.from('categories').upsert(categories);
+  const catRes = await authedClient.from('categories').upsert(scopedCategories);
   if (catRes.error) {
     console.error('❌ Categories push error:', catRes.error.message);
-    return { success: false, error: catRes.error.message };
+    return { success: false, error: storeScopeHint(catRes.error.message) };
   }
   console.log('✅ Categories successfully uploaded!');
 
   // Try pushing products
   console.log('Pushing products to Supabase...');
-  const prodRes = await authedClient.from('products').upsert(products);
+  const prodRes = await authedClient.from('products').upsert(scopedProducts);
   if (prodRes.error) {
     console.error('❌ Products push error:', prodRes.error.message);
-    return { success: false, error: prodRes.error.message };
+    return { success: false, error: storeScopeHint(prodRes.error.message) };
   }
   console.log('✅ Products successfully uploaded!');
 

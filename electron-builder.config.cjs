@@ -52,5 +52,7 @@ module.exports = {
     runAfterFinish: true,
     shortcutName: 'EA POS',
   },
-  files: ['dist/**/*', 'electron/**/*'],
+  // Test files sit beside the modules they cover, so they have to be excluded
+  // explicitly or `electron/**/*` ships them inside the installer.
+  files: ['dist/**/*', 'electron/**/*', '!electron/**/*.test.mjs'],
 };

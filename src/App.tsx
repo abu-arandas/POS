@@ -225,7 +225,7 @@ export default function App() {
 
   useEffect(() => {
     if (!window.electronAPI?.onMenuServerError) return;
-    return window.electronAPI.onMenuServerError((_event, msg) => {
+    return window.electronAPI.onMenuServerError((msg) => {
       console.error('QR Menu Server Error:', msg);
       notify(msg, 'error');
     });

@@ -34,4 +34,7 @@ export const shift = {
   confirmPayIn: 'Confirm Pay-In',
   confirmPayOut: 'Confirm Pay-Out',
   shareDailySummary: 'Share End-of-Day Summary',
+  zReportTitle: 'Z-REPORT / SHIFT SUMMARY',
+  payIns: 'Pay-Ins',
+  payOuts: 'Pay-Outs',
 };
