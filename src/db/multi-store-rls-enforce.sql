@@ -1,7 +1,7 @@
 -- ============================================================
 -- Multi-store RLS enforcement  (Phase 3 — OPT-IN, run deliberately)
 --
--- This is the "flip RLS on" step from docs/super-admin-plan.md §7. It turns the
+-- This is the "flip RLS on" step described in docs/PROJECT.md §14.3. It turns the
 -- store dimension from advisory into ENFORCED: after running this, a terminal
 -- can only read/write rows for stores its Supabase user is a member of, and a
 -- super-admin (org-wide membership) can read/write the whole org — decided by

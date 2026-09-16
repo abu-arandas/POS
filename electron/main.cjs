@@ -268,7 +268,7 @@ ipcMain.handle('print-html', async (event, payload) => {
   // The receipt HTML is assembled from operator-entered data (store name, item
   // names, footer text). It renders in a throwaway window with no preload, no
   // Node, and sandboxed — so even if something slipped past the escaping in
-  // src/lib/receiptPrinter.ts it has nothing to reach for.
+  // src/lib/printing/receipt/ it has nothing to reach for.
   const win = new BrowserWindow({
     show: false,
     webPreferences: {

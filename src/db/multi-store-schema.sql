@@ -6,7 +6,7 @@
 -- backfills every existing row into a single "default" store, and leaves the
 -- single-store terminal flow working unchanged. RLS for the new tables is
 -- included; flipping RLS on for the existing data tables (products, etc.) is a
--- later phase, once every terminal stamps a store_id (see docs/super-admin-plan.md).
+-- later phase, once every terminal stamps a store_id (see docs/PROJECT.md §9).
 -- Safe to re-run.
 -- ============================================================
 
@@ -293,7 +293,7 @@ CREATE INDEX IF NOT EXISTS idx_products_store           ON products (store_id);
 CREATE INDEX IF NOT EXISTS idx_memberships_user         ON memberships (user_id);
 
 -- Every store_id column added in section 2 is filtered on by a pull in
--- src/lib/supabase.ts, but only products and transactions were indexed, so
+-- src/lib/supabase/, but only products and transactions were indexed, so
 -- pullCategories() and pullCustomers() scanned the whole table on a fleet
 -- database and got slower with every store added to the org.
 CREATE INDEX IF NOT EXISTS idx_categories_store ON categories (store_id);

@@ -684,7 +684,7 @@ the setting appeared to work and did nothing:
    to the printer, and `onload`/`onerror` do not cover an image that reports neither — that
    promise would stay pending forever and the receipt would never be sent.
 
-`test/lib/receipt/rendererConsistency.test.ts` walks all eighteen toggles and asserts the
+`test/lib/printing/receipt/rendererConsistency.test.ts` walks all eighteen toggles and asserts
 HTML and DocRow descriptions agree on whether each block is present. The renderers may
 differ in _how_ they draw a block — one has CSS, the other has dots — but never in
 _whether_. `htmlCharacterization.test.ts` snapshots the exact markup, including the 46
