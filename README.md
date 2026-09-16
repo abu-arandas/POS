@@ -1,284 +1,373 @@
-# EA POS (Point of Sale) 🏬
+# EA POS
 
-A modern, high-performance, cross-platform Point of Sale (POS) system built with **React 19**, **Vite**, **Tailwind CSS v4**, and packaged as a standalone Windows desktop application using **Electron**.
+A point-of-sale system for a shop or a small restaurant. It runs in a browser and ships as a
+standalone Windows desktop application.
 
-![EA POS Screenshot](https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&q=80&w=1200)
+Built with React 19, Vite, Tailwind CSS v4, Zustand and Electron. It works **offline first** —
+every sale is committed locally before anything touches the network — with optional Supabase
+sync when you want several terminals to agree.
 
-## ✨ Features
+---
 
-- **Premium UI/UX:** Built with Tailwind CSS v4, featuring glassmorphism, micro-animations, and a highly polished dark/light mode integration.
-- **Full RTL & Arabic Support:** Built-in i18n localization. Seamlessly switch between English (LTR) and Arabic (RTL) across the entire application interface.
-- **Register & Cart Management:** Smooth product checkout, cart updates, and manual/percentage/fixed discounts.
-- **Barcode Scanning:** Hardware keyboard-wedge scanners add products by SKU straight into the cart.
-- **Parked Orders:** Hold an in-progress cart (with its customer and discount) and resume it later.
-- **Split Payments:** Settle one sale across multiple tenders (cash + card + mobile + gift) with live change.
-- **Partial & Line-Item Refunds:** Return specific items/quantities; tax and loyalty points are prorated automatically, with a manager override for cashiers.
-- **Shifts & Cash Drawer:** Open/close register shifts with a starting float and a reconciled Z-report (expected vs. counted cash).
-- **Receipts, Your Way:** On-screen thermal receipts, **real ESC/POS printing** (Web Serial or a network TCP printer), plus **digital delivery** (share / email).
-- **Drag & Drop Customization:** Rearrange products on the register screen using an intuitive drag-and-drop edit mode.
-- **QR Menu Generator:** Automatically generate and print digital QR codes so customers can browse your menu on their phones.
-- **Customer Loyalty System:** Link customers to transactions to award or deduct loyalty points directly at checkout.
-- **Analytics Dashboard:** Date-range KPIs (today / 7d / 30d / all), revenue & profit trend, best-sellers, category and payment breakdowns, and a per-operator sales report — all exportable to CSV.
-- **Product Variants:** Sell one product in several option types at once — Size × Colour, Size × Flavour — where each combination is its own SKU, price and stock count. The register offers a picker, barcodes scan straight to a variant, shelf labels print one tag per combination, and the product's stock is simply the sum of its variants'.
-- **Inventory Depth:** Suppliers, a lightweight "receive stock" purchase-order flow, and a full stock-adjustment audit log.
-- **Item Modifiers:** Per-product add-on groups — Sauces, Doneness, Extras — with required and
-  multi-select rules and price deltas. Two of the same product with different modifiers stay
-  two cart lines.
-- **Kitchen Display System:** Sales raise live tickets routed to the station their category
-  belongs to, with elapsed timers, item-level ticking, a bump ladder and a recall buffer.
-  Only when kitchen stations are configured, so a retail counter raises none.
-- **Table Management:** A floor plan with occupied / bill-requested / reserved states, and
-  "open this table on the register".
-- **Petty Cash:** Pay-ins and pay-outs against the open drawer, carried into the Z-report.
-- **Customer-Facing Display:** A second window that mirrors the sale for the customer on the
-  counter's other screen. Open it from **Settings → Profile → Customer-facing display**; it
-  is driven over a `BroadcastChannel`, so it needs no network and no second install.
-- **Live Multi-Terminal Sync:** Optional Supabase cloud sync with realtime subscriptions, so a second register's changes appear automatically; cloud PIN login keeps staff accounts consistent across terminals.
-- **Cross-Platform & Standalone:** Runs perfectly in the browser (via Vite) or as a native downloadable `.exe` via Electron without the standard browser toolbars.
+## Contents
 
-## 🚀 Getting Started
+- [What it does](#what-it-does)
+- [Getting started](#getting-started)
+- [Building](#building)
+- [Staff accounts and PINs](#staff-accounts-and-pins)
+- [Cloud sync (optional)](#cloud-sync-optional)
+- [Multi-store fleets](#multi-store-fleets)
+- [Printing](#printing)
+- [How the code is arranged](#how-the-code-is-arranged)
+- [Invariants to keep](#invariants-to-keep)
+- [Scripts](#scripts)
+- [License](#license)
 
-### Prerequisites
+---
 
-- [Node.js](https://nodejs.org/) **v22.22.2 or newer** (the current locked
-  dependency graph requires Node 22.22.2 or a newer supported major; CI builds on
-  Node 22)
-- `npm`
+## What it does
 
-### Installation
+**Selling**
 
-1. Clone or download the repository.
-2. Install the dependencies:
-   ```bash
-   npm install
-   ```
-   _Note for Windows users:_ If `npm install` fails due to local system security restrictions, run:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -Command "npm install"
-   ```
+- Register with cart, per-line and whole-sale discounts (percentage, fixed, loyalty points)
+- Barcode scanning through a keyboard-wedge scanner, straight to a product or a variant
+- Product variants — Size × Colour, Size × Flavour — where each combination is its own SKU,
+  price and stock, and the product's stock is the sum of its variants'
+- Item modifiers with required / multi-select rules and price deltas; two of the same product
+  with different modifiers stay two cart lines
+- Split payments across cash, card, mobile and gift, with live change
+- Parked orders — hold a cart with its customer and discount, resume it later
+- Partial and line-item refunds, with tax and loyalty points prorated, behind a manager override
 
-### Running Locally (Web)
+**Running the shop**
 
-To run the application in a standard web browser during development:
+- Shifts with an opening float and a reconciled Z-report (expected vs. counted cash)
+- Petty cash pay-ins and pay-outs, carried into the Z-report
+- Inventory with suppliers, a receive-stock purchase-order flow, and a stock-adjustment audit log
+- Customer book with loyalty points awarded and redeemed at checkout
+- Analytics: date-range KPIs, revenue and profit trend, best-sellers, category and payment
+  breakdowns, per-operator sales — all exportable to CSV
+
+**Restaurant**
+
+- Kitchen display — sales raise live tickets routed to the station their category belongs to,
+  with elapsed timers, item ticking, a bump ladder and a recall buffer. Tickets are only raised
+  when kitchen stations are configured, so a retail counter raises none.
+- Table management — a floor plan with occupied / bill-requested / reserved states, and
+  "open this table on the register"
+- QR menu — generates and prints a QR code that serves the menu to a customer's phone over the LAN
+
+**Terminal**
+
+- English and Arabic throughout, including full RTL layout mirroring
+- Customer-facing display — a second window mirroring the sale on the counter's other screen,
+  driven over a `BroadcastChannel`, so it needs no network and no second install.
+  Open it from **Settings → Profile → Customer-facing display**.
+- Real ESC/POS receipt printing over Web Serial, a network TCP printer, or the Windows spooler;
+  plus on-screen receipts and digital delivery by share or email
+- Optional live sync across terminals with realtime subscriptions
+
+---
+
+## Getting started
+
+**Prerequisites:** [Node.js](https://nodejs.org/) v22.22.2 or newer, and `npm`.
 
 ```bash
+npm install
 npm run dev
 ```
 
-The application will be available at `http://localhost:3000`.
+The app is then at `http://localhost:3000`.
 
-### Running Locally (Electron Desktop App)
-
-To run the application natively in an Electron desktop window during development:
+To run it in a native Electron window instead — this starts Vite in the background and attaches
+to it:
 
 ```bash
 npm run electron:dev
 ```
 
-_Note: This will automatically spin up the Vite development server in the background and attach it to the Electron window._
+> **Windows:** if `npm install` fails on local execution-policy restrictions, run
+> `powershell -ExecutionPolicy Bypass -Command "npm install"`.
 
-## 📦 Building the Application
+Development builds seed a demo catalogue and three clearly marked demo accounts. Production
+builds seed neither.
 
-### Build for Windows (.exe)
+---
 
-You can package the application into a standalone Windows installer using `electron-builder`. This process compiles the React code and bundles it inside an optimized Chromium wrapper.
+## Building
+
+### Web
+
+```bash
+npm run build     # static files in dist/
+npm run perf:check   # asserts the bundle budget
+```
+
+`npm run portable` produces a single self-contained `portable/index.html` instead.
+
+> **Serve over HTTPS, or over localhost.** The app prefers the browser's WebCrypto APIs, which
+> only exist in a secure context. Pure-JS fallbacks keep login and checkout working on a plain
+> `http://` LAN deployment, but HTTPS is the right setup for anything beyond a trusted local
+> network.
+
+### Windows desktop
 
 ```bash
 npm run electron:build
 ```
 
-**Output Locations:**
-Once completed successfully, your executables will be located in the `release/` folder inside the workspace:
+- **Installer:** `release/EA-POS-Setup-<version>.exe`, versioned from `package.json`
+- **Unpacked:** `release/win-unpacked/EA POS.exe`, runs without installing
 
-- **Installer:** `release/EA-POS-Setup-<version>.exe` — the version is the one in
-  `package.json` (electron-builder names the file from it), so today's build is
-  `EA-POS-Setup-1.0.4.exe`. Distribute this to install on Windows machines.
-- **Standalone App:** `release/win-unpacked/EA POS.exe` (Portable version, run directly without installing)
+If the build fails with `EPERM`, close any Explorer window or terminal sitting inside `release/` —
+Windows locks files while they are being viewed.
 
-_Troubleshooting: If you get an `EPERM` error during the build, ensure you do not have any File Explorer windows or terminals open inside the `release` folder, as Windows locks files while being viewed._
+#### Code signing
 
-> **Code signing.** Without a certificate the installer is unsigned, which costs
-> you three things: Chrome and Edge block or flag the download, Windows
-> SmartScreen warns on first run, and the auto-updater refuses to install updates
-> unattended (it stages them for an operator instead). Signing is the only fix —
-> no build setting suppresses those warnings.
->
-> Note that a `.pfx` file is no longer something a public CA will issue: since
-> June 2023 the CA/Browser Forum requires code-signing keys to live on certified
-> hardware. Two paths still work, and the build picks whichever one the
-> environment configures:
->
-> - **Azure Trusted Signing** — set `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`,
->   `AZURE_CLIENT_SECRET`, `AZURE_CODE_SIGNING_ENDPOINT`,
->   `AZURE_CODE_SIGNING_ACCOUNT_NAME`, `AZURE_CERT_PROFILE_NAME` and
->   `WINDOWS_PUBLISHER_NAME`. No certificate file to hold.
-> - **An existing exportable certificate** — set `CSC_LINK` and
->   `CSC_KEY_PASSWORD`. `WINDOWS_PUBLISHER_NAME` is optional here: signtool
->   reads the publisher off the certificate subject, which Azure cannot do.
->
-> Setting only part of either group fails the build rather than quietly
-> producing an unsigned installer (`electron/windowsSigning.cjs`).
->
-> Until a release is signed, verify a download by hand: the Windows workflow
-> publishes a `SHA256SUMS.txt` beside the installer, so compare it with
-> `Get-FileHash .\EA-POS-Setup-<version>.exe -Algorithm SHA256` — substituting the
-> same version as above, since a mistyped filename fails the check by not existing
-> rather than by mismatching.
+Without a certificate the installer is unsigned, and three things follow: browsers flag the
+download, SmartScreen warns on first run, and the auto-updater will not install updates
+unattended — it stages them for an operator instead. No build setting suppresses any of that.
+Signing is the only fix.
 
-### Build for Web
+A `.pfx` file is no longer something a public CA will issue; since June 2023 the CA/Browser
+Forum requires code-signing keys to live on certified hardware. Two paths work, and the build
+picks whichever the environment configures:
 
-If you only want to generate static web files for hosting on Vercel, Netlify, or an Nginx server:
+- **Azure Trusted Signing** — set `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`,
+  `AZURE_CODE_SIGNING_ENDPOINT`, `AZURE_CODE_SIGNING_ACCOUNT_NAME`, `AZURE_CERT_PROFILE_NAME`
+  and `WINDOWS_PUBLISHER_NAME`. No certificate file to hold.
+- **An existing exportable certificate** — set `CSC_LINK` and `CSC_KEY_PASSWORD`.
+  `WINDOWS_PUBLISHER_NAME` is optional here, because signtool reads the publisher off the
+  certificate subject, which Azure cannot do.
 
-```bash
-npm run build
-```
+Setting only part of either group **fails the build** rather than quietly producing an unsigned
+installer. That logic is in `electron/windowsSigning.cjs`, and the Windows workflow resolves the
+signing mode through the same module the build uses, so CI can never disagree with
+electron-builder about whether a build is signed.
 
-The static files will be located in the `dist/` directory.
+Until a release is signed, verify a download by hand: the workflow publishes `SHA256SUMS.txt`
+beside the installer, so compare it against
+`Get-FileHash .\EA-POS-Setup-<version>.exe -Algorithm SHA256`.
 
-> **Serve over HTTPS (or localhost).** The app prefers the browser's WebCrypto
-> APIs, which only exist in secure contexts. Pure-JS fallbacks keep login and
-> checkout working on a plain-`http://` LAN deploy, but HTTPS is still the
-> recommended setup for anything beyond a trusted local network.
+---
 
-## 🔐 Staff Accounts
+## Staff accounts and PINs
 
-Production builds do not seed public staff credentials. On a new terminal, the
-lock screen requires the operator to create the first administrator account and
-choose a four-digit PIN before the application can be opened. Additional staff
-accounts can then be created in **Settings → Users**.
+On a new terminal the lock screen requires the operator to create the first administrator
+account and choose a four-digit PIN before the app will open. Further accounts are created in
+**Settings → Users**. No production build ships an account.
 
-Development builds retain three clearly marked demo accounts for local testing:
-Admin (`1234`), Manager (`5555`), and Cashier (`0000`). Never reuse those PINs
-for real operations.
+Development builds keep three demo accounts for local testing — Admin `1234`, Manager `5555`,
+Cashier `0000`. They are fixtures. Never reuse them for real operations.
 
-PINs are stored as a versioned `PBKDF2-SHA-256` record with 600,000 iterations
-and an account-bound salt. Existing legacy account hashes are accepted once and
-upgraded automatically after a successful local sign-in. The PIN is still a
-four-digit convenience credential, so keep RLS enabled, protect the device
-account, and never reuse a terminal PIN as a password elsewhere.
-
-> The development PINs above are fixtures only. Production terminals do not
-> contain any shipped account and must be provisioned through the first-run
-> administrator setup screen.
+PINs are stored as a versioned PBKDF2-SHA-256 record: 600,000 iterations, account-bound salt.
+Legacy hashes are accepted once and upgraded after a successful local sign-in. A four-digit PIN
+is a convenience credential, not a password — keep RLS on, protect the device account, and never
+reuse a terminal PIN elsewhere.
 
 ### Brute-force protection
 
-A 4-digit PIN is only 10,000 combinations, so both PIN surfaces are throttled:
-five wrong attempts, then an escalating cool-off (30s → 1m → 2m → 5m → 15m). A
-streak is forgotten after 30 minutes of quiet, so an honest typo today doesn't
-count against tomorrow.
+Four digits is 10,000 combinations, so both PIN surfaces are throttled: five wrong attempts, then
+an escalating cool-off (30s → 1m → 2m → 5m → 15m). A streak is forgotten after 30 minutes of
+quiet, so an honest typo today does not count against tomorrow.
 
-- **On the terminal** — the lock screen and the manager-override prompt in the
-  refund flow (`src/lib/pinThrottle.ts`). Counters persist to IndexedDB, so
-  reloading the page doesn't reset the lockout.
-- **In the cloud** — the `verify_login` RPC is callable by anyone holding the
-  public anon key, so it applies the same ladder server-side and refuses to check
-  the PIN at all while an account is locked out. Failures are counted per
-  **caller and account**, not per account alone: a caller hammering a staff name
-  — and staff names are visible on the lock screen — locks out only themselves,
-  while the shop's own terminal keeps signing in. A second, far more tolerant
-  counter per account name (50 failures, 15-minute cool-off, cleared by any
-  successful login) backstops guessing spread across many callers.
+- **On the terminal** — the lock screen and the manager-override prompt in the refund flow
+  (`src/lib/pinThrottle.ts`). Counters persist to IndexedDB, so reloading does not clear a lockout.
+- **In the cloud** — the `verify_login` RPC is callable by anyone holding the public anon key, so
+  it applies the same ladder server-side and refuses to check the PIN at all while an account is
+  locked out. Failures are counted per **caller and account**, not per account alone: staff names
+  are visible on the lock screen, so a caller hammering one locks out only themselves while the
+  shop's own terminal keeps signing in. A second, far more tolerant per-account counter
+  (50 failures, 15-minute cool-off, cleared by any success) backstops guessing spread across
+  many callers.
 
-  The caller is derived from the request headers PostgREST forwards, which is
-  the only caller identity Postgres gets behind Supabase's pooler. It is never
-  used to authorize anything — only to decide whose failures count against whose
-  throttle — so spoofing it merely moves an attacker onto a different bucket. A
-  store under sustained abuse wants a real rate limit in front of Postgres
-  (Supabase gateway limits, or an Edge Function around this RPC), and cloud login
-  is a fallback in any case: PIN login keeps working offline against the locally
-  persisted staff list.
+  The caller is derived from the headers PostgREST forwards, which is the only caller identity
+  Postgres gets behind Supabase's pooler. It never authorizes anything — it only decides whose
+  failures count against whose throttle — so spoofing it merely moves an attacker to a different
+  bucket. A store under sustained abuse wants a real rate limit in front of Postgres (Supabase
+  gateway limits, or an Edge Function around this RPC). Cloud login is a fallback in any case:
+  PIN login keeps working offline against the locally persisted staff list.
 
-## ☁️ Cloud Sync (Supabase, optional)
+---
 
-The app runs fully offline by default (IndexedDB), with cloud sync **off and
-unconfigured** — no URL, no key and no device credentials ship in a build. To sync
-terminals through [Supabase](https://supabase.com):
+## Cloud sync (optional)
 
-1. Create a Supabase project and run `src/db/schema.sql` in the SQL Editor
-   (Dashboard → SQL Editor). The schema is **secure by default**: Row Level
-   Security is enabled, so the public anon key alone cannot read or write.
-2. Create a Supabase Auth "device" user (Authentication → Users) for the
-   terminal to sign in with.
-3. In the app, open **Settings → Supabase Sync**, enter the Project URL, anon
-   key, and the device account's email/password, then **Test Connection**.
-4. Optionally seed demo data first: copy `.env.example` to `.env`, fill in
-   `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (the anon key cannot insert
-   once RLS is on), and run `node src/db/seed.mjs`.
+The app runs fully offline by default on IndexedDB, with sync **off and unconfigured** — no URL,
+no key and no device credentials ship in a build.
 
-Upgrading an existing database? Re-run `src/db/schema.sql` — the whole script
-is idempotent (policies are dropped before being recreated, and each table is
-added to the `supabase_realtime` publication independently). It adds the newer
-transaction columns (operator, points earned, refund authorizer, split payments,
-partial refunds, shift id) and enables live sync, without touching existing data.
+To sync terminals through [Supabase](https://supabase.com):
 
-Whichever scripts you ran, finish by running `src/db/verify-policies.sql`. It
-changes nothing and asserts that the server actually enforces what the scripts
-intend: that staff PIN hashes are unreadable by any client role, that the anon
-key reaches no application data, that RLS is on everywhere, and — on a fleet —
-that no blanket policy survived to `OR` its way past the store-scoped ones.
-Reading the scripts is not the same as checking the database: grants and
-policies accumulate across versions, hand-run statements and half-applied
-migrations.
+1. Create a project and run `src/db/schema.sql` in the SQL Editor. The schema is secure by
+   default: Row Level Security is on, so the public anon key alone can neither read nor write.
+2. Create a Supabase Auth "device" user for the terminal to sign in as.
+3. In the app, open **Settings → Supabase Sync**, enter the project URL, anon key and the device
+   account's email and password, then **Test Connection**.
+4. Optionally seed demo data: copy `.env.example` to `.env`, set `SUPABASE_URL` and
+   `SUPABASE_SERVICE_ROLE_KEY` (the anon key cannot insert once RLS is on), then run
+   `node src/db/seed.mjs`.
+
+Upgrading an existing database? Re-run `src/db/schema.sql`. The whole script is idempotent —
+policies are dropped before being recreated, and each table joins the `supabase_realtime`
+publication independently.
+
+**Then run `src/db/verify-policies.sql`.** It changes nothing and asserts that the server actually
+enforces what the scripts intend: that staff PIN hashes are unreadable by any client role, that
+the anon key reaches no application data, that RLS is on everywhere, and — on a fleet — that no
+blanket policy survived to `OR` its way past the store-scoped ones. Reading the scripts is not the
+same as checking the database; grants and policies accumulate across versions, hand-run statements
+and half-applied migrations.
+
+> **Never commit credentials.** `DEFAULT_SUPABASE` in `src/stores/settingsStore.ts` is blank and
+> sync is off by default, and it must stay that way. A build that carries a device password ships
+> it to everyone holding the installer — the value lands in the renderer bundle — and keeping it
+> out of IndexedDB via `partialize()` buys nothing if the bundle carries it. The seeding script
+> reads `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_DEVICE_EMAIL` and
+> `SUPABASE_DEVICE_PASSWORD` from the environment for the same reason.
 
 ### Offline writes and the outbox
 
-Sales are committed locally first and pushed afterwards, so the register keeps
-trading with the internet down. Every cloud write is written to a durable outbox
-in IndexedDB **before** it is attempted and removed only once the server has
-accepted it, then replayed in submission order — on reconnect, and on a slow
-timer for the outages a browser never reports. Every queued operation is an
-upsert by primary key or a delete by id, so replaying one twice is the same as
-replaying it once.
+Sales commit locally first and push afterwards, so the register keeps trading with the internet
+down. Every cloud write is recorded in a durable IndexedDB outbox **before** it is attempted and
+removed only once the server accepts it, then replayed in submission order — on reconnect, and on
+a slow timer for the outages a browser never reports. Every queued operation is an upsert by
+primary key or a delete by id, so replaying one twice is the same as replaying it once.
 
-This is what "offline-first" has to mean for money: a push that fails is a
-delay, not a lost sale. "Pull From Cloud" replaces local data with the server's
-copy, so it drains the outbox first and, if anything is still owed, says how
-many changes would be discarded before asking you to confirm.
+That is what offline-first has to mean for money: a failed push is a delay, not a lost sale.
 
-### Multi-store / super-admin (optional)
+**"Pull From Cloud" replaces local data with the server's copy.** So it drains the outbox first
+and, if anything is still owed, says how many changes would be discarded before asking you to
+confirm. It also means any field a mapper forgets is that field _deleted_ on every terminal —
+adding a column to a synced type means touching the SQL, the row mapper, the pull mapper and the
+catalog-push RPC in the same change.
 
-For a fleet of locations, run `src/db/multi-store-schema.sql` after
-`src/db/schema.sql`. It adds the `stores` and `memberships` tables, stamps a
-`store_id` on every synced row (backfilled to a single `store-default` store),
-and creates the fleet RPCs. Single-store terminals are unaffected — the store
-dimension stays advisory until you opt in.
+---
 
-To make it **enforced** — so the database, not the client, decides which store a
-terminal can touch — run `src/db/multi-store-rls-enforce.sql`. Read its header
-first: every row needs a non-null `store_id`, every terminal needs its Store ID
-set in Settings, and every device account needs a membership row, or you will
-lock terminals out of their own data. That script also drops the permissive
-"staff full access" policies from `schema.sql`; without that they would `OR`
-with the store-scoped policies and leave cross-store access wide open. Re-running
-`schema.sql` later is safe — the enforcement script records the mode in a
-`pos_schema_state` row that `schema.sql` reads, so it knows to skip recreating
-those blanket policies (and still falls back to detecting a store-scoped policy,
-for databases enforced before that row existed).
+## Multi-store fleets
 
-## 🛠️ Tech Stack
+Run `src/db/multi-store-schema.sql` after `schema.sql`. It adds `stores` and `memberships`, stamps
+a `store_id` on every synced row (backfilled to a single `store-default`), and creates the fleet
+RPCs. Single-store terminals are unaffected — the store dimension stays advisory until you opt in.
 
-- **Framework:** React 19 + Vite
-- **Styling:** Tailwind CSS v4
-- **State Management:** Zustand
-- **Drag and Drop:** @dnd-kit
-- **Localization:** i18next & react-i18next
-- **Animations:** Motion (Framer Motion)
-- **Icons:** Lucide React
-- **Desktop Packaging:** Electron & electron-builder
-- **Charting:** Recharts
+To make it **enforced**, so the database rather than the client decides which store a terminal can
+touch, run `src/db/multi-store-rls-enforce.sql`. Read its header first: every row needs a non-null
+`store_id`, every terminal needs its Store ID set in Settings, and every device account needs a
+membership row — otherwise you will lock terminals out of their own data.
 
-## 📚 Documentation
+That script also drops the permissive "staff full access" policies from `schema.sql`; without that
+they would `OR` with the store-scoped policies and leave cross-store access wide open. Re-running
+`schema.sql` afterwards is safe: the enforcement script records the mode in a `pos_schema_state`
+row that `schema.sql` reads, so it knows not to recreate those blanket policies.
 
-- **[docs/PROJECT.md](docs/PROJECT.md)** — the complete technical reference: architecture,
-  every module, the domain model, the printing subsystem, cloud sync, the fleet console,
-  the SQL schema, the security model, build/release, testing and CI.
-- [PERF.md](PERF.md) — performance baseline and the enforced bundle budgets.
-- [docs/security-and-performance.md](docs/security-and-performance.md) — security-report
-  disposition and the dependency advisory notes.
-- [docs/third-party-licenses.md](docs/third-party-licenses.md) — the dependency-license
-  review and the disposition of the one weak-copyleft package in the graph.
+---
 
-## 📄 License
+## Printing
 
-This project is for demonstration purposes. Use, modify, and distribute freely.
+Receipts are built once as a backend-neutral `DocRow[]` model (`src/lib/printing/receiptDoc.ts`)
+and then rendered three ways — ESC/POS text, a canvas raster, and HTML for the on-screen and
+browser-print paths. The renderers may differ in _how_ they draw a block; they must not differ in
+_whether_ they draw it.
+
+Non-ASCII text forces the raster path, because the text path emits codepage bytes and cannot
+render Arabic. A logo also forces it, since the text path has no image command at all.
+
+Transports: Web Serial, a network TCP printer on port 9100, and the Windows spooler. The Windows
+raw path is a small C# shim compiled at runtime by PowerShell, handed over as `-EncodedCommand`
+rather than written to disk.
+
+---
+
+## How the code is arranged
+
+```
+src/
+├── components/     screens, plus register/ inventory/ settings/ history/ shared/
+├── stores/         Zustand stores, persisted to IndexedDB
+├── services/       cross-store operations (sales, refunds)
+├── lib/            pure logic — no DOM, no side effects
+│   ├── printing/   receipt model, renderers, transports
+│   ├── supabase/   per-table push and pull mappers
+│   └── utils/      ids, dates, formatting, validation, DOM helpers
+├── locales/{en,ar} 24 translation namespaces each
+├── db/             SQL schema, RLS, fleet migration, verifier, seeder
+├── data/           demo catalogue (development builds only)
+└── build/          bundle-budget guard
+electron/           main, preload, and four pure decision modules
+```
+
+The shape of it is one rule: **pure logic in `src/lib`, side effects at the edges.** Anything in
+`lib/` is DOM-free and deterministic, which is what makes the money arithmetic — pricing, refund
+proration, shift reconciliation — readable in isolation. Services own writes that span more than
+one store; a service never raises a toast and never prints. Components decide presentation, and
+nothing else.
+
+State persists to IndexedDB through `src/lib/idbStorage.ts`, not localStorage, because a
+terminal's catalogue and history outgrow the 5 MB localStorage quota.
+
+---
+
+## Invariants to keep
+
+These were enforced by an automated suite that has since been removed. They still hold, and
+nothing will now tell you when one breaks — so they are listed here rather than lost.
+
+1. **Every `t('a.b')` resolves in English, has an Arabic counterpart, and is reachable.** A
+   missing key does not fail loudly; i18next renders the key itself, so the UI shows
+   `lockscreen.selectUser` where a sentence belongs. Never paper over this with an inline
+   `t('key', 'Default')` fallback — that makes English look right while Arabic silently renders
+   English.
+2. **Every CSS class `index.css` defines is named somewhere reachable.** Dead classes accumulate
+   fast, and a reader cannot tell which of two similar-looking classes the app actually uses.
+3. **Adding a screen means four files.** The type system checks one of them. A screen missing from
+   `NAV_ITEMS` is simply unreachable on desktop; one missing a switch case falls through to a
+   routing error. Both are well-typed.
+4. **A persisted Zustand store must name its storage.** Omit it and Zustand silently falls back to
+   localStorage — a different, smaller, origin-shared quota. Use `idbStorage` and a `pos-*-storage`
+   key.
+5. **The SQL grants must never expose a PIN hash.** `pin` belongs in INSERT/UPDATE grants, because
+   a PIN set on one terminal has to reach the others, but never in a SELECT grant.
+6. **Adding a field to a synced type means touching every mapper.** A pull replaces local data, so
+   a field the mapper drops is that field deleted everywhere.
+7. **A calendar day is a local day.** `new Date().toISOString().slice(0, 10)` names the _UTC_ day:
+   at UTC+3 it files the first hours of every night under yesterday. Use `localDateKey()` from
+   `src/lib/utils/dates.ts`.
+8. **Production code under `src/` carries zero `any`.**
+
+Before opening a pull request, run the checks by hand — nothing runs them for you:
+
+```bash
+npm run lint && npm run format:check && npm run build && npm run perf:check
+```
+
+---
+
+## Scripts
+
+| Script                    | Does                                                 |
+| ------------------------- | ---------------------------------------------------- |
+| `dev`                     | Vite dev server on port 3000                         |
+| `build`                   | Production build to `dist/`                          |
+| `preview`                 | Serve the built output                               |
+| `portable`                | Single-file build to `portable/index.html`           |
+| `lint`                    | `tsc --noEmit && eslint .`                           |
+| `format` / `format:check` | Prettier                                             |
+| `perf:check`              | Assert the initial JS and CSS gzip budgets           |
+| `electron:dev`            | Vite + Electron together                             |
+| `electron:build`          | Build the renderer and package the Windows installer |
+| `clean`                   | Remove `dist/`                                       |
+
+Bundle budgets: 200,000 gzip bytes of initial JavaScript, 50,000 of initial CSS. A failure should
+prompt a fresh look at what entered the entry chunk, not a raised limit.
+
+---
+
+## Tech stack
+
+React 19 · Vite 6 · TypeScript 5.8 (strict) · Tailwind CSS v4 · Zustand 5 · i18next ·
+Motion · Recharts · @dnd-kit · Lucide · Supabase JS · Electron 43 · electron-builder
+
+---
+
+## License
+
+This project is for demonstration purposes. Use, modify and distribute freely.
