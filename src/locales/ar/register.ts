@@ -99,4 +99,5 @@ export const register = {
   customizeItem: 'اختر الإضافات والتعديلات',
   maxCount: 'بحد أقصى {{count}}',
   included: 'مشمول',
+  searchHint: 'Ctrl+K للتركيز · Enter يضيف النتيجة المميّزة · Esc للمسح',
 };

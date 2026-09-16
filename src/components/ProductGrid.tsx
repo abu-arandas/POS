@@ -6,6 +6,7 @@ import { useProductStore } from '../stores/productStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAuthStore } from '../stores/authStore';
 import { safeImageUrl } from '../lib/imageUrl';
+import { searchProducts } from '../lib/productSearch';
 import { hasVariants, variantPrice } from '../lib/variants';
 import { VariantPickerModal } from './register/VariantPickerModal';
 import { ModifierPickerModal } from './register/ModifierPickerModal';
@@ -48,6 +49,12 @@ interface SortableProductCardProps {
   categoryName: string;
   settings: StoreSettings;
   index: number;
+  /**
+   * This is what Enter in the search box will add. Marked so the operator can
+   * see the target before committing to it — a blind Enter that adds "whatever
+   * ranked first" is a wrong item on a receipt and a queue behind them.
+   */
+  isTopMatch?: boolean;
 }
 
 /**
@@ -79,6 +86,7 @@ const SortableProductCard = memo(function SortableProductCard({
   categoryName,
   settings,
   index,
+  isTopMatch = false,
 }: SortableProductCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: prod.id,
@@ -127,9 +135,9 @@ const SortableProductCard = memo(function SortableProductCard({
       }}
       whileHover={!isEditMode && !isUnavailable ? { y: -4, scale: 1.02 } : {}}
       whileTap={!isEditMode && !isUnavailable ? { scale: 0.96 } : {}}
-      className={`product-card relative rounded-xl overflow-hidden flex flex-col transition-all duration-150 select-none group border border-border bg-card hover:border-foreground/20 hover:shadow-2xs ${
-        isDragging ? 'is-dragging' : ''
-      } ${
+      className={`product-card relative rounded-xl overflow-hidden flex flex-col transition-all duration-150 select-none group border bg-card hover:border-foreground/20 hover:shadow-2xs ${
+        isTopMatch ? 'border-foreground/60 ring-2 ring-foreground/25' : 'border-border'
+      } ${isDragging ? 'is-dragging' : ''} ${
         isEditMode
           ? 'cursor-grab active:cursor-grabbing'
           : isUnavailable
@@ -350,20 +358,20 @@ const ProductGrid = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const filteredProducts = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return products.filter((prod) => {
-      const matchesCategory = selectedCategory === 'all' || prod.category === selectedCategory;
-      // Variant SKUs are searchable too — an operator scanning or typing a
-      // variant's barcode is looking for the product that carries it.
-      const matchesSearch =
-        q === '' ||
-        prod.name.toLowerCase().includes(q) ||
-        prod.sku.toLowerCase().includes(q) ||
-        (prod.variants ?? []).some((variant) => variant.sku.toLowerCase().includes(q));
-      return matchesCategory && matchesSearch;
-    });
-  }, [products, selectedCategory, search]);
+  const clearSearch = useCallback(() => {
+    setSearch('');
+    searchInputRef.current?.blur();
+  }, []);
+
+  // Ranked, not merely filtered. A bare `includes()` left a shop with "Latte",
+  // "Iced Latte" and "Latte Macchiato" showing them in whatever order they were
+  // added, so typing the exact name of the thing being ordered still meant
+  // reading the grid. Ordering by how well each product matched is also what
+  // makes Enter-adds-the-top-result below safe to offer.
+  const filteredProducts = useMemo(
+    () => searchProducts(products, search, selectedCategory),
+    [products, selectedCategory, search],
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -382,6 +390,11 @@ const ProductGrid = ({
 
   const sortableIds = useMemo(() => filteredProducts.map((p) => p.id), [filteredProducts]);
 
+  // What Enter adds: the best match, and only while a query narrows the grid.
+  // Without the query check, Enter in an empty box would add whatever product
+  // the shop happens to have arranged first.
+  const searchTopResult = search.trim() ? (filteredProducts[0] ?? null) : null;
+
   return (
     <div id="catalog-section" className="flex-1 flex flex-col min-w-0 overflow-hidden">
       {/* Controls bar */}
@@ -399,7 +412,28 @@ const ProductGrid = ({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                // Type a name, press Enter, keep serving. The top result is the
+                // best-ranked match rather than whichever tile sorted first,
+                // which is the whole reason this is safe to do blind.
+                if (e.key === 'Enter' && searchTopResult) {
+                  e.preventDefault();
+                  handleCardActivate(searchTopResult);
+                  // A varianted or customizable product opens a modal instead
+                  // of adding, and clearing behind it would strand the operator
+                  // with no idea what they picked.
+                  if (!hasVariants(searchTopResult) && !searchTopResult.modifierGroups?.length) {
+                    clearSearch();
+                  }
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  clearSearch();
+                }
+              }}
               aria-label={t('register.searchProducts')}
+              // The box is 36-48 units wide, so the placeholder has room for
+              // one shortcut and the tooltip carries the rest.
+              title={t('register.searchHint')}
               placeholder={`${t('register.searchProducts')} (Ctrl+K)`}
               className="input-shell w-36 sm:w-48 ps-8 pe-7 py-1.5 rounded-lg text-xs"
             />
@@ -509,6 +543,7 @@ const ProductGrid = ({
                         categoryName={categoryMap.get(prod.category) ?? ''}
                         settings={settings}
                         index={index}
+                        isTopMatch={prod.id === searchTopResult?.id}
                       />
                     );
                   })}

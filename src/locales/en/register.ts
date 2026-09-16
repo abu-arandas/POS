@@ -100,4 +100,5 @@ export const register = {
   customizeItem: 'Select modifiers & add-ons',
   maxCount: 'Max {{count}}',
   included: 'Included',
+  searchHint: 'Ctrl+K to focus · Enter adds the highlighted match · Esc clears',
 };
