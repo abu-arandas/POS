@@ -9,11 +9,16 @@ export const horizontalBarMargin = { top: 0, right: 20, left: 20, bottom: 0 } as
 /** Plot area for the revenue/profit area charts. */
 export const trendChartMargin = { top: 10, right: 10, left: -20, bottom: 0 } as const;
 
-/** Dashed grid behind a horizontal bar chart: vertical rules only. */
+/** Dashed grid behind a horizontal bar chart: vertical rules only.
+ *
+ * The stroke is the border token, so the grid follows the theme. It used to be
+ * a literal slate `#1e293b` here, which every consumer then overrode with this
+ * same token on the next line — dead config that told a reader the grid was a
+ * fixed dark slate when it has always been theme-driven. */
 export const horizontalBarGrid = {
   strokeDasharray: '4 4',
   horizontal: false,
-  stroke: '#1e293b',
+  stroke: 'var(--border)',
 } as const;
 
 /** Dashed grid behind an area chart: horizontal rules only. */
