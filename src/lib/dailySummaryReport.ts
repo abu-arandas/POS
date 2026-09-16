@@ -49,6 +49,13 @@ export function generateDailySummaryText(data: DailySummaryData): string {
     .filter((m) => m.type === 'pay_out')
     .reduce((s, m) => s + m.amount, 0);
 
+  // A shortfall is "-$10.00", not "$-10.00". Interpolating the symbol and then
+  // a negative number puts the sign on the wrong side of it, which on a report
+  // that gets forwarded to an owner reads as a typo — or worse, gets skimmed as
+  // a positive.
+  const signedMoney = (value: number) =>
+    `${value < 0 ? '-' : ''}${currency}${Math.abs(value).toFixed(2)}`;
+
   const openingFloat = shift?.openingFloat || 0;
   const expectedDrawerCash = summary.expectedCash(openingFloat, cashMovements);
   const countedCash = shift?.countedCash ?? null;
@@ -71,7 +78,7 @@ export function generateDailySummaryText(data: DailySummaryData): string {
     totalPayOuts > 0 ? `• Petty Cash Payouts: -${currency}${totalPayOuts.toFixed(2)}` : null,
     `• Expected Cash in Drawer: ${currency}${expectedDrawerCash.toFixed(2)}`,
     countedCash !== null
-      ? `• Counted Cash: ${currency}${countedCash.toFixed(2)} (Diff: ${currency}${(countedCash - expectedDrawerCash).toFixed(2)})`
+      ? `• Counted Cash: ${currency}${countedCash.toFixed(2)} (Diff: ${signedMoney(countedCash - expectedDrawerCash)})`
       : null,
     ``,
     topProducts.length > 0 ? `🍔 *TOP SELLING ITEMS*` : null,
