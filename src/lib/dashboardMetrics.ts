@@ -51,6 +51,26 @@ export interface DashboardKpis {
   profitToday: number;
   avgDailyRevenue: number;
   lowStockItems: number;
+  /**
+   * Money discounted off today's sales.
+   *
+   * The two figures below answer "where did the margin go", which revenue and
+   * profit alone cannot: a thin day looks identical whether it was quiet, or
+   * busy and discounted to nothing. Both are scoped to TODAY'S SALES rather
+   * than to today's events — `discountsToday` is what was taken off the sales
+   * rung up today, and `returnedToday` is what has come back against them,
+   * whenever it came back. That is the same scoping `revenueToday` already
+   * uses (it is net of refunds regardless of when they happened), so the tiles
+   * agree with each other.
+   *
+   * "Refunds issued today" would be a different question and the stored shape
+   * cannot answer it exactly: `refundedAmount` is cumulative across every
+   * partial return and `refundDate` records only the most recent one, so a
+   * sale returned in two instalments on two days has one date and one total.
+   */
+  discountsToday: number;
+  /** Money returned against today's sales, whenever the return happened. */
+  returnedToday: number;
 }
 
 /**
@@ -69,6 +89,9 @@ export function computeKpis(
   const ordersToday = todayTransactions.length;
   const profitToday = todayTransactions.reduce((sum, tx) => sum + transactionProfit(tx), 0);
 
+  const discountsToday = todayTransactions.reduce((sum, tx) => sum + tx.discount, 0);
+  const returnedToday = todayTransactions.reduce((sum, tx) => sum + (tx.refundedAmount ?? 0), 0);
+
   const tradingDays = new Set(allTransactions.map((tx) => new Date(tx.date).toDateString()));
   const totalRevenue = allTransactions.reduce((sum, tx) => sum + netRevenue(tx), 0);
 
@@ -77,6 +100,8 @@ export function computeKpis(
     ordersToday,
     aovToday: round(ordersToday > 0 ? revenueToday / ordersToday : 0),
     profitToday: round(profitToday),
+    discountsToday: round(discountsToday),
+    returnedToday: round(returnedToday),
     avgDailyRevenue: round(totalRevenue / Math.max(1, tradingDays.size)),
     // "Low" is at or below the threshold but still sellable. Out-of-stock is a
     // different condition and is surfaced separately, so it is excluded here

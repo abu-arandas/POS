@@ -83,6 +83,15 @@ export function KpiRow({ kpis, currency }: KpiRowProps) {
                 amount: `${currency}${kpis.avgDailyRevenue.toFixed(0)}`,
               })}
             </span>
+            {/* Revenue is already net of this, so without it a day that took
+                a large return is indistinguishable from a quiet one. */}
+            {kpis.returnedToday > 0 && (
+              <span className="badge badge-rose px-2 py-0.5 font-mono">
+                {t('dashboard.returned', {
+                  amount: `${currency}${kpis.returnedToday.toFixed(2)}`,
+                })}
+              </span>
+            )}
           </>
         }
       />
@@ -100,6 +109,16 @@ export function KpiRow({ kpis, currency }: KpiRowProps) {
             <span className="text-muted-foreground font-mono text-[11px]">
               {t('dashboard.exclTax')}
             </span>
+            {/* The margin above is AFTER these came off. A thin day looks the
+                same whether it was quiet or busy and discounted to nothing;
+                this is the figure that tells the two apart. */}
+            {kpis.discountsToday > 0 && (
+              <span className="badge badge-amber px-2 py-0.5 font-mono">
+                {t('dashboard.discounted', {
+                  amount: `${currency}${kpis.discountsToday.toFixed(2)}`,
+                })}
+              </span>
+            )}
           </>
         }
       />
