@@ -264,7 +264,7 @@ export function PrinterPanel({
         <label className="flex items-center gap-3 p-3 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
           <input
             type="checkbox"
-            checked={!!printerForm.kitchenTicketOnCheckout}
+            checked={Boolean(printerForm.kitchenTicketOnCheckout)}
             onChange={(e) =>
               onPrinterFormChange({
                 ...printerForm,

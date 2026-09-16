@@ -202,7 +202,7 @@ export default function Register() {
   const handleScan = useCallback(
     (code: string) => {
       const norm = code.trim().toLowerCase();
-      const products = useProductStore.getState().products;
+      const { products } = useProductStore.getState();
       let product = products.find((p) =>
         (p.variants ?? []).some((variant) => variant.sku.toLowerCase() === norm),
       );

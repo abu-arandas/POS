@@ -298,7 +298,7 @@ export default function Lockscreen() {
     >
       {/* Subtle precision dot grid */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-[0.04] dark:opacity-[0.07]">
-        <div className="absolute inset-0 bg-[radial-gradient(currentColor_1px,transparent_1px)] bg-[size:24px_24px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(currentColor_1px,transparent_1px)] bg-size-[24px_24px]" />
       </div>
 
       {/* Brand */}
@@ -408,7 +408,7 @@ export default function Lockscreen() {
                       >
                         <div className="flex items-center gap-3">
                           {/* Avatar */}
-                          <div className="w-9 h-9 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight shrink-0">
+                          <div className="size-9 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight shrink-0">
                             {getInitials(user.name)}
                           </div>
                           <div>
@@ -460,7 +460,7 @@ export default function Lockscreen() {
                         {selectedUser.role}
                       </span>
                     </div>
-                    <div className="w-7 h-7 rounded-md bg-foreground text-background flex items-center justify-center font-bold text-[11px] shrink-0">
+                    <div className="size-7 rounded-md bg-foreground text-background flex items-center justify-center font-bold text-[11px] shrink-0">
                       {getInitials(selectedUser.name)}
                     </div>
                   </div>
@@ -484,7 +484,7 @@ export default function Lockscreen() {
                           scale: pin.length > idx ? 1.05 : 0.9,
                         }}
                         transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                        className={`w-3.5 h-3.5 rounded-full border transition-all duration-150 ${
+                        className={`size-3.5 rounded-full border transition-all duration-150 ${
                           error
                             ? 'bg-destructive border-destructive shadow-xs'
                             : pin.length > idx

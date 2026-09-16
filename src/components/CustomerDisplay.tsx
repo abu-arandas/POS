@@ -15,6 +15,15 @@ import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../stores/settingsStore';
 import Logo from './Logo';
 
+/**
+ * The customer-facing display: a read-only mirror of the register, rendered on
+ * a second monitor or tablet.
+ *
+ * It holds no cart state of its own and never writes back — everything arrives
+ * over the CFD BroadcastChannel. A display that computed its own totals could
+ * disagree with the till the customer is about to pay, so it only ever renders
+ * what the register last broadcast.
+ */
 export function CustomerDisplay() {
   const { t } = useTranslation();
   const settings = useSettingsStore((s) => s.settings);

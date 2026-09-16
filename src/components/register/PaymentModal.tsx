@@ -270,7 +270,7 @@ export function PaymentModal({
                             value={cashPaidText}
                             onChange={(e) => onCashPaidChange(e.target.value)}
                             aria-label={t('register.cashTendered')}
-                            className="flex-1 bg-transparent text-foreground text-lg font-mono font-bold px-2 py-2 focus:outline-none"
+                            className="flex-1 bg-transparent text-foreground text-lg font-mono font-bold p-2 focus:outline-none"
                           />
                         </div>
                       </div>

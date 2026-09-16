@@ -187,7 +187,7 @@ export default function ReceiptSettingsPanel({
               <label key={key} className="flex items-center gap-2 cursor-pointer group">
                 <input
                   type="checkbox"
-                  checked={!!layout.show[key]}
+                  checked={Boolean(layout.show[key])}
                   onChange={(e) => setToggle(key, e.target.checked)}
                   className="accent-foreground size-3.5 shrink-0 rounded border-border"
                 />

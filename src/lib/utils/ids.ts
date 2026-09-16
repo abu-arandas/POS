@@ -23,7 +23,7 @@ const fallbackState: CompatibilityState =
  */
 function fillCompatibilityBytes(bytes: Uint8Array): void {
   const timestamp = BigInt(Date.now());
-  const counter = fallbackState.counter;
+  const { counter } = fallbackState;
   fallbackState.counter += 1n;
 
   for (let i = 0; i < 8; i += 1) {

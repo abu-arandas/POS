@@ -53,7 +53,7 @@ export function TransactionTable({
               </th>
               <th className="py-3 px-2 w-36 text-start">{t('history.receiptId')}</th>
               <th className="p-3 w-1/4 text-start">{t('history.customer')}</th>
-              <th className="py-3 px-3 w-1/8 text-center">{t('history.items')}</th>
+              <th className="p-3 w-1/8 text-center">{t('history.items')}</th>
               <th className="p-3 w-1/8 text-end">{t('history.total')}</th>
               <th className="p-3 w-1/8 text-center">{t('history.payment')}</th>
               <th className="p-3 w-28 text-center">{t('history.status')}</th>
@@ -129,7 +129,7 @@ export function TransactionTable({
                             </span>
                           )}
                         </td>
-                        <td className="py-3 px-3 text-center">
+                        <td className="p-3 text-center">
                           <span className="inline-block bg-secondary px-2 py-0.5 rounded-md text-xs font-mono text-foreground border border-border">
                             {tx.items.reduce((sum, item) => sum + item.quantity, 0)}
                           </span>

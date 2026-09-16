@@ -29,7 +29,7 @@ export async function verifyLoginCloud(
       id: row.id,
       name: row.name,
       role: row.role as UserAccount['role'],
-      active: !!row.active,
+      active: Boolean(row.active),
       createdAt: row.created_at,
       pin: pinHash, // cache only the candidate hash that was just verified
     };

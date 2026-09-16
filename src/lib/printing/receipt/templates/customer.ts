@@ -170,33 +170,50 @@ export function buildReceiptHtml(
         })
       : '';
 
-  const storeHeader = `${L.header ? `<div class="center receipt-header">${esc(L.header)}</div>` : ''}
-      ${
-        S.logo
-          ? `<div class="logo">${
-              logo ? `<img src="${esc(logo)}" alt="" />` : FALLBACK_LOGO_SVG
-            }</div>`
-          : ''
-      }
-      ${S.storeName ? `<div class="center store-name">${esc(settings.storeName)}</div>` : ''}
+  // Each line of the header is its own named fragment. They used to be written
+  // inline, which nested a template literal inside a conditional inside another
+  // template literal three deep — where a misread brace silently drops a line
+  // from every printed receipt.
+  const headerLine = L.header ? `<div class="center receipt-header">${esc(L.header)}</div>` : '';
+  const logoImg = logo ? `<img src="${esc(logo)}" alt="" />` : FALLBACK_LOGO_SVG;
+  const logoBlock = S.logo ? `<div class="logo">${logoImg}</div>` : '';
+  const storeNameLine = S.storeName
+    ? `<div class="center store-name">${esc(settings.storeName)}</div>`
+    : '';
+  const branchLine =
+    S.branchName && settings.branchName ? `<div>${esc(settings.branchName)}</div>` : '';
+  const addressLine =
+    S.address && settings.storeAddress ? `<div>${esc(settings.storeAddress)}</div>` : '';
+  const phoneLine =
+    S.phone && settings.storePhone
+      ? `<div class="ltr">${esc(i18n.t('receipt.phone'))}: ${esc(settings.storePhone)}</div>`
+      : '';
+  const taxLine =
+    S.taxNumber && settings.taxNumber
+      ? `<div class="ltr">${esc(i18n.t('receipt.vat'))}: ${esc(settings.taxNumber)}</div>`
+      : '';
+
+  const storeHeader = `${headerLine}
+      ${logoBlock}
+      ${storeNameLine}
       <div class="center store-meta">
-        ${S.branchName && settings.branchName ? `<div>${esc(settings.branchName)}</div>` : ''}
-        ${S.address && settings.storeAddress ? `<div>${esc(settings.storeAddress)}</div>` : ''}
-        ${S.phone && settings.storePhone ? `<div class="ltr">${esc(i18n.t('receipt.phone'))}: ${esc(settings.storePhone)}</div>` : ''}
-        ${S.taxNumber && settings.taxNumber ? `<div class="ltr">${esc(i18n.t('receipt.vat'))}: ${esc(settings.taxNumber)}</div>` : ''}
+        ${branchLine}
+        ${addressLine}
+        ${phoneLine}
+        ${taxLine}
       </div>`;
 
-  const statusLines = `<div class="center uppercase status-line status-${esc(tx.status)}">${esc(i18n.t(`receipt.status_${tx.status}`, tx.status))}</div>
-      ${
-        tx.refundDate
-          ? `<div class="center muted">${esc(i18n.t('history.refund'))} <span class="ltr">${esc(formatDateTime(new Date(tx.refundDate), L.dateFormat))}</span></div>`
-          : ''
-      }
-      ${
-        tx.refundAuthorizedBy
-          ? `<div class="center muted">${esc(i18n.t('history.refundAuthBy'))} ${esc(tx.refundAuthorizedBy)}</div>`
-          : ''
-      }`;
+  const statusKey = `receipt.status_${tx.status}`;
+  const refundDateLine = tx.refundDate
+    ? `<div class="center muted">${esc(i18n.t('history.refund'))} <span class="ltr">${esc(formatDateTime(new Date(tx.refundDate), L.dateFormat))}</span></div>`
+    : '';
+  const refundAuthLine = tx.refundAuthorizedBy
+    ? `<div class="center muted">${esc(i18n.t('history.refundAuthBy'))} ${esc(tx.refundAuthorizedBy)}</div>`
+    : '';
+
+  const statusLines = `<div class="center uppercase status-line status-${esc(tx.status)}">${esc(i18n.t(statusKey, tx.status))}</div>
+      ${refundDateLine}
+      ${refundAuthLine}`;
 
   // Every block above is a named fragment, so this last step is only the order
   // they print in and the rules between them — the shape of the receipt itself.
