@@ -34,4 +34,11 @@ export const shift = {
   confirmPayIn: 'Confirm Pay-In',
   confirmPayOut: 'Confirm Pay-Out',
   shareDailySummary: 'Share End-of-Day Summary',
+  zReportTitle: 'Z-REPORT / SHIFT SUMMARY',
+  payIns: 'Pay-Ins',
+  payOuts: 'Pay-Outs',
+  confirmCloseWithPending_one:
+    '{{count}} sale from this terminal has not reached the cloud yet. Closing now still produces a correct Z-report, but head office will not see that sale until this terminal reconnects. Close the shift anyway?',
+  confirmCloseWithPending_other:
+    '{{count}} sales from this terminal have not reached the cloud yet. Closing now still produces a correct Z-report, but head office will not see those sales until this terminal reconnects. Close the shift anyway?',
 };

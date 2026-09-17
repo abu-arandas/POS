@@ -9,6 +9,7 @@ import {
   pullUserAccounts,
 } from './supabase';
 import { isSyncBlocked } from './supabase/storeScope';
+import { pendingPushIds, queuedDeleteIds } from './outbox';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
@@ -41,22 +42,129 @@ let generation = 0;
  *
  * Returns null when the pull failed, meaning: leave the local rows alone.
  */
+/**
+ * Folds a pulled snapshot over the local rows, keeping anything this terminal
+ * has written and the server has not accepted yet.
+ *
+ * A pull REPLACES the table. That is correct for rows the server owns, and
+ * wrong for the ones it has never seen: a sale committed a moment ago lives
+ * only here until its outbox push lands, so applying the snapshot verbatim
+ * dropped it out of the history and the Z-report — and a shift closed inside
+ * that window reconciled against a figure that was missing a sale. The outbox
+ * says exactly which ids are in that state, so they are the ones local wins on.
+ *
+ * `newRowsAt` is where a row the server has never seen belongs, and it differs
+ * per table rather than being a detail: addTransaction prepends (newest first)
+ * while handleAddProduct appends, and putting a new product at the front would
+ * quietly reshuffle a catalogue the operator has arranged by hand.
+ */
+export function mergePendingLocal<T extends { id: string }>(
+  pulled: T[],
+  local: T[],
+  pending: Set<string>,
+  newRowsAt: 'start' | 'end',
+  /** Rows deleted locally whose deletion the server has not accepted yet. */
+  queuedDeletes: Set<string> = new Set(),
+): T[] {
+  // The server still has a row the operator has already deleted here, because
+  // it has not been told yet. Applying the snapshot as-is would put that row
+  // back on screen, and keep putting it back on every pull until the delete
+  // drained. The local absence is the newer fact.
+  const visible =
+    queuedDeletes.size > 0 ? pulled.filter((row) => !queuedDeletes.has(row.id)) : pulled;
+
+  if (pending.size === 0) return visible;
+  const localPending = new Map(
+    local.filter((row) => pending.has(row.id)).map((row) => [row.id, row]),
+  );
+  if (localPending.size === 0) return visible;
+
+  // An id the server already has keeps its position and takes the local copy,
+  // which is the newer of the two — it is queued precisely because the server
+  // has not caught up to it.
+  const merged = visible.map((row) => localPending.get(row.id) ?? row);
+  const onServer = new Set(visible.map((row) => row.id));
+  const unseen = local.filter((row) => pending.has(row.id) && !onServer.has(row.id));
+  if (unseen.length === 0) return merged;
+  return newRowsAt === 'start' ? [...unseen, ...merged] : [...merged, ...unseen];
+}
+
 const PULL_INTO_STORE = {
   products: async (client: SupabaseClient, storeId?: string) => {
     const rows = await pullProducts(client, storeId);
-    return rows ? () => useProductStore.getState().setProducts(rows) : null;
+    if (!rows) return null;
+    return () => {
+      const store = useProductStore.getState();
+      // Read at APPLY time, not before the await above: a sale committed while
+      // the pull was in flight is in the store but would not have been in a
+      // set captured earlier, and the merge would drop it.
+      store.setProducts(
+        mergePendingLocal(
+          rows,
+          store.products,
+          pendingPushIds('products'),
+          'end',
+          queuedDeleteIds('products'),
+        ),
+      );
+    };
   },
   categories: async (client: SupabaseClient, storeId?: string) => {
     const rows = await pullCategories(client, storeId);
-    return rows ? () => useProductStore.getState().setCategories(rows) : null;
+    if (!rows) return null;
+    return () => {
+      const store = useProductStore.getState();
+      // Read at APPLY time, not before the await above: a sale committed while
+      // the pull was in flight is in the store but would not have been in a
+      // set captured earlier, and the merge would drop it.
+      store.setCategories(
+        mergePendingLocal(
+          rows,
+          store.categories,
+          pendingPushIds('categories'),
+          'end',
+          queuedDeleteIds('categories'),
+        ),
+      );
+    };
   },
   customers: async (client: SupabaseClient, storeId?: string) => {
     const rows = await pullCustomers(client, storeId);
-    return rows ? () => useCustomerStore.getState().setCustomers(rows) : null;
+    if (!rows) return null;
+    return () => {
+      const store = useCustomerStore.getState();
+      // Read at APPLY time, not before the await above: a sale committed while
+      // the pull was in flight is in the store but would not have been in a
+      // set captured earlier, and the merge would drop it.
+      store.setCustomers(
+        mergePendingLocal(
+          rows,
+          store.customers,
+          pendingPushIds('customers'),
+          'end',
+          queuedDeleteIds('customers'),
+        ),
+      );
+    };
   },
   transactions: async (client: SupabaseClient, storeId?: string) => {
     const rows = await pullTransactions(client, storeId);
-    return rows ? () => useTransactionStore.getState().setTransactions(rows) : null;
+    if (!rows) return null;
+    return () => {
+      const store = useTransactionStore.getState();
+      // Read at APPLY time, not before the await above: a sale committed while
+      // the pull was in flight is in the store but would not have been in a
+      // set captured earlier, and the merge would drop it.
+      store.setTransactions(
+        mergePendingLocal(
+          rows,
+          store.transactions,
+          pendingPushIds('transactions'),
+          'start',
+          queuedDeleteIds('transactions'),
+        ),
+      );
+    };
   },
   user_accounts: async (client: SupabaseClient, storeId?: string) => {
     const rows = await pullUserAccounts(client, storeId);
@@ -64,7 +172,18 @@ const PULL_INTO_STORE = {
     // would replace every staff account with a string, and the lockscreen reads
     // that store — so an anonymous terminal would lose its own way back in.
     if (rows === 'denied' || !rows) return null;
-    return () => useAuthStore.getState().setUsers(rows);
+    return () => {
+      const store = useAuthStore.getState();
+      store.setUsers(
+        mergePendingLocal(
+          rows,
+          store.users,
+          pendingPushIds('user_accounts'),
+          'end',
+          queuedDeleteIds('user_accounts'),
+        ),
+      );
+    };
   },
 } as const;
 

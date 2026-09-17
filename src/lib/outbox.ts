@@ -113,7 +113,44 @@ async function readEntries(): Promise<OutboxEntry[]> {
 async function writeEntries(entries: OutboxEntry[]): Promise<void> {
   if (entries.length === 0) await del(OUTBOX_KEY);
   else await set(OUTBOX_KEY, entries);
+  // Every path that retires an entry — a successful send, dropOutboxEntries,
+  // clearOutbox — ends here, so this is the one place the mirrors need to
+  // catch up. Not awaited by the caller: a mirror that is briefly too
+  // pessimistic keeps a local row a moment longer, which is the safe direction.
+  void reconcileFromEntries(entries);
   for (const listener of listeners) listener(entries.length);
+}
+
+/** Reconciles both mirrors against the entries just written. */
+function reconcileFromEntries(entries: OutboxEntry[]): void {
+  const pushKeys = new Set<string>();
+  const deleteKeys = new Set<string>();
+  for (const entry of entries) {
+    if (entry.operation.type === 'push') {
+      for (const table of Object.keys(PUSH_FIELD) as SyncTable[]) {
+        for (const row of entry.operation[PUSH_FIELD[table]] ?? []) {
+          pushKeys.add(pendingKey(table, row.id));
+        }
+      }
+    } else {
+      for (const id of entry.operation.ids) {
+        deleteKeys.add(pendingKey(entry.operation.table, id));
+      }
+    }
+  }
+  retire(pendingAt, pushKeys);
+  retire(deletedAt, deleteKeys);
+}
+
+/**
+ * Drops mirror entries the queue no longer holds, but never one added since
+ * this write's entries were assembled — that one's own write has not landed.
+ */
+function retire(mirror: Map<string, number>, stillQueued: Set<string>): void {
+  const startedAt = pendingSeq;
+  for (const [key, addedAt] of mirror) {
+    if (addedAt <= startedAt && !stillQueued.has(key)) mirror.delete(key);
+  }
 }
 
 /** True when the operation carries nothing to send. */
@@ -134,6 +171,12 @@ export function isEmptyOperation(operation: OutboxOperation): boolean {
  */
 export async function enqueueOperation(operation: OutboxOperation): Promise<OutboxEntry | null> {
   if (isEmptyOperation(operation)) return null;
+  // Before the first await, deliberately. commitSale writes the sale to the
+  // store synchronously and enqueues its push asynchronously, so marking after
+  // an await would leave the sale unprotected for exactly as long as the
+  // IndexedDB write takes — and a realtime pull landing in that window drops it.
+  markPending(operation);
+  markDeleted(operation);
   const entry: OutboxEntry = {
     id: `ob-${shortId()}`,
     operation,
@@ -290,4 +333,169 @@ export async function dropOutboxEntries(ids: string[]): Promise<void> {
 export function subscribeToOutbox(listener: Listener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
+}
+
+/** The push-operation field each synced table's rows are queued under. */
+const PUSH_FIELD = {
+  products: 'products',
+  categories: 'categories',
+  customers: 'customers',
+  transactions: 'transactions',
+  user_accounts: 'users',
+} as const satisfies Record<SyncTable, keyof Extract<OutboxOperation, { type: 'push' }>>;
+
+/**
+ * An in-memory mirror of which rows the queue still owes, so the answer can be
+ * had SYNCHRONOUSLY.
+ *
+ * Asking the queue on disk is asynchronous, and that is the whole problem. A
+ * realtime pull that reads the pending ids, awaits, and only then applies the
+ * snapshot has a window in between — and a sale committed in that window is in
+ * the store but not yet in the answer, so the merge drops it. The window is not
+ * theoretical either: commitSale writes the transaction synchronously and
+ * enqueues its push asynchronously, so every sale spends a few milliseconds
+ * existing locally with nothing on disk to say so.
+ *
+ * Keeping the mirror in memory closes it: `markPending` runs synchronously
+ * inside `enqueueOperation` before its first await, and the merge reads the
+ * mirror at the instant it applies.
+ *
+ * Errs toward saying "pending". A false positive means the local copy wins over
+ * the server's for a moment longer than needed; a false negative means a sale
+ * disappears. Those are not comparable, so `prune` only ever drops an id it has
+ * confirmed absent from disk, and never one added since it started reading.
+ */
+const pendingKey = (table: SyncTable, id: string) => `${table}\u0000${id}`;
+
+/** Insertion order, so a prune cannot retire an id added while it was reading. */
+let pendingSeq = 0;
+const pendingAt = new Map<string, number>();
+
+function markPending(operation: OutboxOperation): void {
+  if (operation.type !== 'push') return;
+  for (const table of Object.keys(PUSH_FIELD) as SyncTable[]) {
+    for (const row of operation[PUSH_FIELD[table]] ?? []) {
+      pendingSeq += 1;
+      pendingAt.set(pendingKey(table, row.id), pendingSeq);
+    }
+  }
+}
+
+/** Ids the queue on disk still carries, as pending keys. */
+async function pendingKeysOnDisk(): Promise<Set<string>> {
+  const keys = new Set<string>();
+  for (const entry of await readEntries()) {
+    if (entry.operation.type !== 'push') continue;
+    for (const table of Object.keys(PUSH_FIELD) as SyncTable[]) {
+      for (const row of entry.operation[PUSH_FIELD[table]] ?? []) {
+        keys.add(pendingKey(table, row.id));
+      }
+    }
+  }
+  return keys;
+}
+
+/**
+ * Reconciles the mirror with the queue on disk. Called after every mutation,
+ * and once at startup so a terminal that restarts holding a backlog knows about
+ * it before the first pull.
+ */
+async function prunePending(): Promise<void> {
+  const startedAt = pendingSeq;
+  const onDisk = await pendingKeysOnDisk();
+  for (const [key, addedAt] of pendingAt) {
+    // Only retire what was already there when the read began. Anything added
+    // since is in flight and its own write has not landed yet.
+    if (addedAt <= startedAt && !onDisk.has(key)) pendingAt.delete(key);
+  }
+  for (const key of onDisk) {
+    if (!pendingAt.has(key)) {
+      pendingSeq += 1;
+      pendingAt.set(key, pendingSeq);
+    }
+  }
+}
+
+// Seeded once at import: a terminal restarted mid-outage starts with a backlog
+// and no enqueue to announce it.
+void prunePending();
+
+/**
+ * Row ids this terminal has written locally and the server has not accepted yet.
+ *
+ * Synchronous on purpose — see the mirror above. A realtime pull reads this at
+ * the moment it applies the snapshot, so there is no gap for a sale to fall
+ * into.
+ *
+ * Only pushes count. A queued DELETE means the row is already gone locally, and
+ * the pulled snapshot may legitimately still contain it — reinstating it here
+ * would undo the delete the operator just made. See `queuedDeleteIds`.
+ */
+export function pendingPushIds(table: SyncTable): Set<string> {
+  const prefix = `${table}\u0000`;
+  const ids = new Set<string>();
+  for (const key of pendingAt.keys()) {
+    if (key.startsWith(prefix)) ids.add(key.slice(prefix.length));
+  }
+  // A row with a queued delete is on its way OUT. Leaving it here would have
+  // the merge treat it as local-wins and keep resurrecting it from the pulled
+  // snapshot until the delete lands.
+  for (const id of queuedDeleteIds(table)) ids.delete(id);
+  return ids;
+}
+
+/**
+ * Rows this terminal has deleted locally and the server has not accepted the
+ * deletion of yet.
+ *
+ * The pulled snapshot still contains them — the server has not been told — so a
+ * merge that simply applied it would put a row the operator just deleted back
+ * on the screen, and keep doing so on every pull until the delete drained. The
+ * local absence is the newer fact, so these are dropped from the snapshot.
+ */
+export function queuedDeleteIds(table: SyncTable): Set<string> {
+  const ids = new Set<string>();
+  for (const key of deletedAt.keys()) {
+    const prefix = `${table}\u0000`;
+    if (key.startsWith(prefix)) ids.add(key.slice(prefix.length));
+  }
+  return ids;
+}
+
+/** Same mirror, for queued deletes. */
+const deletedAt = new Map<string, number>();
+
+function markDeleted(operation: OutboxOperation): void {
+  if (operation.type !== 'delete') return;
+  for (const id of operation.ids) {
+    pendingSeq += 1;
+    deletedAt.set(pendingKey(operation.table, id), pendingSeq);
+  }
+}
+
+/** Reconciles the delete mirror, on the same rules as prunePending. */
+async function pruneDeleted(): Promise<void> {
+  const startedAt = pendingSeq;
+  const onDisk = new Set<string>();
+  for (const entry of await readEntries()) {
+    if (entry.operation.type !== 'delete') continue;
+    for (const id of entry.operation.ids) onDisk.add(pendingKey(entry.operation.table, id));
+  }
+  for (const [key, addedAt] of deletedAt) {
+    if (addedAt <= startedAt && !onDisk.has(key)) deletedAt.delete(key);
+  }
+  for (const key of onDisk) {
+    if (!deletedAt.has(key)) {
+      pendingSeq += 1;
+      deletedAt.set(key, pendingSeq);
+    }
+  }
+}
+
+void pruneDeleted();
+
+/** Both mirrors, after a queue mutation. Exported for tests. */
+export async function reconcileOutboxMirrors(): Promise<void> {
+  await prunePending();
+  await pruneDeleted();
 }

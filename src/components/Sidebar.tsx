@@ -20,6 +20,7 @@ import Logo from './Logo';
 import { ScreenId, isScreenAllowed } from '../lib/access';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useSyncStatus } from '../lib/useSyncStatus';
 import { useProductStore } from '../stores/productStore';
 import { useKdsStore } from '../stores/kdsStore';
 import { safeImageUrl } from '../lib/imageUrl';
@@ -54,33 +55,33 @@ function getInitials(name: string) {
 }
 
 /** Visual sync-status pill shown in the sidebar bottom controls area. */
-function SyncBadge({ enabled, status }: { enabled: boolean; status: string }) {
-  if (!enabled) return null;
+function SyncBadge() {
+  const { t } = useTranslation();
+  const { state, pending } = useSyncStatus();
+  if (state === 'off') return null;
 
-  const cls =
-    status === 'connected'
-      ? 'sync-badge sync-online'
-      : status === 'connecting'
-        ? 'sync-badge sync-syncing'
-        : status === 'error'
-          ? 'sync-badge sync-error'
-          : status === 'queued'
-            ? 'sync-badge sync-queued'
-            : 'sync-badge sync-offline';
+  const cls = {
+    synced: 'sync-badge sync-online',
+    syncing: 'sync-badge sync-syncing',
+    error: 'sync-badge sync-error',
+    offline: 'sync-badge sync-offline',
+  }[state];
 
+  // The count is the message. "Offline" tells an operator the link is down;
+  // "Offline · 12" tells them twelve sales are sitting on this machine and
+  // nowhere else, which is the fact that decides whether they keep trading,
+  // call someone, or think twice before closing the drawer.
   const label =
-    status === 'connected'
-      ? 'Online'
-      : status === 'connecting'
-        ? 'Syncing'
-        : status === 'error'
-          ? 'Sync error'
-          : status === 'queued'
-            ? 'Queued'
-            : 'Offline';
+    pending > 0 ? `${t(`sidebar.sync_${state}`)} · ${pending}` : t(`sidebar.sync_${state}`);
 
   return (
-    <span className={cls}>
+    <span
+      className={cls}
+      // The badge is a glyph and a word; the tooltip is where the operator
+      // finds out what it actually means for them.
+      title={pending > 0 ? t('sidebar.syncPendingHint', { count: pending }) : undefined}
+      aria-live="polite"
+    >
       <span className="sync-dot" />
       {label}
     </span>
@@ -93,7 +94,7 @@ function SyncBadge({ enabled, status }: { enabled: boolean; status: string }) {
  */
 export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: SidebarProps) {
   const { currentUser, setCurrentUser } = useAuthStore();
-  const { settings, darkMode, setDarkMode, supabaseConfig } = useSettingsStore();
+  const { settings, darkMode, setDarkMode } = useSettingsStore();
   const { products } = useProductStore();
   const { t } = useTranslation();
 
@@ -122,8 +123,9 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
             {safeImageUrl(settings.storeLogo) ? (
               <img
                 src={safeImageUrl(settings.storeLogo)}
-                alt="Logo"
+                alt={t('receiptCfg.tg_logo')}
                 className="size-full object-contain"
+                referrerPolicy="no-referrer"
               />
             ) : (
               <Logo size={28} />
@@ -208,7 +210,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
       {/* ── Bottom Controls ── */}
       <div className="px-3 pb-3 pt-2 space-y-2 border-t border-zinc-200/80 dark:border-zinc-800/80">
         <div className="px-1 flex items-center justify-between">
-          <SyncBadge enabled={supabaseConfig.enabled} status={supabaseConfig.status} />
+          <SyncBadge />
           {/* Dark mode toggle */}
           <button
             onClick={() => setDarkMode(!darkMode)}

@@ -55,4 +55,6 @@ export const dashboard = {
   allGood: 'كل شيء جيد',
   percentOfTotal: '{{percent}}% من الإجمالي',
   ordersLabel: 'طلبات',
+  returned: 'مرتجعات {{amount}}',
+  discounted: 'خصومات {{amount}}',
 };

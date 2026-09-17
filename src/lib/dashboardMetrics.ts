@@ -11,6 +11,7 @@
 // screen's business, and none of them belong in a number.
 
 import { Category, Product, PurchaseOrder, SaleTransaction } from '../types';
+import { tenderBreakdown } from './payments';
 
 const round = (value: number) => Number(value.toFixed(2));
 
@@ -50,6 +51,26 @@ export interface DashboardKpis {
   profitToday: number;
   avgDailyRevenue: number;
   lowStockItems: number;
+  /**
+   * Money discounted off today's sales.
+   *
+   * The two figures below answer "where did the margin go", which revenue and
+   * profit alone cannot: a thin day looks identical whether it was quiet, or
+   * busy and discounted to nothing. Both are scoped to TODAY'S SALES rather
+   * than to today's events — `discountsToday` is what was taken off the sales
+   * rung up today, and `returnedToday` is what has come back against them,
+   * whenever it came back. That is the same scoping `revenueToday` already
+   * uses (it is net of refunds regardless of when they happened), so the tiles
+   * agree with each other.
+   *
+   * "Refunds issued today" would be a different question and the stored shape
+   * cannot answer it exactly: `refundedAmount` is cumulative across every
+   * partial return and `refundDate` records only the most recent one, so a
+   * sale returned in two instalments on two days has one date and one total.
+   */
+  discountsToday: number;
+  /** Money returned against today's sales, whenever the return happened. */
+  returnedToday: number;
 }
 
 /**
@@ -68,6 +89,9 @@ export function computeKpis(
   const ordersToday = todayTransactions.length;
   const profitToday = todayTransactions.reduce((sum, tx) => sum + transactionProfit(tx), 0);
 
+  const discountsToday = todayTransactions.reduce((sum, tx) => sum + tx.discount, 0);
+  const returnedToday = todayTransactions.reduce((sum, tx) => sum + (tx.refundedAmount ?? 0), 0);
+
   const tradingDays = new Set(allTransactions.map((tx) => new Date(tx.date).toDateString()));
   const totalRevenue = allTransactions.reduce((sum, tx) => sum + netRevenue(tx), 0);
 
@@ -76,6 +100,8 @@ export function computeKpis(
     ordersToday,
     aovToday: round(ordersToday > 0 ? revenueToday / ordersToday : 0),
     profitToday: round(profitToday),
+    discountsToday: round(discountsToday),
+    returnedToday: round(returnedToday),
     avgDailyRevenue: round(totalRevenue / Math.max(1, tradingDays.size)),
     // "Low" is at or below the threshold but still sellable. Out-of-stock is a
     // different condition and is surfaced separately, so it is excluded here
@@ -210,9 +236,14 @@ export function categoryName(categoryId: string, categories: Category[]): string
 /**
  * Net takings per tender, excluding methods that took nothing.
  *
- * Keyed by the sale's dominant method, which is what a split sale is filed
- * under everywhere else in the app; the per-tender breakdown lives on the
- * receipt.
+ * Split across the sale's REAL tender lines, not filed under its dominant
+ * method. Keying by the dominant method put all £30 of a £10-cash/£20-card
+ * sale under card and nothing under cash: the chart still added up to the right
+ * revenue while describing a day that never happened — and cash is exactly the
+ * column an owner reads this panel for.
+ *
+ * Refunds are prorated across a sale's methods in the ratio they were taken,
+ * matching summarizeShift, so the Z-report and this panel cannot disagree.
  */
 export function paymentTotals(
   transactions: SaleTransaction[],
@@ -225,8 +256,15 @@ export function paymentTotals(
   };
 
   for (const tx of transactions) {
-    if (tx.paymentMethod in totals) {
-      totals[tx.paymentMethod as keyof typeof totals] += netRevenue(tx);
+    // netRevenue/total is the share of the sale that was NOT returned; a sale
+    // with total 0 (fully discounted, or paid entirely in points) has no tender
+    // to attribute either way.
+    const keptShare = tx.total > 0 ? netRevenue(tx) / tx.total : 0;
+    if (keptShare <= 0) continue;
+    for (const [method, amount] of Object.entries(tenderBreakdown(tx))) {
+      if (method in totals) {
+        totals[method as keyof typeof totals] += amount * keptShare;
+      }
     }
   }
 

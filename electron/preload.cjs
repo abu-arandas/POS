@@ -3,9 +3,19 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Expose a minimal, explicit API to the renderer instead of enabling full
 // nodeIntegration. This keeps contextIsolation on so a compromised renderer
 // (e.g. via a malicious image/logo URL) cannot reach Node.js/Electron internals.
+// The IpcRendererEvent is dropped rather than forwarded. Its `sender` IS the
+// ipcRenderer, so handing the event across the context bridge would give the
+// renderer `send`/`invoke` on ANY channel — the whole privileged IPC surface,
+// reachable from the first argument of a notification callback. Electron's own
+// security guidance calls this out; the renderer only ever wanted the message.
+//
+// The listener is wrapped, so removeListener has to be given the wrapper rather
+// than the caller's function, or the unsubscribe silently does nothing and
+// every remount leaks another listener.
 function subscribe(channel, callback) {
-  ipcRenderer.on(channel, callback);
-  return () => ipcRenderer.removeListener(channel, callback);
+  const listener = (_event, ...args) => callback(...args);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {

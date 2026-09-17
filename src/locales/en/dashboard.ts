@@ -55,4 +55,6 @@ export const dashboard = {
   allGood: 'All Good',
   percentOfTotal: '{{percent}}% of total',
   ordersLabel: 'orders',
+  returned: '{{amount}} returned',
+  discounted: '{{amount}} discounted',
 };

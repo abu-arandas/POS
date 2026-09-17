@@ -22,6 +22,9 @@ export type { CommitSaleResult, CommittedSale } from './saleService';
 export { commitRefund } from './refundService';
 export type { CommittedRefund } from './refundService';
 
+export { settleTab } from './tabService';
+export type { SettleTabError, SettleTabRequest, SettleTabResult } from './tabService';
+
 export { adjustStock, receivePurchaseOrder } from './stockService';
 export type {
   StockAdjustmentError,

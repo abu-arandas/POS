@@ -21,8 +21,25 @@ class EscPosBuilder {
   }
   text(s: string) {
     // Latin-1-ish: printers choke on multibyte; strip to ASCII-safe bytes.
+    //
+    // Control bytes are dropped rather than emitted, and that is the important
+    // half. Everything printed here is operator-entered and travels between
+    // terminals over cloud sync — product names, variant names, modifier
+    // names, the store's own header and footer. This method is where that text
+    // becomes a byte stream a printer INTERPRETS, so a name containing 0x1B
+    // was not text at all: it was an ESC/POS command. `\x1Ba\x01` right-aligns
+    // the rest of the receipt; `\x1Bm` cuts the paper; GS sequences can redefine
+    // the character set or fire the cash drawer. Nothing upstream could catch
+    // it either, because HTML escaping (the other renderer's defence) leaves
+    // control characters untouched — they are invisible on screen and only
+    // become commands here.
+    //
+    // Dropped, not replaced with a placeholder: these characters have no
+    // printable meaning, and a receipt reading "Latte ?a?EVIL" is a puzzle
+    // where "Latte EVIL" is merely a bad product name. 0x7f (DEL) goes too.
     for (const ch of s) {
       const code = ch.codePointAt(0) ?? 63;
+      if (code < 0x20 || code === 0x7f) continue;
       this.chunks.push(code > 0x7f ? 0x3f /* '?' */ : code);
     }
     return this;

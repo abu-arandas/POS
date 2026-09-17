@@ -25,6 +25,7 @@ export const receiptCfg = {
   tg_customer: 'Customer',
   tg_priceColumn: 'Prices',
   tg_itemUnitPrice: 'Unit price',
+  tg_modifiers: 'Add-ons / notes',
   tg_totals: 'Totals',
   tg_paymentDetails: 'Payment details',
   tg_changeDue: 'Cash / change',

@@ -36,6 +36,48 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Everything the README tells a contributor to run by hand before opening a
+  # pull request. It ran nowhere, so a type error, a lint failure, a
+  # misformatted file or a blown bundle budget reached main whenever somebody
+  # forgot — and the pull-request build stayed green, because packaging an
+  # installer does not typecheck the renderer.
+  #
+  # Kept off the Windows runner and out of build-windows's way: it is the fast
+  # signal (a couple of minutes on Linux), it runs in parallel with the
+  # installer build, and publish-release below waits for both.
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `lint` is `tsc --noEmit && eslint .`, so this is the typecheck too.
+      - name: Lint and typecheck
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Unit tests
+        run: npm test
+
+      # perf:check reads dist/, so the build has to come first. It is also the
+      # renderer build the installer job repeats — cheap enough to do twice,
+      # and it keeps the two jobs independent.
+      - name: Build renderer
+        run: npm run build
+
+      - name: Assert bundle budget
+        run: npm run perf:check
+
   build-windows:
     runs-on: windows-latest
     # Generous: a cold runner fetches the Electron runtime plus the NSIS and
@@ -182,7 +224,7 @@ jobs:
     # feature branch publishes a release under the same version tag, and
     # electron-updater offers it to every installed terminal.
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: build-windows
+    needs: [build-windows, verify]
     runs-on: ubuntu-latest
     # Downloads one artifact and calls `gh release create`; minutes, not tens.
     timeout-minutes: 15

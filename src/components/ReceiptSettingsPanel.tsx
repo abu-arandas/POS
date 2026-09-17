@@ -59,13 +59,14 @@ const TOGGLE_KEYS: Record<'customer' | 'kitchen', (keyof ReceiptToggles)[]> = {
     'customer',
     'priceColumn',
     'itemUnitPrice',
+    'modifiers',
     'totals',
     'paymentDetails',
     'changeDue',
     'loyalty',
     'barcode',
   ],
-  kitchen: ['storeName', 'receiptNumber', 'date', 'time', 'operator', 'customer'],
+  kitchen: ['storeName', 'receiptNumber', 'date', 'time', 'operator', 'customer', 'modifiers'],
 };
 
 /**

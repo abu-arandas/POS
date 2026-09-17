@@ -1,4 +1,5 @@
 import { CashMovement, SaleTransaction } from '../types';
+import { tenderBreakdown } from './payments';
 
 /**
  * Net cash that petty-cash movements put into (or took out of) the drawer.
@@ -16,17 +17,7 @@ export function netCashMovements(movements: readonly CashMovement[]): number {
  * tender line(s) minus change; card/mobile/gift contribute nothing.
  */
 export function cashKept(tx: SaleTransaction): number {
-  if (tx.payments && tx.payments.length > 1) {
-    const cashLine = tx.payments
-      .filter((p) => p.method === 'cash')
-      .reduce((s, p) => s + p.amount, 0);
-    if (cashLine <= 0) return 0;
-    return Number((cashLine - (tx.cashChange ?? 0)).toFixed(2));
-  }
-  if (tx.paymentMethod === 'cash') {
-    return Number(((tx.cashPaid ?? tx.total) - (tx.cashChange ?? 0)).toFixed(2));
-  }
-  return 0;
+  return tenderBreakdown(tx).cash ?? 0;
 }
 
 /**
@@ -70,18 +61,45 @@ export function summarizeShift(transactions: SaleTransaction[]): ShiftSummary {
   for (const tx of transactions) {
     const net = tx.status === 'refunded' ? 0 : tx.total - (tx.refundedAmount ?? 0);
     grossSales += net;
-    cashSales += cashKept(tx);
 
-    const refundAmt = tx.refundedAmount ?? 0;
+    // Every method's real contribution, which sums to tx.total. The non-cash
+    // lines used to be taken from tx.paymentMethod — the DOMINANT tender — at
+    // the sale's full value, while cash came from the actual tender lines. A
+    // £30 sale split £10 cash / £20 card therefore printed CASH 10 and CARD 30,
+    // so the breakdown on the drawer-reconciliation document overstated the
+    // day's tender by the cash half of every split sale.
+    const tenders = tenderBreakdown(tx);
+
+    // `status` outranks `refundedAmount`, because a sale can carry the status
+    // without the figure: refundedAmount was added after refunds already
+    // existed, so a fully refunded sale from an older install has
+    // status 'refunded' and no amount at all. Reading the amount alone made
+    // such a row report its entire tender as taken — £100 of card sales
+    // against £0 of gross — on the document that reconciles the drawer.
+    //
+    // grossSales has always special-cased the status (see `net` above); the
+    // tender columns now do too, so the two cannot disagree about whether a
+    // sale happened.
+    const fullyRefunded = tx.status === 'refunded';
+    const refundAmt = fullyRefunded ? (tx.refundedAmount ?? tx.total) : (tx.refundedAmount ?? 0);
+    // Refunds are prorated across the methods in the same ratio they were
+    // taken. A refund has no tender lines of its own, so the sale's own mix is
+    // the only defensible split — and it is what makes a fully refunded sale
+    // net to zero in every column at once.
+    const refundedShare = fullyRefunded ? 1 : tx.total > 0 ? Math.min(1, refundAmt / tx.total) : 0;
+    const netOf = (amount: number | undefined) => (amount ?? 0) * (1 - refundedShare);
+
+    // Cash stays GROSS, with refunds carried separately in cashRefunds: the
+    // drawer took the notes and then gave some back, and a Z-report that
+    // silently netted them would not show the operator either movement.
+    cashSales += tenders.cash ?? 0;
     if (refundAmt > 0 && tx.total > 0) {
-      const cashShare = cashKept(tx) / tx.total;
-      cashRefunds += refundAmt * cashShare;
+      cashRefunds += refundAmt * ((tenders.cash ?? 0) / tx.total);
     }
 
-    // Non-cash breakdown by dominant method (split detail is on the receipt).
-    if (tx.paymentMethod === 'card') cardSales += net;
-    else if (tx.paymentMethod === 'mobile') mobileSales += net;
-    else if (tx.paymentMethod === 'gift') giftSales += net;
+    cardSales += netOf(tenders.card);
+    mobileSales += netOf(tenders.mobile);
+    giftSales += netOf(tenders.gift);
   }
 
   const round = (n: number) => Number(n.toFixed(2));

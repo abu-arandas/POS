@@ -18,6 +18,16 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const usingServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+// Which store these rows belong to, on a database that has run
+// multi-store-schema.sql. Optional, because a single-store install has no
+// store dimension at all — but NOT optional there: multi-store-rls-enforce.sql
+// declares store_id NOT NULL, so without it every insert below is rejected,
+// and on a multi-store database that has not run the enforcement step yet the
+// rows land with a NULL store_id, where no scoped pull will ever see them.
+// The application refuses that same write for the same reason; see
+// isSyncBlocked() in src/lib/supabase/storeScope.ts.
+const SUPABASE_STORE_ID = process.env.SUPABASE_STORE_ID || '';
+
 // Keep demo fixtures compatible with src/lib/hash.ts. The application stores
 // account-bound, versioned PBKDF2-SHA-256 values rather than plaintext or the
 // legacy fast SHA-256 digest.
@@ -381,6 +391,11 @@ function generateTransactions() {
 
 async function supabaseUpsert(table, records) {
   const url = `${SUPABASE_URL}/rest/v1/${table}`;
+  // Stamped here rather than at each call site, so a table added later cannot
+  // be the one that forgets.
+  const scoped = SUPABASE_STORE_ID
+    ? records.map((record) => ({ ...record, store_id: SUPABASE_STORE_ID }))
+    : records;
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -389,7 +404,7 @@ async function supabaseUpsert(table, records) {
       Authorization: `Bearer ${SUPABASE_KEY}`,
       Prefer: 'resolution=merge-duplicates,return=minimal',
     },
-    body: JSON.stringify(records),
+    body: JSON.stringify(scoped),
   });
 
   if (!res.ok) {
@@ -401,6 +416,13 @@ async function supabaseUpsert(table, records) {
           'Set SUPABASE_SERVICE_ROLE_KEY in .env and re-run.',
       );
     }
+    if (/store_id/.test(body)) {
+      throw new Error(
+        `[${table}] HTTP ${res.status}: ${body}\n` +
+          '   ℹ️  This database is multi-store: every row needs a store_id. ' +
+          'Set SUPABASE_STORE_ID in .env to the id of the store you are seeding.',
+      );
+    }
     throw new Error(`[${table}] HTTP ${res.status}: ${body}`);
   }
   return true;
@@ -408,12 +430,45 @@ async function supabaseUpsert(table, records) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Refuses a multi-store database before a single row is written.
+ *
+ * Without this the seeder discovered the problem halfway: categories went in,
+ * products hit the store_id NOT NULL constraint, and the operator was left with
+ * a half-seeded database and an error. Asking first costs one request and makes
+ * the failure survivable — nothing has been written, so re-running after
+ * setting SUPABASE_STORE_ID starts clean.
+ *
+ * Detected by asking for the column rather than by looking for a `stores`
+ * table: it is the column the writes actually need, and a database part-way
+ * through the multi-store migration can have one without the other.
+ */
+async function assertStoreScope() {
+  if (SUPABASE_STORE_ID) return;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/products?select=store_id&limit=1`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+  });
+  // A 400 naming the column is PostgREST saying it does not exist — a
+  // single-store database, which is exactly what an empty STORE_ID is for.
+  if (res.ok) {
+    throw new Error(
+      'This database is multi-store (products.store_id exists) but SUPABASE_STORE_ID is empty.\n' +
+        '   Every row needs a store_id: without one the insert is rejected outright, or lands\n' +
+        '   rows that no scoped pull will ever return. Set SUPABASE_STORE_ID in .env and re-run.\n' +
+        '   Nothing has been written.',
+    );
+  }
+}
+
 async function main() {
   console.log('🚀 Starting Supabase seeder...\n');
   console.log(`📡 Target: ${SUPABASE_URL}`);
-  console.log(`🔑 Key: ${usingServiceRole ? 'service role' : 'anon (works only without RLS)'}\n`);
+  console.log(`🔑 Key: ${usingServiceRole ? 'service role' : 'anon (works only without RLS)'}`);
+  console.log(`🏬 Store scope: ${SUPABASE_STORE_ID || 'none (single-store database)'}\n`);
 
   // Step 1 — Upsert categories
+  await assertStoreScope();
+
   process.stdout.write('📦 Seeding categories... ');
   await supabaseUpsert('categories', CATEGORIES);
   console.log(`✅ ${CATEGORIES.length} records`);

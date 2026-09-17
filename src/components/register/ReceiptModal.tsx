@@ -102,6 +102,7 @@ export function ReceiptModal({
                           src={safeImageUrl(settings.storeLogo)}
                           alt={t('receiptCfg.tg_logo')}
                           className="h-8 w-auto object-contain grayscale opacity-80 dark:invert"
+                          referrerPolicy="no-referrer"
                         />
                       ) : (
                         <ShoppingBag size={28} className="text-slate-800 dark:text-slate-200" />

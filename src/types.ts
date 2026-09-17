@@ -300,6 +300,11 @@ export interface ReceiptToggles {
   operator: boolean;
   customer: boolean;
   itemUnitPrice: boolean; // the "@ price ea" breakdown line
+  // The chosen add-ons under a line ("Oat Milk", "No Onions"). On by default
+  // everywhere, and especially on a kitchen ticket, where the modifier IS the
+  // instruction — but a shop that prints a receipt purely as a payment record
+  // can turn it off like any other block.
+  modifiers: boolean;
   priceColumn: boolean; // per-line price/total column (kitchen tickets drop this)
   totals: boolean; // subtotal / discount / tax / total block
   paymentDetails: boolean; // method + split payments
@@ -474,6 +479,52 @@ export interface DiningTable {
   activeSince?: string;
   totalAmount?: number;
   section?: string;
+}
+
+// ── Open tabs ────────────────────────────────────────────────────────────────
+// A tab is an account that stays open across several rounds and is settled
+// once, at the end — the bar tab, the table that keeps ordering, the regular
+// who pays on Friday.
+//
+// Deliberately NOT a HeldOrder. A held order is one parked cart, resumed whole
+// and replaced when parked again; a tab ACCUMULATES, and the distinction is not
+// cosmetic. Each round is recorded separately because the kitchen has already
+// been given it: re-sending the whole tab on the next round would cook the
+// first round twice, and folding the rounds together on arrival would lose the
+// only record of what was already fired.
+
+/** One round added to a tab: what was ordered, when, and by whom. */
+export interface TabRound {
+  id: string;
+  createdAt: string;
+  /** Operator who rang this round up — rounds on one tab can differ. */
+  addedBy?: string | null;
+  /**
+   * The lines as they were priced at the time. Same shape as a held order's,
+   * and stored rather than referenced for the same reason: a tab open across a
+   * price change must still be settled at the prices the customer was quoted.
+   */
+  items: HeldOrderItem[];
+}
+
+export type TabStatus = 'open' | 'settled';
+
+export interface Tab {
+  id: string;
+  /** What the operator calls it — "Table 4", a name, a bar tab number. */
+  label: string;
+  /** The table this tab belongs to, when it is a table's. */
+  tableId?: string | null;
+  /** The linked customer, for loyalty at settlement. */
+  customerId: string | null;
+  customerName?: string | null;
+  openedAt: string;
+  openedBy?: string | null;
+  rounds: TabRound[];
+  status: TabStatus;
+  settledAt?: string | null;
+  /** The sale this tab became. The audit link between a tab and its money. */
+  settledSaleId?: string | null;
 }
 
 export type CashMovementType = 'pay_in' | 'pay_out';

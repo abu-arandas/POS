@@ -1,8 +1,72 @@
-import type { ComponentType, RefObject } from 'react';
+import { useState, type ComponentType, type RefObject } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { X, CreditCard, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Payment, PaymentMethod } from '../../types';
+
+/**
+ * The amount box on one split-tender line.
+ *
+ * It holds the operator's raw KEYSTROKES and reports the parsed number
+ * upwards, rather than being driven straight off the number. Bound to the
+ * number, the box could not be typed into left to right: "0" parses to 0,
+ * `value={amount || ''}` rendered that as empty, React put the empty string
+ * back in the box, and "0.50" was simply unreachable. The same applies to a
+ * trailing decimal point — "4." parses to 4 and was rewritten to "4" under the
+ * caret before the operator could type the pence.
+ *
+ * The number stays authoritative: when it changes from outside (a line
+ * removed, a sale reset) and disagrees with what is typed, the text resyncs.
+ */
+function SplitAmountInput({
+  amount,
+  currency,
+  label,
+  onChange,
+}: {
+  amount: number;
+  currency: string;
+  label: string;
+  onChange: (amount: number) => void;
+}) {
+  const [text, setText] = useState(() => (amount === 0 ? '' : String(amount)));
+  const [seenAmount, setSeenAmount] = useState(amount);
+
+  // Adjusted during render rather than in an effect — React's own pattern for
+  // state that follows a prop. An effect would render once with the stale text,
+  // then again to correct it, and the rows are keyed by index: removing a line
+  // reuses this instance with a different line's amount, so that first render
+  // would briefly show the removed line's figure.
+  if (amount !== seenAmount) {
+    setSeenAmount(amount);
+    const typed = Number.parseFloat(text);
+    // Only when the number genuinely disagrees with what is typed, so "4." and
+    // "0.5" survive their own keystrokes.
+    if ((Number.isFinite(typed) ? typed : 0) !== amount) {
+      setText(amount === 0 ? '' : String(amount));
+    }
+  }
+
+  return (
+    <div className="flex-1 flex items-center px-3">
+      <span className="font-mono text-slate-500 font-bold text-sm">{currency}</span>
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          const parsed = Number.parseFloat(e.target.value);
+          onChange(Number.isFinite(parsed) && parsed > 0 ? parsed : 0);
+        }}
+        aria-label={label}
+        className="flex-1 bg-transparent text-slate-900 dark:text-white text-base font-mono font-bold px-2 py-2.5 focus:outline-none w-full"
+        placeholder="0.00"
+      />
+    </div>
+  );
+}
 
 // The single-payment selector offers these four (no loyalty); split lines use
 // the full PaymentMethod.
@@ -170,23 +234,12 @@ export function PaymentModal({
                           <option value="mobile">{t('register.payMobile')}</option>
                           <option value="gift">{t('register.payGift')}</option>
                         </select>
-                        <div className="flex-1 flex items-center px-3">
-                          <span className="font-mono text-slate-500 font-bold text-sm">
-                            {currency}
-                          </span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={p.amount || ''}
-                            onChange={(e) =>
-                              onUpdateSplit(idx, { amount: parseFloat(e.target.value) || 0 })
-                            }
-                            aria-label={t('register.amountToPay')}
-                            className="flex-1 bg-transparent text-slate-900 dark:text-white text-base font-mono font-bold px-2 py-2.5 focus:outline-none w-full"
-                            placeholder="0.00"
-                          />
-                        </div>
+                        <SplitAmountInput
+                          amount={p.amount}
+                          currency={currency}
+                          label={t('register.amountToPay')}
+                          onChange={(amount) => onUpdateSplit(idx, { amount })}
+                        />
                       </div>
                       <button
                         onClick={() => onRemoveSplit(idx)}

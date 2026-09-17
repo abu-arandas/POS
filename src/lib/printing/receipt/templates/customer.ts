@@ -7,6 +7,7 @@ import {
   resolveCustomerLayout,
   taxLineLabel,
 } from '../../receiptFormat';
+import { itemLabel, itemModifierNames } from '../../lineItem';
 import { safeImageUrl } from '../../../imageUrl';
 import { PrinterConfig, ReceiptLayout, SaleTransaction, StoreSettings } from '../../../../types';
 
@@ -113,15 +114,25 @@ export function buildReceiptHtml(
 
   const items = tx.items
     .map((item) => {
-      const name = `${item.quantity}x ${esc(item.productName)}`;
+      // itemLabel, not productName: this path is what the DEFAULT `system`
+      // printer uses, and it used to drop the variant that the thermal path
+      // printed — so one sale read "Latte — Large / Oat" or "Latte" depending
+      // only on which printer the store happened to have configured.
+      const name = `${item.quantity}x ${esc(itemLabel(item))}`;
       const line = S.priceColumn
         ? `<div class="flex-row item"><span>${name}</span><span class="num ltr">${esc(money(item.total))}</span></div>`
         : `<div class="item">${name}</div>`;
+      // The add-ons the customer chose and paid for. Their price deltas are
+      // already inside item.price and item.total, so they are named and not
+      // priced again — see itemModifierNames.
+      const mods = (S.modifiers ? itemModifierNames(item) : [])
+        .map((modifier) => `<div class="item-mod">• ${esc(modifier)}</div>`)
+        .join('');
       const unit =
         S.priceColumn && S.itemUnitPrice && item.quantity > 1
           ? `<div class="item-unit ltr">@ ${esc(money(item.price))} ${esc(i18n.t('register.each'))}</div>`
           : '';
-      return line + unit;
+      return line + mods + unit;
     })
     .join('');
 

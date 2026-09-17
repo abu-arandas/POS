@@ -1,5 +1,6 @@
 import i18n from '../../../i18n';
 import { escapeHtml as esc } from '../../../utils/formatting';
+import { itemLabel, itemModifierNames } from '../../lineItem';
 import { formatDateTime, resolveKitchenLayout } from '../../receiptFormat';
 import { ReceiptLayout, SaleTransaction, StoreSettings } from '../../../../types';
 
@@ -47,7 +48,17 @@ export function buildKitchenTicketHtml(
       <div class="divider"></div>
 
       ${tx.items
-        .map((item) => `<div class="kitchen-item">${item.quantity}x ${esc(item.productName)}</div>`)
+        .map((item) => {
+          // The variant and the modifiers ARE the ticket. A kitchen ticket
+          // reading "1x Latte" against an order for a large oat latte with an
+          // extra shot is not a short ticket, it is the wrong drink — and this
+          // is the path every kitchen ticket takes, on every printer type.
+          const line = `<div class="kitchen-item">${item.quantity}x ${esc(itemLabel(item))}</div>`;
+          const mods = (S.modifiers ? itemModifierNames(item) : [])
+            .map((modifier) => `<div class="kitchen-mod">• ${esc(modifier)}</div>`)
+            .join('');
+          return line + mods;
+        })
         .join('')}
 
       <div class="divider"></div>

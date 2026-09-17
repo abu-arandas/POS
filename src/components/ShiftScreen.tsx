@@ -25,6 +25,7 @@ import { useTransactionStore } from '../stores/transactionStore';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { summarizeShift } from '../lib/shiftReport';
+import { pendingCloudWrites } from '../lib/sync';
 import { escapeHtml } from '../lib/utils/formatting';
 import { openDetachedPrintWindow } from '../lib/utils/dom';
 import { CashMovementType, Shift } from '../types';
@@ -44,7 +45,7 @@ import {
  * pay-ins and payouts, and produce the Z-report reconciling counted cash against expected.
  */
 export default function ShiftScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { shifts, currentShiftId, cashMovements, openShift, closeShift } = useShiftStore();
   const { transactions } = useTransactionStore();
   const { currentUser } = useAuthStore();
@@ -106,7 +107,22 @@ export default function ShiftScreen() {
   const handleClose = async () => {
     if (!currentShift) return;
     const counted = parseFloat(countedCash) || 0;
-    if (!(await askConfirmation(t('shift.confirmClose')))) return;
+
+    // Closing a shift is the moment an unpushed sale stops being a detail.
+    // The Z-report is produced from local data and reconciles correctly either
+    // way, but the head office sees the cloud — so a drawer closed with a
+    // backlog reconciles here and is short there, and nobody finds out until
+    // the numbers are compared days later. The count is read fresh rather than
+    // from the badge: the operator may have been sitting on this screen while
+    // the queue drained, and a stale warning is worse than none.
+    const owed = await pendingCloudWrites();
+    if (owed > 0) {
+      const proceed = await askConfirmation(t('shift.confirmCloseWithPending', { count: owed }));
+      if (!proceed) return;
+    } else if (!(await askConfirmation(t('shift.confirmClose')))) {
+      return;
+    }
+
     closeShift(currentShift.id, counted, closeNote, currentUser?.name ?? 'Unknown');
     setCountedCash('');
     setCloseNote('');
@@ -143,33 +159,46 @@ export default function ShiftScreen() {
     const c = cur;
     const row = (label: string, val: string) =>
       `<div class="flex-row"><span>${esc(label)}</span><span>${esc(val)}</span></div>`;
-    w.document.write(`<html><head><title>Z-Report ${esc(shift.id)}</title><style>
-      body{font-family:'Courier New',monospace;width:80mm;padding:8px;font-size:12px;color:#000}
+    // Translated like every other operator-facing surface. These labels were
+    // English literals, so an Arabic store — the default currency here is JOD —
+    // printed its whole drawer reconciliation in a language its staff may not
+    // read, while the receipts beside it came out correctly in Arabic.
+    const rtl = i18n.language === 'ar';
+    // Figures stay LTR inside an RTL document: "8.80" must not reorder, and
+    // isolation alone leaves a currency-prefixed amount rendering backwards.
+    const amountRow = (label: string, value: string) =>
+      `<div class="flex-row"><span>${esc(label)}</span><span class="ltr">${esc(value)}</span></div>`;
+    w.document.write(`<html lang="${rtl ? 'ar' : 'en'}" dir="${rtl ? 'rtl' : 'ltr'}"><head>
+      <meta charset="utf-8" />
+      <title>${esc(t('shift.printReport'))} ${esc(shift.id)}</title><style>
+      body{font-family:${rtl ? "'Segoe UI',Tahoma,Arial,sans-serif" : "'Courier New',monospace"};width:80mm;padding:8px;font-size:12px;color:#000}
       .center{text-align:center}.bold{font-weight:bold}.divider{border-top:1px dashed #000;margin:8px 0}
-      .flex-row{display:flex;justify-content:space-between}</style></head>
+      .flex-row{display:flex;justify-content:space-between;gap:2mm}
+      .flex-row>span{unicode-bidi:isolate}
+      .ltr{direction:ltr;unicode-bidi:isolate;white-space:nowrap;font-variant-numeric:tabular-nums}</style></head>
       <body onload="window.print();window.close()">
       <div class="center bold">${esc(settings.storeName)}</div>
-      <div class="center">Z-REPORT / SHIFT SUMMARY</div><div class="divider"></div>
-      ${row('OPENED', new Date(shift.openedAt).toLocaleString())}
-      ${row('OPERATOR', shift.openedBy)}
-      ${shift.closedAt ? row('CLOSED', new Date(shift.closedAt).toLocaleString()) : ''}
+      <div class="center">${esc(t('shift.zReportTitle'))}</div><div class="divider"></div>
+      ${amountRow(t('shift.openedAt'), new Date(shift.openedAt).toLocaleString())}
+      ${row(t('shift.operator'), shift.openedBy)}
+      ${shift.closedAt ? amountRow(t('shift.closedAt'), new Date(shift.closedAt).toLocaleString()) : ''}
       <div class="divider"></div>
-      ${row('SALES', String(s.saleCount))}
-      ${row('GROSS', c + s.grossSales.toFixed(2))}
-      ${row('CASH SALES', c + s.cashSales.toFixed(2))}
-      ${row('CARD', c + s.cardSales.toFixed(2))}
-      ${row('MOBILE', c + s.mobileSales.toFixed(2))}
-      ${row('GIFT', c + s.giftSales.toFixed(2))}
-      ${row('CASH REFUNDS', c + s.cashRefunds.toFixed(2))}
+      ${amountRow(t('shift.sales'), String(s.saleCount))}
+      ${amountRow(t('shift.gross'), c + s.grossSales.toFixed(2))}
+      ${amountRow(t('shift.cashSales'), c + s.cashSales.toFixed(2))}
+      ${amountRow(t('register.payCard'), c + s.cardSales.toFixed(2))}
+      ${amountRow(t('register.payMobile'), c + s.mobileSales.toFixed(2))}
+      ${amountRow(t('register.payGift'), c + s.giftSales.toFixed(2))}
+      ${amountRow(t('shift.cashRefunds'), c + s.cashRefunds.toFixed(2))}
       <div class="divider"></div>
-      ${row('OPENING FLOAT', c + shift.openingFloat.toFixed(2))}
-      ${payIns > 0 ? row('PAY-INS', c + payIns.toFixed(2)) : ''}
-      ${payOuts > 0 ? row('PAY-OUTS', c + payOuts.toFixed(2)) : ''}
-      ${row('EXPECTED CASH', c + expected.toFixed(2))}
-      ${shift.closedAt ? row('COUNTED CASH', c + counted.toFixed(2)) : ''}
-      ${shift.closedAt ? `<div class="flex-row bold"><span>VARIANCE</span><span>${esc(c + (counted - expected).toFixed(2))}</span></div>` : ''}
+      ${amountRow(t('shift.openingFloat'), c + shift.openingFloat.toFixed(2))}
+      ${payIns > 0 ? amountRow(t('shift.payIns'), c + payIns.toFixed(2)) : ''}
+      ${payOuts > 0 ? amountRow(t('shift.payOuts'), c + payOuts.toFixed(2)) : ''}
+      ${amountRow(t('shift.expectedCash'), c + expected.toFixed(2))}
+      ${shift.closedAt ? amountRow(t('shift.countedCash'), c + counted.toFixed(2)) : ''}
+      ${shift.closedAt ? `<div class="flex-row bold"><span>${esc(t('shift.variance'))}</span><span class="ltr">${esc(c + (counted - expected).toFixed(2))}</span></div>` : ''}
       <div class="divider"></div>
-      <div class="center">${new Date().toLocaleString()}</div>
+      <div class="center ltr">${esc(new Date().toLocaleString())}</div>
       </body></html>`);
     w.document.close();
   };

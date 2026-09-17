@@ -23,6 +23,11 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: { '@': path.resolve(__dirname, '.') },
+    // Must match vite.config.ts and tsconfig.json. This pointed at the repo
+    // ROOT, so `@/lib/x` resolved to `<repo>/lib/x` here and `<repo>/src/lib/x`
+    // everywhere else. Nothing imports through the alias today, which is the
+    // only reason it never broke: the first `@/` import would have failed in
+    // the portable build alone, long after the change that introduced it.
+    alias: { '@': path.resolve(__dirname, 'src') },
   },
 });
