@@ -321,6 +321,86 @@ describe('a pull that fails', () => {
   });
 });
 
+describe('a scope that cannot be established', () => {
+  // A pull is refused on an UNKNOWN scope as well as a missing one, and
+  // unknown usually means the count query caught a blip. Dropping the tables
+  // there turned a moment of bad line into a terminal that stayed stale until
+  // some unrelated write happened to arrive.
+  it('keeps the tables owed and retries them', async () => {
+    const channel = await subscribed();
+    vi.mocked(isSyncBlocked).mockResolvedValueOnce(true);
+
+    channel.emit('products');
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(pulls.products).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(pulls.products).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives up on a scope that stays blocked, rather than polling forever', async () => {
+    const channel = await subscribed();
+    vi.mocked(isSyncBlocked).mockResolvedValue(true);
+
+    channel.emit('products');
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+
+    // A terminal with no Store ID against a multi-store database is refused
+    // identically forever; the bound is what stops it costing a round trip
+    // every backoff interval for as long as the till is open.
+    expect(vi.mocked(isSyncBlocked).mock.calls.length).toBeLessThanOrEqual(6);
+  });
+});
+
+describe('two bursts overlapping', () => {
+  // Two batches in flight at once can come back in the order their requests
+  // happen to resolve rather than the order they started, and the older
+  // snapshot then lands on top of the newer one and regresses every table.
+  it('does not start a second batch while one is still pulling', async () => {
+    const channel = await subscribed();
+    const slow = deferred<unknown[]>();
+    pulls.products.mockReturnValue(slow.promise as ReturnType<typeof pullProducts>);
+
+    channel.emit('products');
+    await vi.advanceTimersByTimeAsync(2_000); // first batch is now in flight
+
+    channel.emit('customers');
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(pulls.customers).not.toHaveBeenCalled();
+
+    // The batch in flight opens the next window itself once it is done.
+    pulls.products.mockResolvedValue([]);
+    slow.resolve([]);
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(pulls.customers).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies the later snapshot last, not the one that resolved first', async () => {
+    const channel = await subscribed();
+    const slow = deferred<unknown[]>();
+    pulls.transactions.mockReturnValue(slow.promise as ReturnType<typeof pullTransactions>);
+
+    channel.emit('transactions');
+    await vi.advanceTimersByTimeAsync(2_000); // first batch is now in flight
+
+    // A second event while the first is still out, whose pull answers at once.
+    // Unbatched, its window opens here and it applies 'newer' immediately —
+    // and then the first batch resolves and puts 'older' back on top.
+    channel.emit('transactions');
+    pulls.transactions.mockResolvedValue([
+      { id: 'newer', items: [], total: 2 },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ] as any);
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    slow.resolve([{ id: 'older', items: [], total: 1 }] as any);
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(useTransactionStore.getState().transactions.map((t) => t.id)).toEqual(['newer']);
+  });
+});
+
 describe('stopping', () => {
   it('cancels a batch that has not fired and unsubscribes the channel', async () => {
     const channel = await subscribed();

@@ -84,6 +84,16 @@ const dirtyTables = new Set<SyncedTable>();
 let batchTimer: ReturnType<typeof setTimeout> | null = null;
 /** When the open batch window must fire regardless of later events. */
 let batchDeadline = 0;
+/**
+ * Whether a batch is between its first pull and its last write.
+ *
+ * One batch at a time, because two can finish in the order their requests
+ * happen to come back rather than the order they started: a second batch that
+ * overtakes the first has the first then apply its older snapshot on top and
+ * regress every table in it. Tables stay owed while one runs, and the batch in
+ * flight opens the next window itself once it is done.
+ */
+let batchRunning = false;
 
 // Backoff for a pull that came back empty-handed and for a subscription that
 // would not join, so neither keeps retrying a server that is down at the rate
@@ -331,6 +341,8 @@ export async function startRealtimeSync(): Promise<boolean> {
    * `batchDeadline`.
    */
   const scheduleBatch = (delayMs: number, maxWaitMs: number): void => {
+    // See `batchRunning`. The running batch picks up whatever is owed.
+    if (batchRunning) return;
     const now = Date.now();
     if (batchTimer === null) {
       batchDeadline = now + maxWaitMs;
@@ -346,13 +358,27 @@ export async function startRealtimeSync(): Promise<boolean> {
     );
   };
 
-  /** Pulls every table currently owed, and applies the results together. */
-  const runBatch = async (): Promise<void> => {
-    if (myGeneration !== generation) return;
-    const tables = [...dirtyTables];
-    dirtyTables.clear();
-    if (tables.length === 0) return;
+  /**
+   * Re-queues tables a batch could not refresh, and answers how long to wait
+   * before trying them again — or null when the rounds are spent.
+   */
+  const owe = (tables: readonly SyncedTable[], reason: string): number | null => {
+    if (pullRetryRounds >= MAX_PULL_RETRY_ROUNDS) {
+      console.warn(`Realtime sync gave up on ${tables.join(', ')}: ${reason}`);
+      return null;
+    }
+    pullRetryRounds += 1;
+    for (const table of tables) dirtyTables.add(table);
+    const delay = pullRetryMs;
+    pullRetryMs = Math.min(pullRetryMs * 2, RETRY_MAX_MS);
+    return delay;
+  };
 
+  /**
+   * One batch: pull the named tables, apply what came back together, and
+   * answer with the delay after which whatever did not should be tried again.
+   */
+  const pullAndApply = async (tables: SyncedTable[]): Promise<number | null> => {
     // Re-read the store scope each pull so it tracks config changes.
     const { storeId } = useSettingsStore.getState();
     // Realtime is a pull like any other, and the most dangerous one to leave
@@ -364,7 +390,17 @@ export async function startRealtimeSync(): Promise<boolean> {
     //
     // Asked once for the whole batch rather than per table, so every table in
     // it is pulled under one scope decision and they cannot disagree.
-    if (await isSyncBlocked(client, storeId, 'pull')) return;
+    if (await isSyncBlocked(client, storeId, 'pull')) {
+      // Owed rather than dropped, because "blocked" is not always an answer
+      // that will keep. A pull is refused on an UNKNOWN scope as well as a
+      // missing one, and unknown usually means the count query caught a blip
+      // — so dropping the tables here turned a moment of bad line into a
+      // terminal that stayed stale until some unrelated write happened to
+      // arrive. Bounded like any other failure, so the genuinely persistent
+      // case (a terminal with no Store ID on a multi-store database) stops
+      // instead of polling for as long as the till is open.
+      return owe(tables, 'store scope could not be established');
+    }
 
     let applies: Array<(() => void) | null>;
     try {
@@ -378,11 +414,13 @@ export async function startRealtimeSync(): Promise<boolean> {
       applies = tables.map(() => null);
     }
 
-    if (myGeneration !== generation) return; // stopped or restarted mid-pull
+    // Neither of these owes a retry: the subscription or the scope has moved
+    // on, and what this batch holds is about the terminal as it was.
+    if (myGeneration !== generation) return null; // stopped or restarted mid-pull
     // The store scope can change without restarting sync — App only restarts
     // it when the connection changes — so a generation check alone would let
     // the previous store's rows land in the newly selected store.
-    if (useSettingsStore.getState().storeId !== storeId) return;
+    if (useSettingsStore.getState().storeId !== storeId) return null;
 
     // In one synchronous span, with nothing awaited between them. This is the
     // entire reason the pulls were batched: an await here would let a render
@@ -393,19 +431,39 @@ export async function startRealtimeSync(): Promise<boolean> {
     if (failed.length === 0) {
       pullRetryMs = RETRY_BASE_MS;
       pullRetryRounds = 0;
-      return;
+      return null;
     }
     // A table that did not come back is owed, not forgotten. Left for the next
     // change event it could sit stale for as long as the fleet stayed quiet,
     // which is exactly when a terminal is most likely to be on a bad line.
-    if (pullRetryRounds >= MAX_PULL_RETRY_ROUNDS) {
-      console.warn(`Realtime pull gave up on: ${failed.join(', ')}`);
-      return;
+    return owe(failed, 'pull returned nothing');
+  };
+
+  /** Runs one batch, then starts the next window if anything is still owed. */
+  const runBatch = async (): Promise<void> => {
+    if (myGeneration !== generation) return;
+    const tables = [...dirtyTables];
+    dirtyTables.clear();
+    if (tables.length === 0) return;
+
+    batchRunning = true;
+    let retryDelayMs: number | null = null;
+    try {
+      retryDelayMs = await pullAndApply(tables);
+    } finally {
+      // A stop or a restart while this was in flight has already cleared both
+      // the flag and the queue for whichever subscription comes next, so
+      // touching either here would reach into one that is no longer this one.
+      if (myGeneration === generation) {
+        batchRunning = false;
+        if (dirtyTables.size > 0) {
+          // Events that arrived mid-batch were deliberately given no timer of
+          // their own; this is the window they have been waiting for.
+          const delay = retryDelayMs ?? BATCH_WINDOW_MS;
+          scheduleBatch(delay, Math.max(delay, BATCH_MAX_WAIT_MS));
+        }
+      }
     }
-    pullRetryRounds += 1;
-    for (const table of failed) dirtyTables.add(table);
-    scheduleBatch(pullRetryMs, pullRetryMs);
-    pullRetryMs = Math.min(pullRetryMs * 2, RETRY_MAX_MS);
   };
 
   /** Marks tables as owed and makes sure a batched pull is on its way. */
@@ -507,6 +565,7 @@ export function stopRealtimeSync(): void {
     batchTimer = null;
   }
   dirtyTables.clear();
+  batchRunning = false;
   if (reconnectTimer !== null) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
