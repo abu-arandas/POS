@@ -58,6 +58,15 @@ export const settings = {
   pullPartial: 'Pull incomplete — these tables failed to load and were left unchanged: {{tables}}',
   pullUsersDenied:
     'Everything synced except staff accounts: this terminal is connected anonymously, and the cloud only releases staff to a signed-in device. Set the device email and password above to include them.',
+  merging: 'Merging…',
+  cloudAdopted:
+    'Local data merged into the cloud. This terminal now holds the cloud copy and no separate local database beside it.',
+  cloudAdoptPartial:
+    'Merged into the cloud, but not every table could be read back — those tables still hold their local rows and will be retried.',
+  cloudAdoptPushFailed:
+    'This terminal\u2019s data could not be uploaded, so nothing local was replaced. Nothing is lost — it will merge as soon as the cloud is reachable.',
+  cloudAdoptPullFailed:
+    'This terminal\u2019s data reached the cloud, but the merged copy could not be read back. Local data is unchanged and will be retried.',
   cloudDeleteFailed:
     'Deleted here, but the cloud copy could not be removed. Those records may reappear on the next pull.',
   statusConnected: 'Connected',

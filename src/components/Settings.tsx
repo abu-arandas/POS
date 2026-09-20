@@ -28,6 +28,7 @@ import {
 } from './settings/index';
 import { serialSupported, networkScanSupported } from '../lib/printing/printerDiscovery';
 import { pullMessages, pullFailed } from './settings/pullOutcome';
+import { adoptionFailed, adoptionMessages } from './settings/adoptionOutcome';
 import { usePrinterDiscovery } from './settings/usePrinterDiscovery';
 import type { PrinterDiscovery } from './settings/ConnectedPrinters';
 import { useTranslation } from 'react-i18next';
@@ -54,6 +55,7 @@ import {
   syncToCloudIfEnabled,
   deleteUsersCloudIfEnabled,
 } from '../lib/sync';
+import { adoptCloudDatabase, resetCloudAdoption } from '../lib/cloudAdoption';
 import { getSupabaseClient, resolveDeviceAuthConfigured } from '../lib/supabase';
 import { storeScopeWarning } from '../lib/supabase/storeScope';
 
@@ -236,7 +238,7 @@ export default function Settings() {
   const [sbAuthPassword, setSbAuthPassword] = useState(supabaseConfig.authPassword ?? '');
   const [sbEnabled, setSbEnabled] = useState(supabaseConfig.enabled);
   const [sbStoreId, setSbStoreId] = useState(storeId);
-  const [busy, setBusy] = useState<null | 'test' | 'push' | 'pull'>(null);
+  const [busy, setBusy] = useState<null | 'test' | 'link' | 'push' | 'pull'>(null);
 
   const handleUpdateSetting = (key: keyof StoreSettings, value: string | number) => {
     setSettings({ ...settings, [key]: value });
@@ -444,8 +446,27 @@ export default function Settings() {
     setBusy('test');
     const ok = await testCloudConnection(sbUrl.trim(), sbKey.trim());
     persistConfig(ok ? 'connected' : 'error', ok ? observedDeviceAuth() : undefined);
+    if (!ok) {
+      setBusy(null);
+      notify(t('settings.connectionFailed'));
+      return;
+    }
+    notify(t('settings.connectionSuccess'));
+
+    // Linking is the moment the merge belongs to. Leaving it to App's effect
+    // would work — both go through the same once-per-project marker — but the
+    // operator is standing here having just pressed the button, so this is
+    // where the result is worth showing, and where a failure is worth naming.
+    setBusy('link');
+    const adoption = await adoptCloudDatabase();
     setBusy(null);
-    notify(ok ? t('settings.connectionSuccess') : t('settings.connectionFailed'));
+    const messages = adoptionMessages(adoption);
+    if (messages.length === 0) return; // already linked to this project
+    if (adoptionFailed(adoption)) persistConfig('error');
+    notify(
+      messages.map((m) => t(m.key, m.params)).join(' '),
+      adoptionFailed(adoption) ? 'error' : 'info',
+    );
   };
 
   /**
@@ -557,6 +578,10 @@ export default function Settings() {
       setSbEnabled(false);
       setStoreId('');
       setSbStoreId('');
+      // The marker records a link that this reset has just undone. Left set,
+      // re-linking the same project would skip the merge and go straight to
+      // live sync, leaving whatever is local to be pushed up piecemeal.
+      resetCloudAdoption();
       notify(t('settings.defaultsReset'));
     }
   };

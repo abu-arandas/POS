@@ -43,6 +43,13 @@ interface SettingsState {
   // src/db/multi-store-schema.sql). Empty = single-store mode: sync behaves exactly
   // as before (no store_id stamped or filtered).
   storeId: string;
+  // The cloud project this terminal has already merged its local database into
+  // and adopted the result of, as that project's URL. Empty until the first
+  // link succeeds. See src/lib/cloudAdoption.ts — it is persisted because the
+  // merge belongs to the life of a link, not to every boot: re-running it would
+  // re-upload the whole local catalogue each time and push this terminal's copy
+  // of a row back over a deletion another terminal had made.
+  cloudAdoptedFor: string;
   darkMode: boolean;
   language: Locale;
 
@@ -58,6 +65,7 @@ interface SettingsState {
   setShowProductImages: (on: boolean) => void;
   setSoundEffects: (on: boolean) => void;
   setStoreId: (storeId: string) => void;
+  setCloudAdoptedFor: (url: string) => void;
   setDarkMode: (darkMode: boolean) => void;
   setLanguage: (lang: Locale) => void;
 }
@@ -148,6 +156,7 @@ export const useSettingsStore = create<SettingsState>()(
       showProductImages: false,
       soundEffects: true,
       storeId: '',
+      cloudAdoptedFor: '',
       // Dark-first: the whole UI is designed for a dark canvas. New terminals
       // start dark and stay cohesive; a saved light preference is restored on
       // rehydrate and the toggle still switches freely.
@@ -166,6 +175,7 @@ export const useSettingsStore = create<SettingsState>()(
       setShowProductImages: (showProductImages) => set({ showProductImages }),
       setSoundEffects: (soundEffects) => set({ soundEffects }),
       setStoreId: (storeId) => set({ storeId }),
+      setCloudAdoptedFor: (cloudAdoptedFor) => set({ cloudAdoptedFor }),
       setDarkMode: (darkMode) => {
         // Apply the theme class immediately; without this the `dark:` variants
         // only take effect after a reload (the class was set on rehydrate only).
