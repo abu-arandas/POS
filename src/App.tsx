@@ -49,6 +49,7 @@ import type { Product } from './types';
 import { variantPrice } from './lib/variants';
 import { ScreenId, isScreenAllowed } from './lib/access';
 import { startRealtimeSync, stopRealtimeSync } from './lib/realtimeSync';
+import { adoptCloudDatabase } from './lib/cloudAdoption';
 import { startOutboxReplay, stopOutboxReplay } from './lib/sync';
 import { startFleetHeartbeat, stopFleetHeartbeat, fetchSuperadminOrg } from './lib/fleetClient';
 import NotificationCenter from './components/NotificationCenter';
@@ -108,8 +109,20 @@ export default function App() {
   const syncConnected = supabaseConfig.status === 'connected';
   useEffect(() => {
     if (!(syncEnabled && syncConnected)) return;
-    startRealtimeSync();
-    return () => stopRealtimeSync();
+    let cancelled = false;
+    void (async () => {
+      // Merge this terminal into the cloud and adopt the result BEFORE
+      // subscribing, so the first realtime pull is already working from the
+      // merged truth rather than racing the upload that produces it. After the
+      // first link this is a store read and a string compare, so the ordinary
+      // path pays nothing for it.
+      await adoptCloudDatabase();
+      if (!cancelled) startRealtimeSync();
+    })();
+    return () => {
+      cancelled = true;
+      stopRealtimeSync();
+    };
   }, [syncEnabled, syncConnected]);
 
   // Replay of cloud writes this terminal still owes. Deliberately NOT gated on

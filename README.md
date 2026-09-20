@@ -211,6 +211,26 @@ To sync terminals through [Supabase](https://supabase.com):
    `SUPABASE_SERVICE_ROLE_KEY` (the anon key cannot insert once RLS is on), then run
    `node src/db/seed.mjs`.
 
+### What linking does to local data
+
+A terminal trades offline, so it always has a local database — a catalogue, a customer book,
+sales rung up before the cloud existed. The first time it is linked to a Supabase project, that
+database is **merged into the cloud and then replaced by the result**: anything queued is drained,
+the whole local dataset is uploaded, and the merged copy is read back and adopted. From then on the
+terminal holds what the cloud holds rather than a second database beside it.
+
+The order is the point. The upload happens first, so the copy that replaces local data already
+contains it — an offline sale, a product priced this morning, a customer signed up at the counter.
+If the upload is refused, nothing local is touched and the merge is retried on the next link.
+
+It runs **once per project**, recorded against the project URL (`cloudAdoptedFor`). Re-running it
+on every boot would push this terminal's copy of a row back over a deletion made on another one.
+Changing the Store ID does not re-run it either: that points the terminal at a different store
+inside the same project, and re-uploading there would stamp this store's catalogue with the other
+store's id. Ongoing convergence is realtime sync's job and the outbox's; **Push All to Cloud** and
+**Pull From Cloud** remain available for doing either half by hand, and _Reset to defaults_ clears
+the marker so the next link merges afresh.
+
 Upgrading an existing database? Re-run `src/db/schema.sql`. The whole script is idempotent —
 policies are dropped before being recreated, and each table joins the `supabase_realtime`
 publication independently.

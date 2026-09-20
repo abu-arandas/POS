@@ -11,7 +11,7 @@ export interface SupabasePanelProps {
   sbAuthPassword: string;
   sbEnabled: boolean;
   sbStoreId: string;
-  busy: null | 'test' | 'push' | 'pull';
+  busy: null | 'test' | 'link' | 'push' | 'pull';
   onSbUrlChange(value: string): void;
   onSbKeyChange(value: string): void;
   onSbAuthEmailChange(value: string): void;
@@ -219,7 +219,11 @@ export function SupabasePanel({
             className="btn-secondary h-9 px-3 text-xs font-medium gap-1.5"
           >
             <RefreshCw size={13} className={busy === 'test' ? 'animate-spin' : ''} />
-            {busy === 'test' ? t('settings.testing') : t('settings.testConnection')}
+            {busy === 'test'
+              ? t('settings.testing')
+              : busy === 'link'
+                ? t('settings.merging')
+                : t('settings.testConnection')}
           </button>
           <div className="flex-1"></div>
           <button
