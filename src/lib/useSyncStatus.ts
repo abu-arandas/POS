@@ -43,10 +43,13 @@ export interface SyncStatus {
  * restarted mid-outage starts with a backlog and no mutation to announce it.
  */
 export function useSyncStatus(): SyncStatus {
-  const { enabled, status } = useSettingsStore((s) => ({
-    enabled: s.supabaseConfig.enabled,
-    status: s.supabaseConfig.status,
-  }));
+  // One primitive per selector. A selector that builds `{ enabled, status }` hands
+  // back a new object on every read, and zustand v5 feeds the selector straight to
+  // `useSyncExternalStore`: React sees a snapshot that is never equal to the last
+  // one and re-renders without end ("getSnapshot should be cached"). That crashed
+  // the whole shell — SyncBadge sits in the sidebar — the moment anyone signed in.
+  const enabled = useSettingsStore((s) => s.supabaseConfig.enabled);
+  const status = useSettingsStore((s) => s.supabaseConfig.status);
   const [pending, setPending] = useState(0);
   const [online, setOnline] = useState(() =>
     typeof navigator === 'undefined' ? true : navigator.onLine,
