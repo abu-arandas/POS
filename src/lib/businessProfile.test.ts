@@ -106,6 +106,10 @@ describe('parseProfile', () => {
     ['a missing module list', { version: 1, template: 'restaurant' }],
     ['a newer version', { version: PROFILE_VERSION + 1, template: 'restaurant', modules: [] }],
     ['a non-numeric version', { version: '1', template: 'restaurant', modules: [] }],
+    ['a zero version', { version: 0, template: 'restaurant', modules: [] }],
+    ['a negative version', { version: -1, template: 'restaurant', modules: [] }],
+    ['a fractional version', { version: 0.5, template: 'restaurant', modules: [] }],
+    ['a NaN version', { version: Number.NaN, template: 'restaurant', modules: [] }],
   ])('refuses %s', (_label, value) => {
     expect(parseProfile(value)).toBeNull();
   });

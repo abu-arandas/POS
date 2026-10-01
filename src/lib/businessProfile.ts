@@ -114,7 +114,15 @@ export function withModule(
 export function parseProfile(value: unknown): BusinessProfile | null {
   if (!value || typeof value !== 'object') return null;
   const { version, template, modules } = value as Record<string, unknown>;
-  if (typeof version !== 'number' || version > PROFILE_VERSION) return null;
+  // A real version: a whole number from 1 up to the newest this build understands.
+  // NaN, a fraction, zero or a negative is corrupt data, not an old profile.
+  if (
+    !Number.isInteger(version) ||
+    (version as number) < 1 ||
+    (version as number) > PROFILE_VERSION
+  ) {
+    return null;
+  }
   if (typeof template !== 'string' || !(template in TEMPLATES)) return null;
   if (!Array.isArray(modules)) return null;
   const known = new Set<string>(MODULE_IDS);

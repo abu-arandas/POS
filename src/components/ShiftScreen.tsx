@@ -40,6 +40,7 @@ import {
   copyReportToClipboard,
 } from '../lib/dailySummaryReport';
 
+import { moneyTolerance } from '../lib/money';
 import { useMoney } from '../lib/useMoney';
 /**
  * Shift screen: open and close a drawer with an opening float, manage petty cash
@@ -47,6 +48,8 @@ import { useMoney } from '../lib/useMoney';
  */
 export default function ShiftScreen() {
   const { round: roundAmt, amount: fmtAmount, step: moneyStep, digits } = useMoney();
+  // A drawer is balanced when it is off by less than half the smallest unit.
+  const tolerance = moneyTolerance(digits);
 
   const { t, i18n } = useTranslation();
   const { shifts, currentShiftId, cashMovements, openShift, closeShift } = useShiftStore();
@@ -526,13 +529,13 @@ export default function ShiftScreen() {
                     {variance !== null && (
                       <div
                         className={`flex justify-between items-center text-xs font-mono rounded-lg px-3 py-2 border ${
-                          Math.abs(variance) < 0.005
+                          Math.abs(variance) < tolerance
                             ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                             : 'bg-destructive/10 border-destructive/20 text-destructive'
                         }`}
                       >
                         <span className="font-semibold uppercase flex items-center gap-1.5">
-                          {Math.abs(variance) < 0.005 ? (
+                          {Math.abs(variance) < tolerance ? (
                             <Check size={13} />
                           ) : (
                             <AlertTriangle size={13} />
@@ -641,7 +644,7 @@ export default function ShiftScreen() {
                         <td className="py-2.5 px-3 text-end">
                           <span
                             className={`text-[10px] font-mono num font-semibold px-1.5 py-0.5 rounded border ${
-                              Math.abs(v) < 0.005
+                              Math.abs(v) < tolerance
                                 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                                 : 'bg-destructive/10 text-destructive border-destructive/20'
                             }`}

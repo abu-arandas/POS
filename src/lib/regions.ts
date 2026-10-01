@@ -67,12 +67,23 @@ export function currencyForCountry(country: string | undefined): string | undefi
 }
 
 /**
- * The country a locale tag points at — `ar-JO`, `en_GB` — if it is one we offer.
- * A bare language (`en`, `ar`) names no country, and guessing one would
- * preselect somebody else's currency, so it yields nothing.
+ * The country a locale tag points at — `ar-JO`, `en_GB`, `zh-Hans-CN` — if it is
+ * one we offer. A bare language (`en`, `ar`) names no country, and guessing one
+ * would preselect somebody else's currency, so it yields nothing.
+ *
+ * `Intl.Locale` does the parsing because the region is not at a fixed position:
+ * a script subtag (`Hans`, `Latn`) can sit between the language and the region.
+ * It insists on hyphens, so the underscore form some platforms report is
+ * normalised first.
  */
 export function countryFromLocale(tag: string | undefined): string | undefined {
-  const region = /^[A-Za-z]{2,3}[-_]([A-Za-z]{2})\b/.exec(tag ?? '')?.[1]?.toUpperCase();
+  if (!tag) return undefined;
+  let region: string | undefined;
+  try {
+    region = new Intl.Locale(tag.replace(/_/g, '-')).region?.toUpperCase();
+  } catch {
+    return undefined; // not a well-formed tag
+  }
   return COUNTRIES.some((c) => c.code === region) ? region : undefined;
 }
 

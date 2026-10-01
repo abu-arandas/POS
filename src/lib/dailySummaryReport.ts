@@ -93,6 +93,10 @@ export function generateDailySummaryText(data: DailySummaryData): string {
     `• Opening Float: ${currency}${amount(openingFloat)}`,
     totalPayIns > 0 ? `• Cash Deposits (Pay-Ins): +${currency}${amount(totalPayIns)}` : null,
     totalPayOuts > 0 ? `• Petty Cash Payouts: -${currency}${amount(totalPayOuts)}` : null,
+    // Printed because the expected-cash line below subtracts it. Without the row
+    // the figures do not reconcile on their face: float + cash collected + pay-ins
+    // - pay-outs does not reach the expected figure when a cash sale was refunded.
+    summary.cashRefunds > 0 ? `• Cash Refunds: -${currency}${amount(summary.cashRefunds)}` : null,
     `• Expected Cash in Drawer: ${currency}${amount(expectedDrawerCash)}`,
     countedCash !== null
       ? `• Counted Cash: ${currency}${amount(countedCash)} (Diff: ${signedMoney(countedCash - expectedDrawerCash)})`

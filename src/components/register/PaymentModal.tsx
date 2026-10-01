@@ -4,6 +4,7 @@ import { X, CreditCard, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Payment, PaymentMethod } from '../../types';
 
+import { moneyTolerance } from '../../lib/money';
 import { useMoney } from '../../lib/useMoney';
 /**
  * The amount box on one split-tender line.
@@ -140,7 +141,10 @@ export function PaymentModal({
   onComplete,
   onClose,
 }: PaymentModalProps) {
-  const { amount: fmtAmount, step: moneyStep } = useMoney();
+  const { amount: fmtAmount, step: moneyStep, digits } = useMoney();
+  // Half the smallest unit of the store currency, not a fixed half-cent: on a
+  // dinar terminal a split 0.004 short is short, and the checkout refuses it.
+  const tolerance = moneyTolerance(digits);
 
   const { t } = useTranslation();
   return (
@@ -265,12 +269,12 @@ export function PaymentModal({
                     </button>
                     <span
                       className={`text-xs font-mono font-bold px-3 py-1.5 rounded-lg badge ${
-                        Math.abs(splitRemaining) < 0.005 ? 'badge-emerald' : 'badge-amber'
+                        Math.abs(splitRemaining) < tolerance ? 'badge-emerald' : 'badge-amber'
                       }`}
                     >
-                      {splitRemaining > 0.005
+                      {splitRemaining > tolerance
                         ? `${t('register.remaining')}: ${currency}${fmtAmount(splitRemaining)}`
-                        : splitRemaining < -0.005
+                        : splitRemaining < -tolerance
                           ? `${t('register.changeDue')}: ${currency}${fmtAmount(Math.abs(splitRemaining))}`
                           : t('register.splitBalanced')}
                     </span>
@@ -366,7 +370,7 @@ export function PaymentModal({
                 onClick={onComplete}
                 disabled={
                   splitMode
-                    ? splitPaidTotal < totalAmount - 0.005
+                    ? splitPaidTotal < totalAmount - tolerance
                     : paymentMethod === 'cash' &&
                       totalAmount > 0 &&
                       (parseFloat(cashPaidText) || 0) < totalAmount

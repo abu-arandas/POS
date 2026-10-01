@@ -47,6 +47,22 @@ describe('countryFromLocale', () => {
     expect(countryFromLocale('en-us')).toBe('US');
   });
 
+  it('reads the region through a script subtag', () => {
+    // The region is not at a fixed position: Hans / Latn can sit before it.
+    expect(countryFromLocale('zh-Hans-CN')).toBe('CN');
+    expect(countryFromLocale('zh_Hant_CN')).toBe('CN');
+    expect(countryFromLocale('en-Latn-GB')).toBe('GB');
+  });
+
+  it('refuses a malformed tag rather than throwing', () => {
+    expect(countryFromLocale('not a locale!!')).toBeUndefined();
+    expect(countryFromLocale('en-')).toBeUndefined();
+  });
+
+  it('does not take a numeric region (es-419) for a country', () => {
+    expect(countryFromLocale('es-419')).toBeUndefined();
+  });
+
   it('does not guess a country from a bare language', () => {
     expect(countryFromLocale('en')).toBeUndefined();
     expect(countryFromLocale('ar')).toBeUndefined();

@@ -78,7 +78,10 @@ export interface RegisterCartResult {
  * force, and the totals derived from them. Kept out of Register itself so
  * the pricing rules can be exercised without rendering the screen.
  */
-export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
+export function useRegisterCart(
+  settings: StoreSettings,
+  settlingTotal?: number,
+): RegisterCartResult {
   const { round: roundAmt } = useMoney();
 
   const [cart, setCart] = useState<RegisterCartLine[]>([]);
@@ -113,9 +116,14 @@ export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
     [cartItems, discountType, discountValue, settings],
   );
 
+  // What a payment has to cover: the bill of the tab being settled when there is
+  // one, otherwise the cart. The cash helpers below must follow it — the cart can
+  // already hold the next table's order while a tab is being paid.
+  const payableAmount = settlingTotal ?? totalAmount;
+
   const cashSuggestions = useMemo(() => {
-    if (totalAmount <= 0) return [];
-    const exact = totalAmount;
+    if (payableAmount <= 0) return [];
+    const exact = payableAmount;
     const next5 = Math.ceil(exact / 5) * 5;
     const next10 = Math.ceil(exact / 10) * 10;
     const next20 = Math.ceil(exact / 20) * 20;
@@ -129,15 +137,15 @@ export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
     return Array.from(options)
       .filter((option) => option >= exact)
       .slice(0, 5);
-  }, [totalAmount, roundAmt]);
+  }, [payableAmount, roundAmt]);
 
   const cashChangeDue = useCallback(
     (cashPaidText: string) => {
       const paid = parseFloat(cashPaidText) || 0;
-      if (paid < totalAmount) return 0;
-      return roundAmt(paid - totalAmount);
+      if (paid < payableAmount) return 0;
+      return roundAmt(paid - payableAmount);
     },
-    [totalAmount, roundAmt],
+    [payableAmount, roundAmt],
   );
 
   const addToCart = useCallback(
