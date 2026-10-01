@@ -38,6 +38,7 @@ import {
   ReceiveStockModal,
   SupplierFormModal,
 } from './inventory/index';
+import { useMoney } from '../lib/useMoney';
 
 // Colors available for categories
 const categoryColors = [
@@ -54,6 +55,7 @@ const categoryColors = [
  * labels, and import or export the catalog as CSV.
  */
 export default function Inventory() {
+  const { digits } = useMoney();
   const { t } = useTranslation();
   const products = useProductStore((s) => s.products);
   const categories = useProductStore((s) => s.categories);
@@ -177,6 +179,7 @@ export default function Inventory() {
           unitCost: parseFloat(l.unitCost) || 0,
         };
       }),
+      digits,
     );
     if (lines.length === 0) {
       notify(t('inventory.poNeedLines'));
@@ -191,7 +194,17 @@ export default function Inventory() {
       createdBy: currentUser?.name ?? null,
     });
     setPoModalOpen(false);
-  }, [poLines, poSupplierId, poNote, products, suppliers, currentUser, createPurchaseOrder, t]);
+  }, [
+    poLines,
+    poSupplierId,
+    poNote,
+    products,
+    suppliers,
+    currentUser,
+    createPurchaseOrder,
+    digits,
+    t,
+  ]);
 
   // The status transition, the per-line stock application, the audit entries and
   // the cloud push all belong to receivePurchaseOrder; this screen only asks

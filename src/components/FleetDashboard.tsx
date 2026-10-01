@@ -29,6 +29,7 @@ import {
   trendValueAxis,
 } from './dashboard/chartPresets';
 
+import { useMoney } from '../lib/useMoney';
 interface FleetDashboardProps {
   orgId: string;
 }
@@ -66,13 +67,15 @@ function TrendTooltip({
   label?: string;
   currency: string;
 }) {
+  const { amount: fmtAmount } = useMoney();
+
   if (!active || !payload || payload.length === 0) return null;
   return (
     <div className="bg-card/95 backdrop-blur-md border border-border rounded-xl px-3 py-2 shadow-md">
       <p className="text-[11px] font-mono text-muted-foreground mb-0.5">{label}</p>
       <p className="text-sm font-mono num font-semibold text-foreground">
         {currency}
-        {Number(payload[0].value).toFixed(2)}
+        {fmtAmount(Number(payload[0].value))}
       </p>
     </div>
   );
@@ -85,6 +88,8 @@ function TrendTooltip({
  * Dashboard. Read-only; renders an empty state on any backend hiccup.
  */
 export default function FleetDashboard({ orgId }: FleetDashboardProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { t } = useTranslation();
   const cur = useSettingsStore((s) => s.settings.currency);
   const [period, setPeriod] = useState<Period>('7d');
@@ -227,7 +232,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiTile
                 label={t('fleetReport.totalRevenue')}
-                value={`${cur}${totals.revenue.toFixed(2)}`}
+                value={`${cur}${fmtAmount(totals.revenue)}`}
                 icon={<TrendingUp size={16} className="text-emerald-500" />}
                 accent="text-emerald-600 dark:text-emerald-400"
               />
@@ -238,7 +243,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
               />
               <KpiTile
                 label={t('fleetReport.avgOrder')}
-                value={`${cur}${totals.avgOrder.toFixed(2)}`}
+                value={`${cur}${fmtAmount(totals.avgOrder)}`}
                 icon={<Receipt size={16} className="text-foreground" />}
               />
               <KpiTile
@@ -334,7 +339,7 @@ export default function FleetDashboard({ orgId }: FleetDashboardProps) {
                           <div className="flex items-center gap-4 shrink-0">
                             <span className="font-mono num font-semibold text-foreground text-sm">
                               {cur}
-                              {s.revenue.toFixed(2)}
+                              {fmtAmount(s.revenue)}
                             </span>
                             <span className="font-mono num text-[11px] text-muted-foreground w-10 text-end">
                               {(s.share * 100).toFixed(0)}%

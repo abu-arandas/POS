@@ -12,6 +12,7 @@ import {
   tabUnitCount,
 } from '../../lib/tabs';
 
+import { useMoney } from '../../lib/useMoney';
 interface TabsModalProps {
   open: boolean;
   /** Ref for the dialog card, from useModalA11y (focus trap / Escape / restore). */
@@ -54,6 +55,8 @@ export function TabsModal({
   onSettle,
   onDiscard,
 }: TabsModalProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { t } = useTranslation();
   const live = openTabs(tabs);
 
@@ -153,7 +156,7 @@ export function TabsModal({
                         </div>
                         <span className="font-mono font-bold text-base text-foreground num shrink-0">
                           {settings.currency}
-                          {total.toFixed(2)}
+                          {fmtAmount(total)}
                         </span>
                       </div>
 
@@ -174,7 +177,7 @@ export function TabsModal({
                               </span>
                               <span className="font-mono num shrink-0">
                                 {settings.currency}
-                                {(line.price * line.quantity).toFixed(2)}
+                                {fmtAmount(line.price * line.quantity)}
                               </span>
                             </li>
                           ))}

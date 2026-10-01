@@ -6,6 +6,7 @@
  * terminal, and it has to survive being pasted into a chat window unchanged.
  */
 import { SaleTransaction, Shift, CashMovement } from '../types';
+import { DEFAULT_CURRENCY_DIGITS, formatAmount, roundMoney } from './money';
 import { summarizeShift } from './shiftReport';
 
 /** Everything the summary needs; `shift` and `cashMovements` are absent when
@@ -13,6 +14,8 @@ import { summarizeShift } from './shiftReport';
 export interface DailySummaryData {
   storeName: string;
   currency: string;
+  /** Fractional digits of the store currency (lib/money.ts); two when omitted. */
+  digits?: number;
   date: string;
   transactions: SaleTransaction[];
   shift?: Shift | null;
@@ -25,18 +28,20 @@ export interface DailySummaryData {
  */
 export function generateDailySummaryText(data: DailySummaryData): string {
   const { storeName, currency, date, transactions, shift, cashMovements = [] } = data;
+  const digits = data.digits ?? DEFAULT_CURRENCY_DIGITS;
+  const amount = (n: number) => formatAmount(n, digits);
 
   // Tallies come from summarizeShift, the same function behind the Z-report, so
   // the two documents cannot disagree. This file used to total its own way —
   // `tx.total` for every sale whose dominant method was cash — which counted a
   // split sale's card half as drawer cash, ignored the change handed back, and
   // ignored refunds entirely. cashKept() inside summarizeShift is the rule.
-  const summary = summarizeShift(transactions);
+  const summary = summarizeShift(transactions, digits);
   const totalTax = transactions.reduce((s, tx) => s + (tx.tax || 0), 0);
   const totalDiscount = transactions.reduce((s, tx) => s + (tx.discount || 0), 0);
   const totalSales = summary.grossSales;
   const { cashSales, cardSales } = summary;
-  const otherSales = Number((summary.mobileSales + summary.giftSales).toFixed(2));
+  const otherSales = roundMoney(summary.mobileSales + summary.giftSales, digits);
 
   // Product popularity
   const productCountMap = new Map<string, number>();
@@ -66,7 +71,7 @@ export function generateDailySummaryText(data: DailySummaryData): string {
   // that gets forwarded to an owner reads as a typo — or worse, gets skimmed as
   // a positive.
   const signedMoney = (value: number) =>
-    `${value < 0 ? '-' : ''}${currency}${Math.abs(value).toFixed(2)}`;
+    `${value < 0 ? '-' : ''}${currency}${amount(Math.abs(value))}`;
 
   const openingFloat = shift?.openingFloat || 0;
   const expectedDrawerCash = summary.expectedCash(openingFloat, cashMovements);
@@ -77,20 +82,20 @@ export function generateDailySummaryText(data: DailySummaryData): string {
     `📅 ${date}`,
     ``,
     `💰 *FINANCIAL SUMMARY*`,
-    `• Gross Revenue: ${currency}${totalSales.toFixed(2)} (${transactions.length} orders)`,
-    `• Cash Collected: ${currency}${cashSales.toFixed(2)}`,
-    `• Card / Electronic: ${currency}${cardSales.toFixed(2)}`,
-    otherSales > 0 ? `• Other Payments: ${currency}${otherSales.toFixed(2)}` : null,
-    `• Tax Collected: ${currency}${totalTax.toFixed(2)}`,
-    totalDiscount > 0 ? `• Discounts: ${currency}${totalDiscount.toFixed(2)}` : null,
+    `• Gross Revenue: ${currency}${amount(totalSales)} (${transactions.length} orders)`,
+    `• Cash Collected: ${currency}${amount(cashSales)}`,
+    `• Card / Electronic: ${currency}${amount(cardSales)}`,
+    otherSales > 0 ? `• Other Payments: ${currency}${amount(otherSales)}` : null,
+    `• Tax Collected: ${currency}${amount(totalTax)}`,
+    totalDiscount > 0 ? `• Discounts: ${currency}${amount(totalDiscount)}` : null,
     ``,
     `💵 *CASH DRAWER AUDIT*`,
-    `• Opening Float: ${currency}${openingFloat.toFixed(2)}`,
-    totalPayIns > 0 ? `• Cash Deposits (Pay-Ins): +${currency}${totalPayIns.toFixed(2)}` : null,
-    totalPayOuts > 0 ? `• Petty Cash Payouts: -${currency}${totalPayOuts.toFixed(2)}` : null,
-    `• Expected Cash in Drawer: ${currency}${expectedDrawerCash.toFixed(2)}`,
+    `• Opening Float: ${currency}${amount(openingFloat)}`,
+    totalPayIns > 0 ? `• Cash Deposits (Pay-Ins): +${currency}${amount(totalPayIns)}` : null,
+    totalPayOuts > 0 ? `• Petty Cash Payouts: -${currency}${amount(totalPayOuts)}` : null,
+    `• Expected Cash in Drawer: ${currency}${amount(expectedDrawerCash)}`,
     countedCash !== null
-      ? `• Counted Cash: ${currency}${countedCash.toFixed(2)} (Diff: ${signedMoney(countedCash - expectedDrawerCash)})`
+      ? `• Counted Cash: ${currency}${amount(countedCash)} (Diff: ${signedMoney(countedCash - expectedDrawerCash)})`
       : null,
     ``,
     topProducts.length > 0 ? `🍔 *TOP SELLING ITEMS*` : null,

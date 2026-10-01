@@ -4,6 +4,7 @@ import { X, CreditCard, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Payment, PaymentMethod } from '../../types';
 
+import { useMoney } from '../../lib/useMoney';
 /**
  * The amount box on one split-tender line.
  *
@@ -29,6 +30,8 @@ function SplitAmountInput({
   label: string;
   onChange: (amount: number) => void;
 }) {
+  const { step: moneyStep } = useMoney();
+
   const [text, setText] = useState(() => (amount === 0 ? '' : String(amount)));
   const [seenAmount, setSeenAmount] = useState(amount);
 
@@ -52,7 +55,7 @@ function SplitAmountInput({
       <span className="font-mono text-slate-500 font-bold text-sm">{currency}</span>
       <input
         type="number"
-        step="0.01"
+        step={moneyStep}
         min="0"
         value={text}
         onChange={(e) => {
@@ -137,6 +140,8 @@ export function PaymentModal({
   onComplete,
   onClose,
 }: PaymentModalProps) {
+  const { amount: fmtAmount, step: moneyStep } = useMoney();
+
   const { t } = useTranslation();
   return (
     <AnimatePresence>
@@ -169,7 +174,7 @@ export function PaymentModal({
                   {t('register.amountToPay')}
                   <span className="font-bold text-lg text-foreground tracking-tight font-mono num">
                     {currency}
-                    {totalAmount.toFixed(2)}
+                    {fmtAmount(totalAmount)}
                   </span>
                 </p>
               </div>
@@ -264,9 +269,9 @@ export function PaymentModal({
                       }`}
                     >
                       {splitRemaining > 0.005
-                        ? `${t('register.remaining')}: ${currency}${splitRemaining.toFixed(2)}`
+                        ? `${t('register.remaining')}: ${currency}${fmtAmount(splitRemaining)}`
                         : splitRemaining < -0.005
-                          ? `${t('register.changeDue')}: ${currency}${Math.abs(splitRemaining).toFixed(2)}`
+                          ? `${t('register.changeDue')}: ${currency}${fmtAmount(Math.abs(splitRemaining))}`
                           : t('register.splitBalanced')}
                     </span>
                   </div>
@@ -290,13 +295,13 @@ export function PaymentModal({
                           <motion.button
                             key={val}
                             whileTap={{ scale: 0.94 }}
-                            onClick={() => onCashPaidChange(val.toFixed(2))}
+                            onClick={() => onCashPaidChange(fmtAmount(val))}
                             className={`quick-cash-btn num min-h-[38px] font-mono text-xs font-semibold px-3 py-1.5 rounded-lg ${
-                              cashPaidText === val.toFixed(2) ? 'is-active' : ''
+                              cashPaidText === fmtAmount(val) ? 'is-active' : ''
                             }`}
                           >
                             {currency}
-                            {val.toFixed(2)}
+                            {fmtAmount(val)}
                           </motion.button>
                         ))}
                       </div>
@@ -317,7 +322,7 @@ export function PaymentModal({
                           <input
                             id="cash-tendered-input"
                             type="number"
-                            step="0.01"
+                            step={moneyStep}
                             min={totalAmount}
                             placeholder="0.00"
                             value={cashPaidText}
@@ -338,7 +343,7 @@ export function PaymentModal({
                           </span>
                           <span className="text-xl font-mono font-bold text-foreground num">
                             {currency}
-                            {cashChangeDue.toFixed(2)}
+                            {fmtAmount(cashChangeDue)}
                           </span>
                         </div>
                       </div>

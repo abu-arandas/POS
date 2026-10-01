@@ -3,6 +3,7 @@ import { escapeHtml as esc } from '../utils/formatting';
 import { openDetachedPrintWindow } from '../utils/dom';
 import { code128SvgMm } from './barcode';
 import { variantLabel, variantPrice, variantSku } from '../variants';
+import { currencyDigits, formatMoney } from '../money';
 
 // Printable product labels / shelf price tags. Each label shows the product
 // name, price, SKU, and a real scannable Code128 barcode of the SKU. Pure and
@@ -67,7 +68,7 @@ export function buildLabelHtml(
       ${options ? `<div class="label-variant">${esc(options)}</div>` : ''}
       ${
         showPrice
-          ? `<div class="label-price">${esc(settings.currency)}${price.toFixed(2)}</div>`
+          ? `<div class="label-price">${esc(formatMoney(price, settings.currency, currencyDigits(settings)))}</div>`
           : ''
       }
       ${

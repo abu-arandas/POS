@@ -34,6 +34,8 @@ export interface CfdPayload {
   status: CfdStatus;
   storeName: string;
   currency: string;
+  /** Fractional digits of the store currency; the display falls back to its own settings without it. */
+  digits?: number;
   items: CfdCartItem[];
   subtotal: number;
   discount: number;

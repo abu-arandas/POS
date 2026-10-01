@@ -1,4 +1,5 @@
 import { PurchaseOrder, PurchaseOrderStatus } from '../types';
+import { DEFAULT_CURRENCY_DIGITS, roundMoney } from './money';
 import { poTotal } from './purchaseOrders';
 
 /**
@@ -50,7 +51,11 @@ function withinWindow(po: PurchaseOrder, days?: number): boolean {
  * outstanding committed value, counts per status, and per-supplier spend.
  * Cancelled orders are excluded from money totals but still counted.
  */
-export function buildPoReport(orders: PurchaseOrder[], days?: number): PoReport {
+export function buildPoReport(
+  orders: PurchaseOrder[],
+  days?: number,
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): PoReport {
   const countByStatus: Record<PurchaseOrderStatus, number> = {
     draft: 0,
     ordered: 0,
@@ -66,7 +71,7 @@ export function buildPoReport(orders: PurchaseOrder[], days?: number): PoReport 
     countByStatus[po.status] += 1;
     if (po.status === 'cancelled') continue;
 
-    const value = poTotal(po);
+    const value = poTotal(po, digits);
     const key = po.supplierId ?? '__none__';
     const entry = supplierMap.get(key) ?? {
       supplierId: po.supplierId,
@@ -89,14 +94,14 @@ export function buildPoReport(orders: PurchaseOrder[], days?: number): PoReport 
   const suppliers = Array.from(supplierMap.values())
     .map((s) => ({
       ...s,
-      received: Number(s.received.toFixed(2)),
-      outstanding: Number(s.outstanding.toFixed(2)),
+      received: roundMoney(s.received, digits),
+      outstanding: roundMoney(s.outstanding, digits),
     }))
     .sort((a, b) => b.received - a.received || b.outstanding - a.outstanding);
 
   return {
-    receivedValue: Number(receivedValue.toFixed(2)),
-    outstandingValue: Number(outstandingValue.toFixed(2)),
+    receivedValue: roundMoney(receivedValue, digits),
+    outstandingValue: roundMoney(outstandingValue, digits),
     countByStatus,
     suppliers,
   };

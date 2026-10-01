@@ -15,8 +15,10 @@ import {
 } from 'lucide-react';
 import { StoreSettings, UserAccount, PrinterConfig, ScannerConfig, KitchenStation } from '../types';
 import { useModalA11y } from '../lib/useModalA11y';
+import { isModuleEnabled } from '../lib/businessProfile';
 import { useBarcodeScanner } from '../lib/useBarcodeScanner';
 import {
+  BusinessProfilePanel,
   DangerZonePanel,
   KitchenPrinterPanel,
   PrinterPanel,
@@ -94,7 +96,10 @@ export default function Settings() {
     setSoundEffects,
     storeId,
     setStoreId,
+    businessProfile,
+    setBusinessProfile,
   } = useSettingsStore();
+  const kitchenEnabled = isModuleEnabled(businessProfile, 'kitchen');
   const { products, categories, setProducts, setCategories } = useProductStore();
   const { customers, setCustomers } = useCustomerStore();
   const { transactions, setTransactions, deleteTransactions } = useTransactionStore();
@@ -594,11 +599,16 @@ export default function Settings() {
   }> = [
     { id: 'profile', label: t('settings.title'), icon: SettingsIcon },
     { id: 'printer', label: t('settings.printerTab'), icon: PrinterIcon },
-    {
-      id: 'kitchen_printer',
-      label: t('settings.kitchenPrinterTab'),
-      icon: ChefHat,
-    },
+    // Kitchen printers and stations belong to the kitchen module.
+    ...(kitchenEnabled
+      ? [
+          {
+            id: 'kitchen_printer' as const,
+            label: t('settings.kitchenPrinterTab'),
+            icon: ChefHat,
+          },
+        ]
+      : []),
     { id: 'scanner', label: t('settings.scannerTab'), icon: ScanLine },
     { id: 'supabase', label: t('settings.supabaseSync'), icon: Cloud },
     { id: 'users', label: t('settings.usersTab'), icon: Users },
@@ -697,19 +707,26 @@ export default function Settings() {
             >
               {/* Profile / Store Tab */}
               {activeTab === 'profile' && (
-                <ProfilePanel
-                  t={t}
-                  settings={settings}
-                  language={language}
-                  emailTemplate={emailTemplate}
-                  showProductImages={showProductImages}
-                  onShowProductImagesChange={setShowProductImages}
-                  soundEffects={soundEffects}
-                  onSoundEffectsChange={setSoundEffects}
-                  onUpdateSetting={handleUpdateSetting}
-                  onLanguageChange={setLanguage}
-                  onEmailTemplateChange={setEmailTemplate}
-                />
+                <div className="space-y-5">
+                  <BusinessProfilePanel
+                    t={t}
+                    profile={businessProfile}
+                    onChange={setBusinessProfile}
+                  />
+                  <ProfilePanel
+                    t={t}
+                    settings={settings}
+                    language={language}
+                    emailTemplate={emailTemplate}
+                    showProductImages={showProductImages}
+                    onShowProductImagesChange={setShowProductImages}
+                    soundEffects={soundEffects}
+                    onSoundEffectsChange={setSoundEffects}
+                    onUpdateSetting={handleUpdateSetting}
+                    onLanguageChange={setLanguage}
+                    onEmailTemplateChange={setEmailTemplate}
+                  />
+                </div>
               )}
 
               {activeTab === 'printer' && (
@@ -721,6 +738,7 @@ export default function Settings() {
                   autoScanPrinters={autoScanPrinters}
                   printerTypes={printerTypes}
                   receiptLayout={receiptLayout}
+                  kitchenEnabled={kitchenEnabled}
                   onUseNetworkPrinter={handleUseNetworkPrinter}
                   onUseSystemPrinter={handleUseSystemPrinter}
                   onAutoScanPrintersChange={setAutoScanPrinters}

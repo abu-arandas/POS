@@ -52,11 +52,15 @@ sync when you want several terminals to agree.
 - Analytics: date-range KPIs, revenue and profit trend, best-sellers, category and payment
   breakdowns, per-operator sales — all exportable to CSV
 
-**Restaurant**
+**Restaurant** — optional modules. A terminal is set up as _General retail_ or _Restaurant &
+café_ on first run, and the three modules below (Tables, Kitchen display, QR menu) are on only
+for a restaurant. Change the business type, or switch a single module, in **Settings**; turning a
+module off hides its screens and deletes nothing.
 
 - Kitchen display — sales raise live tickets routed to the station their category belongs to,
   with elapsed timers, item ticking, a bump ladder and a recall buffer. Tickets are only raised
-  when kitchen stations are configured, so a retail counter raises none.
+  when the kitchen module is on and kitchen stations are configured, so a retail counter raises
+  none.
 - Table management — a floor plan with occupied / bill-requested / reserved states, and
   "open this table on the register". Settling a table's tab releases the table.
 - QR menu — generates and prints a QR code that serves the menu to a customer's phone over the LAN
@@ -94,8 +98,12 @@ npm run electron:dev
 > **Windows:** if `npm install` fails on local execution-policy restrictions, run
 > `powershell -ExecutionPolicy Bypass -Command "npm install"`.
 
-Development builds seed a demo catalogue and three clearly marked demo accounts. Production
-builds seed neither.
+Development builds seed a demo catalogue and three clearly marked demo accounts, and start
+configured as the demo restaurant. Production builds seed neither: a fresh install opens on
+**first-run setup**, which asks for the business name, what kind of business it is, country,
+time zone, currency and tax, and only then hands over to the lock screen to create the first
+administrator. Installs that predate setup are never sent through it — they keep their settings
+and the restaurant modules they already had.
 
 ---
 
@@ -150,6 +158,14 @@ installer. That logic is in `electron/windowsSigning.cjs`, and the Windows workf
 signing mode through the same module the build uses, so CI can never disagree with
 electron-builder about whether a build is signed.
 
+#### Publishing a release
+
+A release is cut by bumping `version` in `package.json`; the tag is `v<version>`. A push to `main`
+that leaves the version alone — docs, tests, a dependency bump — still builds and verifies, then
+**skips publishing with a notice** because that version is already released. It does not fail.
+A manual dispatch of the workflow is a request to publish, so on an already-released version it
+_does_ fail, rather than quietly doing nothing.
+
 Until a release is signed, verify a download by hand: the workflow publishes `SHA256SUMS.txt`
 beside the installer, so compare it against
 `Get-FileHash .\EA-POS-Setup-<version>.exe -Algorithm SHA256`.
@@ -158,8 +174,8 @@ beside the installer, so compare it against
 
 ## Staff accounts and PINs
 
-On a new terminal the lock screen requires the operator to create the first administrator
-account and choose a four-digit PIN before the app will open. Further accounts are created in
+On a new terminal, once first-run setup is done, the lock screen requires the operator to create
+the first administrator account and choose a four-digit PIN before the app will open. Further accounts are created in
 **Settings → Users**. No production build ships an account.
 
 Development builds keep three demo accounts for local testing — Admin `1234`, Manager `5555`,
@@ -377,7 +393,9 @@ nothing will now tell you when one breaks — so they are listed here rather tha
    fast, and a reader cannot tell which of two similar-looking classes the app actually uses.
 3. **Adding a screen means four files.** The type system checks one of them. A screen missing from
    `NAV_ITEMS` is simply unreachable on desktop; one missing a switch case falls through to a
-   routing error. Both are well-typed.
+   routing error. Both are well-typed. A screen that only some businesses want also needs an
+   entry in `MODULES` (`src/lib/businessProfile.ts`); otherwise it is core and every profile
+   shows it.
 4. **A persisted Zustand store must name its storage.** Omit it and Zustand silently falls back to
    localStorage — a different, smaller, origin-shared quota. Use `idbStorage` and a `pos-*-storage`
    key.
@@ -389,6 +407,16 @@ nothing will now tell you when one breaks — so they are listed here rather tha
    at UTC+3 it files the first hours of every night under yesterday. Use `localDateKey()` from
    `src/lib/utils/dates.ts`.
 8. **Production code under `src/` carries zero `any`.**
+9. **Money rounds to the currency's own digits, never a literal `toFixed(2)`.** The dinar has
+   three, the yen none. Use `roundMoney`, `formatMoney` and `currencyDigits` from
+   `src/lib/money.ts` — in components, `useMoney()` — and pass `digits` into any pure function that
+   rounds. A figure rounded at two digits next to one rounded at three is a till that disagrees
+   with its own receipt. `src/lib/currencyPrecision.test.ts` follows one sale through every
+   module that turns it into money.
+10. **A Zustand selector returns one primitive.** `useStore((s) => ({ a: s.a, b: s.b }))` builds
+    a new object on every read, and under Zustand 5 that is an infinite render loop — the whole
+    shell falls to the error boundary. Select each value separately, or wrap the selector in
+    `useShallow`. `src/lib/storeSelectors.test.ts` greps for the common shape.
 
 Before opening a pull request:
 
@@ -401,8 +429,9 @@ will not publish unless it passes.
 
 ### Tests
 
-`npm test` runs Vitest over the pure modules — the money (`pricing`, `checkout`,
-`refunds`, `payments`, `shiftReport`, `dashboardMetrics`), the catalogue
+`npm test` runs Vitest over the pure modules — the money (`money`, `pricing`, `checkout`,
+`refunds`, `payments`, `shiftReport`, `dashboardMetrics`), the business profile and its
+migration for existing installs (`businessProfile`), first-run regional data (`regions`), the catalogue
 (`variants`), the lock-screen throttle (`pinThrottle`), the receipt renderers,
 and the four dependency-free Electron modules (`validation`, `updatePolicy`,
 `menuServer`, `windowsSigning`). `npm run test:watch` re-runs on save.

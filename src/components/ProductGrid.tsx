@@ -28,6 +28,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
 
+import { useMoney } from '../lib/useMoney';
 interface ProductGridProps {
   selectedCategory: string;
   setSelectedCategory: (c: string) => void;
@@ -88,6 +89,8 @@ const SortableProductCard = memo(function SortableProductCard({
   index,
   isTopMatch = false,
 }: SortableProductCardProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: prod.id,
     disabled: !isEditMode,
@@ -168,7 +171,7 @@ const SortableProductCard = memo(function SortableProductCard({
             'aria-disabled': isUnavailable || undefined,
             'aria-label': `${prod.name}, ${
               isPriceFrom ? `${t('register.priceFrom')} ` : ''
-            }${settings.currency}${displayPrice.toFixed(2)}${
+            }${settings.currency}${fmtAmount(displayPrice)}${
               isOutOfStock ? ` — ${t('register.outOfStock')}` : ''
             }`,
             onKeyDown: (e: React.KeyboardEvent) => {
@@ -257,7 +260,7 @@ const SortableProductCard = memo(function SortableProductCard({
               </span>
             )}
             {settings.currency}
-            {displayPrice.toFixed(2)}
+            {fmtAmount(displayPrice)}
           </span>
           <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">
             {prod.sku.split('-').slice(-1)[0]}

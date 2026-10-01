@@ -20,11 +20,14 @@ import { notify, askConfirmation } from '../lib/utils/ui';
 import { useModalA11y } from '../lib/useModalA11y';
 import { ModalShell } from './shared/ModalShell';
 
+import { useMoney } from '../lib/useMoney';
 interface TableManagementProps {
   onSelectTableForRegister?: (table: DiningTable) => void;
 }
 
 export function TableManagement({ onSelectTableForRegister }: TableManagementProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { t } = useTranslation();
   const tables = useTableStore((s) => s.tables);
   const occupyTable = useTableStore((s) => s.occupyTable);
@@ -253,7 +256,7 @@ export function TableManagement({ onSelectTableForRegister }: TableManagementPro
                         </span>
                         <span className="font-mono font-bold text-foreground text-sm num">
                           {settings.currency}
-                          {table.totalAmount.toFixed(2)}
+                          {fmtAmount(table.totalAmount)}
                         </span>
                       </div>
                     )}

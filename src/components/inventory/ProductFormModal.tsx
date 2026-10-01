@@ -12,6 +12,7 @@ import type {
 } from '../../types';
 import { VariantsEditor } from './VariantsEditor';
 import { ModifiersEditor } from './ModifiersEditor';
+import { useMoney } from '../../lib/useMoney';
 
 export interface ProductFormModalProps {
   t: TFunction;
@@ -80,6 +81,8 @@ export function ProductFormModal({
   onClose,
   onSubmit,
 }: ProductFormModalProps) {
+  const { step: moneyStep } = useMoney();
+
   // On a varianted product the stock box is the read-only sum of the matrix
   // below it. Leaving it editable would offer the operator a number that the
   // next variant edit silently overwrites.
@@ -196,7 +199,7 @@ export function ProductFormModal({
                 <input
                   id="form-prod-price"
                   type="number"
-                  step="0.01"
+                  step={moneyStep}
                   min="0"
                   required
                   placeholder="0.00"
@@ -216,7 +219,7 @@ export function ProductFormModal({
                 <input
                   id="form-prod-cost"
                   type="number"
-                  step="0.01"
+                  step={moneyStep}
                   min="0"
                   required
                   placeholder="0.00"

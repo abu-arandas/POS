@@ -5,6 +5,7 @@ import { poTotal, poUnitCount } from '../../lib/purchaseOrders';
 import { askConfirmation } from '../../lib/utils/ui';
 import { InventoryTable } from './InventoryTable';
 
+import { useMoney } from '../../lib/useMoney';
 export interface InventoryPurchaseOrdersTabProps {
   t: TFunction;
   settings: StoreSettings;
@@ -28,6 +29,8 @@ export function InventoryPurchaseOrdersTab({
   onReceive,
   onDeleteOrder,
 }: InventoryPurchaseOrdersTabProps) {
+  const { amount: fmtAmount, digits } = useMoney();
+
   return (
     <InventoryTable
       header={
@@ -79,7 +82,7 @@ export function InventoryPurchaseOrdersTab({
             </td>
             <td className="py-3 px-4 text-end font-mono font-semibold text-foreground text-sm">
               {settings.currency}
-              {poTotal(po).toFixed(2)}
+              {fmtAmount(poTotal(po, digits))}
             </td>
             <td className="py-3 px-4 text-center">
               <span className={statusBadge[po.status]}>{t(`inventory.poStatus_${po.status}`)}</span>

@@ -28,6 +28,8 @@ export const settings = {
   storeAddress: 'عنوان المتجر',
   storeLogoUrl: 'رابط شعار المتجر أو رفع',
   currencySymbol: 'رمز العملة',
+  currencyCode: 'رمز العملة (ISO 4217)',
+  currencyCodeHint: 'يحدد عدد المنازل العشرية للمبالغ: {{digits}}.',
   taxRate: 'نسبة الضريبة (%)',
   uploadFile: 'رفع ملف',
   supabaseSync: 'مزامنة',

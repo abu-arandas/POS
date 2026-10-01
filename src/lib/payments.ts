@@ -1,4 +1,5 @@
 import { Payment, PaymentMethod, SaleTransaction } from '../types';
+import { DEFAULT_CURRENCY_DIGITS, moneyTolerance, roundMoney } from './money';
 
 /**
  * What a set of tender lines adds up to, including whether they cover the
@@ -17,10 +18,18 @@ export interface TenderSummary {
  * Only cash can overpay, so change is derived from the whole overpayment but
  * attributed to cash; cashTendered excludes card/mobile/gift so the receipt's
  * "cash paid" and the Z-report drawer math stay correct.
+ *
+ * `digits` is the store currency's fractional digits (see lib/money.ts). It
+ * decides both the rounding and how short a tender may be and still count as
+ * covering the total, so a dinar store cannot under-collect by 4 fils.
  */
-export function summarizeTenders(payments: Payment[], total: number): TenderSummary {
+export function summarizeTenders(
+  payments: Payment[],
+  total: number,
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): TenderSummary {
   const clean = payments.filter((p) => (p.amount || 0) > 0);
-  const round = (n: number) => Number(n.toFixed(2));
+  const round = (n: number) => roundMoney(n, digits);
   const paidTotal = round(clean.reduce((s, p) => s + p.amount, 0));
   const cashTendered = round(
     clean.filter((p) => p.method === 'cash').reduce((s, p) => s + p.amount, 0),
@@ -34,7 +43,7 @@ export function summarizeTenders(payments: Payment[], total: number): TenderSumm
     cashTendered,
     cashChange,
     dominantMethod,
-    coversTotal: paidTotal >= total - 0.005,
+    coversTotal: paidTotal >= total - moneyTolerance(digits),
   };
 }
 
@@ -57,8 +66,11 @@ export function summarizeTenders(payments: Payment[], total: number): TenderSumm
  * Change is charged to cash because only cash can overpay (see resolveTender in
  * lib/checkout.ts), so the drawer is the only place it comes out of.
  */
-export function tenderBreakdown(tx: SaleTransaction): Partial<Record<PaymentMethod, number>> {
-  const round = (n: number) => Number(n.toFixed(2));
+export function tenderBreakdown(
+  tx: SaleTransaction,
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): Partial<Record<PaymentMethod, number>> {
+  const round = (n: number) => roundMoney(n, digits);
   const breakdown: Partial<Record<PaymentMethod, number>> = {};
   const add = (method: PaymentMethod, amount: number) => {
     breakdown[method] = round((breakdown[method] ?? 0) + amount);

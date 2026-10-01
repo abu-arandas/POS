@@ -30,6 +30,8 @@ export interface PublicMenuSettings {
   storeName: string;
   storeLogo?: string;
   currency: string;
+  /** Fractional digits of the store currency, so the menu prices to the same precision as the till. */
+  digits?: number;
 }
 
 // Subset of electron-updater's UpdateInfo that the renderer actually reads.

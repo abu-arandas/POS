@@ -1,8 +1,10 @@
 import { Customer, Product, SaleTransaction } from '../types';
+import { currencyDigits } from '../lib/money';
 import { computeRefund, RefundComputation } from '../lib/refunds';
 import { applyStockDelta, parseLineKey } from '../lib/variants';
 import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { RefundPatch, useTransactionStore } from '../stores/transactionStore';
 import { syncToCloudIfEnabled } from '../lib/sync';
 
@@ -40,7 +42,16 @@ export function commitRefund(
   const transaction = transactionStore.transactions.find((tx) => tx.id === transactionId);
   if (!transaction) return null;
 
-  const computation = computeRefund(transaction, selection, loyaltyPointsRate, loyaltyPointValue);
+  // Same digits the sale was rung up with, so a full return refunds the total
+  // to the last fil rather than to the last cent.
+  const digits = currencyDigits(useSettingsStore.getState().settings);
+  const computation = computeRefund(
+    transaction,
+    selection,
+    loyaltyPointsRate,
+    loyaltyPointValue,
+    digits,
+  );
   if (!computation) return null;
 
   const productStore = useProductStore.getState();

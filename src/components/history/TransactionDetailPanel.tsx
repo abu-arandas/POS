@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { SaleTransaction, StoreSettings, ReceiptLayout } from '../../types';
 import { safeImageUrl } from '../../lib/imageUrl';
 
+import { useMoney } from '../../lib/useMoney';
 export interface TransactionDetailPanelProps {
   transaction: SaleTransaction;
   settings: StoreSettings;
@@ -26,6 +27,8 @@ export function TransactionDetailPanel({
   onPrint,
   onRefund,
 }: TransactionDetailPanelProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { t } = useTranslation();
   const isRefunded = transaction.status === 'refunded';
   const isPartial = transaction.status === 'partial';
@@ -130,7 +133,7 @@ export function TransactionDetailPanel({
                 <span className="col-span-2 text-center">{item.quantity}</span>
                 <span className="col-span-2 text-end">
                   {settings.currency}
-                  {item.total.toFixed(2)}
+                  {fmtAmount(item.total)}
                 </span>
               </div>
             ))}
@@ -141,7 +144,7 @@ export function TransactionDetailPanel({
               <span className="text-muted-foreground">{t('history.subtotal')}</span>
               <span>
                 {settings.currency}
-                {transaction.subtotal.toFixed(2)}
+                {fmtAmount(transaction.subtotal)}
               </span>
             </div>
             {transaction.discount > 0 && (
@@ -149,7 +152,7 @@ export function TransactionDetailPanel({
                 <span>{t('history.discount')}</span>
                 <span>
                   -{settings.currency}
-                  {transaction.discount.toFixed(2)}
+                  {fmtAmount(transaction.discount)}
                 </span>
               </div>
             )}
@@ -157,14 +160,14 @@ export function TransactionDetailPanel({
               <span>{t('history.tax')}</span>
               <span>
                 {settings.currency}
-                {transaction.tax.toFixed(2)}
+                {fmtAmount(transaction.tax)}
               </span>
             </div>
             <div className="flex justify-between text-foreground font-semibold pt-2 border-t border-border text-xs mt-1">
               <span>{t('history.totalPaid')}</span>
               <span>
                 {settings.currency}
-                {transaction.total.toFixed(2)}
+                {fmtAmount(transaction.total)}
               </span>
             </div>
           </div>

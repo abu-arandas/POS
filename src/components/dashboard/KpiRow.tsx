@@ -12,6 +12,7 @@ import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import type { DashboardKpis } from '../../lib/dashboardMetrics';
 
+import { useMoney } from '../../lib/useMoney';
 interface KpiCardProps {
   label: string;
   icon: ReactNode;
@@ -56,6 +57,8 @@ export interface KpiRowProps {
 
 /** The four headline figures: revenue, profit, orders and stock warnings. */
 export function KpiRow({ kpis, currency }: KpiRowProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { t } = useTranslation();
   const margin =
     kpis.revenueToday > 0 ? ((kpis.profitToday / kpis.revenueToday) * 100).toFixed(0) : 0;
@@ -65,7 +68,7 @@ export function KpiRow({ kpis, currency }: KpiRowProps) {
       <KpiCard
         label={t('dashboard.todaysRevenue')}
         icon={<DollarSign size={16} />}
-        value={`${currency}${kpis.revenueToday.toFixed(2)}`}
+        value={`${currency}${fmtAmount(kpis.revenueToday)}`}
         delay={0.05}
         footer={
           <>
@@ -88,7 +91,7 @@ export function KpiRow({ kpis, currency }: KpiRowProps) {
             {kpis.returnedToday > 0 && (
               <span className="badge badge-rose px-2 py-0.5 font-mono">
                 {t('dashboard.returned', {
-                  amount: `${currency}${kpis.returnedToday.toFixed(2)}`,
+                  amount: `${currency}${fmtAmount(kpis.returnedToday)}`,
                 })}
               </span>
             )}
@@ -99,7 +102,7 @@ export function KpiRow({ kpis, currency }: KpiRowProps) {
       <KpiCard
         label={t('dashboard.netProfit')}
         icon={<Percent size={16} />}
-        value={`${currency}${kpis.profitToday.toFixed(2)}`}
+        value={`${currency}${fmtAmount(kpis.profitToday)}`}
         delay={0.1}
         footer={
           <>
@@ -115,7 +118,7 @@ export function KpiRow({ kpis, currency }: KpiRowProps) {
             {kpis.discountsToday > 0 && (
               <span className="badge badge-amber px-2 py-0.5 font-mono">
                 {t('dashboard.discounted', {
-                  amount: `${currency}${kpis.discountsToday.toFixed(2)}`,
+                  amount: `${currency}${fmtAmount(kpis.discountsToday)}`,
                 })}
               </span>
             )}

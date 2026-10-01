@@ -11,6 +11,7 @@ import {
 import { calculateModifierPriceDelta, modifierSignature } from '../../lib/modifiers';
 import { playCartSound } from '../../lib/audioFeedback';
 
+import { useMoney } from '../../lib/useMoney';
 export type RegisterDiscountType = 'none' | 'percentage' | 'fixed' | 'loyalty';
 
 export interface RegisterCartLine {
@@ -78,6 +79,8 @@ export interface RegisterCartResult {
  * the pricing rules can be exercised without rendering the screen.
  */
 export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
+  const { round: roundAmt } = useMoney();
+
   const [cart, setCart] = useState<RegisterCartLine[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState<RegisterDiscountType>('none');
@@ -117,7 +120,7 @@ export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
     const next10 = Math.ceil(exact / 10) * 10;
     const next20 = Math.ceil(exact / 20) * 20;
     const next50 = Math.ceil(exact / 50) * 50;
-    const options = new Set<number>([Number(exact.toFixed(2))]);
+    const options = new Set<number>([roundAmt(exact)]);
     if (next5 > exact) options.add(next5);
     if (next10 > exact && next10 !== next5) options.add(next10);
     if (next20 > exact && next20 !== next10) options.add(next20);
@@ -126,15 +129,15 @@ export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
     return Array.from(options)
       .filter((option) => option >= exact)
       .slice(0, 5);
-  }, [totalAmount]);
+  }, [totalAmount, roundAmt]);
 
   const cashChangeDue = useCallback(
     (cashPaidText: string) => {
       const paid = parseFloat(cashPaidText) || 0;
       if (paid < totalAmount) return 0;
-      return Number((paid - totalAmount).toFixed(2));
+      return roundAmt(paid - totalAmount);
     },
-    [totalAmount],
+    [totalAmount, roundAmt],
   );
 
   const addToCart = useCallback(

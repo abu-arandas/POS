@@ -1,13 +1,18 @@
 import { CashMovement, SaleTransaction } from '../types';
+import { DEFAULT_CURRENCY_DIGITS, roundMoney } from './money';
 import { tenderBreakdown } from './payments';
 
 /**
  * Net cash that petty-cash movements put into (or took out of) the drawer.
  * Pay-ins add, pay-outs subtract; amounts are stored unsigned.
  */
-export function netCashMovements(movements: readonly CashMovement[]): number {
-  return Number(
-    movements.reduce((sum, m) => sum + (m.type === 'pay_in' ? m.amount : -m.amount), 0).toFixed(2),
+export function netCashMovements(
+  movements: readonly CashMovement[],
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): number {
+  return roundMoney(
+    movements.reduce((sum, m) => sum + (m.type === 'pay_in' ? m.amount : -m.amount), 0),
+    digits,
   );
 }
 
@@ -16,8 +21,8 @@ export function netCashMovements(movements: readonly CashMovement[]): number {
  * For a single-cash sale that equals the total; for a split sale it's the cash
  * tender line(s) minus change; card/mobile/gift contribute nothing.
  */
-export function cashKept(tx: SaleTransaction): number {
-  return tenderBreakdown(tx).cash ?? 0;
+export function cashKept(tx: SaleTransaction, digits: number = DEFAULT_CURRENCY_DIGITS): number {
+  return tenderBreakdown(tx, digits).cash ?? 0;
 }
 
 /**
@@ -49,8 +54,14 @@ export interface ShiftSummary {
  * Tallies a set of transactions (already filtered to one shift) into the
  * figures a Z-report needs. Refunds reduce gross sales; cash refunds of
  * cash sales reduce the drawer.
+ *
+ * `digits` is the store currency's fractional digits (lib/money.ts); the drawer
+ * has to be reconciled to the same precision the sales were rung up at.
  */
-export function summarizeShift(transactions: SaleTransaction[]): ShiftSummary {
+export function summarizeShift(
+  transactions: SaleTransaction[],
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): ShiftSummary {
   let grossSales = 0;
   let cashSales = 0;
   let cardSales = 0;
@@ -68,7 +79,7 @@ export function summarizeShift(transactions: SaleTransaction[]): ShiftSummary {
     // £30 sale split £10 cash / £20 card therefore printed CASH 10 and CARD 30,
     // so the breakdown on the drawer-reconciliation document overstated the
     // day's tender by the cash half of every split sale.
-    const tenders = tenderBreakdown(tx);
+    const tenders = tenderBreakdown(tx, digits);
 
     // `status` outranks `refundedAmount`, because a sale can carry the status
     // without the figure: refundedAmount was added after refunds already
@@ -102,7 +113,7 @@ export function summarizeShift(transactions: SaleTransaction[]): ShiftSummary {
     giftSales += netOf(tenders.gift);
   }
 
-  const round = (n: number) => Number(n.toFixed(2));
+  const round = (n: number) => roundMoney(n, digits);
   return {
     saleCount: transactions.length,
     grossSales: round(grossSales),
@@ -112,6 +123,8 @@ export function summarizeShift(transactions: SaleTransaction[]): ShiftSummary {
     giftSales: round(giftSales),
     cashRefunds: round(cashRefunds),
     expectedCash: (openingFloat: number, movements: readonly CashMovement[] = []) =>
-      round(openingFloat + round(cashSales) - round(cashRefunds) + netCashMovements(movements)),
+      round(
+        openingFloat + round(cashSales) - round(cashRefunds) + netCashMovements(movements, digits),
+      ),
   };
 }

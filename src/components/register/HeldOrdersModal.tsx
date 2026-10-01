@@ -4,6 +4,7 @@ import { Clock, X, PauseCircle, Play, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { HeldOrder } from '../../types';
 
+import { useMoney } from '../../lib/useMoney';
 interface HeldOrdersModalProps {
   open: boolean;
   /** Ref for the dialog card, from useModalA11y (focus trap / Escape / restore). */
@@ -28,6 +29,8 @@ export function HeldOrdersModal({
   onResume,
   onRemove,
 }: HeldOrdersModalProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { t } = useTranslation();
   return (
     <AnimatePresence>
@@ -92,7 +95,7 @@ export function HeldOrdersModal({
                           {itemCount} {t('register.itemsLower')}{' '}
                           <span className="mx-1 opacity-40">•</span>
                           {currency}
-                          {orderTotal.toFixed(2)}
+                          {fmtAmount(orderTotal)}
                           {order.operatorName && (
                             <>
                               <span className="mx-1 opacity-40">•</span>

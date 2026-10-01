@@ -11,6 +11,7 @@ import { useProductStore } from '../stores/productStore';
 import { useCustomerStore } from '../stores/customerStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useKdsStore } from '../stores/kdsStore';
+import { isModuleEnabled } from '../lib/businessProfile';
 import { useSettingsStore } from '../stores/settingsStore';
 import { routeKitchenTickets } from '../lib/printing/kitchenRouting';
 import { syncToCloudIfEnabled } from '../lib/sync';
@@ -238,16 +239,18 @@ export function commitSale(request: CheckoutRequest): CommitSaleResult {
 
   // Dispatch a live ticket to the Kitchen Display System.
   //
-  // Gated on the terminal having kitchen stations configured. Unconditionally
-  // it meant a shop with no kitchen — a retail counter selling clothing — piled
-  // up a KDS ticket for every sale it ever rang up.
+  // Gated on the kitchen module being on AND the terminal having kitchen
+  // stations configured. Unconditionally it meant a shop with no kitchen — a
+  // retail counter selling clothing — piled up a KDS ticket for every sale it
+  // ever rang up. The module check is what keeps that true for a retail
+  // terminal that still has stations left over from an earlier configuration.
   //
   // Items carry the station that routeKitchenTickets assigns them, so the KDS
   // station filter has something to match. Without it every item arrived with
   // no stationId or stationName and selecting any station showed an empty
   // board, while the routing rules the printed tickets already use sat unused.
-  const { kitchenStations } = useSettingsStore.getState();
-  if (kitchenStations.length > 0) {
+  const { kitchenStations, businessProfile } = useSettingsStore.getState();
+  if (isModuleEnabled(businessProfile, 'kitchen') && kitchenStations.length > 0) {
     try {
       const categoryOf = (productId: string) => liveById.get(productId)?.category;
       const stationOfItem = new Map<string, { id: string; name: string }>();

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { NEUTRAL, type ChartMode } from '../../lib/chartPalette';
 import { PAYMENT_METHOD_ORDER, type PaymentMethodRow } from './useDashboardMetrics';
 
+import { useMoney } from '../../lib/useMoney';
 export interface PaymentMethodsPanelProps {
   /** Keyed by the UPPERCASED method name, as the metrics hook emits it. */
   byMethod: Map<string, PaymentMethodRow>;
@@ -20,6 +21,8 @@ export function PaymentMethodsPanel({
   currency,
   chartMode,
 }: PaymentMethodsPanelProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { t } = useTranslation();
 
   return (
@@ -50,7 +53,7 @@ export function PaymentMethodsPanel({
               </span>
               <span className="font-mono font-semibold text-xl text-foreground block mb-2">
                 {currency}
-                {val.toFixed(2)}
+                {fmtAmount(val)}
               </span>
               <div className="w-full bg-secondary rounded-full h-1.5 mb-1.5">
                 <div

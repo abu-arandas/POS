@@ -4,6 +4,8 @@ import type { StoreSettings, ReceiptEmailTemplate } from '../../types';
 import { safeImageUrl } from '../../lib/imageUrl';
 import { DEFAULT_EMAIL_TEMPLATE } from '../../stores/settingsStore';
 import type { Locale } from '../../lib/i18n';
+import { currencyDigits } from '../../lib/money';
+import { useMoney } from '../../lib/useMoney';
 
 export interface ProfilePanelProps {
   t: TFunction;
@@ -36,6 +38,8 @@ export function ProfilePanel({
   onLanguageChange,
   onEmailTemplateChange,
 }: ProfilePanelProps) {
+  const { step: moneyStep } = useMoney();
+
   return (
     <div className="space-y-5 max-w-4xl mx-auto">
       {/* General Info Card */}
@@ -263,6 +267,27 @@ export function ProfilePanel({
             </div>
             <div>
               <label
+                htmlFor="set-currency-code"
+                className="block text-xs font-medium text-muted-foreground mb-1.5"
+              >
+                {t('settings.currencyCode')}
+              </label>
+              <input
+                id="set-currency-code"
+                type="text"
+                maxLength={3}
+                placeholder="USD"
+                value={settings.currencyCode ?? ''}
+                onChange={(e) => onUpdateSetting('currencyCode', e.target.value.toUpperCase())}
+                aria-describedby="set-currency-code-hint"
+                className="w-full bg-secondary/40 border border-border rounded-lg px-3 py-2 text-xs sm:text-sm text-foreground focus:outline-none focus:border-foreground/50 transition-colors font-mono"
+              />
+              <p id="set-currency-code-hint" className="text-[11px] text-muted-foreground mt-1.5">
+                {t('settings.currencyCodeHint', { digits: currencyDigits(settings) })}
+              </p>
+            </div>
+            <div>
+              <label
                 htmlFor="set-tax-rate"
                 className="block text-xs font-medium text-muted-foreground mb-1.5"
               >
@@ -343,7 +368,7 @@ export function ProfilePanel({
                   id="set-loyalty-point-value"
                   type="number"
                   min="0"
-                  step="0.01"
+                  step={moneyStep}
                   value={settings.loyaltyPointValue}
                   onChange={(e) =>
                     onUpdateSetting('loyaltyPointValue', parseFloat(e.target.value) || 0)

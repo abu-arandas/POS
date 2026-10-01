@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import type { PoReport } from '../../lib/poReport';
 
+import { useMoney } from '../../lib/useMoney';
 export interface PurchasingPanelProps {
   report: PoReport;
   currency: string;
@@ -11,6 +12,8 @@ export interface PurchasingPanelProps {
 
 /** Purchase-order spend for the range: received, outstanding and by supplier. */
 export function PurchasingPanel({ report, currency }: PurchasingPanelProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { t } = useTranslation();
 
   return (
@@ -33,7 +36,7 @@ export function PurchasingPanel({ report, currency }: PurchasingPanelProps) {
           </span>
           <span className="font-mono font-semibold text-xl text-foreground block">
             {currency}
-            {report.receivedValue.toFixed(2)}
+            {fmtAmount(report.receivedValue)}
           </span>
         </div>
         <div className="bg-secondary/30 border border-border rounded-xl p-4">
@@ -42,7 +45,7 @@ export function PurchasingPanel({ report, currency }: PurchasingPanelProps) {
           </span>
           <span className="font-mono font-semibold text-xl text-foreground block">
             {currency}
-            {report.outstandingValue.toFixed(2)}
+            {fmtAmount(report.outstandingValue)}
           </span>
         </div>
         <div className="bg-secondary/30 border border-border rounded-xl p-4">
@@ -82,11 +85,11 @@ export function PurchasingPanel({ report, currency }: PurchasingPanelProps) {
                     </span>
                     <span className="font-mono font-semibold text-xs text-foreground">
                       {currency}
-                      {s.received.toFixed(2)}
+                      {fmtAmount(s.received)}
                       {s.outstanding > 0 && (
                         <span className="text-muted-foreground ms-1.5 text-[11px]">
                           +{currency}
-                          {s.outstanding.toFixed(2)}
+                          {fmtAmount(s.outstanding)}
                         </span>
                       )}
                     </span>

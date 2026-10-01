@@ -6,6 +6,7 @@ import { ClipboardList, X } from 'lucide-react';
 import type { Product, StoreSettings, Supplier } from '../../types';
 import { availableStock, variantLabel } from '../../lib/variants';
 
+import { useMoney } from '../../lib/useMoney';
 export interface PurchaseOrderDraftLine {
   productId: string;
   /** Which variant is being ordered; required once the product has any. */
@@ -52,6 +53,8 @@ export function PurchaseOrderFormModal({
   onClose,
   onSubmit,
 }: PurchaseOrderFormModalProps) {
+  const { amount: fmtAmount, step: moneyStep } = useMoney();
+
   return (
     <ModalShell
       modalRef={modalRef}
@@ -169,7 +172,7 @@ export function PurchaseOrderFormModal({
                   <input
                     type="number"
                     min="0"
-                    step="0.01"
+                    step={moneyStep}
                     value={lineRow.unitCost}
                     onChange={(e) => onLineChange(idx, { unitCost: e.target.value })}
                     aria-label={t('inventory.poUnitCost')}
@@ -202,12 +205,12 @@ export function PurchaseOrderFormModal({
           </span>
           <span className="font-mono font-semibold text-foreground text-base">
             {settings.currency}
-            {poLines
-              .reduce(
+            {fmtAmount(
+              poLines.reduce(
                 (sum, l) => sum + (parseInt(l.quantity, 10) || 0) * (parseFloat(l.unitCost) || 0),
                 0,
-              )
-              .toFixed(2)}
+              ),
+            )}
           </span>
         </div>
       </div>

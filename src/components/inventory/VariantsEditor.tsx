@@ -9,6 +9,7 @@ import {
   totalVariantStock,
   variantLabel,
 } from '../../lib/variants';
+import { useMoney } from '../../lib/useMoney';
 
 export interface VariantsEditorProps {
   t: TFunction;
@@ -41,6 +42,8 @@ export function VariantsEditor({
   variants,
   onChange,
 }: VariantsEditorProps) {
+  const { step: moneyStep } = useMoney();
+
   /**
    * Every change to the types regenerates the matrix in the same breath. The
    * two are one piece of state: types that no longer describe the variants
@@ -277,7 +280,7 @@ export function VariantsEditor({
                       <td className="px-3 py-1.5">
                         <input
                           type="number"
-                          step="0.01"
+                          step={moneyStep}
                           min="0"
                           aria-label={`${t('inventory.price')} — ${label}`}
                           placeholder={t('inventory.variantInherits')}
@@ -293,7 +296,7 @@ export function VariantsEditor({
                       <td className="px-3 py-1.5">
                         <input
                           type="number"
-                          step="0.01"
+                          step={moneyStep}
                           min="0"
                           aria-label={`${t('inventory.cost')} — ${label}`}
                           placeholder={t('inventory.variantInherits')}

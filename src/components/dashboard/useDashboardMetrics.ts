@@ -3,6 +3,7 @@ import type { TFunction } from 'i18next';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useProductStore } from '../../stores/productStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { currencyDigits } from '../../lib/money';
 import { useSupplyStore } from '../../stores/supplyStore';
 import { toCsv, downloadCsv, transactionsToCsvRows } from '../../lib/csv';
 import { buildPoReport } from '../../lib/poReport';
@@ -57,6 +58,8 @@ export function useDashboardMetrics(t: TFunction, language: string) {
   const products = useProductStore((s) => s.products);
   const categories = useProductStore((s) => s.categories);
   const settings = useSettingsStore((s) => s.settings);
+  // Every aggregate below rounds to the store currency's own precision.
+  const digits = currencyDigits(settings);
   const supabaseConfig = useSettingsStore((s) => s.supabaseConfig);
   // Charts carry their own light/dark steps, so they need the theme itself
   // rather than a CSS class the canvas cannot read.
@@ -105,15 +108,15 @@ export function useDashboardMetrics(t: TFunction, language: string) {
   }, [completedTransactions, range, rangeDays, todayStart]);
 
   const kpis = useMemo(
-    () => computeKpis(todayTransactions, completedTransactions, products),
-    [todayTransactions, completedTransactions, products],
+    () => computeKpis(todayTransactions, completedTransactions, products, digits),
+    [todayTransactions, completedTransactions, products, digits],
   );
 
   const salesTrendData = useMemo(() => {
     const buckets = Math.min(range === 'all' ? 30 : rangeDays, 31);
     // The figures come from the metrics module; the label is the screen's,
     // because it is the only part that depends on the active locale.
-    return buildTrendBuckets(rangeTxns, todayStart, buckets).map((bucket) => ({
+    return buildTrendBuckets(rangeTxns, todayStart, buckets, digits).map((bucket) => ({
       label: new Date(bucket.key).toLocaleDateString(language === 'ar' ? 'ar' : 'en', {
         weekday: buckets <= 7 ? 'short' : undefined,
         month: 'numeric',
@@ -122,9 +125,9 @@ export function useDashboardMetrics(t: TFunction, language: string) {
       revenue: bucket.revenue,
       profit: bucket.profit,
     }));
-  }, [rangeTxns, range, rangeDays, language, todayStart]);
+  }, [rangeTxns, range, rangeDays, language, todayStart, digits]);
 
-  const topProductsData = useMemo(() => topProducts(rangeTxns), [rangeTxns]);
+  const topProductsData = useMemo(() => topProducts(rangeTxns, 5, digits), [rangeTxns, digits]);
 
   const categoryShareData = useMemo<CategoryShareRow[]>(() => {
     // Colour is keyed on the CATALOGUE, not on this range's revenue ranking.
@@ -136,7 +139,7 @@ export function useDashboardMetrics(t: TFunction, language: string) {
       chartMode,
     );
     const byId = new Map(categories.map((category) => [category.id, category]));
-    const rows = categoryRevenue(rangeTxns, products).map((entry) => {
+    const rows = categoryRevenue(rangeTxns, products, digits).map((entry) => {
       const category = byId.get(entry.categoryId);
       return {
         key: entry.categoryId,
@@ -154,18 +157,18 @@ export function useDashboardMetrics(t: TFunction, language: string) {
       SERIES_CAP.adjacent,
       t('dashboard.otherCategories', { defaultValue: 'Other' }),
     );
-  }, [rangeTxns, products, categories, t, chartMode]);
+  }, [rangeTxns, products, categories, t, chartMode, digits]);
 
   const paymentMethodsData = useMemo<PaymentMethodRow[]>(() => {
     // A fixed domain: every method keeps its colour whether or not it took any
     // money in the selected range.
     const colors = assignSeriesColors(PAYMENT_METHOD_ORDER, chartMode);
-    return paymentTotals(rangeTxns).map(({ method, value }) => ({
+    return paymentTotals(rangeTxns, digits).map(({ method, value }) => ({
       name: method.toUpperCase(),
       value,
       color: colors.get(method) ?? NEUTRAL[chartMode],
     }));
-  }, [rangeTxns, chartMode]);
+  }, [rangeTxns, chartMode, digits]);
 
   const totalSalesVolume = useMemo(
     () => paymentMethodsData.reduce((sum, d) => sum + d.value, 0),
@@ -177,16 +180,19 @@ export function useDashboardMetrics(t: TFunction, language: string) {
     [paymentMethodsData],
   );
 
-  const operatorRows = useMemo(() => operatorBreakdown(rangeTxns), [rangeTxns]);
+  const operatorRows = useMemo(() => operatorBreakdown(rangeTxns, digits), [rangeTxns, digits]);
 
   const poReport = useMemo(
-    () => buildPoReport(purchaseOrders, range === 'all' ? undefined : rangeDays),
-    [purchaseOrders, range, rangeDays],
+    () => buildPoReport(purchaseOrders, range === 'all' ? undefined : rangeDays, digits),
+    [purchaseOrders, range, rangeDays, digits],
   );
 
   const exportRange = useCallback(() => {
-    downloadCsv(`sales-${range}-${localDateKey()}.csv`, toCsv(transactionsToCsvRows(rangeTxns)));
-  }, [rangeTxns, range]);
+    downloadCsv(
+      `sales-${range}-${localDateKey()}.csv`,
+      toCsv(transactionsToCsvRows(rangeTxns, digits)),
+    );
+  }, [rangeTxns, range, digits]);
 
   return {
     settings,

@@ -27,6 +27,7 @@ import { availableStock, variantImage, variantLabel, variantPrice } from '../lib
 import { calculateModifierPriceDelta, formatModifierSummary } from '../lib/modifiers';
 import { cartLineKey, type RegisterCartLine } from './register/useRegisterCart';
 
+import { useMoney } from '../lib/useMoney';
 interface CartPanelProps {
   cart: RegisterCartLine[];
   updateCartQty: (key: string, delta: number) => void;
@@ -90,6 +91,8 @@ const CartPanel = ({
   openTabCount,
   onOpenTabs,
 }: CartPanelProps) => {
+  const { amount: fmtAmount } = useMoney();
+
   const customers = useCustomerStore((s) => s.customers);
   const settings = useSettingsStore((s) => s.settings);
   const showProductImages = useSettingsStore((s) => s.showProductImages);
@@ -272,12 +275,12 @@ const CartPanel = ({
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className="font-mono text-[10px] text-muted-foreground">
                         {settings.currency}
-                        {unitPrice.toFixed(2)}
+                        {fmtAmount(unitPrice)}
                       </span>
                       <span className="text-muted-foreground/60 text-[10px]">×</span>
                       <span className="font-mono text-[10px] font-semibold text-foreground">
                         {settings.currency}
-                        {(unitPrice * item.quantity).toFixed(2)}
+                        {fmtAmount(unitPrice * item.quantity)}
                       </span>
                     </div>
                   </div>
@@ -342,7 +345,7 @@ const CartPanel = ({
                   </p>
                   <p className="text-muted-foreground text-[10px]">
                     {t('register.save')} {settings.currency}
-                    {loyaltySavings.toFixed(2)}
+                    {fmtAmount(loyaltySavings)}
                   </p>
                 </div>
               </div>
@@ -461,7 +464,7 @@ const CartPanel = ({
             <span>{t('register.subtotal')}</span>
             <span className="font-mono num text-foreground font-medium">
               {settings.currency}
-              {subtotal.toFixed(2)}
+              {fmtAmount(subtotal)}
             </span>
           </div>
           {discountAmount > 0 && (
@@ -473,7 +476,7 @@ const CartPanel = ({
               <span>{t('register.discount').replace(':', '')}</span>
               <span className="font-mono num">
                 −{settings.currency}
-                {discountAmount.toFixed(2)}
+                {fmtAmount(discountAmount)}
               </span>
             </motion.div>
           )}
@@ -484,7 +487,7 @@ const CartPanel = ({
               </span>
               <span className="font-mono num text-foreground font-medium">
                 {settings.currency}
-                {taxAmount.toFixed(2)}
+                {fmtAmount(taxAmount)}
               </span>
             </div>
           )}
@@ -502,7 +505,7 @@ const CartPanel = ({
               className="font-mono font-bold text-xl tracking-tight text-foreground num"
             >
               {settings.currency}
-              {totalAmount.toFixed(2)}
+              {fmtAmount(totalAmount)}
             </motion.span>
           </div>
         </div>

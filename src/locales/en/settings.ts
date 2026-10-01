@@ -28,6 +28,8 @@ export const settings = {
   storeAddress: 'Store Address',
   storeLogoUrl: 'Store Logo URL or Upload',
   currencySymbol: 'Currency Symbol',
+  currencyCode: 'Currency code (ISO 4217)',
+  currencyCodeHint: 'Sets how many decimal places amounts use: {{digits}}.',
   taxRate: 'Tax Rate (%)',
   uploadFile: 'Upload File',
   supabaseSync: 'Supabase Sync',

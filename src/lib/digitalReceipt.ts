@@ -1,11 +1,12 @@
 import { SaleTransaction, StoreSettings, ReceiptEmailTemplate } from '../types';
+import { currencyDigits, formatMoney } from './money';
 
 /**
  * Plain-text receipt for digital delivery (email body / share / clipboard).
  * Pure and testable — no DOM.
  */
 export function receiptPlainText(tx: SaleTransaction, settings: StoreSettings): string {
-  const cur = settings.currency;
+  const money = (n: number) => formatMoney(n, settings.currency, currencyDigits(settings));
   const lines: string[] = [];
   lines.push(settings.storeName);
   if (settings.storeAddress) lines.push(settings.storeAddress);
@@ -17,19 +18,18 @@ export function receiptPlainText(tx: SaleTransaction, settings: StoreSettings): 
   if (tx.customerName) lines.push(`Member: ${tx.customerName}`);
   lines.push('--------------------------------');
   for (const item of tx.items) {
-    lines.push(`${item.quantity}x ${item.productName}  ${cur}${item.total.toFixed(2)}`);
+    lines.push(`${item.quantity}x ${item.productName}  ${money(item.total)}`);
   }
   lines.push('--------------------------------');
-  lines.push(`Subtotal: ${cur}${tx.subtotal.toFixed(2)}`);
-  if (tx.discount > 0) lines.push(`Discount: -${cur}${tx.discount.toFixed(2)}`);
-  lines.push(`Tax: ${cur}${tx.tax.toFixed(2)}`);
-  lines.push(`Total: ${cur}${tx.total.toFixed(2)}`);
+  lines.push(`Subtotal: ${money(tx.subtotal)}`);
+  if (tx.discount > 0) lines.push(`Discount: -${money(tx.discount)}`);
+  lines.push(`Tax: ${money(tx.tax)}`);
+  lines.push(`Total: ${money(tx.total)}`);
   lines.push(`Paid via: ${tx.paymentMethod.toUpperCase()}`);
   if (tx.payments && tx.payments.length > 1) {
-    for (const p of tx.payments)
-      lines.push(`  ${p.method.toUpperCase()}: ${cur}${p.amount.toFixed(2)}`);
+    for (const p of tx.payments) lines.push(`  ${p.method.toUpperCase()}: ${money(p.amount)}`);
   }
-  if (tx.refundedAmount) lines.push(`Refunded: ${cur}${tx.refundedAmount.toFixed(2)}`);
+  if (tx.refundedAmount) lines.push(`Refunded: ${money(tx.refundedAmount)}`);
   lines.push('');
   lines.push('Thank you for your visit!');
   return lines.join('\n');
@@ -86,7 +86,7 @@ export function renderEmailTemplate(
     storeName: settings.storeName,
     receiptId: tx.id,
     date: new Date(tx.date).toLocaleString(),
-    total: `${settings.currency}${tx.total.toFixed(2)}`,
+    total: formatMoney(tx.total, settings.currency, currencyDigits(settings)),
     customerName: tx.customerName || 'there',
   };
   return template.replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match);

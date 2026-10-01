@@ -23,6 +23,8 @@ export interface PrinterPanelProps {
   autoScanPrinters: boolean;
   printerTypes: readonly PrinterTypeOption[];
   receiptLayout: ReceiptLayout;
+  /** Whether the kitchen module is on; kitchen-ticket options are meaningless without it. */
+  kitchenEnabled: boolean;
   onUseNetworkPrinter(ip: string): void;
   onUseSystemPrinter(name: string): void;
   onAutoScanPrintersChange(value: boolean): void;
@@ -42,6 +44,7 @@ export function PrinterPanel({
   autoScanPrinters,
   printerTypes,
   receiptLayout,
+  kitchenEnabled,
   onUseNetworkPrinter,
   onUseSystemPrinter,
   onAutoScanPrintersChange,
@@ -261,22 +264,24 @@ export function PrinterPanel({
           <span className="text-xs font-medium text-foreground">{t('settings.autoPrint')}</span>
         </label>
 
-        <label className="flex items-center gap-3 p-3 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
-          <input
-            type="checkbox"
-            checked={Boolean(printerForm.kitchenTicketOnCheckout)}
-            onChange={(e) =>
-              onPrinterFormChange({
-                ...printerForm,
-                kitchenTicketOnCheckout: e.target.checked,
-              })
-            }
-            className="size-4 rounded border-border text-foreground focus:ring-foreground accent-foreground"
-          />
-          <span className="text-xs font-medium text-foreground">
-            {t('settings.autoPrintKitchen')}
-          </span>
-        </label>
+        {kitchenEnabled && (
+          <label className="flex items-center gap-3 p-3 bg-secondary/20 border border-border rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors">
+            <input
+              type="checkbox"
+              checked={Boolean(printerForm.kitchenTicketOnCheckout)}
+              onChange={(e) =>
+                onPrinterFormChange({
+                  ...printerForm,
+                  kitchenTicketOnCheckout: e.target.checked,
+                })
+              }
+              className="size-4 rounded border-border text-foreground focus:ring-foreground accent-foreground"
+            />
+            <span className="text-xs font-medium text-foreground">
+              {t('settings.autoPrintKitchen')}
+            </span>
+          </label>
+        )}
       </div>
 
       <div className="pt-2 flex justify-end">

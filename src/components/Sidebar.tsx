@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Logo from './Logo';
-import { ScreenId, isScreenAllowed } from '../lib/access';
+import { ScreenId, isScreenAvailable } from '../lib/access';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useSyncStatus } from '../lib/useSyncStatus';
@@ -94,7 +94,7 @@ function SyncBadge() {
  */
 export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: SidebarProps) {
   const { currentUser, setCurrentUser } = useAuthStore();
-  const { settings, darkMode, setDarkMode } = useSettingsStore();
+  const { settings, darkMode, setDarkMode, businessProfile } = useSettingsStore();
   const { products } = useProductStore();
   const { t } = useTranslation();
 
@@ -103,11 +103,13 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
     (s) => s.tickets.filter((t) => t.status !== 'completed').length,
   );
 
-  // The Fleet board is additionally gated on a resolved super-admin membership,
-  // so it's hidden unless the cloud account is actually a super-admin.
+  // A screen needs the role AND the business profile: a retail terminal has no
+  // Tables or Kitchen entry. The Fleet board is additionally gated on a resolved
+  // super-admin membership, so it's hidden unless the cloud account is actually
+  // a super-admin.
   const allowedItems = NAV_ITEMS.filter(
     (item) =>
-      (!currentUser || isScreenAllowed(item.id, currentUser.role)) &&
+      (!currentUser || isScreenAvailable(item.id, currentUser.role, businessProfile)) &&
       (item.id !== 'fleet' || isSuperadmin),
   );
 
@@ -136,7 +138,7 @@ export default function Sidebar({ currentScreen, setScreen, isSuperadmin }: Side
               className="font-sans font-bold text-zinc-950 dark:text-zinc-100 text-[13px] truncate tracking-tight leading-tight"
               title={settings.storeName}
             >
-              {settings.storeName || 'SJ Grill'}
+              {settings.storeName || 'POS'}
             </h1>
             <div className="flex items-center gap-1.5 mt-1">
               <span className="size-1.5 bg-emerald-500 rounded-full" />
