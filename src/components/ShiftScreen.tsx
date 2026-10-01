@@ -40,11 +40,17 @@ import {
   copyReportToClipboard,
 } from '../lib/dailySummaryReport';
 
+import { moneyTolerance } from '../lib/money';
+import { useMoney } from '../lib/useMoney';
 /**
  * Shift screen: open and close a drawer with an opening float, manage petty cash
  * pay-ins and payouts, and produce the Z-report reconciling counted cash against expected.
  */
 export default function ShiftScreen() {
+  const { round: roundAmt, amount: fmtAmount, step: moneyStep, digits } = useMoney();
+  // A drawer is balanced when it is off by less than half the smallest unit.
+  const tolerance = moneyTolerance(digits);
+
   const { t, i18n } = useTranslation();
   const { shifts, currentShiftId, cashMovements, openShift, closeShift } = useShiftStore();
   const { transactions } = useTransactionStore();
@@ -91,12 +97,11 @@ export default function ShiftScreen() {
     () => (currentShift ? transactions.filter((tx) => tx.shiftId === currentShift.id) : []),
     [transactions, currentShift],
   );
-  const summary = useMemo(() => summarizeShift(shiftTxns), [shiftTxns]);
+  const summary = useMemo(() => summarizeShift(shiftTxns, digits), [shiftTxns, digits]);
   const expectedCash = currentShift
     ? summary.expectedCash(currentShift.openingFloat, currentShiftMovements)
     : 0;
-  const variance =
-    countedCash !== '' ? Number((parseFloat(countedCash) - expectedCash).toFixed(2)) : null;
+  const variance = countedCash !== '' ? roundAmt(parseFloat(countedCash) - expectedCash) : null;
 
   const handleOpen = () => {
     const float = parseFloat(openFloat) || 0;
@@ -135,7 +140,7 @@ export default function ShiftScreen() {
   const printReport = (shift: Shift) => {
     const txns = transactions.filter((tx) => tx.shiftId === shift.id);
     const movements = cashMovements.filter((m) => m.shiftId === shift.id);
-    const s = summarizeShift(txns);
+    const s = summarizeShift(txns, digits);
     const expected = s.expectedCash(shift.openingFloat, movements);
     // Printed as their own rows, not just folded into EXPECTED CASH. Without
     // them the document does not reconcile on its face: float plus cash sales
@@ -184,19 +189,19 @@ export default function ShiftScreen() {
       ${shift.closedAt ? amountRow(t('shift.closedAt'), new Date(shift.closedAt).toLocaleString()) : ''}
       <div class="divider"></div>
       ${amountRow(t('shift.sales'), String(s.saleCount))}
-      ${amountRow(t('shift.gross'), c + s.grossSales.toFixed(2))}
-      ${amountRow(t('shift.cashSales'), c + s.cashSales.toFixed(2))}
-      ${amountRow(t('register.payCard'), c + s.cardSales.toFixed(2))}
-      ${amountRow(t('register.payMobile'), c + s.mobileSales.toFixed(2))}
-      ${amountRow(t('register.payGift'), c + s.giftSales.toFixed(2))}
-      ${amountRow(t('shift.cashRefunds'), c + s.cashRefunds.toFixed(2))}
+      ${amountRow(t('shift.gross'), c + fmtAmount(s.grossSales))}
+      ${amountRow(t('shift.cashSales'), c + fmtAmount(s.cashSales))}
+      ${amountRow(t('register.payCard'), c + fmtAmount(s.cardSales))}
+      ${amountRow(t('register.payMobile'), c + fmtAmount(s.mobileSales))}
+      ${amountRow(t('register.payGift'), c + fmtAmount(s.giftSales))}
+      ${amountRow(t('shift.cashRefunds'), c + fmtAmount(s.cashRefunds))}
       <div class="divider"></div>
-      ${amountRow(t('shift.openingFloat'), c + shift.openingFloat.toFixed(2))}
-      ${payIns > 0 ? amountRow(t('shift.payIns'), c + payIns.toFixed(2)) : ''}
-      ${payOuts > 0 ? amountRow(t('shift.payOuts'), c + payOuts.toFixed(2)) : ''}
-      ${amountRow(t('shift.expectedCash'), c + expected.toFixed(2))}
-      ${shift.closedAt ? amountRow(t('shift.countedCash'), c + counted.toFixed(2)) : ''}
-      ${shift.closedAt ? `<div class="flex-row bold"><span>${esc(t('shift.variance'))}</span><span class="ltr">${esc(c + (counted - expected).toFixed(2))}</span></div>` : ''}
+      ${amountRow(t('shift.openingFloat'), c + fmtAmount(shift.openingFloat))}
+      ${payIns > 0 ? amountRow(t('shift.payIns'), c + fmtAmount(payIns)) : ''}
+      ${payOuts > 0 ? amountRow(t('shift.payOuts'), c + fmtAmount(payOuts)) : ''}
+      ${amountRow(t('shift.expectedCash'), c + fmtAmount(expected))}
+      ${shift.closedAt ? amountRow(t('shift.countedCash'), c + fmtAmount(counted)) : ''}
+      ${shift.closedAt ? `<div class="flex-row bold"><span>${esc(t('shift.variance'))}</span><span class="ltr">${esc(c + fmtAmount(counted - expected))}</span></div>` : ''}
       <div class="divider"></div>
       <div class="center ltr">${esc(new Date().toLocaleString())}</div>
       </body></html>`);
@@ -254,7 +259,7 @@ export default function ShiftScreen() {
                   <input
                     id="opening-float-input"
                     type="number"
-                    step="0.01"
+                    step={moneyStep}
                     min="0"
                     value={openFloat}
                     onChange={(e) => setOpenFloat(e.target.value)}
@@ -354,23 +359,23 @@ export default function ShiftScreen() {
                   {[
                     {
                       label: t('shift.gross'),
-                      val: `${cur}${summary.grossSales.toFixed(2)}`,
+                      val: `${cur}${fmtAmount(summary.grossSales)}`,
                     },
                     {
                       label: t('shift.cashSales'),
-                      val: `${cur}${summary.cashSales.toFixed(2)}`,
+                      val: `${cur}${fmtAmount(summary.cashSales)}`,
                     },
                     {
                       label: t('dashboard.card'),
-                      val: `${cur}${summary.cardSales.toFixed(2)}`,
+                      val: `${cur}${fmtAmount(summary.cardSales)}`,
                     },
                     {
                       label: t('dashboard.mobile'),
-                      val: `${cur}${summary.mobileSales.toFixed(2)}`,
+                      val: `${cur}${fmtAmount(summary.mobileSales)}`,
                     },
                     {
                       label: t('shift.cashRefunds'),
-                      val: `${cur}${summary.cashRefunds.toFixed(2)}`,
+                      val: `${cur}${fmtAmount(summary.cashRefunds)}`,
                     },
                   ].map((s) => (
                     <div
@@ -435,7 +440,7 @@ export default function ShiftScreen() {
                           >
                             {m.type === 'pay_in' ? '+' : '-'}
                             {cur}
-                            {m.amount.toFixed(2)}
+                            {fmtAmount(m.amount)}
                           </span>
                         </div>
                       ))}
@@ -457,21 +462,21 @@ export default function ShiftScreen() {
                       <span className="text-muted-foreground">{t('shift.openingFloat')}</span>
                       <span className="num font-medium text-foreground">
                         {cur}
-                        {currentShift.openingFloat.toFixed(2)}
+                        {fmtAmount(currentShift.openingFloat)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center border-b border-dashed border-border pb-2">
                       <span className="text-muted-foreground">{t('shift.cashSales')}</span>
                       <span className="num font-medium text-foreground">
                         +{cur}
-                        {summary.cashSales.toFixed(2)}
+                        {fmtAmount(summary.cashSales)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center border-b border-dashed border-border pb-2">
                       <span className="text-muted-foreground">{t('shift.cashRefunds')}</span>
                       <span className="num font-medium text-destructive">
                         -{cur}
-                        {summary.cashRefunds.toFixed(2)}
+                        {fmtAmount(summary.cashRefunds)}
                       </span>
                     </div>
                     {totalPayIns > 0 && (
@@ -479,7 +484,7 @@ export default function ShiftScreen() {
                         <span className="text-muted-foreground">Cash Deposits (Pay-In)</span>
                         <span className="num font-medium text-emerald-500">
                           +{cur}
-                          {totalPayIns.toFixed(2)}
+                          {fmtAmount(totalPayIns)}
                         </span>
                       </div>
                     )}
@@ -488,7 +493,7 @@ export default function ShiftScreen() {
                         <span className="text-muted-foreground">Petty Cash (Pay-Out)</span>
                         <span className="num font-medium text-amber-500">
                           -{cur}
-                          {totalPayOuts.toFixed(2)}
+                          {fmtAmount(totalPayOuts)}
                         </span>
                       </div>
                     )}
@@ -498,7 +503,7 @@ export default function ShiftScreen() {
                       </span>
                       <span className="font-semibold num text-foreground text-sm">
                         {cur}
-                        {expectedCash.toFixed(2)}
+                        {fmtAmount(expectedCash)}
                       </span>
                     </div>
 
@@ -511,7 +516,7 @@ export default function ShiftScreen() {
                         <input
                           id="counted-cash-input"
                           type="number"
-                          step="0.01"
+                          step={moneyStep}
                           min="0"
                           value={countedCash}
                           onChange={(e) => setCountedCash(e.target.value)}
@@ -524,13 +529,13 @@ export default function ShiftScreen() {
                     {variance !== null && (
                       <div
                         className={`flex justify-between items-center text-xs font-mono rounded-lg px-3 py-2 border ${
-                          Math.abs(variance) < 0.005
+                          Math.abs(variance) < tolerance
                             ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                             : 'bg-destructive/10 border-destructive/20 text-destructive'
                         }`}
                       >
                         <span className="font-semibold uppercase flex items-center gap-1.5">
-                          {Math.abs(variance) < 0.005 ? (
+                          {Math.abs(variance) < tolerance ? (
                             <Check size={13} />
                           ) : (
                             <AlertTriangle size={13} />
@@ -540,7 +545,7 @@ export default function ShiftScreen() {
                         <span className="num font-semibold">
                           {variance >= 0 ? '+' : ''}
                           {cur}
-                          {variance.toFixed(2)}
+                          {fmtAmount(variance)}
                         </span>
                       </div>
                     )}
@@ -595,12 +600,15 @@ export default function ShiftScreen() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {closedShifts.map((shift) => {
-                    const s = summarizeShift(transactions.filter((tx) => tx.shiftId === shift.id));
+                    const s = summarizeShift(
+                      transactions.filter((tx) => tx.shiftId === shift.id),
+                      digits,
+                    );
                     const expected = s.expectedCash(
                       shift.openingFloat,
                       cashMovements.filter((m) => m.shiftId === shift.id),
                     );
-                    const v = Number(((shift.countedCash ?? 0) - expected).toFixed(2));
+                    const v = roundAmt((shift.countedCash ?? 0) - expected);
                     return (
                       <tr key={shift.id} className="hover:bg-secondary/15 transition-colors group">
                         <td className="py-2.5 px-3">
@@ -631,19 +639,19 @@ export default function ShiftScreen() {
                         </td>
                         <td className="py-2.5 px-3 text-end font-mono num font-semibold text-foreground">
                           {cur}
-                          {s.grossSales.toFixed(2)}
+                          {fmtAmount(s.grossSales)}
                         </td>
                         <td className="py-2.5 px-3 text-end">
                           <span
                             className={`text-[10px] font-mono num font-semibold px-1.5 py-0.5 rounded border ${
-                              Math.abs(v) < 0.005
+                              Math.abs(v) < tolerance
                                 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                                 : 'bg-destructive/10 text-destructive border-destructive/20'
                             }`}
                           >
                             {v >= 0 ? '+' : ''}
                             {cur}
-                            {v.toFixed(2)}
+                            {fmtAmount(v)}
                           </span>
                         </td>
                         <td className="py-2.5 px-3 text-center">
@@ -705,6 +713,7 @@ export default function ShiftScreen() {
                   {generateDailySummaryText({
                     storeName: settings.storeName,
                     currency: cur,
+                    digits,
                     date: new Date().toLocaleDateString(undefined, {
                       weekday: 'long',
                       year: 'numeric',
@@ -723,6 +732,7 @@ export default function ShiftScreen() {
                       const text = generateDailySummaryText({
                         storeName: settings.storeName,
                         currency: cur,
+                        digits,
                         date: new Date().toLocaleDateString(),
                         transactions: shiftTxns,
                         shift: currentShift,
@@ -742,6 +752,7 @@ export default function ShiftScreen() {
                       const text = generateDailySummaryText({
                         storeName: settings.storeName,
                         currency: cur,
+                        digits,
                         date: new Date().toLocaleDateString(),
                         transactions: shiftTxns,
                         shift: currentShift,
@@ -760,6 +771,7 @@ export default function ShiftScreen() {
                       const text = generateDailySummaryText({
                         storeName: settings.storeName,
                         currency: cur,
+                        digits,
                         date: new Date().toLocaleDateString(),
                         transactions: shiftTxns,
                         shift: currentShift,

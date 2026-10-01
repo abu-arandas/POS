@@ -145,6 +145,27 @@ describe('isSafeMenuData', () => {
     ).toBe(true);
   });
 
+  it('accepts the price precision the till sends, and its absence', () => {
+    for (const digits of [0, 2, 3]) {
+      expect(isSafeMenuData(menu({ settings: { storeName: 'T', currency: 'JOD ', digits } }))).toBe(
+        true,
+      );
+    }
+  });
+
+  it.each([
+    ['negative', -1],
+    ['fractional', 2.5],
+    ['absurdly large', 101],
+    ['a string', '3'],
+    ['NaN', Number.NaN],
+  ])('refuses a price precision that is %s', (_label, digits) => {
+    // menu.html passes this to toFixed, so a bad value would throw in the page.
+    expect(isSafeMenuData(menu({ settings: { storeName: 'T', currency: '$', digits } }))).toBe(
+      false,
+    );
+  });
+
   it.each([
     ['a non-object', 'nope'],
     ['missing products', { categories: [], settings: {} }],

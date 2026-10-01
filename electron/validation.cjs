@@ -109,6 +109,15 @@ function isSafeMenuData(data) {
   if (settings.storeLogo !== undefined && !spend(settings.storeLogo, MAX_MENU_IMAGE_LENGTH)) {
     return false;
   }
+  // How many fractional digits a price shows (three for a dinar). Optional so an
+  // older renderer still validates; when present it is a small whole number,
+  // because menu.html hands it straight to toFixed, which throws outside 0-100.
+  if (
+    settings.digits !== undefined &&
+    !(Number.isInteger(settings.digits) && settings.digits >= 0 && settings.digits <= 6)
+  ) {
+    return false;
+  }
 
   return (
     products.every(

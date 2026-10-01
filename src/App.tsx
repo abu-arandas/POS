@@ -41,13 +41,16 @@ const Settings = lazy(() => import('./components/Settings'));
 const QRMenu = lazy(() => import('./components/QRMenu'));
 const ShiftScreen = lazy(() => import('./components/ShiftScreen'));
 const FleetView = lazy(() => import('./components/FleetView'));
+// First-run setup is shown once per install, so it stays out of the initial bundle.
+const Onboarding = lazy(() => import('./components/Onboarding'));
 import { useAuthStore } from './stores/authStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useProductStore } from './stores/productStore';
 import { useTableStore } from './stores/tableStore';
 import type { Product } from './types';
 import { variantPrice } from './lib/variants';
-import { ScreenId, isScreenAllowed } from './lib/access';
+import { currencyDigits } from './lib/money';
+import { ScreenId, isScreenAvailable } from './lib/access';
 import { startRealtimeSync, stopRealtimeSync } from './lib/realtimeSync';
 import { adoptCloudDatabase } from './lib/cloudAdoption';
 import { startOutboxReplay, stopOutboxReplay } from './lib/sync';
@@ -99,8 +102,16 @@ export default function App() {
   const [currentScreen, setScreen] = useState<ScreenId>('register');
 
   const { currentUser, setCurrentUser } = useAuthStore();
-  const { settings, darkMode, setDarkMode, language, supabaseConfig, showProductImages } =
-    useSettingsStore();
+  const {
+    settings,
+    darkMode,
+    setDarkMode,
+    language,
+    supabaseConfig,
+    showProductImages,
+    businessProfile,
+    onboardingComplete,
+  } = useSettingsStore();
   const { t, i18n } = useTranslation();
 
   // Live multi-terminal sync: subscribe to cloud changes while sync is
@@ -219,13 +230,15 @@ export default function App() {
     () => categories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
     [categories],
   );
+  const menuDigits = currencyDigits(settings);
   const menuSettings = useMemo(
     () => ({
       storeName: settings.storeName,
       storeLogo: settings.storeLogo,
       currency: settings.currency,
+      digits: menuDigits,
     }),
-    [settings.currency, settings.storeLogo, settings.storeName],
+    [settings.currency, settings.storeLogo, settings.storeName, menuDigits],
   );
 
   useEffect(() => {
@@ -244,11 +257,12 @@ export default function App() {
     });
   }, []);
 
-  // A screen is viewable if the terminal role allows it AND, for the super-admin
-  // Fleet board, the cloud account resolved as a super-admin.
+  // A screen is viewable if the terminal role allows it, the business profile
+  // offers it, AND, for the super-admin Fleet board, the cloud account resolved
+  // as a super-admin.
   const canView = (screen: ScreenId): boolean =>
     currentUser !== null &&
-    isScreenAllowed(screen, currentUser.role) &&
+    isScreenAvailable(screen, currentUser.role, businessProfile) &&
     (screen !== 'fleet' || isSuperadmin);
 
   // Reset navigation state when the signed-in role cannot view the current
@@ -257,13 +271,27 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
     const ok =
-      isScreenAllowed(currentScreen, currentUser.role) &&
+      isScreenAvailable(currentScreen, currentUser.role, businessProfile) &&
       (currentScreen !== 'fleet' || isSuperadmin);
     if (!ok) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setScreen('register');
     }
-  }, [currentUser, currentScreen, isSuperadmin]);
+  }, [currentUser, currentScreen, isSuperadmin, businessProfile]);
+
+  // A fresh install is set up before anyone can sign in: the lock screen would
+  // otherwise create the first administrator for a business that has no name,
+  // currency or kind yet. Installs from before setup existed are marked
+  // complete when their settings load, so this never interrupts a working till.
+  if (!onboardingComplete) {
+    return (
+      <MotionConfig reducedMotion="user">
+        <Suspense fallback={<ScreenLoader />}>
+          <Onboarding />
+        </Suspense>
+      </MotionConfig>
+    );
+  }
 
   if (!currentUser) {
     return (

@@ -14,6 +14,7 @@ import {
   ReceiptLayout,
 } from '../../types';
 import i18n from '../i18n';
+import { currencyDigits, formatMoney } from '../money';
 import { itemLabel, itemModifierNames } from './lineItem';
 import {
   formatDateTime,
@@ -58,7 +59,7 @@ function payLabel(method: string): string {
   return i18n.t(key, method.toUpperCase());
 }
 
-const money = (cur: string, n: number) => `${cur}${n.toFixed(2)}`;
+const money = (cur: string, n: number, digits: number) => formatMoney(n, cur, digits);
 
 /** The customer receipt, as rows. Mirrors buildReceiptHtml's block order. */
 /**
@@ -75,6 +76,8 @@ interface ReceiptContext {
   settings: StoreSettings;
   layout: ReceiptLayout;
   currency: string;
+  /** Fractional digits of the store currency — three for a dinar receipt. */
+  digits: number;
   date: Date;
 }
 
@@ -170,7 +173,7 @@ function pushModifiers(
 }
 
 /** One row per line item, with the unit price under any multi-unit line. */
-function pushItems(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptContext): void {
+function pushItems(rows: DocRow[], { tx, layout: L, currency: cur, digits }: ReceiptContext): void {
   const S = L.show;
   for (const item of tx.items) {
     const name = `${item.quantity}x ${itemLabel(item)}`;
@@ -179,12 +182,12 @@ function pushItems(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptCont
       pushModifiers(rows, item, S.modifiers);
       continue;
     }
-    rows.push({ kind: 'pair', label: name, value: money(cur, item.total) });
+    rows.push({ kind: 'pair', label: name, value: money(cur, item.total, digits) });
     pushModifiers(rows, item, S.modifiers);
     if (S.itemUnitPrice && item.quantity > 1) {
       rows.push({
         kind: 'line',
-        text: `@ ${money(cur, item.price)} ${i18n.t('register.each')}`,
+        text: `@ ${money(cur, item.price, digits)} ${i18n.t('register.each')}`,
         style: 'muted',
       });
     }
@@ -193,7 +196,7 @@ function pushItems(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptCont
 
 /** Item count through to the boxed total, plus the savings line. */
 function pushTotals(rows: DocRow[], ctx: ReceiptContext): void {
-  const { tx, layout: L, currency: cur } = ctx;
+  const { tx, layout: L, currency: cur, digits } = ctx;
   if (!L.show.totals) return;
   const itemCount = tx.items.reduce((s, i) => s + i.quantity, 0);
   rows.push({
@@ -205,37 +208,40 @@ function pushTotals(rows: DocRow[], ctx: ReceiptContext): void {
   rows.push({
     kind: 'pair',
     label: i18n.t('history.subtotal'),
-    value: money(cur, tx.subtotal),
+    value: money(cur, tx.subtotal, digits),
   });
   if (tx.discount > 0)
     rows.push({
       kind: 'pair',
       label: i18n.t('history.discount'),
-      value: `-${money(cur, tx.discount)}`,
+      value: `-${money(cur, tx.discount, digits)}`,
     });
   const taxLabel = taxLineLabel(tx.taxRate);
   rows.push({
     kind: 'pair',
     label: `${taxLabel}:`,
-    value: money(cur, tx.tax),
+    value: money(cur, tx.tax, digits),
   });
   rows.push({
     kind: 'pair',
     label: i18n.t('history.totalPaid'),
-    value: money(cur, tx.total),
+    value: money(cur, tx.total, digits),
     style: 'large',
     boxed: true,
   });
   if (tx.discount > 0)
     rows.push({
       kind: 'center',
-      text: `${i18n.t('history.savings')} ${money(cur, tx.discount)}`,
+      text: `${i18n.t('history.savings')} ${money(cur, tx.discount, digits)}`,
       style: 'bold',
     });
 }
 
 /** How it was paid: method, split breakdown, change given, points earned. */
-function pushPayment(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptContext): void {
+function pushPayment(
+  rows: DocRow[],
+  { tx, layout: L, currency: cur, digits }: ReceiptContext,
+): void {
   const S = L.show;
   if (S.paymentDetails) {
     rows.push({
@@ -246,7 +252,11 @@ function pushPayment(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptCo
     });
     if (tx.payments && tx.payments.length > 1) {
       for (const p of tx.payments) {
-        rows.push({ kind: 'pair', label: `  ${payLabel(p.method)}`, value: money(cur, p.amount) });
+        rows.push({
+          kind: 'pair',
+          label: `  ${payLabel(p.method)}`,
+          value: money(cur, p.amount, digits),
+        });
       }
     }
   }
@@ -257,12 +267,12 @@ function pushPayment(rows: DocRow[], { tx, layout: L, currency: cur }: ReceiptCo
     rows.push({
       kind: 'pair',
       label: i18n.t('history.cashPaid'),
-      value: money(cur, tx.cashPaid ?? 0),
+      value: money(cur, tx.cashPaid ?? 0, digits),
     });
     rows.push({
       kind: 'pair',
       label: i18n.t('history.cashChange'),
-      value: money(cur, tx.cashChange ?? 0),
+      value: money(cur, tx.cashChange ?? 0, digits),
       style: 'bold',
     });
   }
@@ -325,6 +335,7 @@ export function buildReceiptDoc(
     settings,
     layout: resolveCustomerLayout(layout, printerConfig),
     currency: settings.currency,
+    digits: currencyDigits(settings),
     date: new Date(tx.date),
   };
   const rows: DocRow[] = [];

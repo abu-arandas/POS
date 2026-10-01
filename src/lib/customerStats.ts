@@ -5,6 +5,7 @@
 // deterministic, like dashboardMetrics next to it.
 
 import { Customer, SaleTransaction } from '../types';
+import { DEFAULT_CURRENCY_DIGITS, roundMoney } from './money';
 
 /**
  * How a customer's history reads on their detail panel.
@@ -23,14 +24,17 @@ export interface CustomerStats {
  * it has not visited twice, and dividing by a phantom visit understates the
  * average basket for everyone who looks at it afterwards.
  */
-export function customerStats(transactions: SaleTransaction[]): CustomerStats {
+export function customerStats(
+  transactions: SaleTransaction[],
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): CustomerStats {
   const counted = transactions.filter((tx) => tx.status === 'completed' || tx.status === 'partial');
   const totalSpent = counted.reduce((sum, tx) => sum + tx.total - (tx.refundedAmount ?? 0), 0);
   const totalVisits = counted.length;
 
   return {
-    totalSpent: Number(totalSpent.toFixed(2)),
-    averageSpent: Number((totalVisits > 0 ? totalSpent / totalVisits : 0).toFixed(2)),
+    totalSpent: roundMoney(totalSpent, digits),
+    averageSpent: roundMoney(totalVisits > 0 ? totalSpent / totalVisits : 0, digits),
     totalVisits,
   };
 }

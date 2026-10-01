@@ -1,4 +1,5 @@
 import { SaleTransaction } from '../types';
+import { DEFAULT_CURRENCY_DIGITS, formatAmount } from './money';
 
 /**
  * Spreadsheets treat a leading =, +, -, @ (or a leading tab/CR, which Excel
@@ -45,19 +46,24 @@ export function downloadCsv(filename: string, csv: string): void {
 }
 
 /**
- * Flattens transactions into export rows (one per sale).
+ * Flattens transactions into export rows (one per sale). Money columns carry
+ * the store currency's fractional digits (`digits`, lib/money.ts), so a dinar
+ * export reads 12.500 and reconciles to the till and the receipts.
  */
-export function transactionsToCsvRows(txns: SaleTransaction[]): Array<Record<string, unknown>> {
+export function transactionsToCsvRows(
+  txns: SaleTransaction[],
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): Array<Record<string, unknown>> {
   return txns.map((t) => ({
     id: t.id,
     date: new Date(t.date).toISOString(),
     status: t.status,
     items: t.items.reduce((n, i) => n + i.quantity, 0),
-    subtotal: t.subtotal.toFixed(2),
-    discount: t.discount.toFixed(2),
-    tax: t.tax.toFixed(2),
-    total: t.total.toFixed(2),
-    refunded: (t.refundedAmount ?? 0).toFixed(2),
+    subtotal: formatAmount(t.subtotal, digits),
+    discount: formatAmount(t.discount, digits),
+    tax: formatAmount(t.tax, digits),
+    total: formatAmount(t.total, digits),
+    refunded: formatAmount(t.refundedAmount ?? 0, digits),
     payment_method: t.paymentMethod,
     customer: t.customerName ?? '',
     operator: t.operatorName ?? '',

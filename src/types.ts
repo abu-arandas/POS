@@ -279,7 +279,15 @@ export interface StoreSettings {
   branchName?: string; // optional branch/location label printed under the name
   taxNumber?: string; // VAT / tax registration number printed on receipts
   taxRate: number; // e.g., 8 for 8%
-  currency: string; // e.g., "$"
+  currency: string; // what prints before an amount, e.g., "$" (installs also keep an ISO code here)
+  // ISO 4217 code ("JOD", "USD"). It decides how many fractional digits money
+  // has — see lib/money.ts. Optional: installs that predate it have the code in
+  // `currency`, which the lookup reads as a fallback, so nothing needs migrating.
+  currencyCode?: string;
+  // Where the business is and which clock its days follow. Recorded at first-run
+  // setup; optional because installs that predate it never asked.
+  country?: string; // ISO 3166-1 alpha-2, e.g. "JO"
+  timezone?: string; // IANA zone, e.g. "Asia/Amman"
   loyaltyPointsRate: number; // points earned per unit of currency (e.g. 1 point per $1)
   loyaltyPointValue: number; // discount value per point (e.g. $0.05 per point)
 }

@@ -1,4 +1,5 @@
 import { SaleTransaction, RefundedItem } from '../types';
+import { DEFAULT_CURRENCY_DIGITS, roundMoney } from './money';
 import { orderItemKey, parseLineKey, refundedItemKey } from './variants';
 
 /**
@@ -138,12 +139,17 @@ function computePointsReversal(
  * prorated; a full return therefore refunds exactly the total. Earned points
  * are reversed proportionally; redeemed loyalty points are returned only on a
  * full refund (fractional point proration would be arbitrary).
+ *
+ * `digits` is the store currency's fractional digits (lib/money.ts). It must be
+ * the same figure checkout rounded the sale with, or a full return of a dinar
+ * sale would prorate to fils-less amounts and miss the total by a few fils.
  */
 export function computeRefund(
   tx: SaleTransaction,
   selection: Record<string, number>,
   loyaltyPointsRate: number,
   loyaltyPointValue?: number,
+  digits: number = DEFAULT_CURRENCY_DIGITS,
 ): RefundComputation | null {
   const remaining = refundableQuantities(tx);
   const { accepted: clean, lineSubtotal: refundLineSubtotal } = clampToRefundable(
@@ -172,7 +178,7 @@ export function computeRefund(
   // directly, so it is also immune to any rounding in the stored subtotal.
   const prorate = (lineSubtotal: number) => {
     if (tx.subtotal <= 0) return 0;
-    return Number((tx.total * (lineSubtotal / tx.subtotal)).toFixed(2));
+    return roundMoney(tx.total * (lineSubtotal / tx.subtotal), digits);
   };
   const priorRefundedSubtotal = tx.items.reduce(
     (sum, item) =>
@@ -183,7 +189,7 @@ export function computeRefund(
   const cumulativeAfter = fullyRefunded
     ? tx.total
     : prorate(priorRefundedSubtotal + refundLineSubtotal);
-  const refundAmount = Number((cumulativeAfter - cumulativeBefore).toFixed(2));
+  const refundAmount = roundMoney(cumulativeAfter - cumulativeBefore, digits);
 
   const pointsReversal = computePointsReversal(
     tx,

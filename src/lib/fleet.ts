@@ -4,6 +4,8 @@
 // multi-store backend is provisioned; these functions shape and fold whatever
 // rows come back.
 
+import { DEFAULT_CURRENCY_DIGITS, roundMoney } from './money';
+
 /**
  * How recently a store last checked in, derived from its heartbeat by
  * storeStatus.
@@ -70,7 +72,11 @@ export interface FleetSummary {
  * sums revenue/orders, counts online stores, and sorts online-first then by
  * revenue desc so the busiest live stores surface at the top.
  */
-export function summarizeFleet(rows: FleetStoreRow[], now: number = Date.now()): FleetSummary {
+export function summarizeFleet(
+  rows: FleetStoreRow[],
+  now: number = Date.now(),
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): FleetSummary {
   const stores: FleetStore[] = rows.map((r) => ({
     ...r,
     presence: storeStatus(r.lastSeenAt, now),
@@ -83,7 +89,10 @@ export function summarizeFleet(rows: FleetStoreRow[], now: number = Date.now()):
 
   return {
     stores,
-    totalRevenue: Number(stores.reduce((s, r) => s + r.revenue, 0).toFixed(2)),
+    totalRevenue: roundMoney(
+      stores.reduce((s, r) => s + r.revenue, 0),
+      digits,
+    ),
     totalOrders: stores.reduce((s, r) => s + r.orders, 0),
     onlineCount: stores.filter((s) => s.presence === 'online').length,
     storeCount: stores.length,

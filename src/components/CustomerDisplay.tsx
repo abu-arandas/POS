@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../stores/settingsStore';
 import Logo from './Logo';
 
+import { currencyDigits, formatAmount } from '../lib/money';
 /**
  * The customer-facing display: a read-only mirror of the register, rendered on
  * a second monitor or tablet.
@@ -43,6 +44,10 @@ export function CustomerDisplay() {
     tax: 0,
     total: 0,
   });
+  // The register's digits win over this window's own settings: the display shows
+  // the sale as the register rang it up, and a payload carries everything needed
+  // to do that — including how many fractional digits its amounts have.
+  const fmtAmount = (n: number) => formatAmount(n, cfdData.digits ?? currencyDigits(settings));
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [time, setTime] = useState(() =>
@@ -136,7 +141,7 @@ export function CustomerDisplay() {
                   <span>Total Paid:</span>
                   <span className="font-bold text-zinc-100">
                     {cfdData.currency}
-                    {(cfdData.paidAmount ?? cfdData.total).toFixed(2)}
+                    {fmtAmount(cfdData.paidAmount ?? cfdData.total)}
                   </span>
                 </div>
                 {cfdData.changeDue !== undefined && cfdData.changeDue > 0 && (
@@ -144,7 +149,7 @@ export function CustomerDisplay() {
                     <span>Change Returned:</span>
                     <span className="font-bold">
                       {cfdData.currency}
-                      {cfdData.changeDue.toFixed(2)}
+                      {fmtAmount(cfdData.changeDue)}
                     </span>
                   </div>
                 )}
@@ -270,12 +275,12 @@ export function CustomerDisplay() {
                       <div className="text-end shrink-0">
                         <span className="font-mono text-base font-bold text-zinc-100 block num">
                           {cfdData.currency}
-                          {item.totalPrice.toFixed(2)}
+                          {fmtAmount(item.totalPrice)}
                         </span>
                         {item.quantity > 1 && (
                           <span className="font-mono text-[11px] text-zinc-500">
                             @{cfdData.currency}
-                            {item.unitPrice.toFixed(2)}
+                            {fmtAmount(item.unitPrice)}
                           </span>
                         )}
                       </div>
@@ -296,7 +301,7 @@ export function CustomerDisplay() {
                       <span>Subtotal:</span>
                       <span className="text-zinc-200">
                         {cfdData.currency}
-                        {cfdData.subtotal.toFixed(2)}
+                        {fmtAmount(cfdData.subtotal)}
                       </span>
                     </div>
                     {cfdData.discount > 0 && (
@@ -304,7 +309,7 @@ export function CustomerDisplay() {
                         <span>Discounts / Promos:</span>
                         <span>
                           -{cfdData.currency}
-                          {cfdData.discount.toFixed(2)}
+                          {fmtAmount(cfdData.discount)}
                         </span>
                       </div>
                     )}
@@ -313,7 +318,7 @@ export function CustomerDisplay() {
                         <span>Sales Tax:</span>
                         <span className="text-zinc-200">
                           {cfdData.currency}
-                          {cfdData.tax.toFixed(2)}
+                          {fmtAmount(cfdData.tax)}
                         </span>
                       </div>
                     )}
@@ -326,7 +331,7 @@ export function CustomerDisplay() {
                     </span>
                     <span className="font-mono font-extrabold text-4xl text-zinc-100 tracking-tight block num">
                       {cfdData.currency}
-                      {cfdData.total.toFixed(2)}
+                      {fmtAmount(cfdData.total)}
                     </span>
                   </div>
 

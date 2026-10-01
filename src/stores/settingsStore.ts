@@ -12,6 +12,12 @@ import {
 import { INITIAL_SETTINGS } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
 import { defaultReceiptLayout, defaultKitchenLayout } from '../lib/printing/receiptFormat';
+import {
+  BusinessProfile,
+  BusinessSetup,
+  profileFromTemplate,
+  resolveBusinessSetup,
+} from '../lib/businessProfile';
 import type { Locale } from '../lib/i18n';
 
 interface SettingsState {
@@ -52,6 +58,12 @@ interface SettingsState {
   cloudAdoptedFor: string;
   darkMode: boolean;
   language: Locale;
+  // What kind of business this terminal runs and which optional modules (tables,
+  // kitchen, QR menu) it has switched on — see lib/businessProfile.ts.
+  businessProfile: BusinessProfile;
+  // False on a fresh production install until first-run setup has been completed.
+  // Installs that predate it are marked complete on load, never sent through it.
+  onboardingComplete: boolean;
 
   setSettings: (settings: StoreSettings) => void;
   setPrinterConfig: (config: PrinterConfig) => void;
@@ -68,6 +80,9 @@ interface SettingsState {
   setCloudAdoptedFor: (url: string) => void;
   setDarkMode: (darkMode: boolean) => void;
   setLanguage: (lang: Locale) => void;
+  setBusinessProfile: (profile: BusinessProfile) => void;
+  /** Ends first-run setup: stores the business's identity and profile in one write. */
+  completeOnboarding: (settings: StoreSettings, profile: BusinessProfile) => void;
 }
 
 /**
@@ -81,15 +96,31 @@ export const DEFAULT_SETTINGS: StoreSettings =
   import.meta.env.DEV || import.meta.env.MODE === 'test'
     ? INITIAL_SETTINGS
     : {
-        storeName: 'SJ Grill',
+        // Neutral on purpose. A fresh install used to be branded as one
+        // particular restaurant and set to one particular currency; first-run
+        // setup (components/Onboarding.tsx) now asks for both, so the values
+        // here are only what "Reset to defaults" falls back to.
+        storeName: '',
         storeAddress: '',
         storePhone: '',
         storeLogo: '',
         taxRate: 0,
-        currency: 'JOD',
+        currency: '$',
+        currencyCode: 'USD',
         loyaltyPointsRate: 0,
         loyaltyPointValue: 0,
       };
+
+/**
+ * Where a terminal's business setup starts. The dev/test build ships the demo
+ * restaurant (see data/seedData.ts), so it starts configured as one; a
+ * production install starts as general retail and un-onboarded, and is walked
+ * through setup before anything else.
+ */
+export const INITIAL_BUSINESS_SETUP: BusinessSetup =
+  import.meta.env.DEV || import.meta.env.MODE === 'test'
+    ? { businessProfile: profileFromTemplate('restaurant'), onboardingComplete: true }
+    : { businessProfile: profileFromTemplate('general-retail'), onboardingComplete: false };
 
 /**
  * Printer settings a store starts with: an 80mm system printer that prints
@@ -162,6 +193,8 @@ export const useSettingsStore = create<SettingsState>()(
       // rehydrate and the toggle still switches freely.
       darkMode: true,
       language: 'en',
+      businessProfile: INITIAL_BUSINESS_SETUP.businessProfile,
+      onboardingComplete: INITIAL_BUSINESS_SETUP.onboardingComplete,
 
       setSettings: (settings) => set({ settings }),
       setPrinterConfig: (printerConfig) => set({ printerConfig }),
@@ -185,6 +218,9 @@ export const useSettingsStore = create<SettingsState>()(
         set({ darkMode });
       },
       setLanguage: (language) => set({ language }),
+      setBusinessProfile: (businessProfile) => set({ businessProfile }),
+      completeOnboarding: (settings, businessProfile) =>
+        set({ settings, businessProfile, onboardingComplete: true }),
     }),
     {
       name: 'pos-settings-storage',
@@ -219,6 +255,13 @@ export const useSettingsStore = create<SettingsState>()(
           };
         }
         if (!p.kitchenLayout) merged.kitchenLayout = defaultKitchenLayout();
+
+        // Installs from before business profiles have no profile on disk. They
+        // are already in use, so they are not sent through first-run setup, and
+        // they keep the restaurant screens they have always had.
+        const setup = resolveBusinessSetup(persisted, INITIAL_BUSINESS_SETUP);
+        merged.businessProfile = setup.businessProfile;
+        merged.onboardingComplete = setup.onboardingComplete;
 
         // A restored 'connected' has to be re-earned, not inherited.
         //

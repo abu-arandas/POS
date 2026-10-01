@@ -61,11 +61,23 @@ import { broadcastCfdUpdate } from '../lib/cfdChannel';
 import { playErrorSound, playSuccessChime } from '../lib/audioFeedback';
 import { cartLineKey } from './register/useRegisterCart';
 
+import { useMoney } from '../lib/useMoney';
+import { isModuleEnabled } from '../lib/businessProfile';
+/**
+ * What one unit of a cart line costs the customer: the product's (or variant's)
+ * price plus whatever the chosen modifiers add. This is the price the cart bills
+ * with, so anything that shows a line to the customer must use it too.
+ */
+const lineUnitPrice = (line: Pick<RegisterCartLine, 'product' | 'variant' | 'modifiers'>): number =>
+  variantPrice(line.product, line.variant) + calculateModifierPriceDelta(line.modifiers);
+
 /**
  * The register screen: product grid, cart, discounts, held orders, and the
  * checkout flow through payment to receipt. The app's primary screen.
  */
 export default function Register() {
+  const { round: roundAmt, amount: fmtAmount, digits: moneyDigits } = useMoney();
+
   const { t } = useTranslation();
   const customers = useCustomerStore((s) => s.customers);
   const handleAddCustomer = useCustomerStore((s) => s.handleAddCustomer);
@@ -74,6 +86,8 @@ export default function Register() {
   const scannerConfig = useSettingsStore((s) => s.scannerConfig);
   const emailTemplate = useSettingsStore((s) => s.emailTemplate);
   const kitchenStations = useSettingsStore((s) => s.kitchenStations);
+  // Kitchen tickets are a restaurant module: a retail terminal never prints one.
+  const kitchenEnabled = useSettingsStore((s) => isModuleEnabled(s.businessProfile, 'kitchen'));
   const receiptLayout = useSettingsStore((s) => s.receiptLayout);
   const kitchenLayout = useSettingsStore((s) => s.kitchenLayout);
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -85,6 +99,13 @@ export default function Register() {
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
+  // The tab currently being paid for. When set, the payment modal is settling a
+  // bill rather than ringing up the cart, and completion routes through
+  // settleTab — which reads the tab's own lines, not the cart's.
+  const [settlingTab, setSettlingTab] = useState<Tab | null>(null);
+  // What the payment modal has to cover when it is settling a tab: that tab's own
+  // bill, not the cart (which may already hold the next table's order).
+  const settlingTotal = settlingTab ? tabTotal(settlingTab, settings) : undefined;
   const {
     cart,
     setCart,
@@ -110,7 +131,9 @@ export default function Register() {
     updateCartQty,
     removeFromCart,
     clearCart,
-  } = useRegisterCart(settings);
+  } = useRegisterCart(settings, settlingTotal);
+  // The one amount a payment must cover: the settled tab's bill, else the cart.
+  const payableTotal = settlingTotal ?? totalAmount;
   const [checkoutModalOpen, setCheckoutModalOpen] = useState<boolean>(false);
   const [addCustomerOpen, setAddCustomerOpen] = useState<boolean>(false);
   const [receiptModalOpen, setReceiptModalOpen] = useState<boolean>(false);
@@ -137,10 +160,6 @@ export default function Register() {
 
   const [heldModalOpen, setHeldModalOpen] = useState(false);
   const [tabsModalOpen, setTabsModalOpen] = useState(false);
-  // The tab currently being paid for. When set, the payment modal is settling a
-  // bill rather than ringing up the cart, and completion routes through
-  // settleTab — which reads the tab's own lines, not the cart's.
-  const [settlingTab, setSettlingTab] = useState<Tab | null>(null);
   // One clock for the tab list's age column, ticking only while it is open.
   const [tabsNow, setTabsNow] = useState(() => Date.now());
   const [scanFeedback, setScanFeedback] = useState<{ ok: boolean; text: string } | null>(null);
@@ -176,14 +195,18 @@ export default function Register() {
             : 'idle',
       storeName: settings.storeName,
       currency: settings.currency,
+      digits: moneyDigits,
       items: cart.map((line) => ({
         id: cartLineKey(line),
         name: line.product.name,
         variantName: line.variant ? variantLabel(line.product, line.variant) : undefined,
         modifiers: line.modifiers?.map((m) => m.optionName),
         quantity: line.quantity,
-        unitPrice: variantPrice(line.product, line.variant),
-        totalPrice: Number((variantPrice(line.product, line.variant) * line.quantity).toFixed(2)),
+        // The same unit price the cart charges: base (or variant) price PLUS the
+        // chosen modifiers. Without the modifiers the display's lines stopped
+        // adding up to its own subtotal whenever an add-on had a price.
+        unitPrice: lineUnitPrice(line),
+        totalPrice: roundAmt(lineUnitPrice(line) * line.quantity),
       })),
       subtotal,
       discount: discountAmount,
@@ -202,6 +225,8 @@ export default function Register() {
     totalAmount,
     settings.storeName,
     settings.currency,
+    moneyDigits,
+    roundAmt,
     checkoutModalOpen,
     receiptModalOpen,
     activeReceipt,
@@ -445,12 +470,12 @@ export default function Register() {
         ? t('register.discardEmptyTabConfirm', { label: tab.label })
         : t('register.discardTabConfirm', {
             label: tab.label,
-            amount: `${settings.currency}${total.toFixed(2)}`,
+            amount: `${settings.currency}${fmtAmount(total)}`,
           });
       if (!(await askConfirmation(message))) return;
       useTabStore.getState().discardTab(tab.id);
     },
-    [settings, t],
+    [settings, t, fmtAmount],
   );
 
   // Ticks the tab list's age column, and only while that list is on screen.
@@ -475,12 +500,12 @@ export default function Register() {
     () => splitPayments.reduce((s, p) => s + (p.amount || 0), 0),
     [splitPayments],
   );
-  const splitRemaining = Number((totalAmount - splitPaidTotal).toFixed(2));
+  const splitRemaining = roundAmt(payableTotal - splitPaidTotal);
 
   const addSplitPayment = useCallback(() => {
     const remaining = Math.max(0, splitRemaining);
-    setSplitPayments((prev) => [...prev, { method: 'cash', amount: Number(remaining.toFixed(2)) }]);
-  }, [splitRemaining]);
+    setSplitPayments((prev) => [...prev, { method: 'cash', amount: roundAmt(remaining) }]);
+  }, [splitRemaining, roundAmt]);
   const updateSplitPayment = useCallback(
     (idx: number, patch: Partial<Payment>) =>
       setSplitPayments((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p))),
@@ -613,7 +638,7 @@ export default function Register() {
         }
       }
 
-      if (!printerConfig.kitchenTicketOnCheckout) return;
+      if (!kitchenEnabled || !printerConfig.kitchenTicketOnCheckout) return;
       /*
         Pre-computed product map to change O(N^2) category lookups in the kitchen
         ticket loop into O(N) map build + O(1) loop lookups.
@@ -653,6 +678,7 @@ export default function Register() {
     settings,
     printerConfig,
     kitchenStations,
+    kitchenEnabled,
     receiptLayout,
     kitchenLayout,
     clearCart,
@@ -735,7 +761,9 @@ export default function Register() {
   const receiptActionsArray = useMemo(
     () => [
       { icon: Printer, label: t('register.print'), onClick: handlePrintActiveReceipt },
-      { icon: ChefHat, label: t('register.kitchen'), onClick: handlePrintKitchenTicket },
+      ...(kitchenEnabled
+        ? [{ icon: ChefHat, label: t('register.kitchen'), onClick: handlePrintKitchenTicket }]
+        : []),
       {
         icon: Share2,
         label: t('register.share'),
@@ -761,6 +789,7 @@ export default function Register() {
       t,
       handlePrintActiveReceipt,
       handlePrintKitchenTicket,
+      kitchenEnabled,
       activeReceipt,
       settings,
       customers,
@@ -872,7 +901,7 @@ export default function Register() {
             open
             dialogRef={checkoutModalRef}
             currency={settings.currency}
-            totalAmount={settlingTab ? tabTotal(settlingTab, settings) : totalAmount}
+            totalAmount={payableTotal}
             paymentMethods={paymentMethodsArray}
             paymentMethod={paymentMethod}
             onSelectMethod={setPaymentMethod}
@@ -880,9 +909,7 @@ export default function Register() {
             onToggleSplit={() => {
               setSplitMode((m) => !m);
               if (!splitMode && splitPayments.length === 0) {
-                setSplitPayments([
-                  { method: 'cash', amount: Number(Math.max(0, totalAmount).toFixed(2)) },
-                ]);
+                setSplitPayments([{ method: 'cash', amount: roundAmt(Math.max(0, payableTotal)) }]);
               }
             }}
             splitPayments={splitPayments}

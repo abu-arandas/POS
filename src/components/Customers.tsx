@@ -23,11 +23,14 @@ import { syncToCloudIfEnabled } from '../lib/sync';
 import { useModalA11y } from '../lib/useModalA11y';
 import { useTranslation } from 'react-i18next';
 
+import { useMoney } from '../lib/useMoney';
 /**
  * Customer book screen: search, add, edit and delete customers, and review
  * loyalty balances.
  */
 export default function Customers() {
+  const { amount: fmtAmount, digits } = useMoney();
+
   const { t } = useTranslation();
   const { customers, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer } =
     useCustomerStore();
@@ -67,8 +70,8 @@ export default function Customers() {
   );
 
   const activeCustomerStats = useMemo(
-    () => customerStats(activeCustomerTransactions),
-    [activeCustomerTransactions],
+    () => customerStats(activeCustomerTransactions, digits),
+    [activeCustomerTransactions, digits],
   );
 
   const sortedAndFilteredCustomers = useMemo(
@@ -398,7 +401,7 @@ export default function Customers() {
                   </span>
                   <p className="font-mono num font-semibold text-sm sm:text-base text-foreground">
                     {settings.currency}
-                    {activeCustomerStats.totalSpent.toFixed(2)}
+                    {fmtAmount(activeCustomerStats.totalSpent)}
                   </p>
                 </div>
                 <div className="bg-secondary/40 border border-border rounded-lg p-3 text-center">
@@ -415,7 +418,7 @@ export default function Customers() {
                   </span>
                   <p className="font-mono num font-semibold text-base sm:text-lg text-foreground">
                     {settings.currency}
-                    {activeCustomerStats.averageSpent.toFixed(2)}
+                    {fmtAmount(activeCustomerStats.averageSpent)}
                   </p>
                 </div>
               </div>
@@ -449,7 +452,7 @@ export default function Customers() {
                           <div className="text-end">
                             <span className="font-mono num font-semibold text-xs text-foreground block">
                               {settings.currency}
-                              {tx.total.toFixed(2)}
+                              {fmtAmount(tx.total)}
                             </span>
                             <span
                               className={`text-[9px] uppercase font-semibold px-1 py-0.2 rounded border ${

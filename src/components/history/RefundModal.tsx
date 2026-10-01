@@ -11,6 +11,7 @@ import { usePinAttemptStore } from '../../stores/pinAttemptStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useModalA11y } from '../../lib/useModalA11y';
 
+import { useMoney } from '../../lib/useMoney';
 // Single throttle bucket for the manager-override PIN (it is not tied to one
 // account — any manager/admin PIN authorizes, so the guesser names no user).
 const OVERRIDE_THROTTLE_KEY = '__manager_override__';
@@ -43,6 +44,8 @@ export function RefundModal({
   onClose,
   onCommit,
 }: RefundModalProps) {
+  const { amount: fmtAmount, digits } = useMoney();
+
   const { t } = useTranslation();
   const pinAttempts = usePinAttemptStore((s) => s.attempts);
   const registerPinFailure = usePinAttemptStore((s) => s.registerFailure);
@@ -130,6 +133,7 @@ export function RefundModal({
       selection,
       settings.loyaltyPointsRate,
       settings.loyaltyPointValue,
+      digits,
     );
     if (!computed) return null;
     return (
@@ -147,14 +151,14 @@ export function RefundModal({
           <span>{t('history.totalRefundedAfter')}</span>
           <span className="font-mono text-foreground">
             {settings.currency}
-            {computed.refundedAmount.toFixed(2)}
+            {fmtAmount(computed.refundedAmount)}
           </span>
         </div>
         <div className="flex justify-between text-sm font-semibold text-foreground pt-1.5 border-t border-border">
           <span>{t('history.refundAmount')}</span>
           <span className="text-foreground font-mono">
             {settings.currency}
-            {computed.refundAmount.toFixed(2)}
+            {fmtAmount(computed.refundAmount)}
           </span>
         </div>
       </div>
@@ -215,7 +219,7 @@ export function RefundModal({
                       )}
                       <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
                         {settings.currency}
-                        {(item.total / item.quantity).toFixed(2)} {t('history.each')}
+                        {fmtAmount(item.total / item.quantity)} {t('history.each')}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 bg-background rounded-lg p-0.5 border border-border">

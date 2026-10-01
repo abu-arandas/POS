@@ -5,6 +5,7 @@ import type { Product, ProductVariant, StoreSettings } from '../../types';
 import { ModalShell } from '../shared/ModalShell';
 import { availableStock, optionSignature, variantLabel, variantPrice } from '../../lib/variants';
 
+import { useMoney } from '../../lib/useMoney';
 export interface VariantPickerModalProps {
   product: Product;
   settings: StoreSettings;
@@ -30,6 +31,8 @@ export function VariantPickerModal({
   onPick,
   onClose,
 }: VariantPickerModalProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { t } = useTranslation();
   const modalRef = useRef<HTMLDivElement>(null);
   const types = useMemo(
@@ -148,7 +151,7 @@ export function VariantPickerModal({
         <div className="min-w-0">
           <p className="font-mono font-semibold text-foreground text-sm num">
             {settings.currency}
-            {variantPrice(product, chosen).toFixed(2)}
+            {fmtAmount(variantPrice(product, chosen))}
           </p>
           <p className="text-[10px] text-muted-foreground truncate">
             {chosen

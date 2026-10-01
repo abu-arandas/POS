@@ -7,6 +7,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { playSuccessChime } from '../../lib/audioFeedback';
 import { notify } from '../../lib/utils/ui';
 import { ModalShell } from '../shared/ModalShell';
+import { useMoney } from '../../lib/useMoney';
 
 interface CashMovementModalProps {
   initialType?: CashMovementType;
@@ -39,6 +40,8 @@ export function CashMovementModal({
   settings,
   onClose,
 }: CashMovementModalProps) {
+  const { step: moneyStep } = useMoney();
+
   const { t } = useTranslation();
   const [type, setType] = useState<CashMovementType>(initialType);
   const [amount, setAmount] = useState('');
@@ -161,7 +164,7 @@ export function CashMovementModal({
               </span>
               <input
                 type="number"
-                step="0.01"
+                step={moneyStep}
                 min="0.01"
                 required
                 autoFocus

@@ -1,4 +1,5 @@
 import { PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus } from '../types';
+import { DEFAULT_CURRENCY_DIGITS, roundMoney } from './money';
 import { nonNegative } from './utils/validation';
 import { lineKey } from './variants';
 
@@ -22,13 +23,16 @@ export function canTransition(from: PurchaseOrderStatus, to: PurchaseOrderStatus
 }
 
 /**
- * Total buy value of the order (sum of qty × unit cost), rounded to cents.
+ * Total buy value of the order (sum of qty × unit cost), rounded to the store
+ * currency's smallest unit (`digits`, lib/money.ts).
  */
-export function poTotal(po: Pick<PurchaseOrder, 'lines'>): number {
-  return Number(
-    po.lines
-      .reduce((sum, l) => sum + nonNegative(l.quantity) * nonNegative(l.unitCost), 0)
-      .toFixed(2),
+export function poTotal(
+  po: Pick<PurchaseOrder, 'lines'>,
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): number {
+  return roundMoney(
+    po.lines.reduce((sum, l) => sum + nonNegative(l.quantity) * nonNegative(l.unitCost), 0),
+    digits,
   );
 }
 
@@ -48,7 +52,10 @@ export function poUnitCount(po: Pick<PurchaseOrder, 'lines'>): number {
  * orders against two counts, and merging them would receive both quantities
  * into whichever size came first.
  */
-export function normalizePoLines(lines: PurchaseOrderLine[]): PurchaseOrderLine[] {
+export function normalizePoLines(
+  lines: PurchaseOrderLine[],
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): PurchaseOrderLine[] {
   const merged = new Map<string, PurchaseOrderLine>();
   for (const line of lines) {
     const quantity = Math.floor(nonNegative(line.quantity));
@@ -61,8 +68,9 @@ export function normalizePoLines(lines: PurchaseOrderLine[]): PurchaseOrderLine[
       existing.quantity += quantity;
       // Keep the merged line's total value equal to the sum of the original
       // lines instead of silently discarding all but the last unit cost.
-      existing.unitCost = Number(
-        ((previousCost + unitCost * quantity) / existing.quantity).toFixed(2),
+      existing.unitCost = roundMoney(
+        (previousCost + unitCost * quantity) / existing.quantity,
+        digits,
       );
     } else {
       merged.set(key, { ...line, quantity, unitCost });

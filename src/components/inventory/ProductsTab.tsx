@@ -14,6 +14,7 @@ import { askConfirmation } from '../../lib/utils/ui';
 import { safeImageUrl } from '../../lib/imageUrl';
 import { useSettingsStore } from '../../stores/settingsStore';
 
+import { useMoney } from '../../lib/useMoney';
 type ProductSortField = 'name' | 'stock' | 'price' | 'sku';
 type StockFilter = 'all' | 'low' | 'out';
 
@@ -60,6 +61,8 @@ export function InventoryProductsTab({
   onEditProduct,
   onDeleteProduct,
 }: InventoryProductsTabProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const showProductImages = useSettingsStore((s) => s.showProductImages);
   return (
     <motion.div
@@ -275,11 +278,11 @@ export function InventoryProductsTab({
                       </td>
                       <td className="p-3 font-mono font-semibold text-foreground text-end num">
                         {settings.currency}
-                        {prod.price.toFixed(2)}
+                        {fmtAmount(prod.price)}
                       </td>
                       <td className="p-3 font-mono text-muted-foreground text-end num">
                         {settings.currency}
-                        {prod.cost.toFixed(2)}
+                        {fmtAmount(prod.cost)}
                       </td>
                       <td className="p-3 text-end font-mono font-medium">
                         <span

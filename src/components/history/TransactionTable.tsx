@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { SaleTransaction } from '../../types';
 import { PaymentIcon } from './PaymentIcon';
 
+import { useMoney } from '../../lib/useMoney';
 export interface TransactionTableProps {
   /** Rows after filtering, used for the select-all state and the footer totals. */
   filteredTransactions: SaleTransaction[];
@@ -28,6 +29,8 @@ export function TransactionTable({
   onToggleTx,
   onToggleSelectAll,
 }: TransactionTableProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { t } = useTranslation();
 
   return (
@@ -136,7 +139,7 @@ export function TransactionTable({
                         </td>
                         <td className="p-3 text-end font-mono font-semibold text-foreground text-sm">
                           {currency}
-                          {tx.total.toFixed(2)}
+                          {fmtAmount(tx.total)}
                         </td>
                         <td className="p-3">
                           <div className="flex items-center justify-center gap-1.5 font-mono uppercase text-[10px] text-muted-foreground bg-secondary/60 py-0.5 px-2 rounded-md border border-border">
@@ -171,13 +174,13 @@ export function TransactionTable({
         </span>
         <span className="font-semibold text-foreground">
           {t('history.totalValue')} {currency}
-          {filteredTransactions
-            .reduce(
+          {fmtAmount(
+            filteredTransactions.reduce(
               (sum, tx) =>
                 sum + (tx.status === 'refunded' ? 0 : tx.total - (tx.refundedAmount ?? 0)),
               0,
-            )
-            .toFixed(2)}
+            ),
+          )}
         </span>
       </div>
     </div>

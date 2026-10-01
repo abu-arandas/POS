@@ -6,6 +6,7 @@ import { ModalShell } from '../shared/ModalShell';
 import { variantPrice } from '../../lib/variants';
 import { calculateModifierPriceDelta, validateModifierSelections } from '../../lib/modifiers';
 
+import { useMoney } from '../../lib/useMoney';
 /** Props for {@link ModifierPickerModal}. */
 export interface ModifierPickerModalProps {
   product: Product;
@@ -29,6 +30,8 @@ export function ModifierPickerModal({
   onConfirm,
   onClose,
 }: ModifierPickerModalProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { t } = useTranslation();
   const modalRef = useRef<HTMLDivElement>(null);
   // Memoised because it is a useMemo dependency below: `product.modifierGroups
@@ -189,9 +192,9 @@ export function ModifierPickerModal({
                       </div>
                       <span className="text-[11px] font-mono num opacity-80">
                         {opt.priceDelta > 0
-                          ? `+${settings.currency}${opt.priceDelta.toFixed(2)}`
+                          ? `+${settings.currency}${fmtAmount(opt.priceDelta)}`
                           : opt.priceDelta < 0
-                            ? `-${settings.currency}${Math.abs(opt.priceDelta).toFixed(2)}`
+                            ? `-${settings.currency}${fmtAmount(Math.abs(opt.priceDelta))}`
                             : t('register.included')}
                       </span>
                     </button>
@@ -210,7 +213,7 @@ export function ModifierPickerModal({
             </span>
             <span className="text-lg font-mono num font-semibold text-foreground">
               {settings.currency}
-              {totalPrice.toFixed(2)}
+              {fmtAmount(totalPrice)}
             </span>
           </div>
 

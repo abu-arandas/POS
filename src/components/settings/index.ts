@@ -1,5 +1,7 @@
 export { ProfilePanel } from './ProfilePanel';
 export type { ProfilePanelProps } from './ProfilePanel';
+export { BusinessProfilePanel } from './BusinessProfilePanel';
+export type { BusinessProfilePanelProps } from './BusinessProfilePanel';
 export { PrinterPanel } from './PrinterPanel';
 export type { PrinterPanelProps } from './PrinterPanel';
 export { KitchenPrinterPanel } from './KitchenPrinterPanel';

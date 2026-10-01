@@ -11,9 +11,13 @@
 // screen's business, and none of them belong in a number.
 
 import { Category, Product, PurchaseOrder, SaleTransaction } from '../types';
+import { DEFAULT_CURRENCY_DIGITS, roundMoney } from './money';
 import { tenderBreakdown } from './payments';
 
-const round = (value: number) => Number(value.toFixed(2));
+// Every aggregate below takes the store currency's `digits` (lib/money.ts), so a
+// dinar store's dashboard rounds to fils like its till does. Defaulting to two
+// keeps every existing two-decimal caller unchanged.
+const round = (value: number, digits: number) => roundMoney(value, digits);
 
 /**
  * What a sale contributes to revenue once anything returned is taken back off.
@@ -84,6 +88,7 @@ export function computeKpis(
   todayTransactions: SaleTransaction[],
   allTransactions: SaleTransaction[],
   products: Product[],
+  digits: number = DEFAULT_CURRENCY_DIGITS,
 ): DashboardKpis {
   const revenueToday = todayTransactions.reduce((sum, tx) => sum + netRevenue(tx), 0);
   const ordersToday = todayTransactions.length;
@@ -96,13 +101,13 @@ export function computeKpis(
   const totalRevenue = allTransactions.reduce((sum, tx) => sum + netRevenue(tx), 0);
 
   return {
-    revenueToday: round(revenueToday),
+    revenueToday: round(revenueToday, digits),
     ordersToday,
-    aovToday: round(ordersToday > 0 ? revenueToday / ordersToday : 0),
-    profitToday: round(profitToday),
-    discountsToday: round(discountsToday),
-    returnedToday: round(returnedToday),
-    avgDailyRevenue: round(totalRevenue / Math.max(1, tradingDays.size)),
+    aovToday: round(ordersToday > 0 ? revenueToday / ordersToday : 0, digits),
+    profitToday: round(profitToday, digits),
+    discountsToday: round(discountsToday, digits),
+    returnedToday: round(returnedToday, digits),
+    avgDailyRevenue: round(totalRevenue / Math.max(1, tradingDays.size), digits),
     // "Low" is at or below the threshold but still sellable. Out-of-stock is a
     // different condition and is surfaced separately, so it is excluded here
     // rather than folded in.
@@ -131,6 +136,7 @@ export function buildTrendBuckets(
   transactions: SaleTransaction[],
   todayStart: number,
   buckets: number,
+  digits: number = DEFAULT_CURRENCY_DIGITS,
 ): TrendBucket[] {
   const byDay = new Map<string, TrendBucket>();
   const today = new Date(todayStart);
@@ -150,8 +156,8 @@ export function buildTrendBuckets(
 
   return [...byDay.values()].map((bucket) => ({
     ...bucket,
-    revenue: round(bucket.revenue),
-    profit: round(bucket.profit),
+    revenue: round(bucket.revenue, digits),
+    profit: round(bucket.profit, digits),
   }));
 }
 
@@ -173,7 +179,11 @@ export interface ProductSales {
  * often than it sold can therefore go negative, and is left that way rather than
  * clamped — a negative best-seller is a real signal about that product.
  */
-export function topProducts(transactions: SaleTransaction[], limit = 5): ProductSales[] {
+export function topProducts(
+  transactions: SaleTransaction[],
+  limit = 5,
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): ProductSales[] {
   const byProduct = new Map<string, ProductSales>();
 
   for (const tx of transactions) {
@@ -198,7 +208,7 @@ export function topProducts(transactions: SaleTransaction[], limit = 5): Product
   return [...byProduct.values()]
     .sort((a, b) => b.quantity - a.quantity)
     .slice(0, limit)
-    .map((entry) => ({ ...entry, revenue: round(entry.revenue) }));
+    .map((entry) => ({ ...entry, revenue: round(entry.revenue, digits) }));
 }
 
 /**
@@ -209,6 +219,7 @@ export function topProducts(transactions: SaleTransaction[], limit = 5): Product
 export function categoryRevenue(
   transactions: SaleTransaction[],
   products: Product[],
+  digits: number = DEFAULT_CURRENCY_DIGITS,
 ): Array<{ categoryId: string; revenue: number }> {
   const categoryOf = new Map(products.map((product) => [product.id, product.category]));
   const byCategory = new Map<string, number>();
@@ -221,7 +232,7 @@ export function categoryRevenue(
   }
 
   return [...byCategory.entries()]
-    .map(([categoryId, revenue]) => ({ categoryId, revenue: round(revenue) }))
+    .map(([categoryId, revenue]) => ({ categoryId, revenue: round(revenue, digits) }))
     .sort((a, b) => b.revenue - a.revenue);
 }
 
@@ -247,6 +258,7 @@ export function categoryName(categoryId: string, categories: Category[]): string
  */
 export function paymentTotals(
   transactions: SaleTransaction[],
+  digits: number = DEFAULT_CURRENCY_DIGITS,
 ): Array<{ method: 'cash' | 'card' | 'mobile' | 'gift'; value: number }> {
   const totals: Record<'cash' | 'card' | 'mobile' | 'gift', number> = {
     cash: 0,
@@ -261,7 +273,7 @@ export function paymentTotals(
     // to attribute either way.
     const keptShare = tx.total > 0 ? netRevenue(tx) / tx.total : 0;
     if (keptShare <= 0) continue;
-    for (const [method, amount] of Object.entries(tenderBreakdown(tx))) {
+    for (const [method, amount] of Object.entries(tenderBreakdown(tx, digits))) {
       if (method in totals) {
         totals[method as keyof typeof totals] += amount * keptShare;
       }
@@ -269,7 +281,7 @@ export function paymentTotals(
   }
 
   return (Object.keys(totals) as Array<keyof typeof totals>)
-    .map((method) => ({ method, value: round(totals[method]) }))
+    .map((method) => ({ method, value: round(totals[method], digits) }))
     .filter((entry) => entry.value > 0);
 }
 
@@ -289,7 +301,10 @@ export interface OperatorSales {
  * rung up before operators were recorded still aggregate rather than each
  * becoming its own row.
  */
-export function operatorBreakdown(transactions: SaleTransaction[]): OperatorSales[] {
+export function operatorBreakdown(
+  transactions: SaleTransaction[],
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): OperatorSales[] {
   const byOperator = new Map<string, OperatorSales>();
 
   for (const tx of transactions) {
@@ -301,7 +316,7 @@ export function operatorBreakdown(transactions: SaleTransaction[]): OperatorSale
   }
 
   return [...byOperator.values()]
-    .map((entry) => ({ ...entry, revenue: round(entry.revenue) }))
+    .map((entry) => ({ ...entry, revenue: round(entry.revenue, digits) }))
     .sort((a, b) => b.revenue - a.revenue);
 }
 

@@ -6,6 +6,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { fetchFleetSummary } from '../lib/fleetClient';
 import { summarizeFleet, StorePresence } from '../lib/fleet';
 
+import { useMoney } from '../lib/useMoney';
 interface FleetBoardProps {
   orgId: string;
 }
@@ -28,6 +29,8 @@ const PRESENCE_BADGE: Record<StorePresence, string> = {
  * on any backend hiccup it renders an empty state rather than breaking.
  */
 export default function FleetBoard({ orgId }: FleetBoardProps) {
+  const { amount: fmtAmount, digits } = useMoney();
+
   const { t } = useTranslation();
   const settings = useSettingsStore((s) => s.settings);
   const [rows, setRows] = useState<Awaited<ReturnType<typeof fetchFleetSummary>>>([]);
@@ -69,7 +72,7 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
     };
   }, [orgId]);
 
-  const summary = useMemo(() => summarizeFleet(rows), [rows]);
+  const summary = useMemo(() => summarizeFleet(rows, undefined, digits), [rows, digits]);
   const cur = settings.currency;
 
   return (
@@ -118,7 +121,7 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
             </div>
             <p className="font-mono num font-semibold text-emerald-600 dark:text-emerald-400 text-2xl">
               {cur}
-              {summary.totalRevenue.toFixed(2)}
+              {fmtAmount(summary.totalRevenue)}
             </p>
           </div>
           <div className="bg-card border border-border rounded-xl p-5 shadow-2xs">
@@ -170,7 +173,7 @@ export default function FleetBoard({ orgId }: FleetBoardProps) {
                     <div className="text-end hidden sm:block">
                       <span className="font-mono num font-semibold text-foreground text-sm block">
                         {cur}
-                        {s.revenue.toFixed(2)}
+                        {fmtAmount(s.revenue)}
                       </span>
                       <span className="text-[11px] font-mono text-muted-foreground">
                         {s.orders} {t('fleet.ordersLabel')}

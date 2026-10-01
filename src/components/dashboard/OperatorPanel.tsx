@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import type { OperatorSales } from '../../lib/dashboardMetrics';
 
+import { useMoney } from '../../lib/useMoney';
 export interface OperatorPanelProps {
   /** Highest revenue first — the first row sets the bar scale. */
   rows: OperatorSales[];
@@ -12,6 +13,8 @@ export interface OperatorPanelProps {
 
 /** What each member of staff took over the range, as a ranked bar list. */
 export function OperatorPanel({ rows, currency }: OperatorPanelProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { t } = useTranslation();
 
   return (
@@ -44,7 +47,7 @@ export function OperatorPanel({ rows, currency }: OperatorPanelProps) {
                     <span className="text-xs font-medium text-foreground truncate">{op.name}</span>
                     <span className="font-mono font-semibold text-xs text-foreground">
                       {currency}
-                      {op.revenue.toFixed(2)}
+                      {fmtAmount(op.revenue)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2.5">

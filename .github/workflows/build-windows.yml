@@ -212,10 +212,12 @@ jobs:
           if-no-files-found: error
 
   publish-release:
-    # Every non-PR run on main publishes the generated installer. Signed builds
-    # are normal releases; unsigned builds are explicitly marked as pre-releases
-    # so electron-updater does not offer them to installed terminals. This keeps
-    # a push to main useful even before the repository's signing secrets exist.
+    # A non-PR run on main publishes the generated installer the first time its
+    # package.json version is seen; once `v<version>` exists, further pushes skip
+    # publishing without failing (see the tag check below). Signed builds are
+    # normal releases; unsigned builds are explicitly marked as pre-releases so
+    # electron-updater does not offer them to installed terminals. This keeps a
+    # push to main useful even before the repository's signing secrets exist.
     #
     # The ref check is what keeps `workflow_dispatch` from turning any branch or
     # tag into a customer-visible installer. Dispatch stays enabled -- it is the
@@ -241,6 +243,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
           SIGNED: ${{ needs.build-windows.outputs.signed }}
           SIGNING_MODE: ${{ needs.build-windows.outputs.signing_mode }}
         run: |
@@ -272,9 +275,26 @@ jobs:
             exit 1
           fi
           tag="v${version}"
+          # A release is cut by bumping package.json, not by every merge. Most
+          # pushes to main (docs, tests, dependency bumps) leave the version
+          # alone, so "this version is already released" is the normal state of
+          # the branch, not a failure: the build and verify jobs above already
+          # proved the commit, and failing here painted every such push red.
+          #
+          # A manual dispatch is the opposite signal. Someone asked for a
+          # release, so quietly publishing nothing would hide that the request
+          # was not honoured — that one stays a hard error.
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::Release $tag already exists. Bump the version in package.json — electron-updater compares application versions, not tags."
-            exit 1
+            if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+              echo "::error::Release $tag already exists, so this manual publish did nothing. Bump the version in package.json — electron-updater compares application versions, not tags."
+              exit 1
+            fi
+            echo "::notice::Release $tag already exists, so this push publishes nothing. Bump the version in package.json to ship a new release."
+            {
+              echo "## Release skipped"
+              echo "\`$tag\` is already published. Bump \`version\` in package.json to cut a new release."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
 
           checksums=$(cat release/SHA256SUMS.txt)

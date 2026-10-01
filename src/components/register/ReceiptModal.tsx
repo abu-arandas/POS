@@ -7,6 +7,7 @@ import type { PrinterConfig, ReceiptLayout, SaleTransaction, StoreSettings } fro
 import { resolveCustomerLayout } from '../../lib/printing/receiptFormat';
 import { safeImageUrl } from '../../lib/imageUrl';
 
+import { useMoney } from '../../lib/useMoney';
 /**
  * One button in the post-sale receipt modal — print, email, share — as an
  * icon, label and handler.
@@ -47,6 +48,8 @@ export function ReceiptModal({
   actions,
   onClose,
 }: ReceiptModalProps) {
+  const { amount: fmtAmount } = useMoney();
+
   const { t } = useTranslation();
   const resolvedLayout = resolveCustomerLayout(receiptLayout, printerConfig);
   const { show } = resolvedLayout;
@@ -162,14 +165,14 @@ export function ReceiptModal({
                         {show.priceColumn && (
                           <span className="shrink-0 font-bold num">
                             {settings.currency}
-                            {item.total.toFixed(2)}
+                            {fmtAmount(item.total)}
                           </span>
                         )}
                       </div>
                       {show.itemUnitPrice && item.quantity > 1 && (
                         <div className="text-[10px] opacity-60 ps-4">
                           @ {settings.currency}
-                          {item.price.toFixed(2)} {t('register.each')}
+                          {fmtAmount(item.price)} {t('register.each')}
                         </div>
                       )}
                     </div>
@@ -182,7 +185,7 @@ export function ReceiptModal({
                       <span>{t('register.subtotal').toUpperCase()}:</span>
                       <span className="num">
                         {settings.currency}
-                        {receipt.subtotal.toFixed(2)}
+                        {fmtAmount(receipt.subtotal)}
                       </span>
                     </div>
                     {receipt.discount > 0 && (
@@ -190,7 +193,7 @@ export function ReceiptModal({
                         <span>{t('register.discount').toUpperCase()}</span>
                         <span className="num">
                           -{settings.currency}
-                          {receipt.discount.toFixed(2)}
+                          {fmtAmount(receipt.discount)}
                         </span>
                       </div>
                     )}
@@ -204,20 +207,20 @@ export function ReceiptModal({
                       </span>
                       <span className="num">
                         {settings.currency}
-                        {receipt.tax.toFixed(2)}
+                        {fmtAmount(receipt.tax)}
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-900 dark:text-white font-bold pt-3 border-t border-slate-300 dark:border-slate-700 mt-2 text-sm">
                       <span>{t('register.totalPaid')}:</span>
                       <span className="num">
                         {settings.currency}
-                        {receipt.total.toFixed(2)}
+                        {fmtAmount(receipt.total)}
                       </span>
                     </div>
                     {receipt.discount > 0 && (
                       <div className="text-center font-bold text-amber-700 dark:text-amber-400 border border-dashed border-amber-400/50 rounded py-1 mt-2">
                         {t('register.youSaved')} {settings.currency}
-                        {receipt.discount.toFixed(2)}
+                        {fmtAmount(receipt.discount)}
                       </div>
                     )}
                   </div>
@@ -235,14 +238,14 @@ export function ReceiptModal({
                           <span>{t('register.cashTenderedReceipt')}:</span>
                           <span>
                             {settings.currency}
-                            {(receipt.cashPaid || 0).toFixed(2)}
+                            {fmtAmount(receipt.cashPaid || 0)}
                           </span>
                         </div>
                         <div className="flex justify-between text-slate-900 dark:text-white font-bold">
                           <span>{t('register.change')}:</span>
                           <span>
                             {settings.currency}
-                            {(receipt.cashChange || 0).toFixed(2)}
+                            {fmtAmount(receipt.cashChange || 0)}
                           </span>
                         </div>
                       </>

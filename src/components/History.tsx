@@ -21,6 +21,7 @@ import {
   TransactionTable,
   useHistoryFilters,
 } from './history/index';
+import { useMoney } from '../lib/useMoney';
 
 /**
  * Sale history screen: search past transactions, reprint receipts, and issue
@@ -30,6 +31,7 @@ import {
  * refund commit. Each region of the screen lives in components/history/.
  */
 export default function History() {
+  const { digits } = useMoney();
   const { t } = useTranslation();
   const { transactions, deleteTransactions } = useTransactionStore();
   const { settings, printerConfig, receiptLayout } = useSettingsStore();
@@ -135,7 +137,7 @@ export default function History() {
   };
 
   const exportCsv = () => {
-    const rows = transactionsToCsvRows(filteredTransactions);
+    const rows = transactionsToCsvRows(filteredTransactions, digits);
     downloadCsv(`transactions-${localDateKey()}.csv`, toCsv(rows));
   };
 

@@ -1,4 +1,5 @@
 import { UserAccount } from '../types';
+import { BusinessProfile, isScreenEnabled } from './businessProfile';
 
 /**
  * Every navigable screen in the app. Keyed by SCREEN_ROLES, so adding a
@@ -49,6 +50,21 @@ export const SCREEN_ROLES: Record<ScreenId, ReadonlyArray<UserAccount['role']>> 
  */
 export function isScreenAllowed(screen: ScreenId, role: UserAccount['role']): boolean {
   return SCREEN_ROLES[screen].includes(role);
+}
+
+/**
+ * Whether a screen is open to a role on a terminal running this business
+ * profile: the role must be allowed it AND the profile must offer it. This is
+ * what the sidebar, the mobile menu and the App-level render guard ask, so a
+ * retail terminal loses the Tables and Kitchen entries, their shortcuts and
+ * their routes together.
+ */
+export function isScreenAvailable(
+  screen: ScreenId,
+  role: UserAccount['role'],
+  profile: BusinessProfile,
+): boolean {
+  return isScreenAllowed(screen, role) && isScreenEnabled(screen, profile);
 }
 
 /**

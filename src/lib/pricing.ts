@@ -1,4 +1,5 @@
 import { StoreSettings } from '../types';
+import { CurrencySource, currencyDigits, roundMoney } from './money';
 import { nonNegative } from './utils/validation';
 
 /**
@@ -23,12 +24,17 @@ export function calculateOrderTotals(
   items: CheckoutItem[],
   discountType: 'none' | 'percentage' | 'fixed' | 'loyalty',
   discountValue: number,
-  settings: Pick<StoreSettings, 'taxRate' | 'loyaltyPointValue'>,
+  settings: Pick<StoreSettings, 'taxRate' | 'loyaltyPointValue'> & CurrencySource,
 ) {
+  // Every figure below rounds to the store currency's own precision — three
+  // digits for the dinar, none for the yen — not a fixed two.
+  const digits = currencyDigits(settings);
+  const round = (n: number) => roundMoney(n, digits);
+
   // Clamp price and quantity per line so a negative or non-finite value can
   // never subtract from the subtotal (which would yield a negative total).
-  const subtotal = Number(
-    items.reduce((sum, i) => sum + nonNegative(i.price) * nonNegative(i.quantity), 0).toFixed(2),
+  const subtotal = round(
+    items.reduce((sum, i) => sum + nonNegative(i.price) * nonNegative(i.quantity), 0),
   );
   const safeDiscountValue = nonNegative(discountValue);
   const safeTaxRate = nonNegative(settings.taxRate);
@@ -39,23 +45,20 @@ export function calculateOrderTotals(
   let discountAmount = 0;
   if (discountType === 'percentage') {
     const pct = Math.min(100, safeDiscountValue);
-    discountAmount = Number(((subtotal * pct) / 100).toFixed(2));
+    discountAmount = round((subtotal * pct) / 100);
   } else if (discountType === 'fixed') {
     // Rounded like the other two. An operator can type 1.234 into the discount
     // box, and an unrounded discount leaves `subtotal - discount` disagreeing
-    // with the cent-rounded taxable amount the tax and total are derived from —
+    // with the unit-rounded taxable amount the tax and total are derived from —
     // so the persisted transaction contradicts its own arithmetic.
-    discountAmount = Number(Math.min(safeDiscountValue, subtotal).toFixed(2));
+    discountAmount = round(Math.min(safeDiscountValue, subtotal));
   } else if (discountType === 'loyalty') {
-    discountAmount = Math.min(
-      Number((safeDiscountValue * safeLoyaltyPointValue).toFixed(2)),
-      subtotal,
-    );
+    discountAmount = Math.min(round(safeDiscountValue * safeLoyaltyPointValue), subtotal);
   }
 
-  const taxableAmount = Math.max(0, subtotal - discountAmount);
-  const taxAmount = Number((taxableAmount * (safeTaxRate / 100)).toFixed(2));
-  const totalAmount = Number((taxableAmount + taxAmount).toFixed(2));
+  const taxableAmount = round(Math.max(0, subtotal - discountAmount));
+  const taxAmount = round(taxableAmount * (safeTaxRate / 100));
+  const totalAmount = round(taxableAmount + taxAmount);
 
   return { subtotal, discountAmount, taxableAmount, taxAmount, totalAmount };
 }

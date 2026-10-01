@@ -11,6 +11,7 @@ import {
 import { calculateModifierPriceDelta, modifierSignature } from '../../lib/modifiers';
 import { playCartSound } from '../../lib/audioFeedback';
 
+import { useMoney } from '../../lib/useMoney';
 export type RegisterDiscountType = 'none' | 'percentage' | 'fixed' | 'loyalty';
 
 export interface RegisterCartLine {
@@ -77,7 +78,12 @@ export interface RegisterCartResult {
  * force, and the totals derived from them. Kept out of Register itself so
  * the pricing rules can be exercised without rendering the screen.
  */
-export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
+export function useRegisterCart(
+  settings: StoreSettings,
+  settlingTotal?: number,
+): RegisterCartResult {
+  const { round: roundAmt } = useMoney();
+
   const [cart, setCart] = useState<RegisterCartLine[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState<RegisterDiscountType>('none');
@@ -110,14 +116,19 @@ export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
     [cartItems, discountType, discountValue, settings],
   );
 
+  // What a payment has to cover: the bill of the tab being settled when there is
+  // one, otherwise the cart. The cash helpers below must follow it — the cart can
+  // already hold the next table's order while a tab is being paid.
+  const payableAmount = settlingTotal ?? totalAmount;
+
   const cashSuggestions = useMemo(() => {
-    if (totalAmount <= 0) return [];
-    const exact = totalAmount;
+    if (payableAmount <= 0) return [];
+    const exact = payableAmount;
     const next5 = Math.ceil(exact / 5) * 5;
     const next10 = Math.ceil(exact / 10) * 10;
     const next20 = Math.ceil(exact / 20) * 20;
     const next50 = Math.ceil(exact / 50) * 50;
-    const options = new Set<number>([Number(exact.toFixed(2))]);
+    const options = new Set<number>([roundAmt(exact)]);
     if (next5 > exact) options.add(next5);
     if (next10 > exact && next10 !== next5) options.add(next10);
     if (next20 > exact && next20 !== next10) options.add(next20);
@@ -126,15 +137,15 @@ export function useRegisterCart(settings: StoreSettings): RegisterCartResult {
     return Array.from(options)
       .filter((option) => option >= exact)
       .slice(0, 5);
-  }, [totalAmount]);
+  }, [payableAmount, roundAmt]);
 
   const cashChangeDue = useCallback(
     (cashPaidText: string) => {
       const paid = parseFloat(cashPaidText) || 0;
-      if (paid < totalAmount) return 0;
-      return Number((paid - totalAmount).toFixed(2));
+      if (paid < payableAmount) return 0;
+      return roundAmt(paid - payableAmount);
     },
-    [totalAmount],
+    [payableAmount, roundAmt],
   );
 
   const addToCart = useCallback(

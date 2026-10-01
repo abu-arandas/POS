@@ -6,6 +6,7 @@ import {
   StoreSettings,
   UserAccount,
 } from '../types';
+import { currencyDigits, moneyTolerance, roundMoney } from './money';
 import { summarizeTenders } from './payments';
 import { calculateOrderTotals } from './pricing';
 import { shortId } from './utils/ids';
@@ -66,8 +67,6 @@ type TenderOutcome =
   | { ok: true; tender: ResolvedTender }
   | { ok: false; error: 'split-incomplete' | 'split-non-cash-overpay' | 'insufficient-cash' };
 
-const round2 = (n: number) => Number(n.toFixed(2));
-
 /**
  * Reads the cash the operator keyed in. An empty or unparseable box is "nothing
  * tendered yet" — legitimate on a fully-discounted sale — but a value that
@@ -96,16 +95,17 @@ const isRealTender = (payment: Payment) =>
  * same number as the one persisted on the sale.
  */
 function resolveTender(req: CheckoutRequest, totalAmount: number): TenderOutcome {
+  const digits = currencyDigits(req.settings);
   if (req.splitMode) {
     const clean = req.splitPayments.filter(isRealTender);
-    const tenders = summarizeTenders(clean, totalAmount);
+    const tenders = summarizeTenders(clean, totalAmount, digits);
     if (clean.length === 0 || !tenders.coversTotal) {
       return { ok: false, error: 'split-incomplete' };
     }
     // Only cash can overpay (for change). Non-cash tenders exceeding the
     // total would record phantom money with no way to return it.
     const nonCashTotal = clean.filter((p) => p.method !== 'cash').reduce((s, p) => s + p.amount, 0);
-    if (nonCashTotal > totalAmount + 0.005) {
+    if (nonCashTotal > totalAmount + moneyTolerance(digits)) {
       return { ok: false, error: 'split-non-cash-overpay' };
     }
     const tookCash = tenders.cashTendered > 0;
@@ -143,7 +143,9 @@ function resolveTender(req: CheckoutRequest, totalAmount: number): TenderOutcome
       // Derived, not accepted: change is what the validated tender exceeds the
       // recomputed total by, so it cannot disagree with either.
       changeDue:
-        saleMethod === 'cash' ? round2(Math.max(0, (paidValue ?? 0) - totalAmount)) : undefined,
+        saleMethod === 'cash'
+          ? roundMoney(Math.max(0, (paidValue ?? 0) - totalAmount), digits)
+          : undefined,
     },
   };
 }
@@ -223,12 +225,13 @@ export function buildSaleTransaction(req: CheckoutRequest): CheckoutOutcome {
     nonNegative(req.settings.loyaltyPointValue),
   );
 
+  const digits = currencyDigits(req.settings);
   const transaction: SaleTransaction = {
     id: nextId,
     date: new Date().toISOString(),
     items: req.cartItems.map((item) => ({
       ...item,
-      total: round2(nonNegative(item.price) * nonNegative(item.quantity)),
+      total: roundMoney(nonNegative(item.price) * nonNegative(item.quantity), digits),
     })),
     subtotal,
     discount: discountAmount,

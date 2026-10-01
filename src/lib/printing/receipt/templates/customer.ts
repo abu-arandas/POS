@@ -1,4 +1,5 @@
 import i18n from '../../../i18n';
+import { currencyDigits, formatMoney } from '../../../money';
 import { code128SvgMm } from '../../barcode';
 import { escapeHtml as esc } from '../../../utils/formatting';
 import {
@@ -92,7 +93,8 @@ export function buildReceiptHtml(
   const taxLabel = taxLineLabel(tx.taxRate);
   const L = resolveCustomerLayout(layout, printerConfig);
   const S = L.show;
-  const money = (n: number) => `${cur}${n.toFixed(2)}`;
+  const digits = currencyDigits(settings);
+  const money = (n: number) => formatMoney(n, cur, digits);
   // The store logo is operator-supplied and lands in an <img src> inside a
   // same-origin print window, so it goes through the same allowlist as every
   // other image in the app rather than being trusted because it was escaped.

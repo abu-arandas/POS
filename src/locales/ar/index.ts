@@ -21,6 +21,8 @@ import { categories } from './categories';
 import { kds } from './kds';
 import { tables } from './tables';
 import { cfd } from './cfd';
+import { business } from './business';
+import { onboarding } from './onboarding';
 
 export const ar = {
   translation: {
@@ -47,5 +49,7 @@ export const ar = {
     kds,
     tables,
     cfd,
+    business,
+    onboarding,
   },
 } as const;

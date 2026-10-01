@@ -341,7 +341,10 @@
 
       function formatCurrency(amount) {
         const symbol = storeSettings.currency || '$';
-        return `${symbol}${Number(amount).toFixed(2)}`;
+        // The store currency's own precision (three for a dinar), sent by the till;
+        // two when an older terminal does not say.
+        const digits = Number.isInteger(storeSettings.digits) ? storeSettings.digits : 2;
+        return `${symbol}${Number(amount).toFixed(digits)}`;
       }
 
       function renderProducts() {
