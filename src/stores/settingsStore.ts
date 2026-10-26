@@ -1,3 +1,4 @@
+import { IS_PUBLIC_DEMO, SEED_DEMO_FIXTURES } from '../lib/demoMode';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import {
@@ -92,24 +93,23 @@ interface SettingsState {
  * settings came back branded "EA POS" with a Seattle address and an 8.5% tax
  * rate, and printed both onto its next receipt.
  */
-export const DEFAULT_SETTINGS: StoreSettings =
-  import.meta.env.DEV || import.meta.env.MODE === 'test'
-    ? INITIAL_SETTINGS
-    : {
-        // Neutral on purpose. A fresh install used to be branded as one
-        // particular restaurant and set to one particular currency; first-run
-        // setup (components/Onboarding.tsx) now asks for both, so the values
-        // here are only what "Reset to defaults" falls back to.
-        storeName: '',
-        storeAddress: '',
-        storePhone: '',
-        storeLogo: '',
-        taxRate: 0,
-        currency: '$',
-        currencyCode: 'USD',
-        loyaltyPointsRate: 0,
-        loyaltyPointValue: 0,
-      };
+export const DEFAULT_SETTINGS: StoreSettings = SEED_DEMO_FIXTURES
+  ? INITIAL_SETTINGS
+  : {
+      // Neutral on purpose. A fresh install used to be branded as one
+      // particular restaurant and set to one particular currency; first-run
+      // setup (components/Onboarding.tsx) now asks for both, so the values
+      // here are only what "Reset to defaults" falls back to.
+      storeName: '',
+      storeAddress: '',
+      storePhone: '',
+      storeLogo: '',
+      taxRate: 0,
+      currency: '$',
+      currencyCode: 'USD',
+      loyaltyPointsRate: 0,
+      loyaltyPointValue: 0,
+    };
 
 /**
  * Where a terminal's business setup starts. The dev/test build ships the demo
@@ -117,10 +117,9 @@ export const DEFAULT_SETTINGS: StoreSettings =
  * production install starts as general retail and un-onboarded, and is walked
  * through setup before anything else.
  */
-export const INITIAL_BUSINESS_SETUP: BusinessSetup =
-  import.meta.env.DEV || import.meta.env.MODE === 'test'
-    ? { businessProfile: profileFromTemplate('restaurant'), onboardingComplete: true }
-    : { businessProfile: profileFromTemplate('general-retail'), onboardingComplete: false };
+export const INITIAL_BUSINESS_SETUP: BusinessSetup = SEED_DEMO_FIXTURES
+  ? { businessProfile: profileFromTemplate('restaurant'), onboardingComplete: true }
+  : { businessProfile: profileFromTemplate('general-retail'), onboardingComplete: false };
 
 /**
  * Printer settings a store starts with: an 80mm system printer that prints
@@ -131,7 +130,7 @@ export const DEFAULT_PRINTER: PrinterConfig = {
   paperSize: '80mm',
   showBarcode: true,
   footerMessage: 'Thank you for shopping with us!',
-  autoPrintOnCheckout: true,
+  autoPrintOnCheckout: !IS_PUBLIC_DEMO,
 };
 
 /**
@@ -180,7 +179,9 @@ export const useSettingsStore = create<SettingsState>()(
       supabaseConfig: DEFAULT_SUPABASE,
       scannerConfig: DEFAULT_SCANNER,
       emailTemplate: DEFAULT_EMAIL_TEMPLATE,
-      kitchenStations: [],
+      kitchenStations: IS_PUBLIC_DEMO
+        ? [{ id: 'st-kitchen', name: 'Kitchen', categoryIds: [] }]
+        : [],
       receiptLayout: defaultReceiptLayout(),
       kitchenLayout: defaultKitchenLayout(),
       autoScanPrinters: true,

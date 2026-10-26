@@ -1,3 +1,4 @@
+import { SEED_DEMO_FIXTURES } from '../lib/demoMode';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { Customer } from '../types';
@@ -16,8 +17,7 @@ interface CustomerState {
   updateCustomerPoints: (id: string, delta: number) => void;
 }
 
-const DEFAULT_CUSTOMERS: Customer[] =
-  import.meta.env.DEV || import.meta.env.MODE === 'test' ? INITIAL_CUSTOMERS : [];
+const DEFAULT_CUSTOMERS: Customer[] = SEED_DEMO_FIXTURES ? INITIAL_CUSTOMERS : [];
 
 /**
  * The customer book and its loyalty balances. Persisted to IndexedDB; mutations

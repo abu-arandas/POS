@@ -1,3 +1,4 @@
+import { SEED_DEMO_FIXTURES } from '../lib/demoMode';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserAccount } from '../types';
 import { Delete, ArrowLeft, ChevronRight } from 'lucide-react';
@@ -578,7 +579,7 @@ export default function Lockscreen() {
       </motion.div>
 
       {/* Dev hint */}
-      {import.meta.env.DEV && (
+      {SEED_DEMO_FIXTURES && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

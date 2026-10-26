@@ -1,3 +1,4 @@
+import { SEED_DEMO_FIXTURES } from '../lib/demoMode';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { Product, Category } from '../types';
@@ -30,7 +31,7 @@ interface ProductState {
  * every time the operator emptied the catalogue: delete every product, reload,
  * and the demo is there again.
  */
-const seedCatalogue = import.meta.env.DEV || import.meta.env.MODE === 'test';
+const seedCatalogue = SEED_DEMO_FIXTURES;
 const DEFAULT_PRODUCTS: Product[] = seedCatalogue ? INITIAL_PRODUCTS : [];
 const DEFAULT_CATEGORIES: Category[] = seedCatalogue ? INITIAL_CATEGORIES : [];
 
