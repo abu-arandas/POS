@@ -40,6 +40,7 @@ import {
   DEFAULT_SCANNER,
   DEFAULT_SETTINGS,
   DEFAULT_PRINTER,
+  DEFAULT_KITCHEN_STATIONS,
   DEFAULT_SUPABASE,
 } from '../stores/settingsStore';
 import { useProductStore } from '../stores/productStore';
@@ -567,8 +568,8 @@ export default function Settings() {
       setScannerConfig(DEFAULT_SCANNER);
       setScannerForm(DEFAULT_SCANNER);
       setEmailTemplate(DEFAULT_EMAIL_TEMPLATE);
-      setKitchenStations([]);
-      setStationForm([]);
+      setKitchenStations(DEFAULT_KITCHEN_STATIONS);
+      setStationForm(DEFAULT_KITCHEN_STATIONS);
       setAutoScanPrinters(true);
       setShowProductImages(false);
       // Same class of per-terminal toggle as the two above, and it sits beside

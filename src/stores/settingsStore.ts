@@ -134,6 +134,15 @@ export const DEFAULT_PRINTER: PrinterConfig = {
 };
 
 /**
+ * Kitchen stations a terminal starts with, and what "Reset to defaults" restores:
+ * none, except on the public demo, whose one catch-all station keeps sales
+ * flowing to the Kitchen Display.
+ */
+export const DEFAULT_KITCHEN_STATIONS: KitchenStation[] = IS_PUBLIC_DEMO
+  ? [{ id: 'st-kitchen', name: 'Kitchen', categoryIds: [] }]
+  : [];
+
+/**
  * Cloud sync off and unconfigured — the offline-first default.
  */
 export const DEFAULT_SUPABASE: SupabaseConfig = {
@@ -179,9 +188,7 @@ export const useSettingsStore = create<SettingsState>()(
       supabaseConfig: DEFAULT_SUPABASE,
       scannerConfig: DEFAULT_SCANNER,
       emailTemplate: DEFAULT_EMAIL_TEMPLATE,
-      kitchenStations: IS_PUBLIC_DEMO
-        ? [{ id: 'st-kitchen', name: 'Kitchen', categoryIds: [] }]
-        : [],
+      kitchenStations: DEFAULT_KITCHEN_STATIONS,
       receiptLayout: defaultReceiptLayout(),
       kitchenLayout: defaultKitchenLayout(),
       autoScanPrinters: true,
