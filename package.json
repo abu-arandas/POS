@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
+    "build:demo": "vite build --mode demo",
     "perf:check": "node src/build/check-bundle-budget.mjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",

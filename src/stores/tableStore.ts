@@ -1,3 +1,4 @@
+import { SEED_DEMO_FIXTURES } from '../lib/demoMode';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { DiningTable } from '../types';
@@ -29,19 +30,18 @@ interface TableStore {
  *
  * A production terminal starts with no tables and the operator adds their own.
  */
-const DEFAULT_TABLES: DiningTable[] =
-  import.meta.env.DEV || import.meta.env.MODE === 'test'
-    ? [
-        { id: 'tbl-1', name: 'Table 1', seats: 2, status: 'available', section: 'Main Hall' },
-        { id: 'tbl-2', name: 'Table 2', seats: 4, status: 'available', section: 'Main Hall' },
-        { id: 'tbl-3', name: 'Table 3', seats: 4, status: 'available', section: 'Main Hall' },
-        { id: 'tbl-4', name: 'Table 4', seats: 6, status: 'available', section: 'Main Hall' },
-        { id: 'tbl-5', name: 'Patio 1', seats: 2, status: 'available', section: 'Patio' },
-        { id: 'tbl-6', name: 'Patio 2', seats: 4, status: 'available', section: 'Patio' },
-        { id: 'tbl-7', name: 'VIP Lounge', seats: 8, status: 'available', section: 'VIP Lounge' },
-        { id: 'tbl-8', name: 'Bar High 1', seats: 2, status: 'available', section: 'Bar' },
-      ]
-    : [];
+const DEFAULT_TABLES: DiningTable[] = SEED_DEMO_FIXTURES
+  ? [
+      { id: 'tbl-1', name: 'Table 1', seats: 2, status: 'available', section: 'Main Hall' },
+      { id: 'tbl-2', name: 'Table 2', seats: 4, status: 'available', section: 'Main Hall' },
+      { id: 'tbl-3', name: 'Table 3', seats: 4, status: 'available', section: 'Main Hall' },
+      { id: 'tbl-4', name: 'Table 4', seats: 6, status: 'available', section: 'Main Hall' },
+      { id: 'tbl-5', name: 'Patio 1', seats: 2, status: 'available', section: 'Patio' },
+      { id: 'tbl-6', name: 'Patio 2', seats: 4, status: 'available', section: 'Patio' },
+      { id: 'tbl-7', name: 'VIP Lounge', seats: 8, status: 'available', section: 'VIP Lounge' },
+      { id: 'tbl-8', name: 'Bar High 1', seats: 2, status: 'available', section: 'Bar' },
+    ]
+  : [];
 
 export const useTableStore = create<TableStore>()(
   persist(

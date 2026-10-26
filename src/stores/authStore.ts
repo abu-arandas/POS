@@ -1,3 +1,4 @@
+import { SEED_DEMO_FIXTURES } from '../lib/demoMode';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { UserAccount } from '../types';
@@ -32,17 +33,16 @@ const DEV_FIXTURES: Array<{ id: string; name: string; role: UserAccount['role'];
   { id: 'u-3', name: 'Cashier', role: 'cashier', pin: '0000' },
 ];
 
-const DEFAULT_USERS: UserAccount[] =
-  import.meta.env.DEV || import.meta.env.MODE === 'test'
-    ? DEV_FIXTURES.map(({ id, name, role, pin }) => ({
-        id,
-        name,
-        role,
-        pin: hashPinSaltedLegacySync(id, pin),
-        active: true,
-        createdAt: '2023-01-01',
-      }))
-    : [];
+const DEFAULT_USERS: UserAccount[] = SEED_DEMO_FIXTURES
+  ? DEV_FIXTURES.map(({ id, name, role, pin }) => ({
+      id,
+      name,
+      role,
+      pin: hashPinSaltedLegacySync(id, pin),
+      active: true,
+      createdAt: '2023-01-01',
+    }))
+  : [];
 
 /**
  * Staff accounts and who is signed in at this terminal. Persisted to IndexedDB
