@@ -1,7 +1,15 @@
 # EA POS
 
-A point-of-sale system for a shop or a small restaurant. It runs in a browser and ships as a
-standalone Windows desktop application.
+A point-of-sale system for a shop or a small restaurant, by [Arandas Tech](https://www.facebook.com/1294898037048567).
+It runs in a browser and ships as a standalone Windows desktop application.
+
+**[Try the live demo](https://pos-sage-one.vercel.app)** in your browser, no install: sign in with PIN
+`1234` (Admin), `5555` (Manager) or `0000` (Cashier).
+
+> **Want it running in your shop or café in Amman?** We install it on your PC, set up your menu in
+> Arabic and English, connect your receipt printer and train your staff. 14-day free trial, then
+> 299 JOD one-off with no monthly fee and 3 months of WhatsApp support.
+> [Message us on WhatsApp](https://wa.me/962791568798?text=Hi%20Arandas%2C%20I%20saw%20EA%20POS%20on%20GitHub%20and%20would%20like%20a%20free%20trial.)
 
 Built with React 19, Vite, Tailwind CSS v4, Zustand and Electron. It works **offline first** —
 every sale is committed locally before anything touches the network — with optional Supabase
