@@ -485,4 +485,8 @@ Motion · Recharts · @dnd-kit · Lucide · Supabase JS · Electron 43 · electr
 
 ## License
 
-This project is for demonstration purposes. Use, modify and distribute freely.
+Copyright © 2026 Arandas Tech. All rights reserved.
+
+The source is published so you can read it and try the live demo. Using it in a business, selling it, or
+shipping it to a client needs a licence from Arandas Tech:
+[ask on WhatsApp](https://wa.me/962791568798?text=Hi%20Arandas%2C%20I%20would%20like%20an%20EA%20POS%20licence.).
