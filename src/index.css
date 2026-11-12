@@ -3,37 +3,51 @@
 /* ─── Webfonts (self-hosted) ───────────────────────────────────────────────
    These used to come from fonts.googleapis.com. A POS terminal is offline-first
    and commonly runs on a café LAN with no internet, so a CDN import meant a
-   render-blocking request that failed on every launch — and it leaked a request
-   to a third party from a payment device. It hurt most in Arabic: 'Cairo' is the
-   only face behind .font-arabic and had no local fallback, so RTL silently lost
-   its typeface offline.
+   render-blocking request that failed on every launch, and it leaked a request
+   to a third party from a payment device.
 
-   Variable woff2, latin + latin-ext (+ arabic for Cairo) only — 344 KB total.
-   Inter's italics are deliberately absent: exactly one label in the app is
-   italic, so the browser synthesizes an oblique rather than shipping 221 KB.
+   Rubik is the Zirr house face: one family that draws Latin and Arabic, so the
+   till looks the same in both languages and RTL never falls back to a system
+   font. Variable woff2 (weights 300 to 900), latin + latin-ext + arabic only.
+   JetBrains Mono stays for receipts and figures.
 
    Changing a family or subset means re-fetching the woff2 files into
    src/assets/fonts/ and updating the @font-face blocks below by hand. */
 @font-face {
-  font-family: 'Inter';
+  font-family: 'Rubik';
   font-style: normal;
-  font-weight: 400 900;
+  font-weight: 300 900;
   font-display: swap;
-  src: url('./assets/fonts/inter-latin-ext-normal.woff2') format('woff2');
+  src: url('./assets/fonts/rubik-latin-ext-normal.woff2') format('woff2');
   unicode-range:
     U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
-    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F,
     U+A720-A7FF;
 }
 @font-face {
-  font-family: 'Inter';
+  font-family: 'Rubik';
   font-style: normal;
-  font-weight: 400 900;
+  font-weight: 300 900;
   font-display: swap;
-  src: url('./assets/fonts/inter-latin-normal.woff2') format('woff2');
+  src: url('./assets/fonts/rubik-latin-normal.woff2') format('woff2');
   unicode-range:
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Rubik';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url('./assets/fonts/rubik-arabic-normal.woff2') format('woff2');
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011,
+    U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB, U+10E60-10E7E,
+    U+10EC2-10EC7, U+10EC9-10EEE, U+10EF0-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22,
+    U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49,
+    U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F,
+    U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E,
+    U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1;
 }
 @font-face {
   font-family: 'JetBrains Mono';
@@ -56,48 +70,28 @@
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
-@font-face {
-  font-family: 'Cairo';
-  font-style: normal;
-  font-weight: 400 900;
-  font-display: swap;
-  src: url('./assets/fonts/cairo-arabic-normal.woff2') format('woff2');
-  unicode-range:
-    U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E,
-    U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB,
-    U+10E60-10E7E, U+10EC2-10EC4, U+10EFC-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22,
-    U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49,
-    U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F,
-    U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E,
-    U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1;
-}
-@font-face {
-  font-family: 'Cairo';
-  font-style: normal;
-  font-weight: 400 900;
-  font-display: swap;
-  src: url('./assets/fonts/cairo-latin-ext-normal.woff2') format('woff2');
-  unicode-range:
-    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
-    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
-    U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Cairo';
-  font-style: normal;
-  font-weight: 400 900;
-  font-display: swap;
-  src: url('./assets/fonts/cairo-latin-normal.woff2') format('woff2');
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
-    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Rubik', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Tailwind's zinc greys, retuned to the Zirr neutrals: cotton and stone at
+     the light end, the indigo-ink night surfaces at the dark end. Every
+     zinc-* class in the app picks these up, so the chrome matches the brand
+     without touching each component. */
+  --color-zinc-50: #f7f5f0;
+  --color-zinc-100: #efece5;
+  --color-zinc-200: #e2ded4;
+  --color-zinc-300: #c9c6be;
+  --color-zinc-400: #9aa5ba;
+  --color-zinc-500: #6b7385;
+  --color-zinc-600: #5a6170;
+  --color-zinc-700: #3a4660;
+  --color-zinc-800: #2a3448;
+  --color-zinc-900: #151c2a;
+  --color-zinc-950: #0d121c;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -132,8 +126,9 @@
 }
 
 /* ─── Arabic Font ─────────────────────────────────────────────────────────── */
+/* Rubik already carries Arabic; the class stays so RTL screens keep one hook. */
 .font-arabic {
-  font-family: 'Cairo', ui-sans-serif, system-ui, sans-serif !important;
+  font-family: 'Rubik', ui-sans-serif, system-ui, sans-serif !important;
 }
 
 /* ─── Scrollbar ───────────────────────────────────────────────────────────── */
@@ -215,34 +210,40 @@
   --sync-queued-text: #b45309;
   --sync-queued-dot: #f59e0b;
 
+  /* ── Zirr brand: denim for actions, thread orange for the one highlight. ── */
+  /* Thread orange carries dark text only; white on it fails contrast.        */
+  --brand-denim: #2b4c8c;
+  --brand-thread: #ee7b30;
+  --brand-holes: #f7f5f0;
+
   /* ── Core design system color variables (Tailwind tokens) ─────────────── */
-  --background: #fbfbfd;
-  --foreground: #09090b;
+  --background: #f7f5f0;
+  --foreground: #18202e;
 
   --card: #ffffff;
-  --card-foreground: #09090b;
+  --card-foreground: #18202e;
 
   --popover: #ffffff;
-  --popover-foreground: #09090b;
+  --popover-foreground: #18202e;
 
-  --primary: #18181b;
-  --primary-foreground: #fafafa;
+  --primary: #2b4c8c;
+  --primary-foreground: #ffffff;
 
-  --secondary: #f4f4f6;
-  --secondary-foreground: #18181b;
+  --secondary: #efece5;
+  --secondary-foreground: #18202e;
 
-  --muted: #f4f4f6;
-  --muted-foreground: #71717a;
+  --muted: #efece5;
+  --muted-foreground: #5a6170;
 
-  --accent: #f4f4f6;
-  --accent-foreground: #18181b;
+  --accent: #efece5;
+  --accent-foreground: #18202e;
 
   --destructive: #ef4444;
   --destructive-foreground: #fafafa;
 
-  --border: #e4e4e7;
-  --input: #e4e4e7;
-  --ring: #18181b;
+  --border: #e2ded4;
+  --input: #e2ded4;
+  --ring: #2b4c8c;
 
   --shadow-2xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-xs: 0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
@@ -250,20 +251,20 @@
   /* Semantic surface/border tokens — light theme (default). One place to
      tune every elevated panel, input, and hairline in the app. */
   --surface-1: #ffffff; /* elevated card / panel */
-  --surface-2: #f8fafc; /* inset areas, table headers */
-  --surface-hover: #f1f5f9; /* row/card hover */
-  --border-subtle: rgba(15, 23, 42, 0.08);
-  --border-strong: rgba(15, 23, 42, 0.15);
+  --surface-2: #f5f3ee; /* inset areas, table headers */
+  --surface-hover: #efece5; /* row/card hover */
+  --border-subtle: rgba(24, 32, 46, 0.08);
+  --border-strong: rgba(24, 32, 46, 0.16);
   --input-bg: #ffffff;
-  --input-border: rgba(15, 23, 42, 0.12);
+  --input-border: rgba(24, 32, 46, 0.13);
 
   /* Operational canvas + chrome. */
-  --app-bg: #f9fafb; /* full-screen canvas */
+  --app-bg: #f7f5f0; /* full-screen canvas */
   --panel-bg: #ffffff; /* sidebar / cart rail */
-  --panel-border: rgba(15, 23, 42, 0.08);
+  --panel-border: rgba(24, 32, 46, 0.08);
   --receipt-bg: #ffffff; /* on-screen thermal receipt card */
-  --text-strong: #09090b; /* highest-contrast body text */
-  --chip-text: #52525b; /* inactive chip / toolbar label */
+  --text-strong: #18202e; /* highest-contrast body text */
+  --chip-text: #5a6170; /* inactive chip / toolbar label */
 
   /* Precision layered elevation — crisp, clean, no muddy blur */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -282,50 +283,54 @@
 
 /* Dark theme token overrides. */
 .dark {
-  --background: #09090b;
-  --foreground: #fafafa;
+  --brand-denim: #8eaef0;
+  --brand-thread: #ff9f5a;
+  --brand-holes: #0d121c;
 
-  --card: #121215;
-  --card-foreground: #fafafa;
+  --background: #0d121c;
+  --foreground: #eef2fa;
 
-  --popover: #121215;
-  --popover-foreground: #fafafa;
+  --card: #151c2a;
+  --card-foreground: #eef2fa;
 
-  --primary: #fafafa;
-  --primary-foreground: #09090b;
+  --popover: #151c2a;
+  --popover-foreground: #eef2fa;
 
-  --secondary: #18181c;
-  --secondary-foreground: #fafafa;
+  --primary: #8eaef0;
+  --primary-foreground: #0d121c;
 
-  --muted: #18181c;
-  --muted-foreground: #a1a1aa;
+  --secondary: #1e2737;
+  --secondary-foreground: #eef2fa;
 
-  --accent: #18181c;
-  --accent-foreground: #fafafa;
+  --muted: #1e2737;
+  --muted-foreground: #9aa5ba;
+
+  --accent: #1e2737;
+  --accent-foreground: #eef2fa;
 
   --destructive: #ef4444;
   --destructive-foreground: #fafafa;
 
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #d4d4d8;
+  --border: #2a3448;
+  --input: #2a3448;
+  --ring: #8eaef0;
 
   --shadow-2xs: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
   --shadow-xs: 0 1px 3px 0 rgba(0, 0, 0, 0.6), 0 1px 2px -1px rgba(0, 0, 0, 0.5);
 
-  --surface-1: #121215; /* refined matte dark surface */
-  --surface-2: #18181c; /* inset well / secondary surface */
+  --surface-1: #151c2a; /* refined matte dark surface */
+  --surface-2: #1e2737; /* inset well / secondary surface */
   --surface-hover: rgba(255, 255, 255, 0.04);
-  --border-subtle: #27272a;
-  --border-strong: #3f3f46;
-  --input-bg: #141418;
-  --input-border: #27272a;
-  --app-bg: #09090b; /* deep obsidian canvas */
-  --panel-bg: #0d0d10;
-  --panel-border: #27272a;
-  --receipt-bg: #121216;
-  --text-strong: #fafafa;
-  --chip-text: #a1a1aa;
+  --border-subtle: #2a3448;
+  --border-strong: #3a4660;
+  --input-bg: #111826;
+  --input-border: #2a3448;
+  --app-bg: #0d121c; /* deep obsidian canvas */
+  --panel-bg: #111725;
+  --panel-border: #2a3448;
+  --receipt-bg: #151c2a;
+  --text-strong: #eef2fa;
+  --chip-text: #9aa5ba;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
   --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.75);
@@ -351,8 +356,8 @@ input[type='number'] {
 
 /* ─── Selection Color ─────────────────────────────────────────────────────── */
 ::selection {
-  background: rgba(16, 185, 129, 0.28);
-  color: #f8fafc;
+  background: rgba(238, 123, 48, 0.32);
+  color: inherit;
 }
 
 /* ─── Focus Ring ──────────────────────────────────────────────────────────── */
@@ -360,7 +365,7 @@ input[type='number'] {
 /* Keyboard-only focus indicator for every interactive element. :where() keeps
    specificity at zero so intentional per-component focus styles still win. */
 :where(button, [role='button'], a, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid #10b981;
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -701,22 +706,20 @@ select {
 .input-shell:focus,
 .input-shell:focus-within {
   outline: none;
-  border-color: var(--color-emerald);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 16%, transparent);
 }
 
 /* The single confirming action in a modal or primary trigger */
 .btn-primary {
-  background: #09090b;
-  color: #ffffff;
+  background: var(--primary);
+  color: var(--primary-foreground);
   border: 1px solid transparent;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   transition: all var(--transition-fast);
 }
 
 .dark .btn-primary {
-  background: #f4f4f5;
-  color: #09090b;
   border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
@@ -746,13 +749,13 @@ select {
 /* "+ Add payment" / "+ Add line" — an outlined, dashed affordance for
    appending a row to a list. */
 .btn-dashed-add {
-  color: #10b981;
-  border: 1px dashed rgba(16, 185, 129, 0.35);
+  color: var(--primary);
+  border: 1px dashed color-mix(in srgb, var(--primary) 40%, transparent);
   transition: background var(--transition-fast);
 }
 
 .btn-dashed-add:hover {
-  background: var(--color-emerald-dim);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 /* Explicit disabled state: cursor + dimming rather than relying on
@@ -824,15 +827,15 @@ select {
 }
 
 .toggle-pill.is-active {
-  background: var(--color-emerald-dim);
-  border-color: rgba(16, 185, 129, 0.35);
-  color: #34d399;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  color: var(--primary);
 }
 
 .toggle-pill.is-selected {
-  background: linear-gradient(135deg, #059669, var(--color-emerald));
+  background: var(--primary);
   border-color: transparent;
-  color: #ffffff;
+  color: var(--primary-foreground);
 }
 
 /* ─── Cash tendering ──────────────────────────────────────────────────────── */

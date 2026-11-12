@@ -58,7 +58,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
             <button
               onClick={this.handleReload}
-              className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-semibold transition-colors w-full justify-center"
+              className="flex items-center space-x-2 bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-xl font-semibold transition-colors w-full justify-center"
             >
               <RefreshCw className="size-4" />
               <span>{i18n.t('errorBoundary.reload')}</span>

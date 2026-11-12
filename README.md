@@ -1,6 +1,6 @@
-# EA POS
+# Zirr POS · زِرّ كاشير
 
-A point-of-sale system for a shop or a small restaurant, by [Arandas Tech](https://www.facebook.com/1294898037048567).
+A point-of-sale system for a shop or a small restaurant, by [Zirr](https://www.facebook.com/1294898037048567), Ehab Arandas's studio in Amman.
 It runs in a browser and ships as a standalone Windows desktop application.
 
 **[Try the live demo](https://pos-sage-one.vercel.app)** in your browser, no install: sign in with PIN
@@ -9,7 +9,7 @@ It runs in a browser and ships as a standalone Windows desktop application.
 > **Want it running in your shop or café in Amman?** We install it on your PC, set up your menu in
 > Arabic and English, connect your receipt printer and train your staff. 14-day free trial, then
 > 299 JOD one-off with no monthly fee and 3 months of WhatsApp support.
-> [Message us on WhatsApp](https://wa.me/962791568798?text=Hi%20Arandas%2C%20I%20saw%20EA%20POS%20on%20GitHub%20and%20would%20like%20a%20free%20trial.)
+> [Message us on WhatsApp](https://wa.me/962791568798?text=Hi%20Zirr%2C%20I%20saw%20Zirr%20POS%20on%20GitHub%20and%20would%20like%20a%20free%20trial.)
 
 Built with React 19, Vite, Tailwind CSS v4, Zustand and Electron. It works **offline first** —
 every sale is committed locally before anything touches the network — with optional Supabase
@@ -137,8 +137,12 @@ npm run perf:check   # asserts the bundle budget
 npm run electron:build
 ```
 
-- **Installer:** `release/EA-POS-Setup-<version>.exe`, versioned from `package.json`
-- **Unpacked:** `release/win-unpacked/EA POS.exe`, runs without installing
+- **Installer:** `release/Zirr-POS-Setup-<version>.exe`, versioned from `package.json`
+- **Unpacked:** `release/win-unpacked/Zirr POS.exe`, runs without installing
+
+The till was called EA POS until November 2026. It keeps that name's app id and data folder
+(`%APPDATA%\EA POS`), so an update installs over the old copy and every sale, product and staff
+account carries on.
 
 If the build fails with `EPERM`, close any Explorer window or terminal sitting inside `release/` —
 Windows locks files while they are being viewed.
@@ -176,7 +180,7 @@ _does_ fail, rather than quietly doing nothing.
 
 Until a release is signed, verify a download by hand: the workflow publishes `SHA256SUMS.txt`
 beside the installer, so compare it against
-`Get-FileHash .\EA-POS-Setup-<version>.exe -Algorithm SHA256`.
+`Get-FileHash .\Zirr-POS-Setup-<version>.exe -Algorithm SHA256`.
 
 ---
 
@@ -485,8 +489,8 @@ Motion · Recharts · @dnd-kit · Lucide · Supabase JS · Electron 43 · electr
 
 ## License
 
-Copyright © 2026 Arandas Tech. All rights reserved.
+Copyright © 2026 Zirr (Ehab Arandas). All rights reserved.
 
 The source is published so you can read it and try the live demo. Using it in a business, selling it, or
-shipping it to a client needs a licence from Arandas Tech:
-[ask on WhatsApp](https://wa.me/962791568798?text=Hi%20Arandas%2C%20I%20would%20like%20an%20EA%20POS%20licence.).
+shipping it to a client needs a licence from Zirr:
+[ask on WhatsApp](https://wa.me/962791568798?text=Hi%20Zirr%2C%20I%20would%20like%20a%20Zirr%20POS%20licence.).

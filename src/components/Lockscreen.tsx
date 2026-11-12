@@ -311,9 +311,11 @@ export default function Lockscreen() {
       >
         <div className="inline-flex items-center gap-2.5 mb-2">
           <div className="size-9 flex items-center justify-center">
-            <Logo size={36} title="Arandas IT Solutions" />
+            <Logo size={36} title="Zirr" />
           </div>
-          <span className="font-mono text-xl font-bold tracking-tight text-foreground">EA POS</span>
+          <span className="text-xl font-bold tracking-tight text-foreground">
+            {t('lockscreen.productName')}
+          </span>
         </div>
         <p className="text-xs text-muted-foreground font-medium">{t('lockscreen.subtitle')}</p>
       </motion.div>

@@ -1,4 +1,5 @@
 export const lockscreen = {
+  productName: 'زِرّ كاشير',
   subtitle: 'قفل النظام الآمن',
   selectUser: 'اختر ملف الموظف',
   selectUserSub: 'اختر حسابك لتسجيل الدخول إلى النظام',

@@ -1,4 +1,4 @@
-# Builds the native Windows installer (.exe) for EA POS on GitHub's own
+# Builds the native Windows installer (.exe) for Zirr POS on GitHub's own
 # windows-latest runner, which has the unrestricted internet access
 # electron-builder needs to fetch the Electron runtime + NSIS/winCodeSign
 # toolchain. The finished installer is uploaded as a workflow artifact and,
@@ -148,7 +148,7 @@ jobs:
         env:
           WINDOWS_PUBLISHER_NAME: ${{ secrets.WINDOWS_PUBLISHER_NAME }}
         run: |
-          $installer = Get-ChildItem release/EA-POS-Setup-*.exe | Select-Object -First 1
+          $installer = Get-ChildItem release/Zirr-POS-Setup-*.exe | Select-Object -First 1
           if ($null -eq $installer) { throw "Installer was not produced." }
           $signature = Get-AuthenticodeSignature -FilePath $installer.FullName
           if ($signature.Status -ne 'Valid') {
@@ -177,7 +177,7 @@ jobs:
       - name: Generate SHA-256 checksums
         shell: pwsh
         run: |
-          $installer = Get-ChildItem release/EA-POS-Setup-*.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          $installer = Get-ChildItem release/Zirr-POS-Setup-*.exe -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($null -eq $installer) { throw "Installer was not produced." }
           # latest.yml is what electron-updater reads to discover a new version.
           # Missing it means installed terminals would never see this release, so
@@ -203,9 +203,9 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v7
         with:
-          name: EA-POS-Windows-Installer
+          name: Zirr-POS-Windows-Installer
           path: |
-            release/EA-POS-Setup-*.exe
+            release/Zirr-POS-Setup-*.exe
             release/latest.yml
             release/SHA256SUMS.txt
             release/*.blockmap
@@ -236,7 +236,7 @@ jobs:
       - name: Download installer artifact
         uses: actions/download-artifact@v8
         with:
-          name: EA-POS-Windows-Installer
+          name: Zirr-POS-Windows-Installer
           path: release
 
       - name: Publish GitHub release with installer
@@ -248,7 +248,7 @@ jobs:
           SIGNING_MODE: ${{ needs.build-windows.outputs.signing_mode }}
         run: |
           shopt -s nullglob
-          assets=(release/EA-POS-Setup-*.exe release/latest.yml release/SHA256SUMS.txt release/*.blockmap)
+          assets=(release/Zirr-POS-Setup-*.exe release/latest.yml release/SHA256SUMS.txt release/*.blockmap)
           if (( ${#assets[@]} < 3 )); then
             echo "::error::Missing installer, checksums, or Electron update metadata in release/."
             exit 1
@@ -262,13 +262,13 @@ jobs:
           # ignored and the tag derived from whichever sorted first — a release
           # published under the wrong version. Adding an architecture is the
           # realistic way that happens.
-          installers=(release/EA-POS-Setup-*.exe)
+          installers=(release/Zirr-POS-Setup-*.exe)
           if (( ${#installers[@]} != 1 )); then
             echo "::error::Expected exactly one installer in release/, found ${#installers[@]}: ${installers[*]}"
             exit 1
           fi
           installer=$(basename "${installers[0]}")
-          version="${installer#EA-POS-Setup-}"
+          version="${installer#Zirr-POS-Setup-}"
           version="${version%.exe}"
           if [[ -z "$version" ]]; then
             echo "::error::Could not derive the version from $installer."
@@ -299,7 +299,7 @@ jobs:
 
           checksums=$(cat release/SHA256SUMS.txt)
           if [[ "$SIGNED" == "true" ]]; then
-            title="EA POS ${version}"
+            title="Zirr POS ${version}"
             prerelease=""
             notes="Signed Windows installer for version ${version}, built from ${GITHUB_SHA}.
 
@@ -315,7 +315,7 @@ jobs:
 
           Compare that against \`Get-FileHash .\\${installer} -Algorithm SHA256\` before running the installer."
           else
-            title="EA POS ${version} (unsigned test build)"
+            title="Zirr POS ${version} (unsigned test build)"
             prerelease="--prerelease"
             notes="**This installer is UNSIGNED.** Windows SmartScreen will warn that the publisher is unrecognised, and Chrome/Edge may block the download. It is published for internal testing only — do not distribute it to customers.
 

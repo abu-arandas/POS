@@ -20,10 +20,13 @@ const description = {
 console.log(`[electron-builder] Windows code signing: ${description}`);
 
 module.exports = {
+  // The app id predates the Zirr name and must not change: Windows finds the
+  // existing install (and its uninstaller) by it, so an update replaces the
+  // old EA POS install in place instead of installing a second copy.
   appId: 'com.eapos.app',
-  productName: 'EA POS',
-  copyright: 'Copyright © 2026 abu-arandas',
-  artifactName: 'EA-POS-Setup-${version}.${ext}',
+  productName: 'Zirr POS',
+  copyright: 'Copyright © 2026 Zirr (Ehab Arandas)',
+  artifactName: 'Zirr-POS-Setup-${version}.${ext}',
   directories: {
     output: 'release',
     buildResources: 'buildResources',
@@ -50,7 +53,7 @@ module.exports = {
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
     runAfterFinish: true,
-    shortcutName: 'EA POS',
+    shortcutName: 'Zirr POS',
   },
   // Test files sit beside the modules they cover, so they have to be excluded
   // explicitly or `electron/**/*` ships them inside the installer.
