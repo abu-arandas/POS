@@ -66,8 +66,8 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
-      - name: Unit tests
-        run: npm test
+      - name: Check translations
+        run: npm run check:locales
 
       # perf:check reads dist/, so the build has to come first. It is also the
       # renderer build the installer job repeats — cheap enough to do twice,

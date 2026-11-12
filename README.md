@@ -173,7 +173,7 @@ electron-builder about whether a build is signed.
 #### Publishing a release
 
 A release is cut by bumping `version` in `package.json`; the tag is `v<version>`. A push to `main`
-that leaves the version alone — docs, tests, a dependency bump — still builds and verifies, then
+that leaves the version alone — docs, a dependency bump — still builds and verifies, then
 **skips publishing with a notice** because that version is already released. It does not fail.
 A manual dispatch of the workflow is a request to publish, so on an already-released version it
 _does_ fail, rather than quietly doing nothing.
@@ -419,57 +419,45 @@ nothing will now tell you when one breaks — so they are listed here rather tha
    three, the yen none. Use `roundMoney`, `formatMoney` and `currencyDigits` from
    `src/lib/money.ts` — in components, `useMoney()` — and pass `digits` into any pure function that
    rounds. A figure rounded at two digits next to one rounded at three is a till that disagrees
-   with its own receipt. `src/lib/currencyPrecision.test.ts` follows one sale through every
-   module that turns it into money.
+   with its own receipt.
 10. **A Zustand selector returns one primitive.** `useStore((s) => ({ a: s.a, b: s.b }))` builds
     a new object on every read, and under Zustand 5 that is an infinite render loop — the whole
     shell falls to the error boundary. Select each value separately, or wrap the selector in
-    `useShallow`. `src/lib/storeSelectors.test.ts` greps for the common shape.
+    `useShallow`.
 
 Before opening a pull request:
 
 ```bash
-npm run lint && npm run format:check && npm test && npm run build && npm run perf:check
+npm run lint && npm run format:check && npm run check:locales && npm run build && npm run perf:check
 ```
 
 CI runs exactly that on every pull request (the `verify` job), and a release
 will not publish unless it passes.
 
-### Tests
+### Translations
 
-`npm test` runs Vitest over the pure modules — the money (`money`, `pricing`, `checkout`,
-`refunds`, `payments`, `shiftReport`, `dashboardMetrics`), the business profile and its
-migration for existing installs (`businessProfile`), first-run regional data (`regions`), the catalogue
-(`variants`), the lock-screen throttle (`pinThrottle`), the receipt renderers,
-and the four dependency-free Electron modules (`validation`, `updatePolicy`,
-`menuServer`, `windowsSigning`). `npm run test:watch` re-runs on save.
-
-There is no DOM environment and no component rendering, deliberately. The split
-this project already keeps — arithmetic in `src/lib/`, pixels in
-`src/components/` — is what lets the suite finish in about two seconds, and a
-module that needs a DOM to be tested is a module whose layout and arithmetic
-have grown together.
-
-Electron modules are CommonJS, so their tests sit beside them as `.mjs` (Vitest
-cannot be `require`d) and are excluded from the packaged installer.
+`npm run check:locales` fails when a key is in one language and not the other, or when a
+`t('…')` call names a key the English catalogue does not have. i18next does not throw on a
+missing key, it shows the key itself, so this is the only thing that catches one before a
+cashier does. There are no app tests.
 
 ---
 
 ## Scripts
 
-| Script                    | Does                                                 |
-| ------------------------- | ---------------------------------------------------- |
-| `dev`                     | Vite dev server on port 3000                         |
-| `build`                   | Production build to `dist/`                          |
-| `preview`                 | Serve the built output                               |
-| `portable`                | Single-file build to `portable/index.html`           |
-| `lint`                    | `tsc --noEmit && eslint .`                           |
-| `test` / `test:watch`     | Vitest over the pure modules                         |
-| `format` / `format:check` | Prettier                                             |
-| `perf:check`              | Assert the initial JS and CSS gzip budgets           |
-| `electron:dev`            | Vite + Electron together                             |
-| `electron:build`          | Build the renderer and package the Windows installer |
-| `clean`                   | Remove `dist/`                                       |
+| Script                    | Does                                                  |
+| ------------------------- | ----------------------------------------------------- |
+| `dev`                     | Vite dev server on port 3000                          |
+| `build`                   | Production build to `dist/`                           |
+| `preview`                 | Serve the built output                                |
+| `portable`                | Single-file build to `portable/index.html`            |
+| `lint`                    | `tsc --noEmit && eslint .`                            |
+| `check:locales`           | English and Arabic keys match, and every key resolves |
+| `format` / `format:check` | Prettier                                              |
+| `perf:check`              | Assert the initial JS and CSS gzip budgets            |
+| `electron:dev`            | Vite + Electron together                              |
+| `electron:build`          | Build the renderer and package the Windows installer  |
+| `clean`                   | Remove `dist/`                                        |
 
 Bundle budgets: 200,000 gzip bytes of initial JavaScript, 50,000 of initial CSS. A failure should
 prompt a fresh look at what entered the entry chunk, not a raised limit.

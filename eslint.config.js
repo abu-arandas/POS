@@ -39,11 +39,9 @@ export default tseslint.config(
     },
   },
   {
-    // The Electron modules are CommonJS, as the main process needs them to be,
-    // but a Vitest test file has to be ESM — so these sit beside them as .mjs
-    // and would otherwise match no config block and go unlinted, which is the
-    // same gap the block above exists to close.
-    files: ['electron/**/*.test.mjs', 'src/build/**/*.mjs', 'src/db/**/*.mjs', 'scripts/**/*.mjs'],
+    // Node scripts are ES modules and would otherwise match no config block
+    // and go unlinted, which is the same gap the block above exists to close.
+    files: ['src/build/**/*.mjs', 'scripts/**/*.mjs'],
     extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: 2022,

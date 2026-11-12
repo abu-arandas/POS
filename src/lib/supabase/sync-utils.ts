@@ -3,7 +3,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 /**
  * Adds store_id to each outgoing record when a store scope is configured.
  * A no-op in single-store mode (empty storeId), so existing deployments push
- * exactly the same payload as before. Pure and unit-tested.
+ * exactly the same payload as before. Pure.
  */
 export function stampStoreId<T extends object>(records: T[], storeId?: string): T[] {
   if (!storeId) return records;
