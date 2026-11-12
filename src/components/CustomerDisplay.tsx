@@ -88,7 +88,7 @@ export function CustomerDisplay() {
       <header className="px-8 py-4 border-b border-zinc-800/80 bg-zinc-900/60 backdrop-blur-md flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <div className="size-10 rounded-xl bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-primary">
-            <Logo size={24} />
+            <Logo size={24} tone="dark" />
           </div>
           <div>
             <h1 className="font-bold text-lg tracking-tight text-zinc-100 leading-tight">

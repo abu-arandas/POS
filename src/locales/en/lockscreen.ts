@@ -1,4 +1,5 @@
 export const lockscreen = {
+  productName: 'Zirr POS',
   subtitle: 'SECURE TERMINAL LOCK',
   selectUser: 'Select Staff Profile',
   selectUserSub: 'Choose your account to login to terminal',

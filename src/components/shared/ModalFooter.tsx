@@ -35,7 +35,7 @@ export function ModalFooter({
       <button
         onClick={onConfirm}
         disabled={confirmDisabled}
-        className="px-6 py-3 font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+        className="px-6 py-3 font-bold bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground rounded-xl flex items-center gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95"
       >
         <Check size={20} /> {confirmLabel}
       </button>

@@ -17,6 +17,12 @@ const {
   isPrivateIPv4,
 } = require('./validation.cjs');
 
+// Keep the data folder the app had as "EA POS". Electron names it after the
+// product, so without this the rename to Zirr POS would open an empty folder
+// on every till that updates: no products, no sales, no staff, no settings.
+// It has to run before anything reads the path, including the instance lock.
+app.setPath('userData', path.join(app.getPath('appData'), 'EA POS'));
+
 // Exactly one terminal process per machine. Two instances would fight over the
 // menu server's port, and cleanupTempFiles() below deletes every eapos-*.bin at
 // startup — including a sibling instance's in-flight print job. A CommonJS
@@ -325,7 +331,7 @@ public class EAPosRaw {
   public static bool Send(string printer, byte[] bytes) {
     IntPtr h;
     if(!OpenPrinter(printer, out h, IntPtr.Zero)) return false;
-    var di = new DOCINFO(); di.pDocName = "EA POS"; di.pDataType = "RAW";
+    var di = new DOCINFO(); di.pDocName = "Zirr POS"; di.pDataType = "RAW";
     bool ok = false;
     try {
       if(StartDocPrinter(h, 1, ref di)) {
@@ -401,7 +407,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    title: 'EA POS',
+    title: 'Zirr POS',
     autoHideMenuBar: true,
     icon: path.join(__dirname, '../buildResources/icon.png'), // dev icon; packaged app uses the exe's embedded icon
     webPreferences: {

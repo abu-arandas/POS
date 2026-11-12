@@ -21,11 +21,11 @@ export function receiptDocHtml(
 
   // The receipt renders in its own document — a print window, an Electron
   // data: URL, or the settings preview iframe — so it inherits nothing from the
-  // app: not the <html dir>, not the bundled Cairo face. Both have to be
+  // app: not the <html dir>, not the bundled Rubik face. Both have to be
   // restated here or an Arabic receipt comes out unshaped and left-aligned.
   const rtl = i18n.language === 'ar';
   const lang = rtl ? 'ar' : 'en';
-  // Arabic needs a face that actually has the script. The app's own Cairo is
+  // Arabic needs a face that actually has the script. The app's own Rubik is
   // not reachable from this document (separate origin for the data: URL, and
   // @font-face does not cascade into an iframe), so fall back to the system
   // faces that ship with Windows and macOS and do have full Arabic coverage.

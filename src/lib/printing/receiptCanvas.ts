@@ -390,10 +390,10 @@ export function renderReceiptRaster(
 ): RasterReceipt | null {
   const width = RASTER_WIDTH[paperSize];
   const rtl = opts.rtl ?? false;
-  // Cairo is bundled with the app and covers Arabic properly; it is loaded in
+  // Rubik is bundled with the app and covers Arabic properly; it is loaded in
   // the renderer document, so the canvas can use it. The fallbacks matter for
   // a browser deploy where it may not have finished loading.
-  const family = opts.fontFamily ?? "'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif";
+  const family = opts.fontFamily ?? "'Rubik', 'Segoe UI', Tahoma, Arial, sans-serif";
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -542,7 +542,7 @@ export function renderReceiptRaster(
 }
 
 /**
- * Waits for the bundled Cairo face to be usable before drawing, so the first
+ * Waits for the bundled Rubik face to be usable before drawing, so the first
  * receipt of a session does not silently fall back to a system font. Resolves
  * either way — a fallback receipt is better than no receipt.
  */
@@ -550,7 +550,7 @@ export async function ensureReceiptFont(): Promise<void> {
   try {
     const { fonts } = document as Document & { fonts?: FontFaceSet };
     if (!fonts) return;
-    await Promise.all([fonts.load('400 24px Cairo'), fonts.load('700 38px Cairo')]);
+    await Promise.all([fonts.load('400 24px Rubik'), fonts.load('700 38px Rubik')]);
   } catch {
     /* fall back to the system stack */
   }
