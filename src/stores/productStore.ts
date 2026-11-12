@@ -1,8 +1,6 @@
-import { SEED_DEMO_FIXTURES } from '../lib/demoMode';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { Product, Category } from '../types';
-import { INITIAL_PRODUCTS, INITIAL_CATEGORIES } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
 import { shortId } from '../lib/utils/ids';
 import { deleteProductsCloudIfEnabled, deleteCategoriesCloudIfEnabled } from '../lib/sync';
@@ -25,15 +23,11 @@ interface ProductState {
 }
 
 /**
- * Demo catalogue, development only — the same gate authStore, customerStore and
- * settingsStore put on their fixtures. Without it a production terminal booted
- * holding the 74-product demo café menu, and the `merge` below handed it back
- * every time the operator emptied the catalogue: delete every product, reload,
- * and the demo is there again.
+ * Every terminal starts with no catalogue: the operator adds their own, or pulls
+ * it from the cloud once sync is set up.
  */
-const seedCatalogue = SEED_DEMO_FIXTURES;
-const DEFAULT_PRODUCTS: Product[] = seedCatalogue ? INITIAL_PRODUCTS : [];
-const DEFAULT_CATEGORIES: Category[] = seedCatalogue ? INITIAL_CATEGORIES : [];
+const DEFAULT_PRODUCTS: Product[] = [];
+const DEFAULT_CATEGORIES: Category[] = [];
 
 /**
  * The product catalog and its categories, including stock levels. Persisted to

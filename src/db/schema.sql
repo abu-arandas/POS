@@ -673,18 +673,7 @@ BEGIN
     FOR DELETE TO authenticated USING (TRUE);
 END $$;
 
--- 8b. DEMO / PROTOTYPE ONLY — anon read/write without auth.
--- ============================================================
--- ⚠️  Uncommenting this exposes EVERY row (including PIN hashes) to anyone with
--- the public anon key. Use only for a throwaway local demo, never in production.
--- ------------------------------------------------------------
--- ALTER TABLE user_accounts DISABLE ROW LEVEL SECURITY;
--- ALTER TABLE categories    DISABLE ROW LEVEL SECURITY;
--- ALTER TABLE products      DISABLE ROW LEVEL SECURITY;
--- ALTER TABLE customers     DISABLE ROW LEVEL SECURITY;
--- ALTER TABLE transactions  DISABLE ROW LEVEL SECURITY;
-
--- 8c. Realtime (optional but recommended for multi-terminal live sync)
+-- 8b. Realtime (optional but recommended for multi-terminal live sync)
 -- ============================================================
 -- Add the synced tables to the supabase_realtime publication so the app's
 -- realtime subscription (src/lib/realtimeSync.ts) receives change events and

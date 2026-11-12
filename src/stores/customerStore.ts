@@ -1,8 +1,6 @@
-import { SEED_DEMO_FIXTURES } from '../lib/demoMode';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { Customer } from '../types';
-import { INITIAL_CUSTOMERS } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
 import { shortId } from '../lib/utils/ids';
 import { localDateKey } from '../lib/utils/dates';
@@ -17,7 +15,7 @@ interface CustomerState {
   updateCustomerPoints: (id: string, delta: number) => void;
 }
 
-const DEFAULT_CUSTOMERS: Customer[] = SEED_DEMO_FIXTURES ? INITIAL_CUSTOMERS : [];
+const DEFAULT_CUSTOMERS: Customer[] = [];
 
 /**
  * The customer book and its loyalty balances. Persisted to IndexedDB; mutations

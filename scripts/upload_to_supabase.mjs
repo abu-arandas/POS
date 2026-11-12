@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
-import path from 'path';
 
 // Credentials come from the environment, never from source. This file used to
 // carry a live project URL, anon key, device email and device password as
@@ -22,14 +21,10 @@ const DEVICE_PASSWORD = process.env.SUPABASE_DEVICE_PASSWORD;
 // dimension to stamp.
 const STORE_ID = process.env.SUPABASE_STORE_ID || '';
 
-// The export to import. Defaults to the sample alongside this script, but a
-// real migration passes its own: a device backup is a store's live catalogue —
-// names, costs, purchase prices, margins — and belongs in a file you point at,
-// not one committed to the repository.
-const BACKUP_PATH =
-  process.argv[2] ||
-  process.env.POS_BACKUP_FILE ||
-  path.join(import.meta.dirname, 'installed_device_backup.json');
+// The export to import, always one you point at: a device backup is a store's
+// live catalogue — names, costs, purchase prices, margins — and never belongs
+// in the repository.
+const BACKUP_PATH = process.argv[2] || process.env.POS_BACKUP_FILE || '';
 
 const MISSING = [
   ['SUPABASE_URL', SUPABASE_URL],
@@ -87,11 +82,11 @@ export async function uploadData() {
   await authedClient.auth.setSession(authData.session);
 
   // Read backup data
-  if (!fs.existsSync(BACKUP_PATH)) {
+  if (!BACKUP_PATH || !fs.existsSync(BACKUP_PATH)) {
     return {
       success: false,
       error:
-        `Backup file not found: ${BACKUP_PATH}. Pass one as the first argument ` +
+        `Backup file not found: ${BACKUP_PATH || '(none given)'}. Pass one as the first argument ` +
         '(node scripts/upload_to_supabase.mjs ./my-backup.json) or set POS_BACKUP_FILE.',
     };
   }

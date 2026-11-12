@@ -4,7 +4,7 @@ import type { Product } from '../types';
  * Ranked product search for the register's search box.
  *
  * The grid used to filter with a bare `includes()` and render whatever survived
- * in catalogue order. That is fine for a demo menu and wrong at a counter: a
+ * in catalogue order. That is wrong at a counter: a
  * shop with "Latte", "Iced Latte", "Latte Macchiato" and "Chocolate Latte Cake"
  * showed them in whatever order they happened to be added, so typing the exact
  * name of the thing being ordered still meant reading four tiles and picking

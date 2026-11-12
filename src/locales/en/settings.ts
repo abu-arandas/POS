@@ -76,7 +76,7 @@ export const settings = {
   statusError: 'Error',
   syncSetupHint: 'Run src/db/schema.sql in your Supabase SQL editor before syncing.',
   deviceAuthHint:
-    'Optional device sign-in. Required once Row Level Security is enabled: the terminal signs in with this Supabase Auth account so sync works. Leave blank for an open demo database.',
+    'Optional device sign-in. Required once Row Level Security is enabled: the terminal signs in with this Supabase Auth account so sync works.',
   deviceEmail: 'Device Email',
   devicePassword: 'Device Password',
   storeIdLabel: 'Store ID',

@@ -15,7 +15,6 @@ export const lockscreen = {
   clear: 'مسح',
   backspace: 'مسح للخلف',
   pinProgress: 'تم إدخال {{count}} من 4 أرقام',
-  defaultPins: 'أرقام الاختبار الافتراضية:',
   setupTitle: 'إعداد حساب المدير',
   setupSubtitle: 'لا توجد حسابات موظفين على هذا الجهاز بعد.',
   setupName: 'اسم المدير',

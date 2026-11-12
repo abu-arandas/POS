@@ -3,8 +3,9 @@
 A point-of-sale system for a shop or a small restaurant, by [Zirr](https://www.facebook.com/1294898037048567), Ehab Arandas's studio in Amman.
 It runs in a browser and ships as a standalone Windows desktop application.
 
-**[Try the live demo](https://pos-sage-one.vercel.app)** in your browser, no install: sign in with PIN
-`1234` (Admin), `5555` (Manager) or `0000` (Cashier).
+**[Open it in your browser](https://pos-sage-one.vercel.app)**, no install. It starts like a new terminal:
+first-run setup asks for your business, then you create the first administrator and their PIN.
+Everything stays in that browser until you link it to your own Supabase project.
 
 > **Want it running in your shop or café in Amman?** We install it on your PC, set up your menu in
 > Arabic and English, connect your receipt printer and train your staff. 14-day free trial, then
@@ -106,8 +107,7 @@ npm run electron:dev
 > **Windows:** if `npm install` fails on local execution-policy restrictions, run
 > `powershell -ExecutionPolicy Bypass -Command "npm install"`.
 
-Development builds seed a demo catalogue and three clearly marked demo accounts, and start
-configured as the demo restaurant. Production builds seed neither: a fresh install opens on
+Every build starts empty: no catalogue, no customers, no accounts. A fresh install opens on
 **first-run setup**, which asks for the business name, what kind of business it is, country,
 time zone, currency and tax, and only then hands over to the lock screen to create the first
 administrator. Installs that predate setup are never sent through it — they keep their settings
@@ -188,10 +188,7 @@ beside the installer, so compare it against
 
 On a new terminal, once first-run setup is done, the lock screen requires the operator to create
 the first administrator account and choose a four-digit PIN before the app will open. Further accounts are created in
-**Settings → Users**. No production build ships an account.
-
-Development builds keep three demo accounts for local testing — Admin `1234`, Manager `5555`,
-Cashier `0000`. They are fixtures. Never reuse them for real operations.
+**Settings → Users**. No build ships an account.
 
 PINs are stored as a versioned PBKDF2-SHA-256 record: 600,000 iterations, account-bound salt.
 Legacy hashes are accepted once and upgraded after a successful local sign-in. A four-digit PIN
@@ -235,9 +232,9 @@ To sync terminals through [Supabase](https://supabase.com):
 2. Create a Supabase Auth "device" user for the terminal to sign in as.
 3. In the app, open **Settings → Supabase Sync**, enter the project URL, anon key and the device
    account's email and password, then **Test Connection**.
-4. Optionally seed demo data: copy `.env.example` to `.env`, set `SUPABASE_URL` and
-   `SUPABASE_SERVICE_ROLE_KEY` (the anon key cannot insert once RLS is on), then run
-   `node src/db/seed.mjs`.
+4. To bring a catalogue over from the shop's previous till (a JSON export with `categories` and
+   `products`), copy `.env.example` to `.env`, fill in the project and device account, then run
+   `node scripts/upload_to_supabase.mjs ./your-backup.json`.
 
 ### What linking does to local data
 
@@ -273,7 +270,7 @@ and half-applied migrations.
 > **Never commit credentials.** `DEFAULT_SUPABASE` in `src/stores/settingsStore.ts` is blank and
 > sync is off by default, and it must stay that way. A build that carries a device password ships
 > it to everyone holding the installer — the value lands in the renderer bundle — and keeping it
-> out of IndexedDB via `partialize()` buys nothing if the bundle carries it. The seeding script
+> out of IndexedDB via `partialize()` buys nothing if the bundle carries it. The upload script
 > reads `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_DEVICE_EMAIL` and
 > `SUPABASE_DEVICE_PASSWORD` from the environment for the same reason.
 
@@ -374,8 +371,7 @@ src/
 │   ├── supabase/   per-table push and pull mappers
 │   └── utils/      ids, dates, formatting, validation, DOM helpers
 ├── locales/{en,ar} 24 translation namespaces each
-├── db/             SQL schema, RLS, fleet migration, verifier, seeder
-├── data/           demo catalogue (development builds only)
+├── db/             SQL schema, RLS, fleet migration, verifier
 └── build/          bundle-budget guard
 electron/           main, preload, and four pure decision modules
 ```
@@ -491,6 +487,6 @@ Motion · Recharts · @dnd-kit · Lucide · Supabase JS · Electron 43 · electr
 
 Copyright © 2026 Zirr (Ehab Arandas). All rights reserved.
 
-The source is published so you can read it and try the live demo. Using it in a business, selling it, or
+The source is published so you can read it and try it in your browser. Using it in a business, selling it, or
 shipping it to a client needs a licence from Zirr:
 [ask on WhatsApp](https://wa.me/962791568798?text=Hi%20Zirr%2C%20I%20would%20like%20a%20Zirr%20POS%20licence.).

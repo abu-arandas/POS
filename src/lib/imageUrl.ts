@@ -7,10 +7,9 @@ const MAX_IMAGE_URL_LENGTH = 4096;
 // stays rejected is everything that is not an image at all: javascript:,
 // data:text/html, and any scheme we do not recognise.
 //
-// SVG has to be allowed because the app generates its own product thumbnails
-// in that form — see productThumb() in src/data/seedData.ts, which emits
-// `data:image/svg+xml,<url-encoded>` so the catalogue renders offline with no
-// image host. Rejecting it blanked all 74 seeded thumbnails.
+// SVG has to be allowed because product images imported from a catalogue file
+// or the cloud often arrive as `data:image/svg+xml,<url-encoded>` thumbnails,
+// which render offline with no image host.
 const RASTER_DATA_URL_PATTERN =
   /^data:image\/(?:png|jpe?g|gif|webp|avif|bmp);(?:charset=[^;,]+;)?base64,[a-z0-9+/=\s]+$/i;
 
