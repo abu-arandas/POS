@@ -6,12 +6,21 @@
 // from the project root. The transparent button goes where nothing crops it (the
 // browser tab, the Windows exe and taskbar); the full-bleed tile (the button
 // reversed out of a denim square) goes where the system cuts its own shape (the
-// iPhone/iPad home-screen icon). Needs Playwright's Chromium; nothing it makes
-// ships as code.
+// iPhone/iPad home-screen icon).
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const { chromium } = createRequire(import.meta.url)('playwright');
+// Playwright is not a dependency of the till (nothing it makes ships), so it is
+// installed only for this script: npm i --no-save playwright && npx playwright install chromium
+let chromium;
+try {
+  ({ chromium } = createRequire(import.meta.url)('playwright'));
+} catch {
+  console.error(
+    'make-icons needs Playwright. Run: npm i --no-save playwright && npx playwright install chromium',
+  );
+  process.exit(1);
+}
 const mark = readFileSync('src/assets/logo-mark.svg', 'utf8');
 const tile = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
   <rect width="120" height="120" fill="#2B4C8C"/>
