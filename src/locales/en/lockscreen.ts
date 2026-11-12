@@ -11,7 +11,6 @@ export const lockscreen = {
   clear: 'Clear',
   backspace: 'Backspace',
   pinProgress: '{{count}} of 4 digits entered',
-  defaultPins: 'Default testing PINs:',
   setupTitle: 'Set up your administrator account',
   setupSubtitle: 'This terminal has no staff accounts yet.',
   setupName: 'Administrator name',

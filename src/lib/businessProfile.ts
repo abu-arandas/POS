@@ -145,7 +145,7 @@ export interface BusinessSetup {
  * Decides a terminal's setup when its settings are loaded from storage.
  *
  *  - No stored settings at all: a fresh install, so whatever `initial` says
- *    (production starts un-onboarded; the dev/test demo starts configured).
+ *    (un-onboarded general retail).
  *  - Stored settings that record a setup: trust them, repairing a profile that
  *    no longer parses to the legacy one rather than losing the operator's screens.
  *  - Stored settings with no setup recorded: an install from before profiles.

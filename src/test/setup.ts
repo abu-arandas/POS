@@ -8,7 +8,7 @@
 // `fake-indexeddb/auto` installs an in-memory implementation on globalThis, so
 // the stores exercise their REAL persistence path rather than having it stubbed
 // out. That matters: `partialize` (which strips the Supabase device password),
-// `merge` (which re-derives a restored 'connected' status) and the seed-fixture
-// gates all live in the persist config, and a stubbed storage would test around
-// them instead of through them.
+// and `merge` (which re-derives a restored 'connected' status) live in the
+// persist config, and a stubbed storage would test around them instead of
+// through them.
 import 'fake-indexeddb/auto';

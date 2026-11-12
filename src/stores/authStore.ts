@@ -1,10 +1,8 @@
-import { SEED_DEMO_FIXTURES } from '../lib/demoMode';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { UserAccount } from '../types';
 import { idbStorage } from '../lib/idbStorage';
 import { shortId } from '../lib/utils/ids';
-import { hashPinSaltedLegacySync } from '../lib/hash';
 
 interface AuthState {
   users: UserAccount[];
@@ -21,28 +19,8 @@ interface AuthState {
   handleDeleteUser: (id: string) => void;
 }
 
-// Development-only fixture accounts, dropped from production builds by the
-// branch below. Their PINs are the demo PINs, hashed here with the v1 helper
-// rather than pasted in as digests: the literal hashes read as leaked
-// credentials to a secret scanner, and burying the PIN they encode made it
-// impossible to see that these are the same fixtures the README documents.
-// Deriving them keeps the v1 -> v2 migration path exercised on first login.
-const DEV_FIXTURES: Array<{ id: string; name: string; role: UserAccount['role']; pin: string }> = [
-  { id: 'u-1', name: 'Admin', role: 'admin', pin: '1234' },
-  { id: 'u-2', name: 'Manager', role: 'manager', pin: '5555' },
-  { id: 'u-3', name: 'Cashier', role: 'cashier', pin: '0000' },
-];
-
-const DEFAULT_USERS: UserAccount[] = SEED_DEMO_FIXTURES
-  ? DEV_FIXTURES.map(({ id, name, role, pin }) => ({
-      id,
-      name,
-      role,
-      pin: hashPinSaltedLegacySync(id, pin),
-      active: true,
-      createdAt: '2023-01-01',
-    }))
-  : [];
+/** Every terminal starts with no staff: first-run setup creates the administrator. */
+const DEFAULT_USERS: UserAccount[] = [];
 
 /**
  * Staff accounts and who is signed in at this terminal. Persisted to IndexedDB

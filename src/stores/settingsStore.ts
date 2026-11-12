@@ -1,4 +1,3 @@
-import { IS_PUBLIC_DEMO, SEED_DEMO_FIXTURES } from '../lib/demoMode';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import {
@@ -10,7 +9,6 @@ import {
   KitchenStation,
   ReceiptLayout,
 } from '../types';
-import { INITIAL_SETTINGS } from '../data/seedData';
 import { idbStorage } from '../lib/idbStorage';
 import { defaultReceiptLayout, defaultKitchenLayout } from '../lib/printing/receiptFormat';
 import {
@@ -88,38 +86,30 @@ interface SettingsState {
 
 /**
  * Exported so Settings' "Reset to defaults" restores exactly what a fresh
- * install of THIS build starts with. It used to reset to INITIAL_SETTINGS
- * directly, which is the demo fixture — a production terminal that reset its
- * settings came back branded "EA POS" with a Seattle address and an 8.5% tax
- * rate, and printed both onto its next receipt.
+ * install starts with. Neutral on purpose: first-run setup
+ * (components/Onboarding.tsx) asks for the store's name and currency, so these
+ * values are only what "Reset to defaults" falls back to.
  */
-export const DEFAULT_SETTINGS: StoreSettings = SEED_DEMO_FIXTURES
-  ? INITIAL_SETTINGS
-  : {
-      // Neutral on purpose. A fresh install used to be branded as one
-      // particular restaurant and set to one particular currency; first-run
-      // setup (components/Onboarding.tsx) now asks for both, so the values
-      // here are only what "Reset to defaults" falls back to.
-      storeName: '',
-      storeAddress: '',
-      storePhone: '',
-      storeLogo: '',
-      taxRate: 0,
-      currency: '$',
-      currencyCode: 'USD',
-      loyaltyPointsRate: 0,
-      loyaltyPointValue: 0,
-    };
+export const DEFAULT_SETTINGS: StoreSettings = {
+  storeName: '',
+  storeAddress: '',
+  storePhone: '',
+  storeLogo: '',
+  taxRate: 0,
+  currency: '$',
+  currencyCode: 'USD',
+  loyaltyPointsRate: 0,
+  loyaltyPointValue: 0,
+};
 
 /**
- * Where a terminal's business setup starts. The dev/test build ships the demo
- * restaurant (see data/seedData.ts), so it starts configured as one; a
- * production install starts as general retail and un-onboarded, and is walked
- * through setup before anything else.
+ * Where a terminal's business setup starts: general retail and un-onboarded,
+ * so first-run setup walks the operator through it before anything else.
  */
-export const INITIAL_BUSINESS_SETUP: BusinessSetup = SEED_DEMO_FIXTURES
-  ? { businessProfile: profileFromTemplate('restaurant'), onboardingComplete: true }
-  : { businessProfile: profileFromTemplate('general-retail'), onboardingComplete: false };
+export const INITIAL_BUSINESS_SETUP: BusinessSetup = {
+  businessProfile: profileFromTemplate('general-retail'),
+  onboardingComplete: false,
+};
 
 /**
  * Printer settings a store starts with: an 80mm system printer that prints
@@ -130,17 +120,14 @@ export const DEFAULT_PRINTER: PrinterConfig = {
   paperSize: '80mm',
   showBarcode: true,
   footerMessage: 'Thank you for shopping with us!',
-  autoPrintOnCheckout: !IS_PUBLIC_DEMO,
+  autoPrintOnCheckout: true,
 };
 
 /**
- * Kitchen stations a terminal starts with, and what "Reset to defaults" restores:
- * none, except on the public demo, whose one catch-all station keeps sales
- * flowing to the Kitchen Display.
+ * Kitchen stations a terminal starts with, and what "Reset to defaults"
+ * restores: none. The operator adds them under Settings.
  */
-export const DEFAULT_KITCHEN_STATIONS: KitchenStation[] = IS_PUBLIC_DEMO
-  ? [{ id: 'st-kitchen', name: 'Kitchen', categoryIds: [] }]
-  : [];
+export const DEFAULT_KITCHEN_STATIONS: KitchenStation[] = [];
 
 /**
  * Cloud sync off and unconfigured — the offline-first default.
@@ -284,8 +271,7 @@ export const useSettingsStore = create<SettingsState>()(
         //
         // 'connected' therefore survives a restart only where the config has
         // affirmatively recorded that it needs no credentials — an anonymous
-        // install, which is the demo path schema.sql section 8b spells out and
-        // which really does keep working across a restart. Everything else,
+        // install, which really does keep working across a restart. Everything else,
         // including a blob written before this flag existed, is treated as
         // unprovable: a wrong 'disconnected' announces itself and is one click
         // to fix, whereas a wrong 'connected' is the silent failure above.

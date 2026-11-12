@@ -8,8 +8,8 @@
 --
 -- Reading the scripts is not the same as checking the database. Grants and
 -- policies accumulate: an older schema version, a hand-run GRANT, a Supabase
--- default privilege, a half-applied migration, or an "ALTER TABLE … DISABLE ROW
--- LEVEL SECURITY" left over from a demo all leave the files saying one thing and
+-- default privilege, a half-applied migration, or a hand-run "ALTER TABLE …
+-- DISABLE ROW LEVEL SECURITY" all leave the files saying one thing and
 -- the server doing another. This is the check that notices.
 --
 --   Dashboard → SQL Editor → New Query → Paste & Run
@@ -90,8 +90,7 @@ BEGIN
       '%s grant(s) to anon/PUBLIC survive on tables the schema revokes', n);
   END IF;
 
-  -- 4. RLS on, everywhere. A DISABLE left over from the demo block in
-  --    schema.sql §8b opens every row to the anon key.
+  -- 4. RLS on, everywhere. A hand-run DISABLE opens every row to the anon key.
   FOREACH tbl IN ARRAY synced || ARRAY['login_attempts', 'pos_schema_state'] LOOP
     IF EXISTS (
       SELECT 1 FROM pg_class c

@@ -1,4 +1,3 @@
-import { SEED_DEMO_FIXTURES } from '../lib/demoMode';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserAccount } from '../types';
 import { Delete, ArrowLeft, ChevronRight } from 'lucide-react';
@@ -579,31 +578,6 @@ export default function Lockscreen() {
           </AnimatePresence>
         )}
       </motion.div>
-
-      {/* Dev hint */}
-      {SEED_DEMO_FIXTURES && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-6 z-10 bg-card/80 border border-border rounded-xl px-4 py-2 text-center"
-        >
-          <p className="text-muted-foreground font-mono text-[10px]">
-            {t('lockscreen.defaultPins')}
-          </p>
-          <div className="flex gap-3 justify-center mt-1">
-            {[
-              ['Admin', '1234', 'text-foreground'],
-              ['Manager', '5555', 'text-foreground'],
-              ['Cashier', '0000', 'text-foreground'],
-            ].map(([role, pin, color]) => (
-              <span key={role} className={`font-mono text-[10px] ${color}`}>
-                {role}: <strong>{pin}</strong>
-              </span>
-            ))}
-          </div>
-        </motion.div>
-      )}
     </div>
   );
 }
