@@ -1,0 +1,389 @@
+import { useState, type ComponentType, type RefObject } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { X, CreditCard, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { Payment, PaymentMethod } from '../../types';
+
+import { moneyTolerance } from '../../lib/money';
+import { useMoney } from '../../lib/useMoney';
+/**
+ * The amount box on one split-tender line.
+ *
+ * It holds the operator's raw KEYSTROKES and reports the parsed number
+ * upwards, rather than being driven straight off the number. Bound to the
+ * number, the box could not be typed into left to right: "0" parses to 0,
+ * `value={amount || ''}` rendered that as empty, React put the empty string
+ * back in the box, and "0.50" was simply unreachable. The same applies to a
+ * trailing decimal point — "4." parses to 4 and was rewritten to "4" under the
+ * caret before the operator could type the pence.
+ *
+ * The number stays authoritative: when it changes from outside (a line
+ * removed, a sale reset) and disagrees with what is typed, the text resyncs.
+ */
+function SplitAmountInput({
+  amount,
+  currency,
+  label,
+  onChange,
+}: {
+  amount: number;
+  currency: string;
+  label: string;
+  onChange: (amount: number) => void;
+}) {
+  const { step: moneyStep } = useMoney();
+
+  const [text, setText] = useState(() => (amount === 0 ? '' : String(amount)));
+  const [seenAmount, setSeenAmount] = useState(amount);
+
+  // Adjusted during render rather than in an effect — React's own pattern for
+  // state that follows a prop. An effect would render once with the stale text,
+  // then again to correct it, and the rows are keyed by index: removing a line
+  // reuses this instance with a different line's amount, so that first render
+  // would briefly show the removed line's figure.
+  if (amount !== seenAmount) {
+    setSeenAmount(amount);
+    const typed = Number.parseFloat(text);
+    // Only when the number genuinely disagrees with what is typed, so "4." and
+    // "0.5" survive their own keystrokes.
+    if ((Number.isFinite(typed) ? typed : 0) !== amount) {
+      setText(amount === 0 ? '' : String(amount));
+    }
+  }
+
+  return (
+    <div className="flex-1 flex items-center px-3">
+      <span className="font-mono text-slate-500 font-bold text-sm">{currency}</span>
+      <input
+        type="number"
+        step={moneyStep}
+        min="0"
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          const parsed = Number.parseFloat(e.target.value);
+          onChange(Number.isFinite(parsed) && parsed > 0 ? parsed : 0);
+        }}
+        aria-label={label}
+        className="flex-1 bg-transparent text-slate-900 dark:text-white text-base font-mono font-bold px-2 py-2.5 focus:outline-none w-full"
+        placeholder="0.00"
+      />
+    </div>
+  );
+}
+
+// The single-payment selector offers these four (no loyalty); split lines use
+// the full PaymentMethod.
+type SinglePaymentMethod = 'cash' | 'card' | 'mobile' | 'gift';
+
+/**
+ * One selectable tender type, with the icon and active styling the payment
+ * modal renders it with.
+ */
+export interface PaymentMethodOption {
+  id: SinglePaymentMethod;
+  label: string;
+  icon: ComponentType<{ size?: number }>;
+  activeClass: string;
+}
+
+interface PaymentModalProps {
+  open: boolean;
+  /** Ref for the dialog card, from useModalA11y (focus trap / Escape / restore). */
+  dialogRef: RefObject<HTMLDivElement | null>;
+  currency: string;
+  totalAmount: number;
+  paymentMethods: readonly PaymentMethodOption[];
+  paymentMethod: SinglePaymentMethod;
+  onSelectMethod: (method: SinglePaymentMethod) => void;
+  splitMode: boolean;
+  onToggleSplit: () => void;
+  splitPayments: Payment[];
+  splitRemaining: number;
+  splitPaidTotal: number;
+  onAddSplit: () => void;
+  onUpdateSplit: (index: number, patch: Partial<Payment>) => void;
+  onRemoveSplit: (index: number) => void;
+  cashSuggestions: number[];
+  cashPaidText: string;
+  onCashPaidChange: (value: string) => void;
+  cashChangeDue: number;
+  onComplete: () => void;
+  onClose: () => void;
+}
+
+/**
+ * The checkout / payment modal: single or split payment, cash tendering with
+ * change, and order completion. Extracted from Register, which keeps ownership
+ * of the payment state and passes it (plus the derived totals and handlers) as
+ * props, so behavior is unchanged.
+ */
+export function PaymentModal({
+  open,
+  dialogRef,
+  currency,
+  totalAmount,
+  paymentMethods,
+  paymentMethod,
+  onSelectMethod,
+  splitMode,
+  onToggleSplit,
+  splitPayments,
+  splitRemaining,
+  splitPaidTotal,
+  onAddSplit,
+  onUpdateSplit,
+  onRemoveSplit,
+  cashSuggestions,
+  cashPaidText,
+  onCashPaidChange,
+  cashChangeDue,
+  onComplete,
+  onClose,
+}: PaymentModalProps) {
+  const { amount: fmtAmount, step: moneyStep, digits } = useMoney();
+  // Half the smallest unit of the store currency, not a fixed half-cent: on a
+  // dinar terminal a split 0.004 short is short, and the checkout refuses it.
+  const tolerance = moneyTolerance(digits);
+
+  const { t } = useTranslation();
+  return (
+    <AnimatePresence>
+      {open && (
+        <div
+          id="payment-modal"
+          className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4"
+        >
+          <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="payment-modal-title"
+            tabIndex={-1}
+            initial={{ scale: 0.9, opacity: 0, y: 28 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 28 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+            className="modal-card max-w-lg w-full overflow-hidden flex flex-col"
+          >
+            <div className="modal-divider-bottom p-4 flex justify-between items-center">
+              <div>
+                <h3
+                  id="payment-modal-title"
+                  className="font-semibold text-foreground text-base tracking-tight"
+                >
+                  {t('register.selectPaymentMethod')}
+                </h3>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5 flex items-center gap-2">
+                  {t('register.amountToPay')}
+                  <span className="font-bold text-lg text-foreground tracking-tight font-mono num">
+                    {currency}
+                    {fmtAmount(totalAmount)}
+                  </span>
+                </p>
+              </div>
+              <button
+                onClick={() => onClose()}
+                aria-label={t('register.close')}
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <button
+                id="split-toggle-btn"
+                onClick={onToggleSplit}
+                className={`toggle-pill w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium ${
+                  splitMode ? 'is-active' : ''
+                }`}
+              >
+                <CreditCard size={14} />
+                {splitMode ? t('register.singlePayment') : t('register.splitPayment')}
+              </button>
+
+              {!splitMode && (
+                <div className="grid grid-cols-4 gap-2.5 min-h-[56px]">
+                  {paymentMethods.map((m) => {
+                    const MIcon = m.icon;
+                    const isSel = paymentMethod === m.id;
+                    return (
+                      <motion.button
+                        key={m.id}
+                        id={`pay-method-${m.id}`}
+                        onClick={() => onSelectMethod(m.id)}
+                        whileTap={{ scale: 0.93 }}
+                        aria-pressed={isSel}
+                        className={`pay-method-btn ${isSel ? m.activeClass : ''}`}
+                      >
+                        <MIcon size={20} />
+                        <span>{m.label}</span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {splitMode && (
+                <div className="space-y-2.5">
+                  {splitPayments.map((p, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <div className="field-shell flex-1 flex items-center rounded-xl overflow-hidden transition-all">
+                        <select
+                          value={p.method}
+                          onChange={(e) =>
+                            onUpdateSplit(idx, { method: e.target.value as PaymentMethod })
+                          }
+                          aria-label={t('register.method')}
+                          className="field-shell-divider bg-transparent text-xs font-semibold ps-3 pe-7 py-3 text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
+                        >
+                          <option value="cash">{t('register.payCash')}</option>
+                          <option value="card">{t('register.payCard')}</option>
+                          <option value="mobile">{t('register.payMobile')}</option>
+                          <option value="gift">{t('register.payGift')}</option>
+                        </select>
+                        <SplitAmountInput
+                          amount={p.amount}
+                          currency={currency}
+                          label={t('register.amountToPay')}
+                          onChange={(amount) => onUpdateSplit(idx, { amount })}
+                        />
+                      </div>
+                      <button
+                        onClick={() => onRemoveSplit(idx)}
+                        disabled={splitPayments.length <= 1}
+                        aria-label={t('register.removePayment')}
+                        className="field-shell p-2.5 text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl disabled:opacity-25 transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      onClick={onAddSplit}
+                      className="btn-dashed-add text-xs font-bold px-3 py-1.5 rounded-lg"
+                    >
+                      + {t('register.addPayment')}
+                    </button>
+                    <span
+                      className={`text-xs font-mono font-bold px-3 py-1.5 rounded-lg badge ${
+                        Math.abs(splitRemaining) < tolerance ? 'badge-emerald' : 'badge-amber'
+                      }`}
+                    >
+                      {splitRemaining > tolerance
+                        ? `${t('register.remaining')}: ${currency}${fmtAmount(splitRemaining)}`
+                        : splitRemaining < -tolerance
+                          ? `${t('register.changeDue')}: ${currency}${fmtAmount(Math.abs(splitRemaining))}`
+                          : t('register.splitBalanced')}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <AnimatePresence mode="wait">
+                {!splitMode && paymentMethod === 'cash' && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="modal-divider-top space-y-4 pt-4 overflow-hidden"
+                  >
+                    <div>
+                      <label className="text-[11px] font-medium text-muted-foreground block mb-2 uppercase tracking-wider">
+                        {t('register.quickCashPay')}
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {cashSuggestions.map((val) => (
+                          <motion.button
+                            key={val}
+                            whileTap={{ scale: 0.94 }}
+                            onClick={() => onCashPaidChange(fmtAmount(val))}
+                            className={`quick-cash-btn num min-h-[38px] font-mono text-xs font-semibold px-3 py-1.5 rounded-lg ${
+                              cashPaidText === fmtAmount(val) ? 'is-active' : ''
+                            }`}
+                          >
+                            {currency}
+                            {fmtAmount(val)}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label
+                          htmlFor="cash-tendered-input"
+                          className="text-[11px] font-medium text-muted-foreground block mb-1.5 uppercase tracking-wider"
+                        >
+                          {t('register.cashTendered')}
+                        </label>
+                        <div className="input-shell flex items-center rounded-xl overflow-hidden transition-all">
+                          <span className="font-mono text-muted-foreground ps-3 font-semibold text-sm">
+                            {currency}
+                          </span>
+                          <input
+                            id="cash-tendered-input"
+                            type="number"
+                            step={moneyStep}
+                            min={totalAmount}
+                            placeholder="0.00"
+                            value={cashPaidText}
+                            onChange={(e) => onCashPaidChange(e.target.value)}
+                            aria-label={t('register.cashTendered')}
+                            className="flex-1 bg-transparent text-foreground text-lg font-mono font-bold p-2 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-medium text-muted-foreground block mb-1.5 uppercase tracking-wider">
+                          {t('register.changeDue')}
+                        </label>
+                        <div className="change-due-box rounded-xl px-3.5 flex items-center justify-between border border-border">
+                          <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
+                            {t('register.returnAmount')}
+                          </span>
+                          <span className="text-xl font-mono font-bold text-foreground num">
+                            {currency}
+                            {fmtAmount(cashChangeDue)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div className="modal-divider-top p-4 flex items-center gap-2.5">
+              <button
+                onClick={() => onClose()}
+                className="btn-secondary px-4 py-2.5 rounded-xl text-xs font-medium flex items-center gap-1.5"
+              >
+                {t('register.cancel')}
+                <span className="kbd text-[10px] opacity-60">Esc</span>
+              </button>
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={onComplete}
+                disabled={
+                  splitMode
+                    ? splitPaidTotal < totalAmount - tolerance
+                    : paymentMethod === 'cash' &&
+                      totalAmount > 0 &&
+                      (parseFloat(cashPaidText) || 0) < totalAmount
+                }
+                className="btn-primary flex-1 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-30 shadow-xs"
+              >
+                <Check size={15} strokeWidth={2.2} />
+                <span>{t('register.completeOrder')}</span>
+              </motion.button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}

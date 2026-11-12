@@ -1,0 +1,876 @@
+import React, { useState, useMemo, useCallback } from 'react';
+import { Plus, Layers, PackagePlus, Tag } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  ModifierGroup,
+  Product,
+  ProductVariant,
+  PurchaseOrder,
+  PurchaseOrderStatus,
+  VariantType,
+} from '../types';
+import { hasVariants, totalVariantStock, variantCost, variantLabel } from '../lib/variants';
+import { normalizePoLines } from '../lib/purchaseOrders';
+import { type InventoryTabId, allowedInventoryTabs, isInventoryTabAllowed } from '../lib/access';
+import { printProductLabels } from '../lib/printing/productLabels';
+
+import { useProductStore } from '../stores/productStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { useSupplyStore } from '../stores/supplyStore';
+import { useAuthStore } from '../stores/authStore';
+import { syncToCloudIfEnabled } from '../lib/sync';
+import { adjustStock, receivePurchaseOrder } from '../services';
+import { useModalA11y } from '../lib/useModalA11y';
+import { useTranslation } from 'react-i18next';
+import { askConfirmation, notify } from '../lib/utils/ui';
+import { safeImageUrl } from '../lib/imageUrl';
+import { shortId } from '../lib/utils/ids';
+import {
+  CategoryFormModal,
+  InventoryCategoriesTab,
+  InventoryProductsTab,
+  InventoryPurchaseOrdersTab,
+  InventoryStockLogTab,
+  InventorySuppliersTab,
+  ProductFormModal,
+  PurchaseOrderFormModal,
+  type PurchaseOrderDraftLine,
+  ReceiveStockModal,
+  SupplierFormModal,
+} from './inventory/index';
+import { useMoney } from '../lib/useMoney';
+
+// Colors available for categories
+const categoryColors = [
+  { class: 'badge badge-blue', bg: 'bg-blue-500', label: 'Blue' },
+  { class: 'badge badge-amber', bg: 'bg-amber-500', label: 'Amber' },
+  { class: 'badge badge-emerald', bg: 'bg-emerald-500', label: 'Emerald' },
+  { class: 'badge badge-purple', bg: 'bg-purple-500', label: 'Purple' },
+  { class: 'badge badge-rose', bg: 'bg-rose-500', label: 'Rose' },
+  { class: 'badge badge-slate', bg: 'bg-slate-500', label: 'Slate' },
+];
+
+/**
+ * Inventory screen: manage products and categories, adjust stock, print product
+ * labels, and import or export the catalog as CSV.
+ */
+export default function Inventory() {
+  const { digits } = useMoney();
+  const { t } = useTranslation();
+  const products = useProductStore((s) => s.products);
+  const categories = useProductStore((s) => s.categories);
+  const handleAddProduct = useProductStore((s) => s.handleAddProduct);
+  const handleUpdateProduct = useProductStore((s) => s.handleUpdateProduct);
+  const handleDeleteProduct = useProductStore((s) => s.handleDeleteProduct);
+  const handleAddCategory = useProductStore((s) => s.handleAddCategory);
+  const handleDeleteCategory = useProductStore((s) => s.handleDeleteCategory);
+
+  const settings = useSettingsStore((s) => s.settings);
+
+  const suppliers = useSupplyStore((s) => s.suppliers);
+  const adjustments = useSupplyStore((s) => s.adjustments);
+  const addSupplier = useSupplyStore((s) => s.addSupplier);
+  const removeSupplier = useSupplyStore((s) => s.removeSupplier);
+  const logAdjustment = useSupplyStore((s) => s.logAdjustment);
+  const purchaseOrders = useSupplyStore((s) => s.purchaseOrders);
+  const createPurchaseOrder = useSupplyStore((s) => s.createPurchaseOrder);
+  const setPurchaseOrderStatus = useSupplyStore((s) => s.setPurchaseOrderStatus);
+  const deletePurchaseOrder = useSupplyStore((s) => s.deletePurchaseOrder);
+
+  const currentUser = useAuthStore((s) => s.currentUser);
+
+  // Tab control. A cashier reaches this screen for purchasing only, so the
+  // opening tab is the first one their role may see rather than a fixed
+  // 'products' they would be bounced off immediately.
+  const role = currentUser?.role ?? 'cashier';
+  const visibleTabs = useMemo(() => allowedInventoryTabs(role), [role]);
+  const [activeTab, setActiveTab] = useState<InventoryTabId>(() => visibleTabs[0] ?? 'orders');
+  // Roles can change under an open screen (an admin edits the account, or a
+  // sync lands), so the selection is re-checked rather than trusted.
+  const currentTab: InventoryTabId = isInventoryTabAllowed(activeTab, role)
+    ? activeTab
+    : (visibleTabs[0] ?? 'orders');
+
+  // Receive-stock (lightweight purchase order) modal
+  const [receiveOpen, setReceiveOpen] = useState(false);
+  const [recvProductId, setRecvProductId] = useState('');
+  const [recvVariantId, setRecvVariantId] = useState('');
+  const [recvQty, setRecvQty] = useState('');
+  const [recvSupplierId, setRecvSupplierId] = useState('');
+  const [recvNote, setRecvNote] = useState('');
+  const [recvReason, setRecvReason] = useState<'received' | 'waste' | 'correction' | 'other'>(
+    'received',
+  );
+
+  // Supplier form
+  const [supplierModalOpen, setSupplierModalOpen] = useState(false);
+  const [supName, setSupName] = useState('');
+  const [supContact, setSupContact] = useState('');
+  const [supPhone, setSupPhone] = useState('');
+  const [supEmail, setSupEmail] = useState('');
+
+  // Purchase order form. Lines are kept as strings while editing so partially
+  // typed numbers don't get clobbered; they're parsed on save.
+  const [poModalOpen, setPoModalOpen] = useState(false);
+  const [poSupplierId, setPoSupplierId] = useState('');
+  const [poNote, setPoNote] = useState('');
+  const [poLines, setPoLines] = useState<PurchaseOrderDraftLine[]>([]);
+
+  const handleOpenPoModal = useCallback(() => {
+    const [first] = products;
+    setPoSupplierId('');
+    setPoNote('');
+    setPoLines([
+      { productId: first?.id ?? '', quantity: '', unitCost: first ? String(first.cost) : '' },
+    ]);
+    setPoModalOpen(true);
+  }, [products]);
+
+  /**
+   * Applies an edit to one purchase-order line. Choosing a product pre-fills
+   * that line's unit cost from the catalog, which the operator may then
+   * override with what the supplier actually charged.
+   */
+  const handlePoLineChange = (idx: number, patch: Partial<PurchaseOrderDraftLine>) => {
+    setPoLines((prev) =>
+      prev.map((l, i) => {
+        if (i !== idx) return l;
+        const next = { ...l, ...patch };
+        // Picking a product pre-fills the unit cost from the catalog.
+        if (patch.productId) {
+          const prod = products.find((p) => p.id === patch.productId);
+          if (prod) next.unitCost = String(prod.cost);
+        }
+        // Picking a variant refines it: a large costs what the large costs, and
+        // a variant with no cost of its own falls back to the product's.
+        if (patch.variantId) {
+          const prod = products.find((p) => p.id === next.productId);
+          const variant = prod?.variants?.find((v) => v.id === patch.variantId);
+          if (prod) next.unitCost = String(variantCost(prod, variant));
+        }
+        return next;
+      }),
+    );
+  };
+
+  const handleSavePoDraft = useCallback(() => {
+    // A line against a varianted product has to name one: receiving credits a
+    // variant's count, and a line that names none is silently skipped there
+    // rather than quietly crediting the product total.
+    const missingVariant = poLines.some((l) => {
+      const prod = products.find((p) => p.id === l.productId);
+      return prod && hasVariants(prod) && !l.variantId;
+    });
+    if (missingVariant) {
+      notify(t('inventory.variantRequired'));
+      return;
+    }
+
+    const lines = normalizePoLines(
+      poLines.map((l) => {
+        const prod = products.find((p) => p.id === l.productId);
+        const variant = prod?.variants?.find((v) => v.id === l.variantId);
+        return {
+          productId: prod?.id ?? '',
+          productName: prod?.name ?? '',
+          variantId: variant?.id,
+          variantName: variant && prod ? variantLabel(prod, variant) || undefined : undefined,
+          quantity: parseInt(l.quantity, 10) || 0,
+          unitCost: parseFloat(l.unitCost) || 0,
+        };
+      }),
+      digits,
+    );
+    if (lines.length === 0) {
+      notify(t('inventory.poNeedLines'));
+      return;
+    }
+    const supplier = suppliers.find((s) => s.id === poSupplierId);
+    createPurchaseOrder({
+      supplierId: supplier?.id ?? null,
+      supplierName: supplier?.name ?? null,
+      lines,
+      note: poNote.trim() || null,
+      createdBy: currentUser?.name ?? null,
+    });
+    setPoModalOpen(false);
+  }, [
+    poLines,
+    poSupplierId,
+    poNote,
+    products,
+    suppliers,
+    currentUser,
+    createPurchaseOrder,
+    digits,
+    t,
+  ]);
+
+  // The status transition, the per-line stock application, the audit entries and
+  // the cloud push all belong to receivePurchaseOrder; this screen only asks
+  // the operator to confirm.
+  const handleReceivePo = useCallback(
+    async (po: PurchaseOrder) => {
+      if (!(await askConfirmation(t('inventory.poReceiveConfirm')))) return;
+      receivePurchaseOrder(po.id, currentUser?.name ?? null);
+    },
+    [currentUser, t],
+  );
+
+  const handleReceiveStock = useCallback(() => {
+    const qty = parseInt(recvQty, 10);
+    const supplier = suppliers.find((s) => s.id === recvSupplierId);
+    // A negative delta is legitimate here — waste and corrections both use one —
+    // so the service, not this screen, decides what is refusable.
+    const result = adjustStock({
+      productId: recvProductId,
+      variantId: recvVariantId || null,
+      delta: qty,
+      reason: recvReason,
+      note: recvNote || null,
+      supplierId: supplier?.id ?? null,
+      supplierName: supplier?.name ?? null,
+      operatorName: currentUser?.name ?? null,
+    });
+    if (!result.success) {
+      if (result.error === 'negative-stock') notify(t('inventory.stockCannotBeNegative'));
+      if (result.error === 'variant-required') notify(t('inventory.variantRequired'));
+      if (result.error === 'unknown-variant') notify(t('inventory.unknownVariant'));
+      // 'zero-delta' and 'unknown-product' mean the form is incomplete, which
+      // the disabled submit already communicates; nothing to say twice.
+      return;
+    }
+    setReceiveOpen(false);
+    setRecvProductId('');
+    setRecvVariantId('');
+    setRecvQty('');
+    setRecvSupplierId('');
+    setRecvNote('');
+    setRecvReason('received');
+  }, [
+    recvProductId,
+    recvVariantId,
+    recvQty,
+    suppliers,
+    recvSupplierId,
+    recvReason,
+    recvNote,
+    currentUser,
+    t,
+  ]);
+
+  const handleAddSupplier = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!supName.trim()) return;
+      addSupplier({
+        name: supName.trim(),
+        contact: supContact.trim(),
+        phone: supPhone.trim(),
+        email: supEmail.trim(),
+      });
+      setSupName('');
+      setSupContact('');
+      setSupPhone('');
+      setSupEmail('');
+      setSupplierModalOpen(false);
+    },
+    [supName, supContact, supPhone, supEmail, addSupplier],
+  );
+
+  // Products Table / List State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'stock' | 'price' | 'sku'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Product Add/Edit Modal State
+  const [productModalOpen, setProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // Category Add State
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  // Must be one of categoryColors, or the picker shows nothing selected and a
+  // category saved without touching it stores a class the badge styles ignore.
+  const [newCatColor, setNewCatColor] = useState(categoryColors[0].class);
+
+  const productModalRef = useModalA11y(productModalOpen, () => setProductModalOpen(false));
+  const categoryModalRef = useModalA11y(categoryModalOpen, () => setCategoryModalOpen(false));
+  const receiveModalRef = useModalA11y(receiveOpen, () => setReceiveOpen(false));
+  const supplierModalRef = useModalA11y(supplierModalOpen, () => setSupplierModalOpen(false));
+  const poModalRef = useModalA11y(poModalOpen, () => setPoModalOpen(false));
+
+  // Product Form Fields
+  const [prodName, setProdName] = useState('');
+  const [prodSku, setProdSku] = useState('');
+  const [prodCategory, setProdCategory] = useState('');
+  const [prodPrice, setProdPrice] = useState('');
+  const [prodCost, setProdCost] = useState('');
+  const [prodStock, setProdStock] = useState('');
+  const [prodMinStock, setProdMinStock] = useState('');
+  const [prodImage, setProdImage] = useState('');
+  const [prodVariantTypes, setProdVariantTypes] = useState<VariantType[]>([]);
+  const [prodVariants, setProdVariants] = useState<ProductVariant[]>([]);
+  const [prodModifierGroups, setProdModifierGroups] = useState<ModifierGroup[]>([]);
+
+  /**
+   * Types and matrix move together — the editor rebuilds one from the other —
+   * so they are set in one call, and the stock box follows the matrix's sum
+   * while the form is open rather than only once it is saved.
+   */
+  const handleVariantsChange = useCallback(
+    (nextTypes: VariantType[], nextVariants: ProductVariant[]) => {
+      setProdVariantTypes(nextTypes);
+      setProdVariants(nextVariants);
+      if (nextVariants.length > 0) {
+        setProdStock(String(totalVariantStock({ variants: nextVariants, stock: 0 })));
+      }
+    },
+    [],
+  );
+
+  // Open Add Product Dialog
+  const handleOpenAddProduct = useCallback(() => {
+    setEditingProduct(null);
+    setProdName('');
+    setProdSku(`SKU-${shortId().replaceAll('-', '').slice(0, 6).toUpperCase()}`);
+    setProdCategory(categories[0]?.id || '');
+    setProdPrice('');
+    setProdCost('');
+    setProdStock('');
+    setProdMinStock('5');
+    setProdImage('');
+    setProdVariantTypes([]);
+    setProdVariants([]);
+    setProdModifierGroups([]);
+    setProductModalOpen(true);
+  }, [categories]);
+
+  /**
+   * Loads a product into the form and opens it for editing.
+   */
+  const handleOpenEditProduct = (prod: Product) => {
+    setEditingProduct(prod);
+    setProdName(prod.name);
+    setProdSku(prod.sku);
+    setProdCategory(prod.category);
+    setProdPrice(prod.price.toString());
+    setProdCost(prod.cost.toString());
+    setProdStock(prod.stock.toString());
+    setProdMinStock(prod.minStock.toString());
+    setProdImage(prod.image);
+    setProdVariantTypes(prod.variantTypes ?? []);
+    setProdVariants(prod.variants ?? []);
+    setProdModifierGroups(prod.modifierGroups ?? []);
+    setProductModalOpen(true);
+  };
+
+  /**
+   * Saves the product form, creating or updating the product. Rejects a
+   * missing required field and a SKU already used by another product — a
+   * duplicate SKU would make the barcode scanner ambiguous at the register.
+   */
+  const handleSubmitProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!prodName.trim() || !prodCategory || !prodPrice || !prodCost || !prodStock) {
+      notify(t('inventory.pleaseFillRequired'));
+      return;
+    }
+
+    const duplicateSku = products.find((p) => p.sku === prodSku && p.id !== editingProduct?.id);
+    if (duplicateSku) {
+      notify(
+        t('inventory.duplicateSku', {
+          defaultValue: 'This SKU is already used by another product.',
+        }),
+      );
+      return;
+    }
+
+    // A half-built matrix is not savable: an option type with no name or no
+    // options produces variants nothing can label, and the register would show
+    // the operator a picker of blanks.
+    const incompleteType = prodVariantTypes.find(
+      (type) =>
+        !type.name.trim() ||
+        type.options.length === 0 ||
+        type.options.some((option) => !option.name.trim()),
+    );
+    if (incompleteType) {
+      notify(t('inventory.variantNeedsOptions'));
+      return;
+    }
+
+    // Variant SKUs are what the barcode scanner resolves, so a repeat anywhere
+    // in the catalogue — within this product or across it — is as ambiguous as
+    // a repeated product SKU.
+    const seenSkus = new Set<string>([prodSku]);
+    const otherSkus = new Set<string>();
+    for (const product of products) {
+      if (product.id === editingProduct?.id) continue;
+      otherSkus.add(product.sku);
+      for (const variant of product.variants ?? []) otherSkus.add(variant.sku);
+    }
+    for (const variant of prodVariants) {
+      if (seenSkus.has(variant.sku) || otherSkus.has(variant.sku)) {
+        notify(t('inventory.duplicateVariantSku', { sku: variant.sku }));
+        return;
+      }
+      seenSkus.add(variant.sku);
+    }
+
+    const productPayload = {
+      name: prodName,
+      sku: prodSku,
+      category: prodCategory,
+      price: parseFloat(prodPrice),
+      cost: parseFloat(prodCost),
+      // Derived, never taken from the box, on a varianted product: the box is
+      // read-only there and the matrix is the only count that exists.
+      stock:
+        prodVariants.length > 0
+          ? totalVariantStock({ variants: prodVariants, stock: 0 })
+          : parseInt(prodStock, 10),
+      minStock: parseInt(prodMinStock, 10) || 0,
+      image: prodImage || '',
+      variantTypes: prodVariantTypes.length > 0 ? prodVariantTypes : undefined,
+      variants: prodVariants.length > 0 ? prodVariants : undefined,
+      modifierGroups: prodModifierGroups.length > 0 ? prodModifierGroups : undefined,
+    };
+
+    if (editingProduct) {
+      const updated = { ...productPayload, id: editingProduct.id };
+      handleUpdateProduct(updated);
+      syncToCloudIfEnabled([updated]);
+      // Record manual stock corrections in the audit log. On a varianted
+      // product that is one row per changed variant, not one for the total:
+      // "+6" against a product says nothing about which size was recounted,
+      // and the total can be unchanged while two variants moved in opposite
+      // directions — a correction the log would otherwise never show.
+      if (hasVariants(updated) || hasVariants(editingProduct)) {
+        const before = new Map(
+          (editingProduct.variants ?? []).map((variant) => [variant.id, variant.stock]),
+        );
+        for (const variant of updated.variants ?? []) {
+          const delta = variant.stock - (before.get(variant.id) ?? 0);
+          if (delta === 0) continue;
+          logAdjustment({
+            productId: updated.id,
+            productName: updated.name,
+            variantId: variant.id,
+            variantName: variantLabel(updated, variant) || undefined,
+            delta,
+            newStock: variant.stock,
+            reason: 'correction',
+            operatorName: currentUser?.name ?? null,
+          });
+        }
+      } else if (updated.stock !== editingProduct.stock) {
+        logAdjustment({
+          productId: updated.id,
+          productName: updated.name,
+          delta: updated.stock - editingProduct.stock,
+          newStock: updated.stock,
+          reason: 'correction',
+          operatorName: currentUser?.name ?? null,
+        });
+      }
+    } else {
+      const added = handleAddProduct(productPayload);
+      syncToCloudIfEnabled([added]);
+    }
+    setProductModalOpen(false);
+  };
+
+  // Submit Category Form
+  const handleSubmitCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatName.trim()) return;
+    const added = handleAddCategory(newCatName.trim(), newCatColor);
+    syncToCloudIfEnabled(undefined, [added]);
+    setNewCatName('');
+    setNewCatColor(categoryColors[0].class);
+    setCategoryModalOpen(false); // only close if not inline, but we want inline behavior to stay same for states
+  };
+
+  // Sort & Filter logic
+  const sortedAndFilteredProducts = useMemo(() => {
+    const list = products.filter((prod) => {
+      const matchesSearch =
+        prod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        prod.sku.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = selectedCategory === 'all' || prod.category === selectedCategory;
+      const matchesStock =
+        stockFilter === 'all'
+          ? true
+          : stockFilter === 'low'
+            ? prod.stock <= prod.minStock && prod.stock > 0
+            : prod.stock <= 0;
+
+      return matchesSearch && matchesCategory && matchesStock;
+    });
+
+    list.sort((a, b) => {
+      const dir = sortOrder === 'asc' ? 1 : -1;
+      const valA = a[sortBy];
+      const valB = b[sortBy];
+
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return valA.toLowerCase().localeCompare(valB.toLowerCase()) * dir;
+      }
+      return ((valA as number) - (valB as number)) * dir;
+    });
+
+    return list;
+  }, [products, searchQuery, selectedCategory, sortBy, sortOrder, stockFilter]);
+
+  // Print price-tag labels (name, price, SKU, scannable barcode) for whatever
+  // the current filter/search shows.
+  const handlePrintLabels = useCallback(() => {
+    const outcome = printProductLabels(sortedAndFilteredProducts, settings, { columns: 3 });
+    if (outcome === 'popup-blocked') notify(t('history.standardPrintBlocked'));
+  }, [sortedAndFilteredProducts, settings, t]);
+
+  const toggleSort = (field: 'name' | 'stock' | 'price' | 'sku') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Helpers
+  const categoryMap = useMemo(() => {
+    return new Map(categories.map((c) => [c.id, c]));
+  }, [categories]);
+
+  const getProductCategoryName = (catId: string) => {
+    return categoryMap.get(catId)?.name || 'General';
+  };
+
+  const TAB_LABELS: Record<InventoryTabId, string> = {
+    products: t('inventory.products'),
+    categories: t('inventory.categories'),
+    suppliers: t('inventory.suppliers'),
+    orders: t('inventory.purchaseOrders'),
+    log: t('inventory.stockLog'),
+  };
+  const tabs = visibleTabs.map((id) => ({ id, label: TAB_LABELS[id] }));
+
+  const PO_STATUS_BADGE: Record<PurchaseOrderStatus, string> = {
+    draft: 'badge badge-slate',
+    ordered: 'badge badge-blue',
+    received: 'badge badge-emerald',
+    cancelled: 'badge badge-rose',
+  };
+
+  const productPreviewUrl = safeImageUrl(prodImage);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      id="inventory-root"
+      className="flex-1 flex flex-col h-screen overflow-hidden bg-background p-6 text-foreground"
+    >
+      {/* Header Panel */}
+      <div
+        id="inventory-header"
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4"
+      >
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-secondary/80 border border-border flex items-center justify-center text-foreground shrink-0">
+            <Layers size={20} />
+          </div>
+          <div>
+            <h2 className="font-sans font-semibold tracking-tight text-foreground text-xl">
+              {t('inventory.catalogInventory')}
+            </h2>
+            <p className="text-muted-foreground text-xs">{t('inventory.manageStoreItems')}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {currentTab === 'products' && (
+            <button
+              id="print-labels-btn"
+              onClick={handlePrintLabels}
+              disabled={sortedAndFilteredProducts.length === 0}
+              className="btn-secondary text-xs h-9 px-3 rounded-lg flex items-center gap-1.5 disabled:opacity-40"
+              title={t('inventory.printLabelsHint')}
+            >
+              <Tag size={14} />
+              <span className="hidden sm:inline">{t('inventory.printLabels')}</span>
+            </button>
+          )}
+
+          {currentTab === 'products' && (
+            <button
+              id="receive-stock-btn"
+              onClick={() => {
+                setRecvProductId(products[0]?.id || '');
+                setReceiveOpen(true);
+              }}
+              className="btn-secondary text-xs h-9 px-3 rounded-lg flex items-center gap-1.5"
+            >
+              <PackagePlus size={14} />
+              <span className="hidden sm:inline">{t('inventory.receiveStock')}</span>
+            </button>
+          )}
+
+          {currentTab !== 'log' && (
+            <button
+              id="add-item-trigger-btn"
+              onClick={
+                currentTab === 'products'
+                  ? handleOpenAddProduct
+                  : currentTab === 'categories'
+                    ? () => setCategoryModalOpen(true)
+                    : currentTab === 'orders'
+                      ? handleOpenPoModal
+                      : () => setSupplierModalOpen(true)
+              }
+              className="btn-primary text-xs h-9 px-3.5 rounded-lg flex items-center gap-1.5 active:scale-[0.98]"
+            >
+              <Plus size={14} />
+              <span>
+                {currentTab === 'products'
+                  ? t('inventory.addProduct')
+                  : currentTab === 'categories'
+                    ? t('inventory.addCategory')
+                    : currentTab === 'orders'
+                      ? t('inventory.newPurchaseOrder')
+                      : t('inventory.addSupplier')}
+              </span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tab Navigation with Animated Underline */}
+      <div
+        role="tablist"
+        aria-label={t('inventory.catalogInventory')}
+        className="flex space-x-6 border-b border-border mb-5 relative"
+      >
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={currentTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`pb-3 text-sm transition-colors relative z-10 ${
+              currentTab === tab.id
+                ? 'text-foreground font-semibold'
+                : 'text-muted-foreground hover:text-foreground font-medium'
+            }`}
+          >
+            {tab.label}
+            {currentTab === tab.id && (
+              <motion.div
+                layoutId="inventoryTab"
+                className="absolute -bottom-px inset-x-0 h-[2px] bg-foreground rounded-full"
+                initial={false}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              />
+            )}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {currentTab === 'products' && (
+          <InventoryProductsTab
+            t={t}
+            products={products}
+            categories={categories}
+            settings={settings}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            selectedCategory={selectedCategory}
+            onSelectedCategoryChange={setSelectedCategory}
+            stockFilter={stockFilter}
+            onStockFilterChange={setStockFilter}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            sortedAndFilteredProducts={sortedAndFilteredProducts}
+            onToggleSort={toggleSort}
+            getProductCategoryName={getProductCategoryName}
+            onEditProduct={handleOpenEditProduct}
+            onDeleteProduct={handleDeleteProduct}
+          />
+        )}
+
+        {currentTab === 'categories' && (
+          <InventoryCategoriesTab
+            t={t}
+            products={products}
+            categories={categories}
+            onAddCategory={() => setCategoryModalOpen(true)}
+            onDeleteCategory={handleDeleteCategory}
+          />
+        )}
+
+        {currentTab === 'suppliers' && (
+          <InventorySuppliersTab t={t} suppliers={suppliers} onDeleteSupplier={removeSupplier} />
+        )}
+
+        {currentTab === 'orders' && (
+          <InventoryPurchaseOrdersTab
+            t={t}
+            settings={settings}
+            purchaseOrders={purchaseOrders}
+            statusBadge={PO_STATUS_BADGE}
+            onSetStatus={setPurchaseOrderStatus}
+            onReceive={handleReceivePo}
+            onDeleteOrder={deletePurchaseOrder}
+          />
+        )}
+
+        {currentTab === 'log' && <InventoryStockLogTab t={t} adjustments={adjustments} />}
+      </div>
+
+      {/* MODAL: Product Add/Edit Form */}
+      <AnimatePresence>
+        {productModalOpen && (
+          <ProductFormModal
+            t={t}
+            modalRef={productModalRef}
+            editingProduct={editingProduct}
+            categories={categories}
+            settings={settings}
+            prodName={prodName}
+            prodSku={prodSku}
+            prodCategory={prodCategory}
+            prodPrice={prodPrice}
+            prodCost={prodCost}
+            prodStock={prodStock}
+            prodMinStock={prodMinStock}
+            prodImage={prodImage}
+            productPreviewUrl={productPreviewUrl}
+            onNameChange={setProdName}
+            onSkuChange={setProdSku}
+            onCategoryChange={setProdCategory}
+            onPriceChange={setProdPrice}
+            onCostChange={setProdCost}
+            onStockChange={setProdStock}
+            onMinStockChange={setProdMinStock}
+            onImageChange={setProdImage}
+            prodVariantTypes={prodVariantTypes}
+            prodVariants={prodVariants}
+            prodModifierGroups={prodModifierGroups}
+            onVariantsChange={handleVariantsChange}
+            onModifierGroupsChange={setProdModifierGroups}
+            onClose={() => setProductModalOpen(false)}
+            onSubmit={handleSubmitProduct}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: Category Add Form */}
+      <AnimatePresence>
+        {categoryModalOpen && (
+          <CategoryFormModal
+            t={t}
+            modalRef={categoryModalRef}
+            categoryColors={categoryColors}
+            newCatName={newCatName}
+            newCatColor={newCatColor}
+            onNameChange={setNewCatName}
+            onColorChange={setNewCatColor}
+            onClose={() => setCategoryModalOpen(false)}
+            onSubmit={handleSubmitCategory}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: Receive Stock / Adjust */}
+      <AnimatePresence>
+        {receiveOpen && (
+          <ReceiveStockModal
+            t={t}
+            modalRef={receiveModalRef}
+            products={products}
+            suppliers={suppliers}
+            recvProductId={recvProductId}
+            recvVariantId={recvVariantId}
+            recvQty={recvQty}
+            recvSupplierId={recvSupplierId}
+            recvNote={recvNote}
+            recvReason={recvReason}
+            onProductIdChange={(id) => {
+              setRecvProductId(id);
+              // A variant id only means anything against the product it belongs
+              // to, so switching products clears it rather than carrying a
+              // stale one that the service would then refuse.
+              setRecvVariantId('');
+            }}
+            onVariantIdChange={setRecvVariantId}
+            onQuantityChange={setRecvQty}
+            onSupplierIdChange={setRecvSupplierId}
+            onNoteChange={setRecvNote}
+            onReasonChange={setRecvReason}
+            onClose={() => setReceiveOpen(false)}
+            onSubmit={handleReceiveStock}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: Add Supplier */}
+      <AnimatePresence>
+        {supplierModalOpen && (
+          <SupplierFormModal
+            t={t}
+            modalRef={supplierModalRef}
+            supName={supName}
+            supContact={supContact}
+            supPhone={supPhone}
+            supEmail={supEmail}
+            onNameChange={setSupName}
+            onContactChange={setSupContact}
+            onPhoneChange={setSupPhone}
+            onEmailChange={setSupEmail}
+            onClose={() => setSupplierModalOpen(false)}
+            onSubmit={handleAddSupplier}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: New Purchase Order */}
+      <AnimatePresence>
+        {poModalOpen && (
+          <PurchaseOrderFormModal
+            t={t}
+            modalRef={poModalRef}
+            products={products}
+            suppliers={suppliers}
+            settings={settings}
+            poSupplierId={poSupplierId}
+            poNote={poNote}
+            poLines={poLines}
+            onSupplierIdChange={setPoSupplierId}
+            onNoteChange={setPoNote}
+            onLineChange={handlePoLineChange}
+            onRemoveLine={(index) => setPoLines((prev) => prev.filter((_, i) => i !== index))}
+            onAddLine={() => {
+              const [first] = products;
+              setPoLines((prev) => [
+                ...prev,
+                {
+                  productId: first?.id ?? '',
+                  quantity: '',
+                  unitCost: first ? String(first.cost) : '',
+                },
+              ]);
+            }}
+            onClose={() => setPoModalOpen(false)}
+            onSubmit={handleSavePoDraft}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}

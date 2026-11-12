@@ -1,0 +1,15 @@
+export const tables = {
+  title: 'Table Management',
+  subtitle: 'Floor plan, seating status and open checks',
+  addTable: 'Add Table',
+  newTable: 'New Table',
+  tableAdded: 'Table {{name}} added',
+  section: 'Section',
+  allSections: 'All Sections',
+  reserve: 'Reserve',
+  viewAddItems: 'View / Add Items',
+  payCheck: 'Pay Check',
+  clear: 'Clear',
+  seatReservation: 'Seat Reservation',
+  createTable: 'Create Table',
+};

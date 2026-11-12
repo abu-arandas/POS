@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Zirr">
+  <title>Zirr</title>
+  <!-- A shirt button whose four holes are app tiles; the top-right hole is lit
+       in thread orange. On a 120 grid: button r52, faint ring r43, holes 19x19
+       with rounded corners. src/components/Logo.tsx draws the same shapes. -->
+  <circle cx="60" cy="60" r="52" fill="#2B4C8C"/>
+  <circle cx="60" cy="60" r="43" fill="none" stroke="#F7F5F0" stroke-opacity=".25" stroke-width="3"/>
+  <rect x="38" y="38" width="19" height="19" rx="6" fill="#F7F5F0"/>
+  <rect x="63" y="38" width="19" height="19" rx="6" fill="#EE7B30"/>
+  <rect x="38" y="63" width="19" height="19" rx="6" fill="#F7F5F0"/>
+  <rect x="63" y="63" width="19" height="19" rx="6" fill="#F7F5F0"/>
+</svg>

@@ -1,0 +1,505 @@
+import { useState, useEffect, lazy, Suspense, useMemo } from 'react';
+import {
+  ShoppingBag,
+  Package,
+  History as HistoryIcon,
+  Users,
+  BarChart3,
+  Settings as SettingsIcon,
+  Menu,
+  X as XIcon,
+  QrCode,
+  Clock,
+  Building2,
+  ChefHat,
+  Grid3X3,
+  Loader2,
+  Sun,
+  Moon,
+} from 'lucide-react';
+
+import { motion, AnimatePresence, MotionConfig } from 'motion/react';
+import { useTranslation } from 'react-i18next';
+import Sidebar from './components/Sidebar';
+import Register from './components/Register';
+import Lockscreen from './components/Lockscreen';
+// Non-default screens are code-split so heavy deps (recharts, qrcode.react, …)
+// stay out of the initial bundle and load only when their screen is opened.
+const KitchenDisplay = lazy(() =>
+  import('./components/KitchenDisplay').then(({ KitchenDisplay }) => ({ default: KitchenDisplay })),
+);
+const TableManagement = lazy(() =>
+  import('./components/TableManagement').then(({ TableManagement }) => ({
+    default: TableManagement,
+  })),
+);
+const Inventory = lazy(() => import('./components/Inventory'));
+const History = lazy(() => import('./components/History'));
+const Customers = lazy(() => import('./components/Customers'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const Settings = lazy(() => import('./components/Settings'));
+const QRMenu = lazy(() => import('./components/QRMenu'));
+const ShiftScreen = lazy(() => import('./components/ShiftScreen'));
+const FleetView = lazy(() => import('./components/FleetView'));
+// First-run setup is shown once per install, so it stays out of the initial bundle.
+const Onboarding = lazy(() => import('./components/Onboarding'));
+import { useAuthStore } from './stores/authStore';
+import { useSettingsStore } from './stores/settingsStore';
+import { useProductStore } from './stores/productStore';
+import { useTableStore } from './stores/tableStore';
+import type { Product } from './types';
+import { variantPrice } from './lib/variants';
+import { currencyDigits } from './lib/money';
+import { ScreenId, isScreenAvailable } from './lib/access';
+import { startRealtimeSync, stopRealtimeSync } from './lib/realtimeSync';
+import { adoptCloudDatabase } from './lib/cloudAdoption';
+import { startOutboxReplay, stopOutboxReplay } from './lib/sync';
+import { startFleetHeartbeat, stopFleetHeartbeat, fetchSuperadminOrg } from './lib/fleetClient';
+import NotificationCenter from './components/NotificationCenter';
+import DialogCenter from './components/DialogCenter';
+import { notify } from './lib/utils/ui';
+
+function ScreenLoader() {
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <Loader2 className="animate-spin text-zinc-400 dark:text-zinc-500" size={24} />
+    </div>
+  );
+}
+
+/**
+ * Root of the running terminal: holds which screen is showing and who is
+ * signed in, and wires the cross-cutting concerns — theme, language and
+ * direction, cloud sync, the barcode scanner, and the fleet heartbeat.
+ * Renders the lock screen until an operator signs in.
+ */
+/**
+ * The one price a menu card can show for a product, and whether it is a floor
+ * rather than the price. A varianted product has no single price, so the menu
+ * shows the cheapest variant a customer could actually buy, prefixed "from".
+ */
+function menuPrice(product: Product): { price: number; priceFrom?: boolean } {
+  const variants = product.variants ?? [];
+  if (variants.length === 0) return { price: product.price };
+  const prices = variants
+    .filter((variant) => variant.stock > 0)
+    .map((variant) => variantPrice(product, variant));
+  const candidates = prices.length > 0 ? prices : variants.map((v) => variantPrice(product, v));
+  const cheapest = Math.min(...candidates);
+  return { price: cheapest, priceFrom: candidates.some((price) => price !== cheapest) };
+}
+
+/**
+ * Root shell: owns the active screen, the mobile nav, and the auth gate.
+ *
+ * Screen access is decided in one place (`canView`) rather than at each call
+ * site, so a role that loses a permission loses the sidebar entry, the keyboard
+ * shortcut and the rendered screen together instead of keeping a reachable
+ * route behind a hidden button.
+ */
+export default function App() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentScreen, setScreen] = useState<ScreenId>('register');
+
+  const { currentUser, setCurrentUser } = useAuthStore();
+  const {
+    settings,
+    darkMode,
+    setDarkMode,
+    language,
+    supabaseConfig,
+    showProductImages,
+    businessProfile,
+    onboardingComplete,
+  } = useSettingsStore();
+  const { t, i18n } = useTranslation();
+
+  // Live multi-terminal sync: subscribe to cloud changes while sync is
+  // connected, so another register's writes appear here automatically.
+  const syncEnabled = supabaseConfig.enabled;
+  const syncConnected = supabaseConfig.status === 'connected';
+  useEffect(() => {
+    if (!(syncEnabled && syncConnected)) return;
+    let cancelled = false;
+    void (async () => {
+      // Merge this terminal into the cloud and adopt the result BEFORE
+      // subscribing, so the first realtime pull is already working from the
+      // merged truth rather than racing the upload that produces it. After the
+      // first link this is a store read and a string compare, so the ordinary
+      // path pays nothing for it.
+      await adoptCloudDatabase();
+      if (!cancelled) startRealtimeSync();
+    })();
+    return () => {
+      cancelled = true;
+      stopRealtimeSync();
+    };
+  }, [syncEnabled, syncConnected]);
+
+  // Replay of cloud writes this terminal still owes. Deliberately NOT gated on
+  // `connected`: the queue exists precisely because the connection drops, and
+  // waiting for the status to say otherwise is waiting for the thing that is
+  // broken to announce it is fixed.
+  useEffect(() => {
+    if (!syncEnabled) return;
+    startOutboxReplay();
+    return () => stopOutboxReplay();
+  }, [syncEnabled]);
+
+  // Multi-store (super-admin) plumbing. While sync is connected: send this
+  // terminal's store heartbeat, and resolve whether the device account is a
+  // super-admin (which reveals the Fleet board). All no-ops without a
+  // multi-store backend, so single-store installs are unaffected.
+  const [superadminOrg, setSuperadminOrg] = useState<string | null>(null);
+  useEffect(() => {
+    if (!(syncEnabled && syncConnected)) return;
+    startFleetHeartbeat();
+    let cancelled = false;
+    void (async () => {
+      try {
+        const org = await fetchSuperadminOrg();
+        if (!cancelled) setSuperadminOrg(org);
+      } catch (err) {
+        console.error('Failed to resolve super-admin org:', err);
+      }
+    })();
+    // Leaving the connected state stops the heartbeat and clears super-admin
+    // access. Resetting in cleanup (not the effect body) avoids a synchronous
+    // state update during render.
+    return () => {
+      cancelled = true;
+      stopFleetHeartbeat();
+      setSuperadminOrg(null);
+    };
+  }, [syncEnabled, syncConnected]);
+  const isSuperadmin = superadminOrg !== null;
+
+  useEffect(() => {
+    i18n.changeLanguage(language);
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    if (language === 'ar') {
+      document.documentElement.classList.add('font-arabic');
+    } else {
+      document.documentElement.classList.remove('font-arabic');
+    }
+  }, [language, i18n]);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  // We only pull what we absolutely need in App to minimize re-renders.
+  // lowStockCount can be derived here, or passed.
+  const products = useProductStore((state) => state.products);
+  const categories = useProductStore((state) => state.categories);
+  // Match the Sidebar's definition so the mobile and desktop badges agree
+  // (low = at/below threshold but still in stock; out-of-stock is shown separately).
+  const lowStockCount = useMemo(
+    () => products.filter((p) => p.stock <= p.minStock && p.stock > 0).length,
+    [products],
+  );
+
+  // Keep the embedded QR-menu server in sync. Memoizing the public payload means
+  // changes to unrelated settings (printer, scanner, tax, etc.) do not trigger a
+  // redundant IPC update. No private cost, stock counts, or other settings cross
+  // into the LAN-exposed server.
+  const menuProducts = useMemo(
+    () =>
+      products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        // The customer-facing menu follows the same switch as the till: with
+        // product images off, sending them anyway would put back on a stranger's
+        // phone exactly what the operator turned off in the shop. menu.html
+        // falls back to the product's initial when this is empty.
+        image: showProductImages ? p.image : '',
+        // Sellable variants only: a "from £2.50" that names a size nobody can
+        // buy is worse than the next price up. With none left the cheapest
+        // variant's price is still shown, beside the SOLD OUT badge.
+        ...menuPrice(p),
+        inStock: p.stock > 0,
+      })),
+    [products, showProductImages],
+  );
+  const menuCategories = useMemo(
+    () => categories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+    [categories],
+  );
+  const menuDigits = currencyDigits(settings);
+  const menuSettings = useMemo(
+    () => ({
+      storeName: settings.storeName,
+      storeLogo: settings.storeLogo,
+      currency: settings.currency,
+      digits: menuDigits,
+    }),
+    [settings.currency, settings.storeLogo, settings.storeName, menuDigits],
+  );
+
+  useEffect(() => {
+    window.electronAPI?.updateMenuData({
+      products: menuProducts,
+      categories: menuCategories,
+      settings: menuSettings,
+    });
+  }, [menuProducts, menuCategories, menuSettings]);
+
+  useEffect(() => {
+    if (!window.electronAPI?.onMenuServerError) return;
+    return window.electronAPI.onMenuServerError((msg) => {
+      console.error('QR Menu Server Error:', msg);
+      notify(msg, 'error');
+    });
+  }, []);
+
+  // A screen is viewable if the terminal role allows it, the business profile
+  // offers it, AND, for the super-admin Fleet board, the cloud account resolved
+  // as a super-admin.
+  const canView = (screen: ScreenId): boolean =>
+    currentUser !== null &&
+    isScreenAvailable(screen, currentUser.role, businessProfile) &&
+    (screen !== 'fleet' || isSuperadmin);
+
+  // Reset navigation state when the signed-in role cannot view the current
+  // screen (e.g. an admin locked the terminal on Settings and a cashier logs in,
+  // or a super-admin session ends while the Fleet board is open).
+  useEffect(() => {
+    if (!currentUser) return;
+    const ok =
+      isScreenAvailable(currentScreen, currentUser.role, businessProfile) &&
+      (currentScreen !== 'fleet' || isSuperadmin);
+    if (!ok) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setScreen('register');
+    }
+  }, [currentUser, currentScreen, isSuperadmin, businessProfile]);
+
+  // A fresh install is set up before anyone can sign in: the lock screen would
+  // otherwise create the first administrator for a business that has no name,
+  // currency or kind yet. Installs from before setup existed are marked
+  // complete when their settings load, so this never interrupts a working till.
+  if (!onboardingComplete) {
+    return (
+      <MotionConfig reducedMotion="user">
+        <Suspense fallback={<ScreenLoader />}>
+          <Onboarding />
+        </Suspense>
+      </MotionConfig>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <MotionConfig reducedMotion="user">
+        <Lockscreen />
+      </MotionConfig>
+    );
+  }
+
+  // Guard at render time too: effects run after paint, so relying on the
+  // effect alone would flash one frame of a prohibited screen.
+  const activeScreen: ScreenId = canView(currentScreen) ? currentScreen : 'register';
+
+  /**
+   * The screen the sidebar has selected. Access is already settled by the
+   * caller, so a screen that reaches here is one this operator may open.
+   */
+  const renderActiveScreen = () => {
+    switch (activeScreen) {
+      case 'register':
+        return <Register />;
+      case 'tables':
+        return (
+          <TableManagement
+            // Record which table the order belongs to before navigating. The
+            // handler used to discard its argument and only switch screens, so
+            // "open this table on the register" lost the table on the way.
+            onSelectTableForRegister={(table) => {
+              useTableStore.getState().setSelectedTableId(table.id);
+              setScreen('register');
+            }}
+          />
+        );
+      case 'kitchen':
+        return <KitchenDisplay />;
+      case 'inventory':
+        return <Inventory />;
+      case 'history':
+        return <History />;
+      case 'customers':
+        return <Customers />;
+      case 'dashboard':
+        return <Dashboard />;
+      case 'shift':
+        return <ShiftScreen />;
+      case 'qrmenu':
+        return <QRMenu />;
+      case 'settings':
+        return <Settings />;
+      case 'fleet':
+        return superadminOrg ? <FleetView orgId={superadminOrg} /> : <Register />;
+      default:
+        return <div className="p-8 font-mono text-xs">VIEW ROUTING ERROR</div>;
+    }
+  };
+
+  const mobileMenuItems: Array<{
+    id: ScreenId;
+    label: string;
+    icon: typeof ShoppingBag;
+    badge?: number;
+  }> = [
+    { id: 'register', label: t('sidebar.register'), icon: ShoppingBag },
+    { id: 'tables', label: t('sidebar.tables'), icon: Grid3X3 },
+    { id: 'kitchen', label: t('sidebar.kitchen'), icon: ChefHat },
+    { id: 'dashboard', label: t('sidebar.dashboard'), icon: BarChart3 },
+    {
+      id: 'inventory',
+      label: t('sidebar.inventory'),
+      icon: Package,
+      badge: lowStockCount > 0 ? lowStockCount : undefined,
+    },
+    { id: 'history', label: t('sidebar.transactions'), icon: HistoryIcon },
+    { id: 'customers', label: t('sidebar.customers'), icon: Users },
+    { id: 'shift', label: t('sidebar.shift'), icon: Clock },
+    { id: 'qrmenu', label: t('sidebar.qrmenu'), icon: QrCode },
+    ...(isSuperadmin
+      ? [{ id: 'fleet' as ScreenId, label: t('sidebar.fleet'), icon: Building2 }]
+      : []),
+    { id: 'settings', label: t('sidebar.settings'), icon: SettingsIcon },
+  ];
+
+  const allowedMobileItems = mobileMenuItems.filter((item) => canView(item.id));
+
+  return (
+    <MotionConfig reducedMotion="user">
+      <div
+        id="application-container"
+        className="flex min-h-screen overflow-hidden text-foreground bg-background transition-colors duration-200"
+      >
+        <NotificationCenter />
+        <DialogCenter />
+        <div id="desktop-sidebar-rail" className="hidden lg:block shrink-0">
+          <Sidebar currentScreen={activeScreen} setScreen={setScreen} isSuperadmin={isSuperadmin} />
+        </div>
+
+        {/* Main column: mobile top bar (small screens only) plus the active screen.
+          The screen is mounted exactly once here so there is a single cart and no
+          duplicate element IDs across the mobile/desktop layouts. */}
+        <div
+          id="app-shell"
+          className="relative flex flex-col flex-1 min-w-0 h-screen overflow-hidden bg-background"
+        >
+          <header className="app-panel lg:hidden px-4 py-2.5 flex items-center justify-between shrink-0 border-b border-border bg-card">
+            <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
+              <div className="size-7 rounded-lg bg-foreground text-background flex items-center justify-center font-bold text-xs tracking-tight">
+                <ShoppingBag size={14} className="stroke-[2.2]" />
+              </div>
+              <h1
+                className="font-medium tracking-tight text-foreground text-sm truncate max-w-[130px]"
+                title={settings.storeName}
+              >
+                {settings.storeName}
+              </h1>
+              <span className="text-[10px] uppercase font-mono font-medium bg-muted px-1.5 py-0.5 rounded text-muted-foreground border border-border">
+                {currentUser.role}
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-1.5 rtl:space-x-reverse">
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                aria-label={darkMode ? t('sidebar.lightMode') : t('sidebar.darkMode')}
+                className="p-2 rounded-lg transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
+              >
+                {darkMode ? (
+                  <Sun size={15} className="text-zinc-300" aria-hidden="true" />
+                ) : (
+                  <Moon size={15} className="text-zinc-600" aria-hidden="true" />
+                )}
+              </button>
+              <button
+                onClick={() => setCurrentUser(null)}
+                title={t('sidebar.lockTerminal')}
+                aria-label={t('sidebar.lockTerminal')}
+                className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+              >
+                <XIcon size={15} />
+              </button>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label={t('sidebar.menu')}
+                aria-expanded={mobileMenuOpen}
+                className="p-2 text-foreground hover:bg-muted rounded-lg transition-colors"
+              >
+                <Menu size={18} />
+              </button>
+            </div>
+          </header>
+
+          <AnimatePresence>
+            {mobileMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15 }}
+                className="app-panel lg:hidden absolute top-[45px] inset-x-0 border-b border-border shadow-lg z-40 p-3 space-y-1 bg-card flex flex-col"
+              >
+                {allowedMobileItems.map((item) => {
+                  const Icon = item.icon;
+                  const isSel = activeScreen === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setScreen(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                        isSel
+                          ? 'bg-foreground text-background font-semibold shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
+                        <Icon
+                          size={15}
+                          className={isSel ? 'text-background' : 'text-muted-foreground'}
+                        />
+                        <span>{item.label}</span>
+                      </div>
+                      {item.badge !== undefined && (
+                        <span
+                          className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full font-medium ${
+                            isSel
+                              ? 'bg-background/20 text-background'
+                              : 'bg-muted text-muted-foreground border border-border'
+                          }`}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <main
+            id="desktop-view-container"
+            className="flex flex-1 min-w-0 min-h-0 bg-transparent relative overflow-hidden"
+          >
+            <Suspense fallback={<ScreenLoader />}>{renderActiveScreen()}</Suspense>
+          </main>
+        </div>
+      </div>
+    </MotionConfig>
+  );
+}

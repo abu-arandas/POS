@@ -1,0 +1,597 @@
+import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
+import { Search, X, LayoutGrid, GripHorizontal, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Product, ProductVariant, SelectedModifier, StoreSettings } from '../types';
+import { useProductStore } from '../stores/productStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { useAuthStore } from '../stores/authStore';
+import { safeImageUrl } from '../lib/imageUrl';
+import { searchProducts } from '../lib/productSearch';
+import { hasVariants, variantPrice } from '../lib/variants';
+import { VariantPickerModal } from './register/VariantPickerModal';
+import { ModifierPickerModal } from './register/ModifierPickerModal';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useTranslation } from 'react-i18next';
+
+import { useMoney } from '../lib/useMoney';
+interface ProductGridProps {
+  selectedCategory: string;
+  setSelectedCategory: (c: string) => void;
+  cart: Array<{
+    product: Product;
+    variant?: ProductVariant;
+    modifiers?: SelectedModifier[];
+    quantity: number;
+  }>;
+  addToCart: (product: Product, variant?: ProductVariant, modifiers?: SelectedModifier[]) => void;
+}
+
+interface SortableProductCardProps {
+  prod: Product;
+  isEditMode: boolean;
+  /** Adds the product outright, or opens the picker when it has variants. */
+  addToCart: (product: Product) => void;
+  cartQty: number;
+  categoryName: string;
+  settings: StoreSettings;
+  index: number;
+  /**
+   * This is what Enter in the search box will add. Marked so the operator can
+   * see the target before committing to it — a blind Enter that adds "whatever
+   * ranked first" is a wrong item on a receipt and a queue behind them.
+   */
+  isTopMatch?: boolean;
+}
+
+/**
+ * Stand-in artwork for a product with no image, picked from its category name.
+ * Module scope, not a closure in the card: it depends on nothing the card knows
+ * and every card would otherwise rebuild it on each render.
+ */
+function getCategoryEmoji(catName: string): string {
+  const n = catName.toLowerCase();
+  if (n.includes('coffee') || n.includes('drink') || n.includes('beverage')) return '☕';
+  if (n.includes('bak') || n.includes('bread') || n.includes('cake')) return '🥐';
+  if (n.includes('sandwich') || n.includes('food') || n.includes('burger')) return '🥪';
+  if (n.includes('snack') || n.includes('chip')) return '🍿';
+  if (n.includes('tech') || n.includes('electronic')) return '📱';
+  if (n.includes('apparel') || n.includes('shirt')) return '👕';
+  return '📦';
+}
+
+/**
+ * One product card in the register grid. Tapping it adds the product to the
+ * cart; in edit mode it is a drag handle instead. Memoised because a cart
+ * change re-renders the grid and only the affected card's quantity moves.
+ */
+const SortableProductCard = memo(function SortableProductCard({
+  prod,
+  isEditMode,
+  addToCart,
+  cartQty,
+  categoryName,
+  settings,
+  index,
+  isTopMatch = false,
+}: SortableProductCardProps) {
+  const { amount: fmtAmount } = useMoney();
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: prod.id,
+    disabled: !isEditMode,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: isEditMode ? transition : undefined,
+    zIndex: isDragging ? 50 : 1,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  const isLowStock = prod.stock <= prod.minStock && prod.stock > 0;
+  const isOutOfStock = prod.stock <= 0;
+  const variantCount = prod.variants?.length ?? 0;
+  // What the card can honestly show for a product with several prices: the
+  // cheapest variant, marked "from". The product's own price is a fallback for
+  // variants that do not set one, so on a product where every variant does it
+  // is a figure no customer can actually pay.
+  const cardPrices = (prod.variants ?? []).map((variant) => variantPrice(prod, variant));
+  const displayPrice = cardPrices.length > 0 ? Math.min(...cardPrices) : prod.price;
+  const isPriceFrom = cardPrices.some((price) => price !== displayPrice);
+  // Every unit is already in the cart, so addToCart would no-op. Treat it like
+  // out-of-stock for interaction purposes (no dead taps, correct a11y state)
+  // while keeping the out-of-stock badge/greyscale styling to itself.
+  //
+  // cartQty on a varianted product is the total across its variants, so this
+  // only trips once the whole product is spoken for — exactly the point at
+  // which the picker would have nothing left to offer either.
+  const isUnavailable = isOutOfStock || cartQty >= prod.stock;
+  const [imgError, setImgError] = useState(false);
+  const imageUrl = safeImageUrl(prod.image);
+  const showProductImages = useSettingsStore((s) => s.showProductImages);
+  const { t } = useTranslation();
+
+  return (
+    <motion.div
+      ref={setNodeRef}
+      layoutId={isEditMode ? undefined : `prod-card-${prod.id}`}
+      initial={!isEditMode ? { opacity: 0, y: 18, scale: 0.96 } : false}
+      animate={!isEditMode ? { opacity: 1, y: 0, scale: 1 } : false}
+      transition={!isEditMode ? { duration: 0.28, delay: index * 0.04 } : {}}
+      onClick={() => {
+        if (!isEditMode && !isUnavailable) addToCart(prod);
+      }}
+      whileHover={!isEditMode && !isUnavailable ? { y: -4, scale: 1.02 } : {}}
+      whileTap={!isEditMode && !isUnavailable ? { scale: 0.96 } : {}}
+      className={`product-card relative rounded-xl overflow-hidden flex flex-col transition-all duration-150 select-none group border bg-card hover:border-foreground/20 hover:shadow-2xs ${
+        isTopMatch ? 'border-foreground/60 ring-2 ring-foreground/25' : 'border-border'
+      } ${isDragging ? 'is-dragging' : ''} ${
+        isEditMode
+          ? 'cursor-grab active:cursor-grabbing'
+          : isUnavailable
+            ? 'cursor-not-allowed opacity-50 grayscale'
+            : 'cursor-pointer'
+      }`}
+      // dnd-kit rewrites transform (and transition) on every animation frame
+      // while a card is being dragged. That is a per-frame value from the
+      // library, not styling this project owns, so it is the one thing here
+      // that legitimately stays on the element. Everything the app decides —
+      // the lifted z-index and the ghosting — is in .product-card.is-dragging.
+      style={{
+        transform: style?.transform,
+        transition: isEditMode ? style?.transition : undefined,
+      }}
+      {...(isEditMode ? attributes : {})}
+      {...(isEditMode ? listeners : {})}
+      {...(!isEditMode
+        ? {
+            // dnd-kit supplies role/tabIndex/keyboard handling in edit mode;
+            // outside it the card must be a keyboard-operable button itself.
+            role: 'button' as const,
+            // Tab order tracks stock only. Keying it to isUnavailable would pull
+            // the card out from under a keyboard user the moment their last add
+            // hit the limit, dropping focus mid-interaction; aria-disabled
+            // communicates the state without moving the focus target.
+            tabIndex: isOutOfStock ? -1 : 0,
+            'aria-disabled': isUnavailable || undefined,
+            'aria-label': `${prod.name}, ${
+              isPriceFrom ? `${t('register.priceFrom')} ` : ''
+            }${settings.currency}${fmtAmount(displayPrice)}${
+              isOutOfStock ? ` — ${t('register.outOfStock')}` : ''
+            }`,
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (!isUnavailable) addToCart(prod);
+              }
+            },
+          }
+        : {})}
+    >
+      {/* Status overlays */}
+      <div className="absolute top-2 inset-s-2 z-20 flex flex-col gap-1">
+        {isOutOfStock && (
+          <span className="bg-destructive text-destructive-foreground text-[9px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider">
+            {t('register.outOfStock')}
+          </span>
+        )}
+        {!isOutOfStock && isLowStock && (
+          <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[9px] font-semibold px-1.5 py-0.5 rounded uppercase">
+            {t('register.onlyLeft', { count: prod.stock })}
+          </span>
+        )}
+        {variantCount > 0 && (
+          <span className="bg-background/80 backdrop-blur-xs text-foreground border border-border text-[9px] font-medium px-1.5 py-0.5 rounded uppercase tracking-wider">
+            {t('register.variantOptionsCount', { count: variantCount })}
+          </span>
+        )}
+        {cartQty > 0 && !isEditMode && (
+          <motion.span
+            initial={{ scale: 0, rotate: -10 }}
+            animate={{ scale: 1, rotate: 0 }}
+            className="flex items-center gap-1 bg-foreground text-background text-[9px] font-semibold px-1.5 py-0.5 rounded-full shadow-xs"
+          >
+            <Check size={9} className="stroke-3" />
+            {cartQty}
+          </motion.span>
+        )}
+      </div>
+
+      {/* Edit mode drag handle */}
+      {isEditMode && (
+        <div className="absolute top-2 inset-e-2 z-20 bg-background/80 backdrop-blur-xs text-muted-foreground p-1 rounded-md border border-border">
+          <GripHorizontal size={13} />
+        </div>
+      )}
+
+      {/* Product image */}
+      {showProductImages && (
+        <div className="relative aspect-4/3 w-full overflow-hidden bg-muted pointer-events-none">
+          {imageUrl && !imgError ? (
+            <img
+              src={imageUrl}
+              alt={prod.name}
+              className={`size-full object-cover transition-transform duration-300 ${isUnavailable ? '' : 'group-hover:scale-105'}`}
+              referrerPolicy="no-referrer"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div className="size-full flex items-center justify-center bg-muted/40">
+              <span
+                className={`text-3xl transition-transform duration-300 opacity-60 ${isUnavailable ? '' : 'group-hover:scale-110'}`}
+              >
+                {getCategoryEmoji(categoryName)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Info */}
+      <div className="p-3 flex-1 flex flex-col justify-between pointer-events-none">
+        <div>
+          <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground block mb-1">
+            {t(`categories.${categoryName.toLowerCase()}`, { defaultValue: categoryName })}
+          </span>
+          <h3 className="font-medium text-foreground text-[13px] tracking-tight line-clamp-2 leading-snug min-h-[2.4em]">
+            {prod.name}
+          </h3>
+        </div>
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+          <span className="font-mono font-semibold text-foreground text-sm tracking-tight num">
+            {isPriceFrom && (
+              <span className="font-sans text-[9px] font-medium uppercase tracking-wider text-muted-foreground me-1">
+                {t('register.priceFrom')}
+              </span>
+            )}
+            {settings.currency}
+            {fmtAmount(displayPrice)}
+          </span>
+          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">
+            {prod.sku.split('-').slice(-1)[0]}
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
+/**
+ * The register's product picker: category filter, search, and the card grid
+ * itself. In edit mode the cards become draggable and their order is saved
+ * back to the catalog.
+ */
+const ProductGrid = ({
+  selectedCategory,
+  setSelectedCategory,
+  cart,
+  addToCart,
+}: ProductGridProps) => {
+  const products = useProductStore((s) => s.products);
+  const categories = useProductStore((s) => s.categories);
+  const reorderProducts = useProductStore((s) => s.reorderProducts);
+  const settings = useSettingsStore((s) => s.settings);
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const isAdmin = currentUser?.role === 'admin';
+  const { t } = useTranslation();
+
+  const [pickerProduct, setPickerProduct] = useState<Product | null>(null);
+  const [modifierTarget, setModifierTarget] = useState<{
+    product: Product;
+    variant?: ProductVariant;
+  } | null>(null);
+
+  // Per product, so the card badge and the sold-out rule see the whole product;
+  // per variant, so the picker can stop at each combination's own limit.
+  const cartQuantityMap = useMemo(() => {
+    const map = new Map<string, number>();
+    cart.forEach((item) =>
+      map.set(item.product.id, (map.get(item.product.id) ?? 0) + item.quantity),
+    );
+    return map;
+  }, [cart]);
+
+  const cartQuantityByVariantId = useMemo(() => {
+    const map = new Map<string, number>();
+    cart.forEach((item) => {
+      if (!item.variant) return;
+      map.set(item.variant.id, (map.get(item.variant.id) ?? 0) + item.quantity);
+    });
+    return map;
+  }, [cart]);
+
+  // A card tap is only an add for a plain product. A varianted one has no
+  // single thing to add, so the tap opens the picker and the add happens there.
+  // A product with modifier groups opens the modifier customization modal.
+  const handleCardActivate = useCallback(
+    (product: Product) => {
+      if (hasVariants(product)) {
+        setPickerProduct(product);
+        return;
+      }
+      if (product.modifierGroups && product.modifierGroups.length > 0) {
+        setModifierTarget({ product });
+        return;
+      }
+      addToCart(product);
+    },
+    [addToCart],
+  );
+
+  // Re-read from the live catalogue while the picker is open: a realtime update
+  // or another sale can move the stock the picker is offering.
+  const livePickerProduct = useMemo(
+    () => (pickerProduct ? (products.find((p) => p.id === pickerProduct.id) ?? null) : null),
+    [pickerProduct, products],
+  );
+
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach((c) => map.set(c.id, c.name));
+    return map;
+  }, [categories]);
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [search, setSearch] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const clearSearch = useCallback(() => {
+    setSearch('');
+    searchInputRef.current?.blur();
+  }, []);
+
+  // Ranked, not merely filtered. A bare `includes()` left a shop with "Latte",
+  // "Iced Latte" and "Latte Macchiato" showing them in whatever order they were
+  // added, so typing the exact name of the thing being ordered still meant
+  // reading the grid. Ordering by how well each product matched is also what
+  // makes Enter-adds-the-top-result below safe to offer.
+  const filteredProducts = useMemo(
+    () => searchProducts(products, search, selectedCategory),
+    [products, selectedCategory, search],
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (over && active.id !== over.id) {
+        reorderProducts(active.id as string, over.id as string);
+      }
+    },
+    [reorderProducts],
+  );
+
+  const sortableIds = useMemo(() => filteredProducts.map((p) => p.id), [filteredProducts]);
+
+  // What Enter adds: the best match, and only while a query narrows the grid.
+  // Without the query check, Enter in an empty box would add whatever product
+  // the shop happens to have arranged first.
+  const searchTopResult = search.trim() ? (filteredProducts[0] ?? null) : null;
+
+  return (
+    <div id="catalog-section" className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* Controls bar */}
+      <div id="catalog-controls" className="shrink-0 px-4 pt-3 pb-2">
+        <div className="flex items-center gap-2.5 p-1.5 rounded-xl border border-border bg-card">
+          {/* Search */}
+          <div className="relative shrink-0">
+            <Search
+              size={13}
+              className="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
+            <input
+              id="register-search-input"
+              ref={searchInputRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                // Type a name, press Enter, keep serving. The top result is the
+                // best-ranked match rather than whichever tile sorted first,
+                // which is the whole reason this is safe to do blind.
+                if (e.key === 'Enter' && searchTopResult) {
+                  e.preventDefault();
+                  handleCardActivate(searchTopResult);
+                  // A varianted or customizable product opens a modal instead
+                  // of adding, and clearing behind it would strand the operator
+                  // with no idea what they picked.
+                  if (!hasVariants(searchTopResult) && !searchTopResult.modifierGroups?.length) {
+                    clearSearch();
+                  }
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  clearSearch();
+                }
+              }}
+              aria-label={t('register.searchProducts')}
+              // The box is 36-48 units wide, so the placeholder has room for
+              // one shortcut and the tooltip carries the rest.
+              title={t('register.searchHint')}
+              placeholder={`${t('register.searchProducts')} (Ctrl+K)`}
+              className="input-shell w-36 sm:w-48 ps-8 pe-7 py-1.5 rounded-lg text-xs"
+            />
+            <AnimatePresence>
+              {search && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  onClick={() => setSearch('')}
+                  aria-label={t('register.clearSearch')}
+                  className="absolute inset-e-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X size={12} />
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Category pills */}
+          <div
+            id="category-pills"
+            className="flex items-center gap-1 overflow-x-auto scrollbar-none flex-1"
+          >
+            {[{ id: 'all', name: null }, ...categories].map((cat) => {
+              const catId = cat.id;
+              const label =
+                catId === 'all'
+                  ? t('register.allProducts')
+                  : t(`categories.${cat.name?.toLowerCase() ?? ''}`, {
+                      defaultValue: cat.name ?? '',
+                    });
+              const isActive = selectedCategory === catId;
+              return (
+                <button
+                  key={catId}
+                  onClick={() => setSelectedCategory(catId)}
+                  aria-pressed={isActive}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium shrink-0 whitespace-nowrap transition-colors ${
+                    isActive
+                      ? 'bg-foreground text-background font-semibold shadow-2xs'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Edit layout toggle */}
+          {isAdmin && (
+            <button
+              onClick={() => setIsEditMode(!isEditMode)}
+              aria-pressed={isEditMode}
+              aria-label={isEditMode ? t('register.doneEditing') : t('register.editLayout')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium shrink-0 transition-colors ${
+                isEditMode
+                  ? 'bg-destructive text-destructive-foreground font-semibold'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted border border-border'
+              }`}
+            >
+              <LayoutGrid size={13} />
+              <span className="hidden sm:inline">
+                {isEditMode ? t('register.doneEditing') : t('register.editLayout')}
+              </span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Products Grid */}
+      <div id="products-grid-container" className="flex-1 overflow-y-auto px-4 pb-4">
+        <AnimatePresence mode="wait">
+          {filteredProducts.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="h-64 flex flex-col items-center justify-center text-center"
+            >
+              <span className="text-5xl mb-4 animate-float-slow">🔍</span>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-semibold">
+                {t('register.noProducts')}
+              </p>
+              <p className="text-slate-600 text-xs mt-1">{t('register.tryDifferentSearch')}</p>
+            </motion.div>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={sortableIds} strategy={rectSortingStrategy}>
+                <div
+                  id="products-grid"
+                  className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3"
+                >
+                  {filteredProducts.map((prod, index) => {
+                    return (
+                      <SortableProductCard
+                        key={prod.id}
+                        prod={prod}
+                        isEditMode={isEditMode}
+                        addToCart={handleCardActivate}
+                        cartQty={cartQuantityMap.get(prod.id) ?? 0}
+                        categoryName={categoryMap.get(prod.category) ?? ''}
+                        settings={settings}
+                        index={index}
+                        isTopMatch={prod.id === searchTopResult?.id}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <AnimatePresence>
+        {livePickerProduct && (
+          <VariantPickerModal
+            key={livePickerProduct.id}
+            product={livePickerProduct}
+            settings={settings}
+            cartQuantityByVariantId={cartQuantityByVariantId}
+            onPick={(variant) => {
+              if (livePickerProduct.modifierGroups && livePickerProduct.modifierGroups.length > 0) {
+                setModifierTarget({ product: livePickerProduct, variant });
+                setPickerProduct(null);
+              } else {
+                addToCart(livePickerProduct, variant);
+                setPickerProduct(null);
+              }
+            }}
+            onClose={() => setPickerProduct(null)}
+          />
+        )}
+        {modifierTarget && (
+          <ModifierPickerModal
+            key={`${modifierTarget.product.id}-${modifierTarget.variant?.id ?? 'base'}`}
+            product={modifierTarget.product}
+            variant={modifierTarget.variant}
+            settings={settings}
+            onConfirm={(modifiers) => {
+              addToCart(modifierTarget.product, modifierTarget.variant, modifiers);
+              setModifierTarget(null);
+            }}
+            onClose={() => setModifierTarget(null)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default memo(ProductGrid);

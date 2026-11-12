@@ -1,0 +1,146 @@
+/**
+ * Builds the end-of-day summary as plain text, and the handful of ways an
+ * operator sends it on (WhatsApp, email, clipboard).
+ *
+ * Plain text on purpose: the summary is read on a phone as often as on the
+ * terminal, and it has to survive being pasted into a chat window unchanged.
+ */
+import { SaleTransaction, Shift, CashMovement } from '../types';
+import { DEFAULT_CURRENCY_DIGITS, formatAmount, roundMoney } from './money';
+import { summarizeShift } from './shiftReport';
+
+/** Everything the summary needs; `shift` and `cashMovements` are absent when
+ * the day ran without an opened shift. */
+export interface DailySummaryData {
+  storeName: string;
+  currency: string;
+  /** Fractional digits of the store currency (lib/money.ts); two when omitted. */
+  digits?: number;
+  date: string;
+  transactions: SaleTransaction[];
+  shift?: Shift | null;
+  cashMovements?: CashMovement[];
+}
+
+/**
+ * Renders the day's summary. Tallies come from `summarizeShift` — the same
+ * function behind the Z-report — so the two documents cannot disagree.
+ */
+export function generateDailySummaryText(data: DailySummaryData): string {
+  const { storeName, currency, date, transactions, shift, cashMovements = [] } = data;
+  const digits = data.digits ?? DEFAULT_CURRENCY_DIGITS;
+  const amount = (n: number) => formatAmount(n, digits);
+
+  // Tallies come from summarizeShift, the same function behind the Z-report, so
+  // the two documents cannot disagree. This file used to total its own way —
+  // `tx.total` for every sale whose dominant method was cash — which counted a
+  // split sale's card half as drawer cash, ignored the change handed back, and
+  // ignored refunds entirely. cashKept() inside summarizeShift is the rule.
+  const summary = summarizeShift(transactions, digits);
+  const totalTax = transactions.reduce((s, tx) => s + (tx.tax || 0), 0);
+  const totalDiscount = transactions.reduce((s, tx) => s + (tx.discount || 0), 0);
+  const totalSales = summary.grossSales;
+  const { cashSales, cardSales } = summary;
+  const otherSales = roundMoney(summary.mobileSales + summary.giftSales, digits);
+
+  // Product popularity
+  const productCountMap = new Map<string, number>();
+  transactions.forEach((tx) => {
+    tx.items.forEach((item) => {
+      productCountMap.set(
+        item.productName,
+        (productCountMap.get(item.productName) || 0) + item.quantity,
+      );
+    });
+  });
+
+  const topProducts = Array.from(productCountMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  // Cash movements
+  const totalPayIns = cashMovements
+    .filter((m) => m.type === 'pay_in')
+    .reduce((s, m) => s + m.amount, 0);
+  const totalPayOuts = cashMovements
+    .filter((m) => m.type === 'pay_out')
+    .reduce((s, m) => s + m.amount, 0);
+
+  // A shortfall is "-$10.00", not "$-10.00". Interpolating the symbol and then
+  // a negative number puts the sign on the wrong side of it, which on a report
+  // that gets forwarded to an owner reads as a typo — or worse, gets skimmed as
+  // a positive.
+  const signedMoney = (value: number) =>
+    `${value < 0 ? '-' : ''}${currency}${amount(Math.abs(value))}`;
+
+  const openingFloat = shift?.openingFloat || 0;
+  const expectedDrawerCash = summary.expectedCash(openingFloat, cashMovements);
+  const countedCash = shift?.countedCash ?? null;
+
+  const lines = [
+    `📊 *${storeName.toUpperCase()} - DAILY REPORT*`,
+    `📅 ${date}`,
+    ``,
+    `💰 *FINANCIAL SUMMARY*`,
+    `• Gross Revenue: ${currency}${amount(totalSales)} (${transactions.length} orders)`,
+    `• Cash Collected: ${currency}${amount(cashSales)}`,
+    `• Card / Electronic: ${currency}${amount(cardSales)}`,
+    otherSales > 0 ? `• Other Payments: ${currency}${amount(otherSales)}` : null,
+    `• Tax Collected: ${currency}${amount(totalTax)}`,
+    totalDiscount > 0 ? `• Discounts: ${currency}${amount(totalDiscount)}` : null,
+    ``,
+    `💵 *CASH DRAWER AUDIT*`,
+    `• Opening Float: ${currency}${amount(openingFloat)}`,
+    totalPayIns > 0 ? `• Cash Deposits (Pay-Ins): +${currency}${amount(totalPayIns)}` : null,
+    totalPayOuts > 0 ? `• Petty Cash Payouts: -${currency}${amount(totalPayOuts)}` : null,
+    // Printed because the expected-cash line below subtracts it. Without the row
+    // the figures do not reconcile on their face: float + cash collected + pay-ins
+    // - pay-outs does not reach the expected figure when a cash sale was refunded.
+    summary.cashRefunds > 0 ? `• Cash Refunds: -${currency}${amount(summary.cashRefunds)}` : null,
+    `• Expected Cash in Drawer: ${currency}${amount(expectedDrawerCash)}`,
+    countedCash !== null
+      ? `• Counted Cash: ${currency}${amount(countedCash)} (Diff: ${signedMoney(countedCash - expectedDrawerCash)})`
+      : null,
+    ``,
+    topProducts.length > 0 ? `🍔 *TOP SELLING ITEMS*` : null,
+    ...topProducts.map(([name, qty], idx) => `${idx + 1}. ${name} (${qty} sold)`),
+    ``,
+    `Generated by ${storeName} • ${new Date().toLocaleTimeString()}`,
+  ].filter((line): line is string => line !== null);
+
+  return lines.join('\n');
+}
+
+/**
+ * Opens WhatsApp with the summary pre-filled. `phone` is stripped to digits
+ * because wa.me rejects the spaces and punctuation operators actually type.
+ * Without a number, WhatsApp asks the operator to pick a recipient.
+ */
+export function shareToWhatsApp(text: string, phone?: string): void {
+  const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
+  const url = cleanPhone
+    ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`
+    : `https://wa.me/?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+/** Hands the summary to the operator's mail client via a `mailto:` link. */
+export function shareViaEmail(subject: string, body: string, email?: string): void {
+  const target = email || '';
+  const url = `mailto:${target}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = url;
+}
+
+/**
+ * Copies the summary to the clipboard, reporting success rather than throwing.
+ * The clipboard API rejects on an insecure origin or without a user gesture,
+ * and the caller needs to show "copy failed" instead of an unhandled rejection.
+ */
+export async function copyReportToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}

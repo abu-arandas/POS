@@ -1,0 +1,80 @@
+import { PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus } from '../types';
+import { DEFAULT_CURRENCY_DIGITS, roundMoney } from './money';
+import { nonNegative } from './utils/validation';
+import { lineKey } from './variants';
+
+/**
+ * The only legal status moves. Received and cancelled are terminal — a
+ * received PO already changed stock, so "un-receiving" would corrupt counts.
+ */
+export const PO_TRANSITIONS: Record<PurchaseOrderStatus, PurchaseOrderStatus[]> = {
+  draft: ['ordered', 'cancelled'],
+  ordered: ['received', 'cancelled'],
+  received: [],
+  cancelled: [],
+};
+
+/**
+ * Whether a purchase order may move directly between two statuses, per the
+ * PO_TRANSITIONS state machine.
+ */
+export function canTransition(from: PurchaseOrderStatus, to: PurchaseOrderStatus): boolean {
+  return PO_TRANSITIONS[from].includes(to);
+}
+
+/**
+ * Total buy value of the order (sum of qty × unit cost), rounded to the store
+ * currency's smallest unit (`digits`, lib/money.ts).
+ */
+export function poTotal(
+  po: Pick<PurchaseOrder, 'lines'>,
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): number {
+  return roundMoney(
+    po.lines.reduce((sum, l) => sum + nonNegative(l.quantity) * nonNegative(l.unitCost), 0),
+    digits,
+  );
+}
+
+/**
+ * Total units across all lines.
+ */
+export function poUnitCount(po: Pick<PurchaseOrder, 'lines'>): number {
+  return po.lines.reduce((sum, l) => sum + Math.floor(nonNegative(l.quantity)), 0);
+}
+
+/**
+ * Drops empty/invalid lines and merges duplicates of the same line so a PO can
+ * never receive the same thing twice from one order. Quantities are whole
+ * units; costs can't go negative.
+ *
+ * "The same thing" is a product AND a variant: two sizes of one shirt are two
+ * orders against two counts, and merging them would receive both quantities
+ * into whichever size came first.
+ */
+export function normalizePoLines(
+  lines: PurchaseOrderLine[],
+  digits: number = DEFAULT_CURRENCY_DIGITS,
+): PurchaseOrderLine[] {
+  const merged = new Map<string, PurchaseOrderLine>();
+  for (const line of lines) {
+    const quantity = Math.floor(nonNegative(line.quantity));
+    if (!line.productId || quantity <= 0) continue;
+    const unitCost = nonNegative(line.unitCost);
+    const key = lineKey(line.productId, line.variantId);
+    const existing = merged.get(key);
+    if (existing) {
+      const previousCost = existing.unitCost * existing.quantity;
+      existing.quantity += quantity;
+      // Keep the merged line's total value equal to the sum of the original
+      // lines instead of silently discarding all but the last unit cost.
+      existing.unitCost = roundMoney(
+        (previousCost + unitCost * quantity) / existing.quantity,
+        digits,
+      );
+    } else {
+      merged.set(key, { ...line, quantity, unitCost });
+    }
+  }
+  return Array.from(merged.values());
+}

@@ -1,0 +1,548 @@
+/**
+ * One axis a product varies along — "Size", "Colour", "Grind". A product can
+ * carry several, and its sellable variants are combinations across all of them.
+ */
+export interface VariantType {
+  id: string;
+  name: string;
+  options: VariantOption[];
+}
+
+/** One value on a variant type: "Large", "Red", "Coarse". */
+export interface VariantOption {
+  id: string;
+  name: string;
+}
+
+/**
+ * One sellable combination of options — "Large / Oat", say.
+ *
+ * `options` holds one option id per variant type, keyed by the type's id, so a
+ * variant stays addressable when types are reordered or renamed.
+ *
+ * Money is optional and absolute where present: a variant with no `price` sells
+ * at the parent's price, and one with a `price` sells at exactly that, never a
+ * delta applied to the parent. Deltas look tidier in a form and drift the
+ * moment the parent's price moves — a receipt reprint would then show a price
+ * the customer never paid.
+ *
+ * `stock` is not optional. A variant that shares its parent's stock pool is not
+ * a variant anybody can count, and every stock path in the app needs one number
+ * to decrement.
+ */
+export interface ProductVariant {
+  id: string;
+  /** One option id per variant type, keyed by variant type id. */
+  options: Record<string, string>;
+  sku: string;
+  price?: number;
+  cost?: number;
+  stock: number;
+  image?: string;
+}
+
+export interface ModifierOption {
+  id: string;
+  name: string;
+  priceDelta: number; // Additional price (e.g. +0.50 JD) or 0
+  isDefault?: boolean;
+}
+
+export interface ModifierGroup {
+  id: string;
+  name: string; // e.g. "Toppings", "Sauce", "Doneness"
+  minSelections?: number; // 1 if required, 0 if optional
+  maxSelections?: number; // 1 for single-choice (radio), >1 for multiple (checkboxes)
+  options: ModifierOption[];
+}
+
+export interface SelectedModifier {
+  groupId: string;
+  groupName: string;
+  optionId: string;
+  optionName: string;
+  priceDelta: number;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  cost: number;
+  category: string;
+  sku: string;
+  /**
+   * Units on hand. For a product with variants this is DERIVED — the sum of
+   * every variant's stock — and kept that way by the helpers in lib/variants.
+   * Dashboards, low-stock alerts, the inventory table, purchase orders and the
+   * cloud row all read this one number, and none of them should have to know
+   * whether the product happens to be varianted.
+   */
+  stock: number;
+  minStock: number;
+  image: string; // Tailwind bg-color or direct URL
+  /** The axes this product varies along. Absent or empty = a plain product. */
+  variantTypes?: VariantType[];
+  /** The sellable combinations. Absent or empty = a plain product. */
+  variants?: ProductVariant[];
+  /** Optional customization groups (e.g. Extras, Temperature, Sauces). */
+  modifierGroups?: ModifierGroup[];
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  color: string; // Tailwind background color class
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  points: number; // Loyalty points earned (e.g., 1 point per $1 spent)
+  createdAt: string;
+}
+
+export type PaymentMethod = 'cash' | 'card' | 'mobile' | 'gift' | 'loyalty';
+
+export interface OrderItem {
+  productId: string;
+  productName: string;
+  /** Which variant was sold, when the product has any. */
+  variantId?: string;
+  /**
+   * The variant's option names as they read at sale time — "Large / Oat".
+   * Stored rather than looked up so a receipt reprinted after the variant was
+   * renamed or deleted still shows what the customer bought.
+   */
+  variantName?: string;
+  /** Chosen modifiers / add-ons (e.g. "+ Extra Cheese", "No Onions"). */
+  modifiers?: SelectedModifier[];
+  price: number; // Purchase price (including modifier price deltas)
+  cost: number; // Product cost at purchase time
+  quantity: number;
+  total: number;
+}
+
+// One tender line of a sale. A single-method sale has one entry; a split sale
+// has several whose amounts sum to the total (cash may overpay for change).
+export interface Payment {
+  method: PaymentMethod;
+  amount: number;
+}
+
+// Cumulative quantity of a line returned across one or more partial refunds.
+export interface RefundedItem {
+  productId: string;
+  /** Present when the returned line was a variant; absent on plain products. */
+  variantId?: string;
+  quantity: number;
+}
+
+export interface SaleTransaction {
+  id: string; // Receipt number (e.g., TX-10001)
+  date: string;
+  items: OrderItem[];
+  subtotal: number;
+  discount: number;
+  discountType: 'none' | 'percentage' | 'fixed' | 'loyalty';
+  discountValue: number;
+  tax: number;
+  // The tax rate this sale was actually charged at, as a percentage. Stored so
+  // a receipt reprinted after the rate changes shows the rate that was applied,
+  // not today's. Absent on sales written before this was recorded.
+  taxRate?: number;
+  total: number;
+  paymentMethod: PaymentMethod; // dominant method (largest tender)
+  payments?: Payment[]; // full breakdown; present (length > 1) only for split sales
+  cashPaid?: number;
+  cashChange?: number;
+  customerId: string | null;
+  customerName?: string | null;
+  operatorId?: string | null; // staff member who rang up the sale
+  operatorName?: string | null;
+  // Loyalty points awarded at sale time. Stored so a refund reverses exactly
+  // what was earned even if the points rate changed since the sale.
+  pointsEarned?: number;
+  // 'completed' = no refund, 'partial' = some items returned, 'refunded' = fully returned.
+  status: 'completed' | 'partial' | 'refunded';
+  refundedItems?: RefundedItem[]; // cumulative returned quantities (partial refunds)
+  refundedAmount?: number; // cumulative currency refunded
+  refundDate?: string | null;
+  refundAuthorizedBy?: string | null; // staff member who authorized the refund
+  shiftId?: string | null; // the register shift this sale belongs to
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contact?: string;
+  phone?: string;
+  email?: string;
+  createdAt: string;
+}
+
+// One product line on a purchase order. unitCost is the agreed buy price at
+// order time — a snapshot, deliberately not a live reference to product.cost.
+export interface PurchaseOrderLine {
+  productId: string;
+  productName: string;
+  /** Which variant was ordered, on a product that sells through variants. */
+  variantId?: string;
+  variantName?: string;
+  quantity: number;
+  unitCost: number;
+}
+
+export type PurchaseOrderStatus = 'draft' | 'ordered' | 'received' | 'cancelled';
+
+// A lightweight purchase order: drafted, marked as ordered with the supplier,
+// then received (which applies stock and writes audit-log entries) or
+// cancelled. Terminal-local like suppliers and the stock log.
+export interface PurchaseOrder {
+  id: string;
+  supplierId: string | null;
+  supplierName: string | null;
+  status: PurchaseOrderStatus;
+  lines: PurchaseOrderLine[];
+  note?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+  orderedAt?: string | null;
+  receivedAt?: string | null;
+}
+
+// One entry in the stock audit log. Every stock change — receiving a shipment,
+// a manual correction, waste — is recorded with who/why for traceability.
+export interface StockAdjustment {
+  id: string;
+  productId: string;
+  productName: string;
+  /** Which variant moved, on a product that sells through variants. */
+  variantId?: string;
+  variantName?: string;
+  delta: number; // +received, -waste/correction
+  newStock: number;
+  reason: 'received' | 'correction' | 'waste' | 'other';
+  note?: string | null;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  operatorName?: string | null;
+  createdAt: string;
+}
+
+// A register/drawer session between an open (starting float) and close (counted
+// cash → variance). Shifts are terminal-local: they describe one physical drawer.
+export interface Shift {
+  id: string;
+  openedAt: string;
+  openedBy: string; // operator name
+  openingFloat: number; // starting cash in the drawer
+  closedAt?: string | null;
+  closedBy?: string | null;
+  countedCash?: number | null; // physically counted at close
+  note?: string | null;
+}
+
+// A cart parked for later (the "hold order" workflow). Product snapshots mirror
+// the live cart; stock is re-validated from the catalog when the sale completes.
+export interface HeldOrderItem {
+  productId: string;
+  productName: string;
+  /** The variant held, on a product that sells through variants. */
+  variantId?: string;
+  variantName?: string;
+  modifiers?: SelectedModifier[];
+  price: number;
+  cost: number;
+  quantity: number;
+}
+
+export interface HeldOrder {
+  id: string;
+  label: string; // operator-supplied name, e.g. "Table 4" (defaults to a time)
+  createdAt: string;
+  items: HeldOrderItem[];
+  customerId: string | null;
+  discountType: 'none' | 'percentage' | 'fixed' | 'loyalty';
+  discountInput: string;
+  loyaltyPointsToUse: number;
+  operatorName?: string | null;
+}
+
+export interface StoreSettings {
+  storeName: string;
+  storeAddress: string;
+  storePhone: string;
+  storeLogo?: string;
+  branchName?: string; // optional branch/location label printed under the name
+  taxNumber?: string; // VAT / tax registration number printed on receipts
+  taxRate: number; // e.g., 8 for 8%
+  currency: string; // what prints before an amount, e.g., "$" (installs also keep an ISO code here)
+  // ISO 4217 code ("JOD", "USD"). It decides how many fractional digits money
+  // has — see lib/money.ts. Optional: installs that predate it have the code in
+  // `currency`, which the lookup reads as a fallback, so nothing needs migrating.
+  currencyCode?: string;
+  // Where the business is and which clock its days follow. Recorded at first-run
+  // setup; optional because installs that predate it never asked.
+  country?: string; // ISO 3166-1 alpha-2, e.g. "JO"
+  timezone?: string; // IANA zone, e.g. "Asia/Amman"
+  loyaltyPointsRate: number; // points earned per unit of currency (e.g. 1 point per $1)
+  loyaltyPointValue: number; // discount value per point (e.g. $0.05 per point)
+}
+
+// ── Configurable receipt layout ──────────────────────────────────────────────
+// Which blocks a printed receipt shows. A receipt renders every block by default
+// (legacy behavior); operators trim it down per store via Receipt Settings.
+export interface ReceiptToggles {
+  logo: boolean;
+  storeName: boolean;
+  branchName: boolean;
+  address: boolean;
+  phone: boolean;
+  taxNumber: boolean;
+  date: boolean;
+  time: boolean;
+  receiptNumber: boolean; // order/receipt id
+  operator: boolean;
+  customer: boolean;
+  itemUnitPrice: boolean; // the "@ price ea" breakdown line
+  // The chosen add-ons under a line ("Oat Milk", "No Onions"). On by default
+  // everywhere, and especially on a kitchen ticket, where the modifier IS the
+  // instruction — but a shop that prints a receipt purely as a payment record
+  // can turn it off like any other block.
+  modifiers: boolean;
+  priceColumn: boolean; // per-line price/total column (kitchen tickets drop this)
+  totals: boolean; // subtotal / discount / tax / total block
+  paymentDetails: boolean; // method + split payments
+  changeDue: boolean; // cash tendered + change (the "balance")
+  loyalty: boolean; // points earned
+  barcode: boolean;
+}
+
+// Header/footer text, typography, and datetime formatting for a receipt kind
+// (customer or kitchen). fontSizePx drives HTML receipts; thermal ESC/POS is a
+// fixed-font device, so it maps a larger size onto emphasized (double-height)
+// headers instead.
+export interface ReceiptLayout {
+  header: string;
+  footer: string;
+  fontFamily: string;
+  fontSizePx: number;
+  dateFormat: string; // token pattern, e.g. 'yyyy-MM-dd'
+  timeFormat: string; // token pattern, e.g. 'h:mm a'
+  show: ReceiptToggles;
+}
+
+export interface UserAccount {
+  id: string;
+  name: string;
+  role: 'admin' | 'manager' | 'cashier';
+  pin: string; // 4-digit entry passcode
+  active: boolean;
+  createdAt: string;
+}
+
+// ── Multi-store / super-admin foundations (src/db/multi-store-schema.sql) ──
+// These describe the cloud/fleet dimension. They are deliberately separate from
+// the per-store UserAccount above: a super-admin is an org-level MEMBERSHIP, not
+// a terminal login. Nothing in the single-store terminal flow depends on them.
+
+// Membership role — spans the org (superadmin) or applies within one store.
+export type Role = 'superadmin' | 'admin' | 'manager' | 'cashier';
+
+// A physical location. `lastSeenAt` is refreshed by a terminal heartbeat and
+// drives the fleet board's online/offline state.
+export interface Store {
+  id: string;
+  orgId: string;
+  name: string;
+  address?: string;
+  timezone: string;
+  currency: string;
+  status: 'active' | 'suspended';
+  lastSeenAt?: string | null;
+  createdAt: string;
+}
+
+// Links a cloud auth user to a store (or the whole org when storeId is null).
+export interface Membership {
+  userId: string;
+  orgId: string;
+  storeId: string | null; // null = org-wide (super-admin)
+  role: Role;
+}
+
+export interface PrinterConfig {
+  // 'windows' = a named local/USB printer driven by raw ESC/POS through the
+  // Windows spooler (silent, opens the cash drawer). 'system' = the OS print
+  // path (silent in Electron, print dialog in a plain browser).
+  type: 'system' | 'serial' | 'bluetooth' | 'network' | 'windows';
+  paperSize: '58mm' | '80mm';
+  ipAddress?: string;
+  baudRate?: number;
+  // The OS printer name to target for the 'windows' (and silent 'system') path.
+  printerName?: string;
+  showBarcode: boolean;
+  footerMessage: string;
+  autoPrintOnCheckout: boolean;
+  // Also print a kitchen ticket (big-type items, no prices) at checkout.
+  // Optional so configs persisted before this field existed stay valid.
+  kitchenTicketOnCheckout?: boolean;
+}
+
+// Keyboard-wedge barcode scanner tuning. Wedge scanners "type" the code as a
+// fast keystroke burst ending in Enter; these thresholds separate a scan from
+// human typing.
+export interface ScannerConfig {
+  enabled: boolean;
+  minLength: number; // shortest keystroke burst treated as a scan
+  maxInterKeyMs: number; // a keystroke gap above this resets the burst
+}
+
+// A kitchen/prep station that prints its own ticket for the sale's items whose
+// product category is routed to it (e.g. "Bar", "Grill", "Cold Line"). When
+// ipAddress is set the ticket goes to that network printer; otherwise it uses
+// the terminal's configured printer transport.
+export interface KitchenStation {
+  id: string;
+  name: string;
+  categoryIds: string[]; // product categories routed to this station
+  ipAddress?: string; // optional dedicated network printer (TCP 9100)
+  // Optional named OS/USB printer for this station, driven through the Windows
+  // RAW spooler. Lets a station target a local printer rather than a network
+  // one — e.g. receipts on the LAN printer and kitchen tickets on the USB one,
+  // which was previously impossible because a station could only carry an IP.
+  // ipAddress wins when both are set.
+  printerName?: string;
+}
+
+// Placeholder-based template for the pre-filled receipt email. Supported
+// placeholders (single braces, so they can't collide with i18next syntax):
+// {storeName}, {receiptId}, {date}, {total}, {customerName} — customerName
+// falls back to a generic greeting when the sale has none.
+export interface ReceiptEmailTemplate {
+  subject: string;
+  header: string; // body text above the receipt
+  footer: string; // body text below the receipt
+}
+
+export interface SupabaseConfig {
+  url: string;
+  anonKey: string;
+  authEmail?: string;
+  authPassword?: string;
+  deviceAuthConfigured?: boolean;
+  enabled: boolean;
+  status: 'disconnected' | 'connected' | 'error';
+}
+
+// -------------------------------------------------------------
+// RESTAURANT & OPERATIONAL EXPANSION TYPES
+// -------------------------------------------------------------
+
+export type OrderType = 'dine_in' | 'takeaway' | 'delivery';
+
+export type KitchenTicketStatus = 'pending' | 'preparing' | 'ready' | 'completed';
+
+export interface KitchenTicketItem {
+  id: string;
+  productId: string;
+  productName: string;
+  variantName?: string;
+  modifiers?: SelectedModifier[];
+  quantity: number;
+  stationId?: string;
+  stationName?: string;
+  notes?: string;
+  completed?: boolean;
+}
+
+export interface KitchenTicket {
+  id: string;
+  orderNumber: string;
+  saleId?: string;
+  orderType: OrderType;
+  tableNumber?: string;
+  customerName?: string;
+  serverName?: string;
+  createdAt: string;
+  updatedAt?: string;
+  status: KitchenTicketStatus;
+  items: KitchenTicketItem[];
+  notes?: string;
+  completedAt?: string;
+}
+
+export type TableStatus = 'available' | 'occupied' | 'bill_requested' | 'reserved';
+
+export interface DiningTable {
+  id: string;
+  name: string;
+  seats: number;
+  status: TableStatus;
+  currentOrderId?: string;
+  currentGuests?: number;
+  activeSince?: string;
+  totalAmount?: number;
+  section?: string;
+}
+
+// ── Open tabs ────────────────────────────────────────────────────────────────
+// A tab is an account that stays open across several rounds and is settled
+// once, at the end — the bar tab, the table that keeps ordering, the regular
+// who pays on Friday.
+//
+// Deliberately NOT a HeldOrder. A held order is one parked cart, resumed whole
+// and replaced when parked again; a tab ACCUMULATES, and the distinction is not
+// cosmetic. Each round is recorded separately because the kitchen has already
+// been given it: re-sending the whole tab on the next round would cook the
+// first round twice, and folding the rounds together on arrival would lose the
+// only record of what was already fired.
+
+/** One round added to a tab: what was ordered, when, and by whom. */
+export interface TabRound {
+  id: string;
+  createdAt: string;
+  /** Operator who rang this round up — rounds on one tab can differ. */
+  addedBy?: string | null;
+  /**
+   * The lines as they were priced at the time. Same shape as a held order's,
+   * and stored rather than referenced for the same reason: a tab open across a
+   * price change must still be settled at the prices the customer was quoted.
+   */
+  items: HeldOrderItem[];
+}
+
+export type TabStatus = 'open' | 'settled';
+
+export interface Tab {
+  id: string;
+  /** What the operator calls it — "Table 4", a name, a bar tab number. */
+  label: string;
+  /** The table this tab belongs to, when it is a table's. */
+  tableId?: string | null;
+  /** The linked customer, for loyalty at settlement. */
+  customerId: string | null;
+  customerName?: string | null;
+  openedAt: string;
+  openedBy?: string | null;
+  rounds: TabRound[];
+  status: TabStatus;
+  settledAt?: string | null;
+  /** The sale this tab became. The audit link between a tab and its money. */
+  settledSaleId?: string | null;
+}
+
+export type CashMovementType = 'pay_in' | 'pay_out';
+
+export interface CashMovement {
+  id: string;
+  shiftId: string;
+  type: CashMovementType;
+  amount: number;
+  reason: string;
+  performedBy: string;
+  createdAt: string;
+}

@@ -1,0 +1,16 @@
+node_modules/
+build/
+dist/
+.antigravity/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+dist_electron/
+release/
+portable/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

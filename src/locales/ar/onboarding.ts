@@ -1,0 +1,23 @@
+// First-run setup: the one screen a fresh install shows before the lock screen.
+export const onboarding = {
+  title: 'إعداد نشاطك التجاري',
+  subtitle: 'بعض التفاصيل لتجهيز هذا الجهاز للعمل. يمكنك تغيير أي منها لاحقًا من الإعدادات.',
+  sectionBusiness: 'نشاطك التجاري',
+  businessName: 'اسم النشاط التجاري',
+  businessNamePlaceholder: 'مثال: السوق المحلي',
+  businessNameRequired: 'أدخل اسم نشاطك التجاري للمتابعة.',
+  businessType: 'ما نوع هذا النشاط؟',
+  sectionRegion: 'المنطقة والعملة',
+  country: 'الدولة',
+  countryPlaceholder: 'اختر دولة',
+  timezone: 'المنطقة الزمنية',
+  currency: 'العملة',
+  currencyDigits: 'تستخدم المبالغ {{digits}} منازل عشرية.',
+  sectionTax: 'الضريبة',
+  taxRate: 'نسبة ضريبة المبيعات / القيمة المضافة (%)',
+  taxRateHint: 'اتركها 0 إذا كنت لا تحصّل ضريبة.',
+  taxNumber: 'الرقم الضريبي (اختياري)',
+  language: 'اللغة',
+  finish: 'متابعة',
+  nextStep: 'بعد ذلك ستنشئ حساب المسؤول.',
+};

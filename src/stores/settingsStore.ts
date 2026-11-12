@@ -1,0 +1,296 @@
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import {
+  StoreSettings,
+  PrinterConfig,
+  SupabaseConfig,
+  ScannerConfig,
+  ReceiptEmailTemplate,
+  KitchenStation,
+  ReceiptLayout,
+} from '../types';
+import { idbStorage } from '../lib/idbStorage';
+import { defaultReceiptLayout, defaultKitchenLayout } from '../lib/printing/receiptFormat';
+import {
+  BusinessProfile,
+  BusinessSetup,
+  profileFromTemplate,
+  resolveBusinessSetup,
+} from '../lib/businessProfile';
+import type { Locale } from '../lib/i18n';
+
+interface SettingsState {
+  settings: StoreSettings;
+  printerConfig: PrinterConfig;
+  supabaseConfig: SupabaseConfig;
+  scannerConfig: ScannerConfig;
+  emailTemplate: ReceiptEmailTemplate;
+  kitchenStations: KitchenStation[];
+  // Configurable content/typography for the customer receipt and the kitchen
+  // ticket (header/footer, font, date/time format, per-field show toggles).
+  receiptLayout: ReceiptLayout;
+  kitchenLayout: ReceiptLayout;
+  // Auto-scan the LAN for network printers when the Printer settings tab opens
+  // (desktop only). Off keeps discovery manual for large/locked-down networks.
+  autoScanPrinters: boolean;
+  // Whether product pictures are shown at all: the register's product tiles,
+  // the cart thumbnails, the inventory rows and the LAN QR menu. Off by
+  // default — a till reads faster as text, and most catalogues never get real
+  // photography. Product.image is untouched either way, so switching this on
+  // brings back whatever was already set.
+  showProductImages: boolean;
+  // Feedback sounds: the cart blip, the PIN keypad tick, the error bump, the
+  // checkout chime and the kitchen bell. On by default — a busy counter reads
+  // a sound faster than a toast — but a quiet room wants it off, and it is a
+  // per-terminal preference like the printer, not an account setting.
+  soundEffects: boolean;
+  // This terminal's store id for multi-store cloud scoping (see
+  // src/db/multi-store-schema.sql). Empty = single-store mode: sync behaves exactly
+  // as before (no store_id stamped or filtered).
+  storeId: string;
+  // The cloud project this terminal has already merged its local database into
+  // and adopted the result of, as that project's URL. Empty until the first
+  // link succeeds. See src/lib/cloudAdoption.ts — it is persisted because the
+  // merge belongs to the life of a link, not to every boot: re-running it would
+  // re-upload the whole local catalogue each time and push this terminal's copy
+  // of a row back over a deletion another terminal had made.
+  cloudAdoptedFor: string;
+  darkMode: boolean;
+  language: Locale;
+  // What kind of business this terminal runs and which optional modules (tables,
+  // kitchen, QR menu) it has switched on — see lib/businessProfile.ts.
+  businessProfile: BusinessProfile;
+  // False on a fresh production install until first-run setup has been completed.
+  // Installs that predate it are marked complete on load, never sent through it.
+  onboardingComplete: boolean;
+
+  setSettings: (settings: StoreSettings) => void;
+  setPrinterConfig: (config: PrinterConfig) => void;
+  setSupabaseConfig: (config: SupabaseConfig) => void;
+  setScannerConfig: (config: ScannerConfig) => void;
+  setEmailTemplate: (template: ReceiptEmailTemplate) => void;
+  setKitchenStations: (stations: KitchenStation[]) => void;
+  setReceiptLayout: (layout: ReceiptLayout) => void;
+  setKitchenLayout: (layout: ReceiptLayout) => void;
+  setAutoScanPrinters: (on: boolean) => void;
+  setShowProductImages: (on: boolean) => void;
+  setSoundEffects: (on: boolean) => void;
+  setStoreId: (storeId: string) => void;
+  setCloudAdoptedFor: (url: string) => void;
+  setDarkMode: (darkMode: boolean) => void;
+  setLanguage: (lang: Locale) => void;
+  setBusinessProfile: (profile: BusinessProfile) => void;
+  /** Ends first-run setup: stores the business's identity and profile in one write. */
+  completeOnboarding: (settings: StoreSettings, profile: BusinessProfile) => void;
+}
+
+/**
+ * Exported so Settings' "Reset to defaults" restores exactly what a fresh
+ * install starts with. Neutral on purpose: first-run setup
+ * (components/Onboarding.tsx) asks for the store's name and currency, so these
+ * values are only what "Reset to defaults" falls back to.
+ */
+export const DEFAULT_SETTINGS: StoreSettings = {
+  storeName: '',
+  storeAddress: '',
+  storePhone: '',
+  storeLogo: '',
+  taxRate: 0,
+  currency: '$',
+  currencyCode: 'USD',
+  loyaltyPointsRate: 0,
+  loyaltyPointValue: 0,
+};
+
+/**
+ * Where a terminal's business setup starts: general retail and un-onboarded,
+ * so first-run setup walks the operator through it before anything else.
+ */
+export const INITIAL_BUSINESS_SETUP: BusinessSetup = {
+  businessProfile: profileFromTemplate('general-retail'),
+  onboardingComplete: false,
+};
+
+/**
+ * Printer settings a store starts with: an 80mm system printer that prints
+ * automatically at checkout.
+ */
+export const DEFAULT_PRINTER: PrinterConfig = {
+  type: 'system',
+  paperSize: '80mm',
+  showBarcode: true,
+  footerMessage: 'Thank you for shopping with us!',
+  autoPrintOnCheckout: true,
+};
+
+/**
+ * Kitchen stations a terminal starts with, and what "Reset to defaults"
+ * restores: none. The operator adds them under Settings.
+ */
+export const DEFAULT_KITCHEN_STATIONS: KitchenStation[] = [];
+
+/**
+ * Cloud sync off and unconfigured — the offline-first default.
+ */
+export const DEFAULT_SUPABASE: SupabaseConfig = {
+  url: '',
+  anonKey: '',
+  authEmail: '',
+  authPassword: '',
+  enabled: false,
+  status: 'disconnected',
+};
+
+/**
+ * Barcode-scanner defaults. A scanner is distinguished from typing by keystroke
+ * spacing, so maxInterKeyMs is the discriminator.
+ */
+export const DEFAULT_SCANNER: ScannerConfig = {
+  enabled: true,
+  minLength: 3,
+  maxInterKeyMs: 50,
+};
+
+/**
+ * Starting receipt-email copy. The {placeholders} are filled in per receipt.
+ */
+export const DEFAULT_EMAIL_TEMPLATE: ReceiptEmailTemplate = {
+  subject: 'Receipt {receiptId} — {storeName}',
+  header:
+    'Hi {customerName},\n\nThank you for your purchase at {storeName}! Your receipt is below.',
+  footer: 'We hope to see you again soon.\n— The {storeName} team',
+};
+
+/**
+ * Every per-terminal setting: store identity, printer and scanner hardware,
+ * receipt and kitchen layouts, cloud sync credentials, and the store scope.
+ * Persisted to IndexedDB — this is the store the rest of the app reads its
+ * configuration from.
+ */
+export const useSettingsStore = create<SettingsState>()(
+  persist(
+    (set) => ({
+      settings: DEFAULT_SETTINGS,
+      printerConfig: DEFAULT_PRINTER,
+      supabaseConfig: DEFAULT_SUPABASE,
+      scannerConfig: DEFAULT_SCANNER,
+      emailTemplate: DEFAULT_EMAIL_TEMPLATE,
+      kitchenStations: DEFAULT_KITCHEN_STATIONS,
+      receiptLayout: defaultReceiptLayout(),
+      kitchenLayout: defaultKitchenLayout(),
+      autoScanPrinters: true,
+      showProductImages: false,
+      soundEffects: true,
+      storeId: '',
+      cloudAdoptedFor: '',
+      // Dark-first: the whole UI is designed for a dark canvas. New terminals
+      // start dark and stay cohesive; a saved light preference is restored on
+      // rehydrate and the toggle still switches freely.
+      darkMode: true,
+      language: 'en',
+      businessProfile: INITIAL_BUSINESS_SETUP.businessProfile,
+      onboardingComplete: INITIAL_BUSINESS_SETUP.onboardingComplete,
+
+      setSettings: (settings) => set({ settings }),
+      setPrinterConfig: (printerConfig) => set({ printerConfig }),
+      setSupabaseConfig: (supabaseConfig) => set({ supabaseConfig }),
+      setScannerConfig: (scannerConfig) => set({ scannerConfig }),
+      setEmailTemplate: (emailTemplate) => set({ emailTemplate }),
+      setKitchenStations: (kitchenStations) => set({ kitchenStations }),
+      setReceiptLayout: (receiptLayout) => set({ receiptLayout }),
+      setKitchenLayout: (kitchenLayout) => set({ kitchenLayout }),
+      setAutoScanPrinters: (autoScanPrinters) => set({ autoScanPrinters }),
+      setShowProductImages: (showProductImages) => set({ showProductImages }),
+      setSoundEffects: (soundEffects) => set({ soundEffects }),
+      setStoreId: (storeId) => set({ storeId }),
+      setCloudAdoptedFor: (cloudAdoptedFor) => set({ cloudAdoptedFor }),
+      setDarkMode: (darkMode) => {
+        // Apply the theme class immediately; without this the `dark:` variants
+        // only take effect after a reload (the class was set on rehydrate only).
+        if (typeof document !== 'undefined') {
+          document.documentElement.classList.toggle('dark', darkMode);
+        }
+        set({ darkMode });
+      },
+      setLanguage: (language) => set({ language }),
+      setBusinessProfile: (businessProfile) => set({ businessProfile }),
+      completeOnboarding: (settings, businessProfile) =>
+        set({ settings, businessProfile, onboardingComplete: true }),
+    }),
+    {
+      name: 'pos-settings-storage',
+      storage: createJSONStorage(() => idbStorage),
+      // Device credentials are session secrets, not application settings. Keep
+      // them available in memory for the current session, but never serialize
+      // them into IndexedDB where any local page with storage access could read
+      // the cloud password.
+      partialize: (state) => ({
+        ...state,
+        supabaseConfig: {
+          ...state.supabaseConfig,
+          authEmail: undefined,
+          authPassword: undefined,
+        },
+      }),
+      // Installs saved before configurable receipts existed have no
+      // receiptLayout/kitchenLayout. Seed them from the defaults, carrying the
+      // operator's existing footer message and barcode toggle onto the customer
+      // receipt so nothing silently changes on their printed output.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<SettingsState> & {
+          printerConfig?: Partial<PrinterConfig>;
+        };
+        const merged = { ...current, ...(persisted as object) } as SettingsState;
+        if (!p.receiptLayout) {
+          const base = defaultReceiptLayout();
+          merged.receiptLayout = {
+            ...base,
+            footer: p.printerConfig?.footerMessage ?? base.footer,
+            show: { ...base.show, barcode: p.printerConfig?.showBarcode ?? base.show.barcode },
+          };
+        }
+        if (!p.kitchenLayout) merged.kitchenLayout = defaultKitchenLayout();
+
+        // Installs from before business profiles have no profile on disk. They
+        // are already in use, so they are not sent through first-run setup, and
+        // they keep the restaurant screens they have always had.
+        const setup = resolveBusinessSetup(persisted, INITIAL_BUSINESS_SETUP);
+        merged.businessProfile = setup.businessProfile;
+        merged.onboardingComplete = setup.onboardingComplete;
+
+        // A restored 'connected' has to be re-earned, not inherited.
+        //
+        // `status` is persisted but the device credentials above are not, so a
+        // terminal that had signed in with a device account came back up still
+        // badged "Connected" while signInDevice() saw an empty password and
+        // quietly fell through to its anonymous path. Under the secure-by-
+        // default RLS in src/db/schema.sql `anon` is denied every row, so
+        // realtime sync, the fleet heartbeat and every push and pull silently
+        // did nothing — while Settings and the Dashboard both reported the
+        // cloud as live. Sales stopped replicating and nothing said so.
+        //
+        // 'connected' therefore survives a restart only where the config has
+        // affirmatively recorded that it needs no credentials — an anonymous
+        // install, which really does keep working across a restart. Everything else,
+        // including a blob written before this flag existed, is treated as
+        // unprovable: a wrong 'disconnected' announces itself and is one click
+        // to fix, whereas a wrong 'connected' is the silent failure above.
+        const restored = merged.supabaseConfig;
+        const credentialFree = restored?.deviceAuthConfigured === false;
+        if (restored?.status === 'connected' && !credentialFree && !restored.authPassword) {
+          merged.supabaseConfig = { ...restored, status: 'disconnected' };
+        }
+        return merged;
+      },
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          if (state.darkMode) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        }
+      },
+    },
+  ),
+);

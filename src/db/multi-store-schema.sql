@@ -1,0 +1,594 @@
+-- ============================================================
+-- Multi-store / super-admin foundations  (Phase 0 — additive)
+-- Run AFTER src/db/schema.sql, in the Supabase SQL Editor.
+--
+-- This is additive and backward compatible: it introduces a store dimension,
+-- backfills every existing row into a single "default" store, and leaves the
+-- single-store terminal flow working unchanged. RLS for the new tables is
+-- included; flipping RLS on for the existing data tables (products, etc.) is a
+-- later phase, once every terminal stamps a store_id (see docs/PROJECT.md §9).
+-- Safe to re-run.
+-- ============================================================
+
+-- 1. Stores + memberships -------------------------------------------------
+CREATE TABLE IF NOT EXISTS stores (
+  id           TEXT PRIMARY KEY,
+  org_id       TEXT NOT NULL,
+  name         TEXT NOT NULL,
+  address      TEXT,
+  timezone     TEXT NOT NULL DEFAULT 'UTC',
+  currency     TEXT NOT NULL DEFAULT '$',
+  status       TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended')),
+  last_seen_at TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS memberships (
+  user_id  UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  org_id   TEXT NOT NULL,
+  store_id TEXT REFERENCES stores(id) ON DELETE CASCADE,  -- NULL = org-wide (super-admin)
+  role     TEXT NOT NULL CHECK (role IN ('superadmin', 'admin', 'manager', 'cashier'))
+);
+
+-- One membership per user per organization and store (org-wide rows collapse
+-- to a sentinel key). This has to be a unique INDEX, not a PRIMARY KEY: a PK
+-- constraint accepts only bare column names, so the COALESCE expression would be
+-- invalid in a primary-key declaration.
+DROP INDEX IF EXISTS memberships_user_store_key;
+CREATE UNIQUE INDEX memberships_user_store_key
+  ON memberships (user_id, org_id, COALESCE(store_id, '__org__'));
+
+-- 2. store_id on every synced table (nullable → backfilled below) ---------
+ALTER TABLE products      ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES stores(id);
+ALTER TABLE categories    ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES stores(id);
+ALTER TABLE customers     ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES stores(id);
+ALTER TABLE transactions  ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES stores(id);
+ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES stores(id);
+
+-- 3. Backfill: create one default store and attach all existing rows to it.
+INSERT INTO stores (id, org_id, name)
+VALUES ('store-default', 'org-default', 'Main Store')
+ON CONFLICT (id) DO NOTHING;
+
+UPDATE products      SET store_id = 'store-default' WHERE store_id IS NULL;
+UPDATE categories    SET store_id = 'store-default' WHERE store_id IS NULL;
+UPDATE customers     SET store_id = 'store-default' WHERE store_id IS NULL;
+UPDATE transactions  SET store_id = 'store-default' WHERE store_id IS NULL;
+UPDATE user_accounts SET store_id = 'store-default' WHERE store_id IS NULL;
+
+-- Staff names are unique within a store, while the same name may exist in a
+-- different store in the organization. Remove the single-store index if the
+-- base schema created it before this additive migration ran.
+DROP INDEX IF EXISTS user_accounts_name_unique;
+CREATE UNIQUE INDEX IF NOT EXISTS user_accounts_store_name_unique
+  ON user_accounts (store_id, name);
+
+-- Upgrade older name-keyed attempt ledgers before installing the scoped RPC.
+ALTER TABLE login_attempts ADD COLUMN IF NOT EXISTS scope_key TEXT;
+UPDATE login_attempts SET scope_key = COALESCE(scope_key, '__legacy__:' || name);
+ALTER TABLE login_attempts ALTER COLUMN scope_key SET NOT NULL;
+ALTER TABLE login_attempts DROP CONSTRAINT IF EXISTS login_attempts_pkey;
+ALTER TABLE login_attempts ADD CONSTRAINT login_attempts_pkey PRIMARY KEY (scope_key);
+
+-- How many stores this deployment has.
+--
+-- The one question that decides whether "no store configured" is a legitimate
+-- single-store install or a misconfigured terminal, and it is asked in both
+-- halves of the system: here, by verify_login below, and by the client before
+-- it issues a pull. Keeping one definition means the two cannot disagree about
+-- which deployments are scoped.
+--
+-- SECURITY DEFINER because the caller is by definition not yet scoped to a
+-- store, so it cannot pass the RLS predicate on `stores`. It returns a count and
+-- nothing else — no id, no name, no org — so it discloses only the single fact
+-- the decision needs. Granted to anon as well as authenticated: a terminal with
+-- no device account still has to find out that it must not pull the fleet.
+CREATE OR REPLACE FUNCTION public.pos_store_count()
+RETURNS INTEGER
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT count(*)::INTEGER FROM stores;
+$$;
+REVOKE ALL ON FUNCTION public.pos_store_count() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.pos_store_count() TO anon, authenticated;
+
+-- Replace the single-store login routine with a compatible three-argument form.
+--
+-- This body deliberately restates the throttle from src/db/schema.sql §7 rather
+-- than sharing it. Postgres has no way to patch a function body, and both files
+-- are standalone scripts pasted whole into the SQL editor, so there is nothing
+-- to factor out without breaking that workflow. The cost is that the two can
+-- drift: a change to the escalation ladder, the FOR UPDATE lock and its
+-- ordering, the caller-scoped and name-scoped keys, or the streak reset has to
+-- be made in BOTH, and schema.sql carries the comments explaining why each of
+-- those is there. test/db/schemaContract.test.ts asserts the two stay in step.
+-- The third argument has a default, so existing two-argument callers continue to
+-- work until a terminal is configured with a store id; scoped callers must match
+-- the account's store_id. The old two-argument routine is removed so it cannot be
+-- used to bypass store isolation after this migration.
+DROP FUNCTION IF EXISTS public.verify_login(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.verify_login(
+  p_name TEXT,
+  p_pin_hash TEXT,
+  p_store_id TEXT DEFAULT NULL
+)
+RETURNS TABLE (id TEXT, name TEXT, role TEXT, active BOOLEAN, created_at TIMESTAMPTZ)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  free_attempts   CONSTANT INTEGER  := 5;
+  global_attempts CONSTANT INTEGER  := 50;
+  global_cool_off CONSTANT INTERVAL := INTERVAL '15 minutes';
+  streak_reset    CONSTANT INTERVAL := INTERVAL '30 minutes';
+  att             login_attempts%ROWTYPE;
+  glob            login_attempts%ROWTYPE;
+  matched         user_accounts%ROWTYPE;
+  scope_prefix    TEXT;
+  attempt_key     TEXT;
+  global_key      TEXT;
+  cool_off        INTERVAL;
+  global_lock     TIMESTAMPTZ;
+BEGIN
+  -- Per caller AND per account name, for the reasons set out in schema.sql §7:
+  -- the caller-scoped ladder is what actually throttles a guesser, and keying it
+  -- on the caller is what stops a lockout being aimable at a named account. The
+  -- name-scoped backstop catches guessing spread across callers. Both stay
+  -- inside the store scope, so two stores that happen to share a staff name
+  -- cannot lock each other out.
+  scope_prefix := COALESCE('__store__:' || p_store_id, '__unscoped__:');
+  attempt_key  := scope_prefix || public.login_client_key() || '|' || p_name;
+  global_key   := scope_prefix || '__name__|' || p_name;
+
+  -- Caller-scoped row first, name-scoped second, always: a consistent lock order
+  -- is what keeps two callers guessing the same name from deadlocking.
+  -- Make sure both ledger rows exist before trying to lock them. A
+  -- SELECT ... FOR UPDATE that matches no row locks nothing: N concurrent
+  -- first-ever failures against a fresh key would each read "no row", each
+  -- compute failures = 1, and the last write would win — so a burst against a
+  -- name nobody has failed against yet counts as a single attempt, which is
+  -- exactly the burst the name-scoped backstop exists to catch. The INSERT
+  -- takes the primary-key lock instead, so the losers block here and then read
+  -- the winner's count. DO NOTHING leaves any existing counter untouched, and a
+  -- successful login deletes both rows again.
+  INSERT INTO login_attempts AS la (scope_key, name, failures, last_failure)
+  VALUES (attempt_key, p_name, 0, NOW()),
+         (global_key,  p_name, 0, NOW())
+  ON CONFLICT ON CONSTRAINT login_attempts_pkey DO NOTHING;
+
+  SELECT * INTO att  FROM login_attempts la WHERE la.scope_key = attempt_key FOR UPDATE;
+  SELECT * INTO glob FROM login_attempts la WHERE la.scope_key = global_key  FOR UPDATE;
+
+  IF att.locked_until IS NOT NULL AND att.locked_until > NOW() THEN
+    RETURN;
+  END IF;
+  IF glob.locked_until IS NOT NULL AND glob.locked_until > NOW() THEN
+    RETURN;
+  END IF;
+
+  IF att.scope_key IS NOT NULL AND att.last_failure < NOW() - streak_reset THEN
+    att.failures := 0;
+  END IF;
+  IF glob.scope_key IS NOT NULL AND glob.last_failure < NOW() - streak_reset THEN
+    glob.failures := 0;
+  END IF;
+
+  -- An unscoped call used to match an account in ANY store, because
+  -- `p_store_id IS NULL OR ...` reads as "no store named, so every store will
+  -- do". On a database holding more than one store that is a cross-store
+  -- authentication hole: store B's manager name and PIN opened store A's till,
+  -- and it compounds with the unscoped pull that put B's staff on A's terminal
+  -- in the first place.
+  --
+  -- "No store named" now means "only if there is no ambiguity": one store in
+  -- the database and the match is unambiguous, which keeps single-store installs
+  -- and the upgrade path (a terminal whose Store ID is not set yet, against a
+  -- database backfilled to one 'store-default') working exactly as before. Two
+  -- or more stores and the caller has to say which one it is.
+  --
+  -- Refusing here is safe for a terminal's own staff: the lockscreen checks the
+  -- local PIN first and only falls back to this RPC, so the people who work in
+  -- the store still sign in. What stops working is signing in to a store you do
+  -- not belong to.
+  IF p_store_id IS NULL AND public.pos_store_count() > 1 THEN
+    matched := NULL;
+  ELSE
+    SELECT * INTO matched
+    FROM user_accounts ua
+    WHERE ua.name = p_name
+      AND ua.pin = p_pin_hash
+      AND ua.active = TRUE
+      AND (p_store_id IS NULL OR ua.store_id = p_store_id)
+    LIMIT 1;
+  END IF;
+
+  -- Tested on `matched`, not on FOUND. FOUND reports whether the LAST SQL
+  -- statement touched a row, and the refusal branch above runs no SQL at all —
+  -- so FOUND would still be carrying the result of the attempt-ledger query and
+  -- this would return a row of NULLs as a successful login.
+  IF matched.id IS NOT NULL THEN
+    DELETE FROM login_attempts la WHERE la.scope_key IN (attempt_key, global_key);
+    RETURN QUERY SELECT matched.id, matched.name, matched.role, matched.active, matched.created_at;
+    RETURN;
+  END IF;
+
+  cool_off := CASE
+    WHEN COALESCE(att.failures, 0) + 1 <  free_attempts THEN NULL
+    WHEN COALESCE(att.failures, 0) + 1 =  free_attempts THEN INTERVAL '30 seconds'
+    WHEN COALESCE(att.failures, 0) + 1 =  free_attempts + 1 THEN INTERVAL '1 minute'
+    WHEN COALESCE(att.failures, 0) + 1 =  free_attempts + 2 THEN INTERVAL '2 minutes'
+    WHEN COALESCE(att.failures, 0) + 1 =  free_attempts + 3 THEN INTERVAL '5 minutes'
+    ELSE INTERVAL '15 minutes'
+  END;
+
+  global_lock := CASE
+    WHEN COALESCE(glob.failures, 0) + 1 >= global_attempts THEN NOW() + global_cool_off
+    ELSE NULL
+  END;
+
+
+  -- Prune before writing. verify_login is granted to `anon`, the name is
+  -- caller-supplied and arbitrary, and a row is only ever deleted when that
+  -- exact name later logs in successfully. So every distinct name anyone ever
+  -- fails against leaves a row behind for good: whoever holds the public key
+  -- can grow this table without limit just by cycling names, and the honest
+  -- case leaks rows too (a typo'd name, a since-deleted account). Dropping
+  -- streaks past the reset window bounds the table to the names actually seen
+  -- in the last streak_reset. It cannot forgive a live lockout — rows still
+  -- inside their cool-off are excluded.
+  --
+  -- FOR UPDATE SKIP LOCKED, not a bare DELETE: this transaction already holds a
+  -- lock on its own row from the SELECT above, so two concurrent logins whose
+  -- rows are both stale would each block trying to delete the other's and
+  -- deadlock, which Postgres resolves by aborting one — turning a routine login
+  -- into an error. Skipping rows another transaction holds makes that
+  -- impossible; a row skipped now is simply pruned by the next caller. LIMIT
+  -- keeps one login from paying for a large backlog in a single call.
+  DELETE FROM login_attempts la
+   WHERE la.scope_key IN (
+     SELECT sub.scope_key
+       FROM login_attempts sub
+      WHERE sub.last_failure < NOW() - streak_reset
+        AND (sub.locked_until IS NULL OR sub.locked_until <= NOW())
+      LIMIT 100
+      FOR UPDATE SKIP LOCKED
+   );
+
+  INSERT INTO login_attempts AS la (scope_key, name, failures, locked_until, last_failure)
+  VALUES
+    (attempt_key, p_name, COALESCE(att.failures, 0) + 1,
+     CASE WHEN cool_off IS NULL THEN NULL ELSE NOW() + cool_off END, NOW()),
+    (global_key,  p_name, COALESCE(glob.failures, 0) + 1, global_lock, NOW())
+  ON CONFLICT ON CONSTRAINT login_attempts_pkey DO UPDATE
+    SET failures     = EXCLUDED.failures,
+        locked_until = EXCLUDED.locked_until,
+        last_failure = EXCLUDED.last_failure;
+
+  RETURN;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.verify_login(TEXT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.verify_login(TEXT, TEXT, TEXT) TO anon, authenticated;
+
+-- Extend the non-secret user projection with its store scope after the additive
+-- column exists. The PIN hash remains excluded from the view.
+CREATE OR REPLACE VIEW public.user_accounts_public
+WITH (security_invoker = true) AS
+SELECT id, name, role, active, created_at, store_id
+FROM public.user_accounts;
+
+-- The base schema intentionally grants only non-secret user columns. Add the
+-- migration column to those grants so store-scoped cloud upserts keep working.
+GRANT SELECT (id, name, role, active, created_at, store_id) ON TABLE public.user_accounts TO authenticated;
+GRANT INSERT (id, name, role, pin, active, created_at, store_id) ON TABLE public.user_accounts TO authenticated;
+GRANT UPDATE (id, name, role, pin, active, created_at, store_id) ON TABLE public.user_accounts TO authenticated;
+
+-- 4. Indexes for the fleet queries ---------------------------------------
+CREATE INDEX IF NOT EXISTS idx_transactions_store_date ON transactions (store_id, date);
+CREATE INDEX IF NOT EXISTS idx_products_store           ON products (store_id);
+CREATE INDEX IF NOT EXISTS idx_memberships_user         ON memberships (user_id);
+
+-- Every store_id column added in section 2 is filtered on by a pull in
+-- src/lib/supabase/, but only products and transactions were indexed, so
+-- pullCategories() and pullCustomers() scanned the whole table on a fleet
+-- database and got slower with every store added to the org.
+CREATE INDEX IF NOT EXISTS idx_categories_store ON categories (store_id);
+CREATE INDEX IF NOT EXISTS idx_customers_store  ON customers (store_id);
+
+-- The fleet console filters both of these by org_id — listStores() and
+-- listMemberships() in src/lib/fleetClient.ts. memberships was indexed by
+-- user_id only, which serves the access predicates but not the console's
+-- listing, and stores had no index beyond its primary key.
+CREATE INDEX IF NOT EXISTS idx_stores_org      ON stores (org_id);
+CREATE INDEX IF NOT EXISTS idx_memberships_org ON memberships (org_id);
+
+-- memberships.store_id REFERENCES stores(id) ON DELETE CASCADE, and Postgres
+-- does not index a foreign key for you. Deleting a store had to scan
+-- memberships to find the rows to cascade.
+CREATE INDEX IF NOT EXISTS idx_memberships_store ON memberships (store_id);
+
+-- 5. Access predicates (SECURITY DEFINER so policies can call them) --------
+--
+-- Every SECURITY DEFINER function here pins `SET search_path` (matching
+-- verify_login in schema.sql). A definer function that inherits the caller's
+-- search_path is the classic Postgres privilege-escalation vector: anyone able
+-- to create objects in a schema that sorts earlier can shadow `memberships` or
+-- `stores` and make the predicate return TRUE. These two functions ARE the
+-- multi-store authorization boundary, so they are the last place to leave it
+-- mutable. (Supabase's linter flags this as `function_search_path_mutable`.)
+CREATE OR REPLACE FUNCTION is_superadmin(p_org TEXT)
+RETURNS BOOLEAN LANGUAGE SQL STABLE SECURITY DEFINER
+SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM memberships m
+    WHERE m.user_id = auth.uid() AND m.org_id = p_org
+      AND m.role = 'superadmin' AND m.store_id IS NULL
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION has_store_access(p_store TEXT)
+RETURNS BOOLEAN LANGUAGE SQL STABLE SECURITY DEFINER
+SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM memberships m
+    WHERE m.user_id = auth.uid()
+      AND (
+        m.store_id = p_store
+        OR (m.store_id IS NULL
+            AND m.org_id = (SELECT s.org_id FROM stores s WHERE s.id = p_store))
+      )
+  );
+$$;
+
+-- 6. RLS on the new tables ------------------------------------------------
+ALTER TABLE stores      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
+
+-- Every policy names `TO authenticated`, matching the blanket policies in
+-- schema.sql. A policy with no TO clause defaults to TO PUBLIC, which includes
+-- the `anon` role that ships in the client bundle. The predicates below all
+-- resolve auth.uid() (NULL for anon), so anon is already refused on the merits —
+-- but the role clause is the cheap outer guard, and dropping it means a future
+-- predicate change is one edit away from exposing rows to the public key.
+DROP POLICY IF EXISTS stores_read ON stores;
+CREATE POLICY stores_read ON stores FOR SELECT TO authenticated
+  USING (has_store_access(id));
+
+DROP POLICY IF EXISTS stores_write ON stores;
+CREATE POLICY stores_write ON stores FOR ALL TO authenticated
+  USING (is_superadmin(org_id))
+  WITH CHECK (is_superadmin(org_id));
+
+DROP POLICY IF EXISTS memberships_self_read ON memberships;
+CREATE POLICY memberships_self_read ON memberships FOR SELECT TO authenticated
+  USING (user_id = auth.uid() OR is_superadmin(org_id));
+
+DROP POLICY IF EXISTS memberships_admin_write ON memberships;
+CREATE POLICY memberships_admin_write ON memberships FOR ALL TO authenticated
+  USING (is_superadmin(org_id))
+  WITH CHECK (is_superadmin(org_id));
+
+-- 7. Atomic membership mutations -----------------------------------------
+-- The client must not perform delete-then-insert over two HTTP requests: an
+-- interrupted reassignment would otherwise remove the user's only membership.
+-- These invoker functions execute both statements in the caller's transaction;
+-- the existing memberships_admin_write policy remains the authorization gate.
+CREATE OR REPLACE FUNCTION public.set_membership(
+  p_user_id UUID,
+  p_org_id TEXT,
+  p_store_id TEXT,
+  p_role TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+  DELETE FROM memberships
+  WHERE user_id = p_user_id
+    AND org_id = p_org_id
+    AND store_id IS NOT DISTINCT FROM p_store_id;
+
+  INSERT INTO memberships (user_id, org_id, store_id, role)
+  VALUES (p_user_id, p_org_id, p_store_id, p_role);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.set_membership(UUID, TEXT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.set_membership(UUID, TEXT, TEXT, TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.remove_membership(
+  p_user_id UUID,
+  p_org_id TEXT,
+  p_store_id TEXT
+)
+RETURNS VOID
+LANGUAGE SQL
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  DELETE FROM memberships
+  WHERE user_id = p_user_id
+    AND org_id = p_org_id
+    AND store_id IS NOT DISTINCT FROM p_store_id;
+$$;
+REVOKE ALL ON FUNCTION public.remove_membership(UUID, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.remove_membership(UUID, TEXT, TEXT) TO authenticated;
+
+-- 7b. Atomic catalog push ------------------------------------------------
+-- Same reasoning as section 7, one level up: the fleet console pushed a
+-- catalog as two HTTP requests, categories then products. A category upsert
+-- that succeeded followed by a product upsert that failed left the target
+-- store holding categories whose products never arrived, and the caller saw
+-- only `false` — no way to tell "nothing was written" from "half of it was".
+--
+-- A plpgsql body runs in the caller's transaction, so both statements commit
+-- or roll back together. Categories still go first: products.category is a FK
+-- to categories(id), and by the second statement the new rows exist in the
+-- transaction.
+--
+-- SECURITY INVOKER, like set_membership above: the per-table policies from
+-- multi-store-rls-enforce.sql (has_store_access(store_id)) remain the
+-- authorization gate. This deliberately neither widens nor narrows who may
+-- write a catalog — it is exactly the authorization the two direct upserts
+-- already had, and re-implementing it here would be one more thing to drift.
+CREATE OR REPLACE FUNCTION public.push_store_catalog(
+  p_store_id TEXT,
+  p_categories JSONB,
+  p_products JSONB
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+  -- categories.id and products.id are globally unique: store_id is a plain
+  -- column, not part of the key. So an upsert keyed on id alone reaches across
+  -- store boundaries — a payload carrying an id that already belongs to another
+  -- store would update that store's row, and writing store_id in the DO UPDATE
+  -- would move it wholesale. Moving a category is the worse half: products left
+  -- behind in the original store keep a category reference that now points into
+  -- a different store.
+  --
+  -- planCatalogPush never produces such a payload (it mints fresh ids and
+  -- otherwise reuses the target store's own), but this is an authenticated RPC
+  -- and the callers are not the only thing that can reach it. So a collision is
+  -- refused outright rather than resolved: raising here aborts the whole push,
+  -- which is the same all-or-nothing guarantee the rest of this function gives.
+  IF EXISTS (
+    SELECT 1
+    FROM jsonb_to_recordset(COALESCE(p_categories, '[]'::jsonb)) AS c(id TEXT)
+    JOIN categories existing ON existing.id = c.id
+    WHERE existing.store_id IS DISTINCT FROM p_store_id
+  ) THEN
+    RAISE EXCEPTION
+      'push_store_catalog: a category id in this payload already belongs to a different store than %',
+      p_store_id;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM jsonb_to_recordset(COALESCE(p_products, '[]'::jsonb)) AS p(id TEXT)
+    JOIN products existing ON existing.id = p.id
+    WHERE existing.store_id IS DISTINCT FROM p_store_id
+  ) THEN
+    RAISE EXCEPTION
+      'push_store_catalog: a product id in this payload already belongs to a different store than %',
+      p_store_id;
+  END IF;
+
+  -- store_id is set on insert but never in the DO UPDATE: past the guard above
+  -- an existing row is already scoped to p_store_id, so re-writing it could only
+  -- ever change a scope, never establish the right one.
+  INSERT INTO categories (id, name, color, store_id)
+  SELECT c.id, c.name, c.color, p_store_id
+  FROM jsonb_to_recordset(COALESCE(p_categories, '[]'::jsonb))
+    AS c(id TEXT, name TEXT, color TEXT)
+  ON CONFLICT (id) DO UPDATE
+    SET name  = EXCLUDED.name,
+        color = EXCLUDED.color;
+
+  -- variant_types/variants/modifier_groups travel with the product: a catalogue
+  -- push that dropped them would land a varianted item in the target store as a
+  -- single unsellable SKU, and an item with add-ons as one with none. The counts
+  -- inside them are already zeroed by the planner — stock is per-store — so only
+  -- the shape crosses.
+  INSERT INTO products (id, name, price, cost, category, sku, stock, min_stock, image,
+                        variant_types, variants, modifier_groups, store_id)
+  SELECT p.id, p.name, p.price, p.cost, NULLIF(p.category, ''), p.sku,
+         p.stock, p.min_stock, p.image, p.variant_types, p.variants,
+         p.modifier_groups, p_store_id
+  FROM jsonb_to_recordset(COALESCE(p_products, '[]'::jsonb))
+    AS p(id TEXT, name TEXT, price NUMERIC, cost NUMERIC, category TEXT,
+         sku TEXT, stock INTEGER, min_stock INTEGER, image TEXT,
+         variant_types JSONB, variants JSONB, modifier_groups JSONB)
+  ON CONFLICT (id) DO UPDATE
+    SET name            = EXCLUDED.name,
+        price           = EXCLUDED.price,
+        cost            = EXCLUDED.cost,
+        category        = EXCLUDED.category,
+        sku             = EXCLUDED.sku,
+        stock           = EXCLUDED.stock,
+        min_stock       = EXCLUDED.min_stock,
+        image           = EXCLUDED.image,
+        variant_types   = EXCLUDED.variant_types,
+        variants        = EXCLUDED.variants,
+        modifier_groups = EXCLUDED.modifier_groups;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.push_store_catalog(TEXT, JSONB, JSONB) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.push_store_catalog(TEXT, JSONB, JSONB) TO authenticated;
+
+-- 8. Heartbeat: a terminal marks its store "seen". Only its own store, and
+--    only if it has access to it (RLS-checked inside the function body).
+CREATE OR REPLACE FUNCTION store_heartbeat(p_store TEXT)
+RETURNS VOID LANGUAGE PLPGSQL SECURITY DEFINER
+SET search_path = public AS $$
+BEGIN
+  IF NOT has_store_access(p_store) THEN
+    RAISE EXCEPTION 'no access to store %', p_store;
+  END IF;
+  UPDATE stores SET last_seen_at = NOW() WHERE id = p_store;
+END;
+$$;
+
+-- 8. Fleet summary: per-store rollup for the super-admin board, since a
+--    timestamp. SECURITY INVOKER so it is still RLS-scoped to the caller's
+--    memberships (a super-admin sees the whole org; others see their store).
+CREATE OR REPLACE FUNCTION fleet_summary(p_org TEXT, p_since TIMESTAMPTZ)
+RETURNS TABLE (
+  store_id     TEXT,
+  store_name   TEXT,
+  revenue      NUMERIC,
+  orders       BIGINT,
+  last_seen_at TIMESTAMPTZ
+) LANGUAGE SQL STABLE SECURITY INVOKER AS $$
+  SELECT s.id, s.name,
+         COALESCE(SUM(t.total - COALESCE(t.refunded_amount, 0)) FILTER (WHERE t.date >= p_since), 0),
+         COALESCE(COUNT(t.id)  FILTER (WHERE t.date >= p_since), 0),
+         s.last_seen_at
+  FROM stores s
+  LEFT JOIN transactions t
+    ON t.store_id = s.id AND t.status <> 'refunded'
+  WHERE s.org_id = p_org
+  GROUP BY s.id, s.name, s.last_seen_at
+  ORDER BY s.name;
+$$;
+
+-- 8b. Fleet daily: per-store, per-day revenue + order counts over a window, for
+--     the consolidated cross-store reporting dashboard (Phase 2). Days are
+--     bucketed in each store's own timezone so a store's "day" matches its local
+--     books. SECURITY INVOKER so it stays RLS-scoped to the caller's memberships.
+--     Days with no sales are omitted (the client fills gaps).
+CREATE OR REPLACE FUNCTION fleet_daily(p_org TEXT, p_since TIMESTAMPTZ)
+RETURNS TABLE (
+  store_id   TEXT,
+  store_name TEXT,
+  day        DATE,
+  revenue    NUMERIC,
+  orders     BIGINT
+) LANGUAGE SQL STABLE SECURITY INVOKER AS $$
+  SELECT s.id, s.name,
+         (date_trunc('day', t.date AT TIME ZONE s.timezone))::date AS day,
+         COALESCE(SUM(t.total - COALESCE(t.refunded_amount, 0)), 0),
+         COUNT(t.id)
+  FROM stores s
+  JOIN transactions t
+    ON t.store_id = s.id AND t.status <> 'refunded' AND t.date >= p_since
+  WHERE s.org_id = p_org
+  GROUP BY s.id, s.name, day
+  ORDER BY day, s.name;
+$$;
+
+-- 9. Realtime for the fleet board (live online/offline transitions).
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE stores;
+EXCEPTION WHEN duplicate_object THEN
+  NULL;
+END $$;

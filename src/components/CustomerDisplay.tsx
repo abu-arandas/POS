@@ -1,0 +1,366 @@
+import { useState, useEffect } from 'react';
+import {
+  ShoppingBag,
+  CheckCircle2,
+  QrCode,
+  Sparkles,
+  Maximize,
+  Minimize,
+  Clock,
+  Flame,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { subscribeToCfd, CfdPayload } from '../lib/cfdChannel';
+import { useTranslation } from 'react-i18next';
+import { useSettingsStore } from '../stores/settingsStore';
+import Logo from './Logo';
+
+import { currencyDigits, formatAmount } from '../lib/money';
+/**
+ * The customer-facing display: a read-only mirror of the register, rendered on
+ * a second monitor or tablet.
+ *
+ * It holds no cart state of its own and never writes back — everything arrives
+ * over the CFD BroadcastChannel. A display that computed its own totals could
+ * disagree with the till the customer is about to pay, so it only ever renders
+ * what the register broadcast.
+ *
+ * Opened mid-sale it shows the idle screen rather than that sale: the channel
+ * has no replay, so the first paint waits on the register's next broadcast.
+ * See {@link CfdPayload}.
+ */
+export function CustomerDisplay() {
+  const { t } = useTranslation();
+  const settings = useSettingsStore((s) => s.settings);
+
+  const [cfdData, setCfdData] = useState<CfdPayload>({
+    type: 'CFD_UPDATE',
+    status: 'idle',
+    storeName: settings.storeName,
+    currency: settings.currency || '$',
+    items: [],
+    subtotal: 0,
+    discount: 0,
+    tax: 0,
+    total: 0,
+  });
+  // The register's digits win over this window's own settings: the display shows
+  // the sale as the register rang it up, and a payload carries everything needed
+  // to do that — including how many fractional digits its amounts have.
+  const fmtAmount = (n: number) => formatAmount(n, cfdData.digits ?? currencyDigits(settings));
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [time, setTime] = useState(() =>
+    new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  );
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToCfd((payload) => {
+      setCfdData(payload);
+    });
+    return unsubscribe;
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen().catch(() => {});
+      setIsFullscreen(false);
+    }
+  };
+
+  const isIdle = cfdData.status === 'idle' || cfdData.items.length === 0;
+  const isCompleted = cfdData.status === 'completed';
+  const isPaying = cfdData.status === 'paying';
+
+  return (
+    <div className="flex flex-col h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden select-none font-sans">
+      {/* Top Brand Bar */}
+      <header className="px-8 py-4 border-b border-zinc-800/80 bg-zinc-900/60 backdrop-blur-md flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-primary">
+            <Logo size={24} tone="dark" />
+          </div>
+          <div>
+            <h1 className="font-bold text-lg tracking-tight text-zinc-100 leading-tight">
+              {cfdData.storeName || settings.storeName}
+            </h1>
+            <p className="text-xs text-zinc-400 font-mono flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {t('cfd.active')}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm font-mono text-zinc-400 bg-zinc-900 px-3 py-1.5 rounded-xl border border-zinc-800">
+            <Clock size={14} />
+            <span>{time}</span>
+          </div>
+          <button
+            onClick={toggleFullscreen}
+            title={t('cfd.toggleFullscreen')}
+            className="size-9 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-100 flex items-center justify-center transition-colors"
+          >
+            {isFullscreen ? <Minimize size={15} /> : <Maximize size={15} />}
+          </button>
+        </div>
+      </header>
+
+      {/* Main Body */}
+      <div className="flex-1 flex overflow-hidden">
+        <AnimatePresence mode="wait">
+          {isCompleted ? (
+            /* ── Completed / Thank You State ── */
+            <motion.div
+              key="completed"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="flex-1 flex flex-col items-center justify-center p-12 text-center"
+            >
+              <div className="size-24 rounded-full bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-6 shadow-2xl shadow-emerald-500/10 animate-bounce">
+                <CheckCircle2 size={54} />
+              </div>
+              <h2 className="text-3xl font-bold tracking-tight text-zinc-100 mb-2">
+                {t('cfd.thankYouTitle')}
+              </h2>
+              <p className="text-zinc-400 text-sm max-w-md mb-8">{t('cfd.thankYouBody')}</p>
+
+              <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 min-w-[320px] max-w-sm space-y-3 font-mono">
+                <div className="flex justify-between items-center text-sm text-zinc-400">
+                  <span>Total Paid:</span>
+                  <span className="font-bold text-zinc-100">
+                    {cfdData.currency}
+                    {fmtAmount(cfdData.paidAmount ?? cfdData.total)}
+                  </span>
+                </div>
+                {cfdData.changeDue !== undefined && cfdData.changeDue > 0 && (
+                  <div className="flex justify-between items-center text-sm text-emerald-400 border-t border-dashed border-zinc-800 pt-2">
+                    <span>Change Returned:</span>
+                    <span className="font-bold">
+                      {cfdData.currency}
+                      {fmtAmount(cfdData.changeDue)}
+                    </span>
+                  </div>
+                )}
+                {cfdData.orderNumber && (
+                  <div className="flex justify-between items-center text-xs text-zinc-500 border-t border-zinc-800 pt-2">
+                    <span>Order:</span>
+                    <span className="font-bold text-zinc-300">{cfdData.orderNumber}</span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          ) : isIdle ? (
+            /* ── Idle / Welcome Promotions State ── */
+            <motion.div
+              key="idle"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 flex flex-col lg:flex-row items-center justify-center p-8 lg:p-16 gap-12 max-w-6xl mx-auto"
+            >
+              <div className="flex-1 space-y-6">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 border border-primary/20 text-primary">
+                  <Flame size={13} />
+                  {t('cfd.welcome', { store: cfdData.storeName || settings.storeName })}
+                </span>
+                <h2 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-zinc-100 leading-tight">
+                  {t('cfd.idleHeadline')}
+                </h2>
+                <p className="text-zinc-400 text-base leading-relaxed max-w-lg">
+                  {t('cfd.idleBody')}
+                </p>
+
+                <div className="flex items-center gap-4 pt-2">
+                  <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center gap-3">
+                    <QrCode size={24} className="text-zinc-400" />
+                    <div>
+                      <span className="text-xs font-semibold text-zinc-200 block">
+                        {t('cfd.contactlessTitle')}
+                      </span>
+                      <span className="text-[11px] text-zinc-500 font-mono">
+                        {t('cfd.contactlessBody')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* The store's own identity. This panel used to advertise a
+                  specific dish, its description and an 18.50 price as literals,
+                  so every terminal running this build showed one shop's menu
+                  item at a price nobody had set. Nothing here is invented. */}
+              <div className="w-full max-w-md rounded-3xl border border-zinc-800 bg-gradient-to-br from-zinc-900/90 to-zinc-950 p-8 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                  <Sparkles size={160} />
+                </div>
+                <h3 className="text-2xl font-bold text-zinc-100 mb-2">
+                  {cfdData.storeName || settings.storeName}
+                </h3>
+                {settings.storeAddress && (
+                  <p className="text-xs text-zinc-400 leading-relaxed">{settings.storeAddress}</p>
+                )}
+                {settings.storePhone && (
+                  <p className="text-xs text-zinc-500 font-mono mt-1">{settings.storePhone}</p>
+                )}
+              </div>
+            </motion.div>
+          ) : (
+            /* ── Active Scanning / Cart State ── */
+            <motion.div
+              key="active-cart"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 flex flex-col lg:flex-row overflow-hidden"
+            >
+              {/* Left Items Column */}
+              <div className="flex-1 flex flex-col border-b lg:border-b-0 lg:border-e border-zinc-800 overflow-hidden bg-zinc-950/50">
+                <div className="px-6 py-3 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
+                  <span className="text-xs font-mono uppercase text-zinc-400 font-semibold flex items-center gap-2">
+                    <ShoppingBag size={14} />
+                    {t('cfd.currentOrder', {
+                      count: cfdData.items.reduce<number>((sum, i) => sum + i.quantity, 0),
+                    })}
+                  </span>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-3">
+                  {cfdData.items.map((item) => (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/50 flex items-center justify-between gap-4"
+                    >
+                      <div className="flex items-start gap-3.5 min-w-0">
+                        <div className="size-8 rounded-xl bg-zinc-800 border border-zinc-700 font-mono text-xs font-bold text-zinc-100 flex items-center justify-center shrink-0">
+                          {item.quantity}x
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-semibold text-sm text-zinc-100 leading-snug">
+                            {item.name}
+                          </h4>
+                          {item.variantName && (
+                            <span className="text-xs text-zinc-400 block font-medium">
+                              {item.variantName}
+                            </span>
+                          )}
+                          {item.modifiers && item.modifiers.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {item.modifiers.map((m, idx) => (
+                                <span
+                                  key={idx}
+                                  className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700/60"
+                                >
+                                  +{m}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-end shrink-0">
+                        <span className="font-mono text-base font-bold text-zinc-100 block num">
+                          {cfdData.currency}
+                          {fmtAmount(item.totalPrice)}
+                        </span>
+                        {item.quantity > 1 && (
+                          <span className="font-mono text-[11px] text-zinc-500">
+                            @{cfdData.currency}
+                            {fmtAmount(item.unitPrice)}
+                          </span>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Order Summary & Payment Column */}
+              <div className="w-full lg:w-96 flex flex-col justify-between p-6 bg-zinc-900/30">
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-xs uppercase tracking-wider text-zinc-400">
+                    Order Summary
+                  </h3>
+
+                  <div className="space-y-2.5 font-mono text-sm">
+                    <div className="flex justify-between items-center text-zinc-400">
+                      <span>Subtotal:</span>
+                      <span className="text-zinc-200">
+                        {cfdData.currency}
+                        {fmtAmount(cfdData.subtotal)}
+                      </span>
+                    </div>
+                    {cfdData.discount > 0 && (
+                      <div className="flex justify-between items-center text-emerald-400">
+                        <span>Discounts / Promos:</span>
+                        <span>
+                          -{cfdData.currency}
+                          {fmtAmount(cfdData.discount)}
+                        </span>
+                      </div>
+                    )}
+                    {cfdData.tax > 0 && (
+                      <div className="flex justify-between items-center text-zinc-400">
+                        <span>Sales Tax:</span>
+                        <span className="text-zinc-200">
+                          {cfdData.currency}
+                          {fmtAmount(cfdData.tax)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Big Total Box */}
+                  <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-1">
+                    <span className="text-xs font-mono uppercase tracking-wider text-zinc-400 block">
+                      Total Due
+                    </span>
+                    <span className="font-mono font-extrabold text-4xl text-zinc-100 tracking-tight block num">
+                      {cfdData.currency}
+                      {fmtAmount(cfdData.total)}
+                    </span>
+                  </div>
+
+                  {/* Payment Prompt Pill */}
+                  {isPaying && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 rounded-2xl border border-primary/40 bg-primary/10 flex items-center gap-3"
+                    >
+                      <QrCode size={28} className="text-primary animate-pulse shrink-0" />
+                      <div>
+                        <span className="text-xs font-semibold text-zinc-100 block">
+                          {t('cfd.payPromptTitle')}
+                        </span>
+                        <span className="text-[11px] text-zinc-400">{t('cfd.payPromptBody')}</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+
+                <div className="pt-6 text-center text-xs text-zinc-500 font-mono">
+                  {t('cfd.footer')}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}

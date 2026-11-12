@@ -1,0 +1,229 @@
+import { useCallback, useMemo, useState } from 'react';
+import type { Product, ProductVariant, SelectedModifier, StoreSettings } from '../../types';
+import { calculateOrderTotals } from '../../lib/pricing';
+import {
+  availableStock,
+  lineKey,
+  variantCost,
+  variantLabel,
+  variantPrice,
+} from '../../lib/variants';
+import { calculateModifierPriceDelta, modifierSignature } from '../../lib/modifiers';
+import { playCartSound } from '../../lib/audioFeedback';
+
+import { useMoney } from '../../lib/useMoney';
+export type RegisterDiscountType = 'none' | 'percentage' | 'fixed' | 'loyalty';
+
+export interface RegisterCartLine {
+  product: Product;
+  /** The chosen variant, on a product that sells through variants. */
+  variant?: ProductVariant;
+  /** Chosen modifiers / add-ons (e.g. Extra cheese, No onions). */
+  modifiers?: SelectedModifier[];
+  quantity: number;
+}
+
+export interface RegisterCartItem {
+  productId: string;
+  productName: string;
+  variantId?: string;
+  variantName?: string;
+  modifiers?: SelectedModifier[];
+  price: number;
+  cost: number;
+  quantity: number;
+}
+
+/**
+ * What a cart line is addressed by: the product for a plain item, the product
+ * and the variant together for a varianted one, and their modifier signature.
+ */
+export function cartLineKey(
+  line: Pick<RegisterCartLine, 'product' | 'variant' | 'modifiers'>,
+): string {
+  const base = lineKey(line.product.id, line.variant?.id);
+  const mod = modifierSignature(line.modifiers);
+  return mod ? `${base}#${mod}` : base;
+}
+
+export interface RegisterCartResult {
+  cart: RegisterCartLine[];
+  setCart: React.Dispatch<React.SetStateAction<RegisterCartLine[]>>;
+  selectedCustomerId: string | null;
+  setSelectedCustomerId: React.Dispatch<React.SetStateAction<string | null>>;
+  discountType: RegisterDiscountType;
+  setDiscountType: React.Dispatch<React.SetStateAction<RegisterDiscountType>>;
+  discountInput: string;
+  setDiscountInput: React.Dispatch<React.SetStateAction<string>>;
+  loyaltyPointsToUse: number;
+  setLoyaltyPointsToUse: React.Dispatch<React.SetStateAction<number>>;
+  showPromoInput: boolean;
+  setShowPromoInput: React.Dispatch<React.SetStateAction<boolean>>;
+  cartItems: RegisterCartItem[];
+  discountValue: number;
+  subtotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  cashSuggestions: number[];
+  cashChangeDue(cashPaidText: string): number;
+  addToCart(product: Product, variant?: ProductVariant, modifiers?: SelectedModifier[]): void;
+  updateCartQty(key: string, delta: number): void;
+  removeFromCart(key: string): void;
+  clearCart(): void;
+}
+
+/**
+ * Owns the register's cart: its lines, the linked customer, the discount in
+ * force, and the totals derived from them. Kept out of Register itself so
+ * the pricing rules can be exercised without rendering the screen.
+ */
+export function useRegisterCart(
+  settings: StoreSettings,
+  settlingTotal?: number,
+): RegisterCartResult {
+  const { round: roundAmt } = useMoney();
+
+  const [cart, setCart] = useState<RegisterCartLine[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [discountType, setDiscountType] = useState<RegisterDiscountType>('none');
+  const [discountInput, setDiscountInput] = useState('');
+  const [loyaltyPointsToUse, setLoyaltyPointsToUse] = useState(0);
+  const [showPromoInput, setShowPromoInput] = useState(false);
+
+  const cartItems = useMemo<RegisterCartItem[]>(
+    () =>
+      cart.map(({ product, variant, modifiers, quantity }) => {
+        const modDelta = calculateModifierPriceDelta(modifiers);
+        return {
+          productId: product.id,
+          productName: product.name,
+          variantId: variant?.id,
+          variantName: variant ? variantLabel(product, variant) || undefined : undefined,
+          modifiers,
+          price: variantPrice(product, variant) + modDelta,
+          cost: variantCost(product, variant),
+          quantity,
+        };
+      }),
+    [cart],
+  );
+
+  const discountValue =
+    discountType === 'loyalty' ? loyaltyPointsToUse : parseFloat(discountInput) || 0;
+  const { subtotal, discountAmount, taxAmount, totalAmount } = useMemo(
+    () => calculateOrderTotals(cartItems, discountType, discountValue, settings),
+    [cartItems, discountType, discountValue, settings],
+  );
+
+  // What a payment has to cover: the bill of the tab being settled when there is
+  // one, otherwise the cart. The cash helpers below must follow it — the cart can
+  // already hold the next table's order while a tab is being paid.
+  const payableAmount = settlingTotal ?? totalAmount;
+
+  const cashSuggestions = useMemo(() => {
+    if (payableAmount <= 0) return [];
+    const exact = payableAmount;
+    const next5 = Math.ceil(exact / 5) * 5;
+    const next10 = Math.ceil(exact / 10) * 10;
+    const next20 = Math.ceil(exact / 20) * 20;
+    const next50 = Math.ceil(exact / 50) * 50;
+    const options = new Set<number>([roundAmt(exact)]);
+    if (next5 > exact) options.add(next5);
+    if (next10 > exact && next10 !== next5) options.add(next10);
+    if (next20 > exact && next20 !== next10) options.add(next20);
+    if (next50 > exact && next50 !== next20) options.add(next50);
+    options.add(100);
+    return Array.from(options)
+      .filter((option) => option >= exact)
+      .slice(0, 5);
+  }, [payableAmount, roundAmt]);
+
+  const cashChangeDue = useCallback(
+    (cashPaidText: string) => {
+      const paid = parseFloat(cashPaidText) || 0;
+      if (paid < payableAmount) return 0;
+      return roundAmt(paid - payableAmount);
+    },
+    [payableAmount, roundAmt],
+  );
+
+  const addToCart = useCallback(
+    (product: Product, variant?: ProductVariant, modifiers?: SelectedModifier[]) => {
+      // Stock is read for the line being added, not for the product as a whole: a
+      // shirt with forty smalls and no larges has plenty of stock and still
+      // cannot sell a large.
+      const stock = availableStock(product, variant?.id);
+      if (stock <= 0) return;
+      playCartSound();
+      const key = cartLineKey({ product, variant, modifiers });
+      setCart((previous) => {
+        const existingIndex = previous.findIndex((item) => cartLineKey(item) === key);
+        if (existingIndex >= 0) {
+          const existing = previous[existingIndex];
+          if (existing.quantity >= stock) return previous;
+          const next = [...previous];
+          next[existingIndex] = { ...existing, quantity: existing.quantity + 1 };
+          return next;
+        }
+        return [...previous, { product, variant, modifiers, quantity: 1 }];
+      });
+    },
+    [],
+  );
+
+  const updateCartQty = useCallback((key: string, delta: number) => {
+    setCart((previous) =>
+      previous
+        .map((item) => {
+          if (cartLineKey(item) !== key) return item;
+          const quantity = item.quantity + delta;
+          if (quantity <= 0) return null;
+          if (quantity > availableStock(item.product, item.variant?.id)) return item;
+          return { ...item, quantity };
+        })
+        .filter((item): item is RegisterCartLine => item !== null),
+    );
+  }, []);
+
+  const removeFromCart = useCallback(
+    (key: string) => setCart((previous) => previous.filter((item) => cartLineKey(item) !== key)),
+    [],
+  );
+
+  const clearCart = useCallback(() => {
+    setCart([]);
+    setSelectedCustomerId(null);
+    setDiscountType('none');
+    setDiscountInput('');
+    setLoyaltyPointsToUse(0);
+    setShowPromoInput(false);
+  }, []);
+
+  return {
+    cart,
+    setCart,
+    selectedCustomerId,
+    setSelectedCustomerId,
+    discountType,
+    setDiscountType,
+    discountInput,
+    setDiscountInput,
+    loyaltyPointsToUse,
+    setLoyaltyPointsToUse,
+    showPromoInput,
+    setShowPromoInput,
+    cartItems,
+    discountValue,
+    subtotal,
+    discountAmount,
+    taxAmount,
+    totalAmount,
+    cashSuggestions,
+    cashChangeDue,
+    addToCart,
+    updateCartQty,
+    removeFromCart,
+    clearCart,
+  };
+}

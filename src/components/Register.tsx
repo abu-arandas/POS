@@ -1,0 +1,965 @@
+import React, { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
+import {
+  CreditCard,
+  DollarSign,
+  Smartphone,
+  Gift,
+  Printer,
+  ScanLine,
+  Share2,
+  Mail,
+  ChefHat,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { SaleTransaction, HeldOrder, Payment, Tab } from '../types';
+import ProductGrid from './ProductGrid';
+import CartPanel from './CartPanel';
+import { useRegisterCart, type RegisterCartLine } from './register/useRegisterCart';
+const TabsModal = lazy(() =>
+  import('./register/TabsModal').then(({ TabsModal }) => ({ default: TabsModal })),
+);
+const HeldOrdersModal = lazy(() =>
+  import('./register/HeldOrdersModal').then(({ HeldOrdersModal }) => ({
+    default: HeldOrdersModal,
+  })),
+);
+const AddCustomerModal = lazy(() =>
+  import('./register/AddCustomerModal').then(({ AddCustomerModal }) => ({
+    default: AddCustomerModal,
+  })),
+);
+const ReceiptModal = lazy(() =>
+  import('./register/ReceiptModal').then(({ ReceiptModal }) => ({ default: ReceiptModal })),
+);
+const PaymentModal = lazy(() =>
+  import('./register/PaymentModal').then(({ PaymentModal }) => ({ default: PaymentModal })),
+);
+import { useProductStore } from '../stores/productStore';
+import { availableStock, variantLabel, variantCost, variantPrice } from '../lib/variants';
+import { useCustomerStore } from '../stores/customerStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { useAuthStore } from '../stores/authStore';
+import { useTabStore } from '../stores/tabStore';
+import { calculateModifierPriceDelta } from '../lib/modifiers';
+import { isTabEmpty, tabTotal } from '../lib/tabs';
+import { useHeldOrderStore } from '../stores/heldOrderStore';
+import { useShiftStore } from '../stores/shiftStore';
+import type { CheckoutRequest } from '../lib/checkout';
+import { commitSale, settleTab } from '../services';
+import {
+  printReceipt,
+  printKitchenTickets,
+  openCashDrawer,
+  HardwarePrintOutcome,
+} from '../lib/printing/hardwarePrint';
+import { shareReceipt, emailReceipt } from '../lib/digitalReceipt';
+import { useBarcodeScanner } from '../lib/useBarcodeScanner';
+import { useModalA11y } from '../lib/useModalA11y';
+import { useTranslation } from 'react-i18next';
+import { askConfirmation, askText, notify } from '../lib/utils/ui';
+import { broadcastCfdUpdate } from '../lib/cfdChannel';
+import { playErrorSound, playSuccessChime } from '../lib/audioFeedback';
+import { cartLineKey } from './register/useRegisterCart';
+
+import { useMoney } from '../lib/useMoney';
+import { isModuleEnabled } from '../lib/businessProfile';
+/**
+ * What one unit of a cart line costs the customer: the product's (or variant's)
+ * price plus whatever the chosen modifiers add. This is the price the cart bills
+ * with, so anything that shows a line to the customer must use it too.
+ */
+const lineUnitPrice = (line: Pick<RegisterCartLine, 'product' | 'variant' | 'modifiers'>): number =>
+  variantPrice(line.product, line.variant) + calculateModifierPriceDelta(line.modifiers);
+
+/**
+ * The register screen: product grid, cart, discounts, held orders, and the
+ * checkout flow through payment to receipt. The app's primary screen.
+ */
+export default function Register() {
+  const { round: roundAmt, amount: fmtAmount, digits: moneyDigits } = useMoney();
+
+  const { t } = useTranslation();
+  const customers = useCustomerStore((s) => s.customers);
+  const handleAddCustomer = useCustomerStore((s) => s.handleAddCustomer);
+  const settings = useSettingsStore((s) => s.settings);
+  const printerConfig = useSettingsStore((s) => s.printerConfig);
+  const scannerConfig = useSettingsStore((s) => s.scannerConfig);
+  const emailTemplate = useSettingsStore((s) => s.emailTemplate);
+  const kitchenStations = useSettingsStore((s) => s.kitchenStations);
+  // Kitchen tickets are a restaurant module: a retail terminal never prints one.
+  const kitchenEnabled = useSettingsStore((s) => isModuleEnabled(s.businessProfile, 'kitchen'));
+  const receiptLayout = useSettingsStore((s) => s.receiptLayout);
+  const kitchenLayout = useSettingsStore((s) => s.kitchenLayout);
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const heldOrders = useHeldOrderStore((s) => s.heldOrders);
+  const holdOrder = useHeldOrderStore((s) => s.holdOrder);
+  const tabs = useTabStore((s) => s.tabs);
+  const removeHeldOrder = useHeldOrderStore((s) => s.removeHeldOrder);
+  const currentShiftId = useShiftStore((s) => s.currentShiftId);
+
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  // The tab currently being paid for. When set, the payment modal is settling a
+  // bill rather than ringing up the cart, and completion routes through
+  // settleTab — which reads the tab's own lines, not the cart's.
+  const [settlingTab, setSettlingTab] = useState<Tab | null>(null);
+  // What the payment modal has to cover when it is settling a tab: that tab's own
+  // bill, not the cart (which may already hold the next table's order).
+  const settlingTotal = settlingTab ? tabTotal(settlingTab, settings) : undefined;
+  const {
+    cart,
+    setCart,
+    selectedCustomerId,
+    setSelectedCustomerId,
+    discountType,
+    setDiscountType,
+    discountInput,
+    setDiscountInput,
+    loyaltyPointsToUse,
+    setLoyaltyPointsToUse,
+    showPromoInput,
+    setShowPromoInput,
+    cartItems,
+    discountValue,
+    subtotal,
+    discountAmount,
+    taxAmount,
+    totalAmount,
+    cashSuggestions,
+    cashChangeDue: calculateCashChangeDue,
+    addToCart,
+    updateCartQty,
+    removeFromCart,
+    clearCart,
+  } = useRegisterCart(settings, settlingTotal);
+  // The one amount a payment must cover: the settled tab's bill, else the cart.
+  const payableTotal = settlingTotal ?? totalAmount;
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState<boolean>(false);
+  const [addCustomerOpen, setAddCustomerOpen] = useState<boolean>(false);
+  const [receiptModalOpen, setReceiptModalOpen] = useState<boolean>(false);
+  const [activeReceipt, setActiveReceipt] = useState<SaleTransaction | null>(null);
+  const [receiptPrinted, setReceiptPrinted] = useState(false);
+
+  // Auto-close only after the hardware transport confirms success. A failed
+  // print keeps the receipt visible so the operator can retry or use a backup.
+  useEffect(() => {
+    if (!receiptModalOpen || !receiptPrinted) return;
+    const timer = setTimeout(() => setReceiptModalOpen(false), 3000);
+    return () => clearTimeout(timer);
+  }, [receiptModalOpen, receiptPrinted]);
+
+  const [custName, setCustName] = useState('');
+  const [custPhone, setCustPhone] = useState('');
+  const [custEmail, setCustEmail] = useState('');
+
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'mobile' | 'gift'>('card');
+  const [cashPaidText, setCashPaidText] = useState<string>('');
+
+  const [splitMode, setSplitMode] = useState(false);
+  const [splitPayments, setSplitPayments] = useState<Payment[]>([]);
+
+  const [heldModalOpen, setHeldModalOpen] = useState(false);
+  const [tabsModalOpen, setTabsModalOpen] = useState(false);
+  // One clock for the tab list's age column, ticking only while it is open.
+  const [tabsNow, setTabsNow] = useState(() => Date.now());
+  const [scanFeedback, setScanFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const heldModalRef = useModalA11y(heldModalOpen, () => setHeldModalOpen(false));
+  const tabsModalRef = useModalA11y(tabsModalOpen, () => setTabsModalOpen(false));
+  const checkoutModalRef = useModalA11y(checkoutModalOpen, () => setCheckoutModalOpen(false));
+  const addCustomerModalRef = useModalA11y(addCustomerOpen, () => setAddCustomerOpen(false));
+  const receiptModalRef = useModalA11y(receiptModalOpen, () => setReceiptModalOpen(false));
+
+  const activeCustomer = useMemo(
+    () => customers.find((customer) => customer.id === selectedCustomerId) || null,
+    [customers, selectedCustomerId],
+  );
+
+  const cashChangeDue = calculateCashChangeDue(cashPaidText);
+
+  // Mirror the sale onto the customer-facing display (see src/lib/cfdChannel and
+  // the ?display=customer entry point in main.tsx). Nothing published this
+  // before, so the display subscribed to a channel no one wrote to and sat on
+  // its idle screen through every transaction.
+  //
+  // The payload is display-only by construction: line names, quantities and
+  // money. No cost, no stock, no customer record — the screen faces the shop.
+  useEffect(() => {
+    broadcastCfdUpdate({
+      status: receiptModalOpen
+        ? 'completed'
+        : checkoutModalOpen
+          ? 'paying'
+          : cart.length > 0
+            ? 'scanning'
+            : 'idle',
+      storeName: settings.storeName,
+      currency: settings.currency,
+      digits: moneyDigits,
+      items: cart.map((line) => ({
+        id: cartLineKey(line),
+        name: line.product.name,
+        variantName: line.variant ? variantLabel(line.product, line.variant) : undefined,
+        modifiers: line.modifiers?.map((m) => m.optionName),
+        quantity: line.quantity,
+        // The same unit price the cart charges: base (or variant) price PLUS the
+        // chosen modifiers. Without the modifiers the display's lines stopped
+        // adding up to its own subtotal whenever an add-on had a price.
+        unitPrice: lineUnitPrice(line),
+        totalPrice: roundAmt(lineUnitPrice(line) * line.quantity),
+      })),
+      subtotal,
+      discount: discountAmount,
+      tax: taxAmount,
+      total: receiptModalOpen && activeReceipt ? activeReceipt.total : totalAmount,
+      paidAmount: activeReceipt?.cashPaid,
+      changeDue: receiptModalOpen ? activeReceipt?.cashChange : undefined,
+      paymentMethod: receiptModalOpen ? activeReceipt?.paymentMethod : paymentMethod,
+      orderNumber: receiptModalOpen ? activeReceipt?.id : undefined,
+    });
+  }, [
+    cart,
+    subtotal,
+    discountAmount,
+    taxAmount,
+    totalAmount,
+    settings.storeName,
+    settings.currency,
+    moneyDigits,
+    roundAmt,
+    checkoutModalOpen,
+    receiptModalOpen,
+    activeReceipt,
+    paymentMethod,
+  ]);
+
+  // Barcode scan: match an exact SKU and add it, with brief feedback.
+  //
+  // Variant SKUs are matched too, and matched FIRST: on a varianted product the
+  // scanned code identifies one combination, and adding the parent instead
+  // would put an unpriced, uncounted line on the sale. A scan is also the one
+  // add that skips the picker — the operator has already chosen, physically.
+  const handleScan = useCallback(
+    (code: string) => {
+      const norm = code.trim().toLowerCase();
+      const { products } = useProductStore.getState();
+      let product = products.find((p) =>
+        (p.variants ?? []).some((variant) => variant.sku.toLowerCase() === norm),
+      );
+      const variant = product?.variants?.find((v) => v.sku.toLowerCase() === norm);
+      if (!product) product = products.find((p) => p.sku.toLowerCase() === norm);
+
+      if (!product) {
+        playErrorSound();
+        setScanFeedback({ ok: false, text: t('register.scanNotFound', { code }) });
+        return;
+      }
+      const label = variant ? variantLabel(product, variant) : '';
+      const name = label ? `${product.name} — ${label}` : product.name;
+      if (availableStock(product, variant?.id) <= 0) {
+        playErrorSound();
+        setScanFeedback({ ok: false, text: `${name} — ${t('register.outOfStock')}` });
+        return;
+      }
+      addToCart(product, variant);
+      setScanFeedback({ ok: true, text: name });
+    },
+    [addToCart, t],
+  );
+
+  useBarcodeScanner({
+    onScan: handleScan,
+    enabled:
+      scannerConfig.enabled &&
+      !checkoutModalOpen &&
+      !addCustomerOpen &&
+      !receiptModalOpen &&
+      !heldModalOpen &&
+      !tabsModalOpen,
+    minLength: scannerConfig.minLength,
+    maxInterKeyMs: scannerConfig.maxInterKeyMs,
+  });
+
+  useEffect(() => {
+    if (!scanFeedback) return;
+    const timer = setTimeout(() => setScanFeedback(null), 1800);
+    return () => clearTimeout(timer);
+  }, [scanFeedback]);
+
+  const handleHoldOrder = useCallback(async () => {
+    if (cart.length === 0) return;
+    const label = (
+      await askText(t('register.holdLabelPrompt'), new Date().toLocaleTimeString())
+    )?.trim();
+    if (label === undefined || label === null) return; // cancelled
+    holdOrder({
+      label: label || new Date().toLocaleTimeString(),
+      items: cart.map((i) => ({
+        productId: i.product.id,
+        productName: i.product.name,
+        variantId: i.variant?.id,
+        variantName: i.variant ? variantLabel(i.product, i.variant) || undefined : undefined,
+        modifiers: i.modifiers,
+        price: variantPrice(i.product, i.variant),
+        cost: variantCost(i.product, i.variant),
+        quantity: i.quantity,
+      })),
+      customerId: selectedCustomerId,
+      discountType,
+      discountInput,
+      loyaltyPointsToUse,
+      operatorName: currentUser?.name ?? null,
+    });
+    clearCart();
+  }, [
+    cart,
+    selectedCustomerId,
+    discountType,
+    discountInput,
+    loyaltyPointsToUse,
+    currentUser,
+    holdOrder,
+    clearCart,
+    t,
+  ]);
+
+  const resumeHeldOrder = useCallback(
+    async (order: HeldOrder) => {
+      if (cart.length > 0 && !(await askConfirmation(t('register.resumeReplaceWarning')))) return;
+      // Rebuild the cart from the current catalog so prices/stock are live; drop
+      // any line whose product no longer exists.
+      const liveProducts = useProductStore.getState().products;
+      const liveMap = new Map(liveProducts.map((p) => [p.id, p]));
+      const adjustedItems: string[] = [];
+      const rebuilt = order.items
+        .map((i): RegisterCartLine | null => {
+          const product = liveMap.get(i.productId);
+          if (!product) {
+            adjustedItems.push(i.productName);
+            return null;
+          }
+          // A held line naming a variant the catalogue has since dropped is
+          // dropped with it, rather than resumed as its parent product: the
+          // parent is a different thing at a different price with its own
+          // stock, and silently substituting it is how a customer gets handed
+          // the wrong item.
+          const variant = i.variantId
+            ? product.variants?.find((v) => v.id === i.variantId)
+            : undefined;
+          if (i.variantId && !variant) {
+            adjustedItems.push(i.variantName ? `${product.name} — ${i.variantName}` : product.name);
+            return null;
+          }
+          const quantity = Math.min(i.quantity, availableStock(product, variant?.id));
+          if (quantity !== i.quantity) adjustedItems.push(product.name);
+          return { product, variant, modifiers: i.modifiers, quantity };
+        })
+        .filter((line): line is RegisterCartLine => line !== null && line.quantity > 0);
+      if (adjustedItems.length > 0) {
+        setScanFeedback({
+          ok: false,
+          text: t('register.heldOrderAdjusted', { items: adjustedItems.join(', ') }),
+        });
+      }
+      setCart(rebuilt);
+      setSelectedCustomerId(order.customerId);
+      setDiscountType(order.discountType);
+      setDiscountInput(order.discountInput);
+      setLoyaltyPointsToUse(order.loyaltyPointsToUse);
+      setShowPromoInput(false);
+      removeHeldOrder(order.id);
+      setHeldModalOpen(false);
+    },
+    [
+      cart,
+      removeHeldOrder,
+      t,
+      setCart,
+      setSelectedCustomerId,
+      setDiscountType,
+      setDiscountInput,
+      setLoyaltyPointsToUse,
+      setShowPromoInput,
+    ],
+  );
+
+  const handleAddNewCustomer = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!custName.trim()) return;
+      const newCust = handleAddCustomer(custName, custPhone, custEmail);
+      setSelectedCustomerId(newCust.id);
+      setCustName('');
+      setCustPhone('');
+      setCustEmail('');
+      setAddCustomerOpen(false);
+    },
+    [custName, custPhone, custEmail, handleAddCustomer, setSelectedCustomerId],
+  );
+
+  /** The cart as tab-round lines: the same snapshot shape a held order stores. */
+  const cartAsRoundItems = useCallback(
+    () =>
+      cart.map((i) => ({
+        productId: i.product.id,
+        productName: i.product.name,
+        variantId: i.variant?.id,
+        variantName: i.variant ? variantLabel(i.product, i.variant) || undefined : undefined,
+        modifiers: i.modifiers,
+        price: variantPrice(i.product, i.variant) + calculateModifierPriceDelta(i.modifiers),
+        cost: variantCost(i.product, i.variant),
+        quantity: i.quantity,
+      })),
+    [cart],
+  );
+
+  /** Opens a new tab carrying whatever is in the cart as its first round. */
+  const handleOpenTab = useCallback(async () => {
+    if (cart.length === 0) return;
+    const label = (
+      await askText(t('register.tabLabelPrompt'), new Date().toLocaleTimeString())
+    )?.trim();
+    if (label === undefined || label === null) return; // cancelled
+    const store = useTabStore.getState();
+    const tab = store.openTab({
+      label: label || new Date().toLocaleTimeString(),
+      customerId: selectedCustomerId,
+      customerName: activeCustomer?.name ?? null,
+      openedBy: currentUser?.name ?? null,
+    });
+    store.addRound(tab.id, cartAsRoundItems(), currentUser?.name ?? null);
+    clearCart();
+    notify(t('register.tabOpened', { label: tab.label }));
+  }, [cart, selectedCustomerId, activeCustomer, currentUser, cartAsRoundItems, clearCart, t]);
+
+  /** Adds the cart to an existing tab as its next round. */
+  const handleAddRound = useCallback(
+    (tab: Tab) => {
+      if (cart.length === 0) return;
+      const updated = useTabStore
+        .getState()
+        .addRound(tab.id, cartAsRoundItems(), currentUser?.name ?? null);
+      if (!updated) {
+        notify(t('register.tabRoundRefused'), 'error');
+        return;
+      }
+      clearCart();
+      notify(t('register.tabRoundAdded', { label: tab.label }));
+    },
+    [cart, currentUser, cartAsRoundItems, clearCart, t],
+  );
+
+  /** Starts settlement: the payment modal now pays off this tab, not the cart. */
+  const handleSettleTab = useCallback((tab: Tab) => {
+    setSettlingTab(tab);
+    setTabsModalOpen(false);
+    setPaymentMethod('card');
+    setCashPaidText('');
+    setSplitMode(false);
+    setSplitPayments([]);
+    setCheckoutModalOpen(true);
+  }, []);
+
+  const handleDiscardTab = useCallback(
+    async (tab: Tab) => {
+      // Discarding a tab that has rounds on it throws away a bill, so the
+      // confirmation says how much is being written off rather than asking a
+      // generic "are you sure".
+      const total = tabTotal(tab, settings);
+      const message = isTabEmpty(tab)
+        ? t('register.discardEmptyTabConfirm', { label: tab.label })
+        : t('register.discardTabConfirm', {
+            label: tab.label,
+            amount: `${settings.currency}${fmtAmount(total)}`,
+          });
+      if (!(await askConfirmation(message))) return;
+      useTabStore.getState().discardTab(tab.id);
+    },
+    [settings, t, fmtAmount],
+  );
+
+  // Ticks the tab list's age column, and only while that list is on screen.
+  // The opening click seeds the clock (see onOpenTabs), so this effect owns the
+  // interval and nothing else.
+  useEffect(() => {
+    if (!tabsModalOpen) return;
+    const timer = setInterval(() => setTabsNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, [tabsModalOpen]);
+
+  const handleCheckoutClick = useCallback(() => {
+    if (cart.length === 0) return;
+    setPaymentMethod('card');
+    setCashPaidText('');
+    setSplitMode(false);
+    setSplitPayments([]);
+    setCheckoutModalOpen(true);
+  }, [cart]);
+
+  const splitPaidTotal = useMemo(
+    () => splitPayments.reduce((s, p) => s + (p.amount || 0), 0),
+    [splitPayments],
+  );
+  const splitRemaining = roundAmt(payableTotal - splitPaidTotal);
+
+  const addSplitPayment = useCallback(() => {
+    const remaining = Math.max(0, splitRemaining);
+    setSplitPayments((prev) => [...prev, { method: 'cash', amount: roundAmt(remaining) }]);
+  }, [splitRemaining, roundAmt]);
+  const updateSplitPayment = useCallback(
+    (idx: number, patch: Partial<Payment>) =>
+      setSplitPayments((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p))),
+    [],
+  );
+  const removeSplitPayment = useCallback(
+    (idx: number) => setSplitPayments((prev) => prev.filter((_, i) => i !== idx)),
+    [],
+  );
+
+  const notifyPrint = useCallback(
+    (outcome: HardwarePrintOutcome) => {
+      if (outcome === 'popup-blocked') notify(t('history.standardPrintBlocked'));
+      else if (outcome === 'unsupported')
+        notify(t('print.unsupported', { type: printerConfig.type.toUpperCase() }));
+      else if (outcome === 'no-device') notify(t('print.noDevice'));
+      else if (outcome === 'error') notify(t('print.error'));
+    },
+    [t, printerConfig],
+  );
+
+  const handleCompletePayment = useCallback(() => {
+    // Two ways in, one way out. Settling a tab reads the tab's own lines rather
+    // than the cart — the cart may hold the NEXT table's order by now — but
+    // both paths end in commitSale, so stock, loyalty, the KDS ticket and the
+    // cloud push behave identically either way.
+    const result = settlingTab
+      ? settleTab({
+          tabId: settlingTab.id,
+          discountType,
+          discountValue,
+          paymentMethod,
+          splitMode,
+          splitPayments,
+          cashPaidText,
+          currentUser,
+          currentShiftId,
+          settings,
+        })
+      : // Carries the cart and the discount the operator chose, not the totals
+        // on screen: buildSaleTransaction recomputes the money it persists.
+        commitSale({
+          cartItems,
+          discountType,
+          discountValue,
+          paymentMethod,
+          splitMode,
+          splitPayments,
+          cashPaidText,
+          selectedCustomerId,
+          activeCustomerName: activeCustomer?.name || null,
+          currentUser,
+          currentShiftId,
+          settings,
+        } satisfies CheckoutRequest);
+
+    if (!result.success) {
+      // Refusals unique to settlement. The tab stays open in every one of them,
+      // so the operator can fix the cause and settle again.
+      if (result.error === 'unknown-tab' || result.error === 'already-settled') {
+        notify(t('register.tabGone'), 'error');
+        setSettlingTab(null);
+        setCheckoutModalOpen(false);
+        return;
+      }
+      if (result.error === 'empty-tab') {
+        notify(t('register.tabEmpty'), 'error');
+        return;
+      }
+    }
+    if (!result.success) {
+      if (result.error === 'invalid-quantity') notify(t('register.invalidQuantity'));
+      else if (result.error === 'split-incomplete') notify(t('register.splitIncomplete'));
+      else if (result.error === 'split-non-cash-overpay') notify(t('register.splitNonCashOverpay'));
+      else if (result.error === 'insufficient-cash') notify(t('register.insufficientCash'));
+      else if (result.error === 'insufficient-stock' || result.error === 'product-unavailable') {
+        // Name the lines, because the fix is per-line: the cart was capped
+        // against stock read when each item went in, and something has sold or
+        // removed those units since — usually another till.
+        const items = (result.shortfalls ?? [])
+          .map((short) => `${short.productName} (${short.available}/${short.requested})`)
+          .join(', ');
+        notify(
+          t(
+            result.error === 'product-unavailable'
+              ? 'register.productUnavailable'
+              : 'register.insufficientStock',
+            { items },
+          ),
+          'error',
+        );
+      }
+      return;
+    }
+
+    const { transaction, isCashSale } = result.sale;
+
+    playSuccessChime();
+    setActiveReceipt(transaction);
+    setReceiptPrinted(false);
+    setCheckoutModalOpen(false);
+    setReceiptModalOpen(true);
+    // A settled tab took its lines from the tab, not the cart, so there is
+    // nothing to clear — and clearing would throw away the next order the
+    // operator may already have started ringing up.
+    if (settlingTab) setSettlingTab(null);
+    else clearCart();
+
+    if (!printerConfig.autoPrintOnCheckout && isCashSale) openCashDrawer(printerConfig);
+
+    // One checkout can produce two documents, and on most counters they leave
+    // the same device — a single serial port, or one Windows spooler queue.
+    // Started independently they interleave their byte streams and both come
+    // out garbled, so the receipt is finished before the kitchen ticket begins.
+    void (async () => {
+      if (printerConfig.autoPrintOnCheckout) {
+        try {
+          const outcome = await printReceipt(
+            transaction,
+            settings,
+            printerConfig,
+            isCashSale,
+            receiptLayout,
+          );
+          notifyPrint(outcome);
+          if (outcome === 'printed') setReceiptPrinted(true);
+        } catch (err) {
+          console.error('Receipt print failed:', err);
+          notifyPrint('error');
+        }
+      }
+
+      if (!kitchenEnabled || !printerConfig.kitchenTicketOnCheckout) return;
+      /*
+        Pre-computed product map to change O(N^2) category lookups in the kitchen
+        ticket loop into O(N) map build + O(1) loop lookups.
+      */
+      const { products } = useProductStore.getState();
+      const prodMap = new Map(products.map((p) => [p.id, p]));
+      const catOf = (productId: string) => prodMap.get(productId)?.category;
+      try {
+        notifyPrint(
+          await printKitchenTickets(
+            transaction,
+            settings,
+            printerConfig,
+            kitchenStations,
+            catOf,
+            kitchenLayout,
+          ),
+        );
+      } catch (err) {
+        console.error('Kitchen ticket print failed:', err);
+        notifyPrint('error');
+      }
+    })();
+  }, [
+    settlingTab,
+    cartItems,
+    discountType,
+    discountValue,
+    paymentMethod,
+    splitMode,
+    splitPayments,
+    cashPaidText,
+    selectedCustomerId,
+    activeCustomer,
+    currentUser,
+    currentShiftId,
+    settings,
+    printerConfig,
+    kitchenStations,
+    kitchenEnabled,
+    receiptLayout,
+    kitchenLayout,
+    clearCart,
+    t,
+    notifyPrint,
+  ]);
+
+  const handlePrintActiveReceipt = useCallback(async () => {
+    if (!activeReceipt) return;
+    notifyPrint(await printReceipt(activeReceipt, settings, printerConfig, false, receiptLayout));
+  }, [activeReceipt, settings, printerConfig, receiptLayout, notifyPrint]);
+
+  const handlePrintKitchenTicket = useCallback(async () => {
+    if (!activeReceipt) return;
+    /*
+      Pre-computed product map to change O(N^2) category lookups in the kitchen
+      ticket loop into O(N) map build + O(1) loop lookups.
+    */
+    const { products } = useProductStore.getState();
+    const prodMap = new Map(products.map((p) => [p.id, p]));
+    const catOf = (productId: string) => prodMap.get(productId)?.category;
+    notifyPrint(
+      await printKitchenTickets(
+        activeReceipt,
+        settings,
+        printerConfig,
+        kitchenStations,
+        catOf,
+        kitchenLayout,
+      ),
+    );
+  }, [activeReceipt, settings, printerConfig, kitchenStations, kitchenLayout, notifyPrint]);
+
+  const paymentMethodsArray = useMemo(
+    () =>
+      [
+        { id: 'card', label: t('register.payCard'), icon: CreditCard, activeClass: 'active-card' },
+        { id: 'cash', label: t('register.payCash'), icon: DollarSign, activeClass: 'active-cash' },
+        {
+          id: 'mobile',
+          label: t('register.payMobile'),
+          icon: Smartphone,
+          activeClass: 'active-mobile',
+        },
+        { id: 'gift', label: t('register.payGift'), icon: Gift, activeClass: 'active-gift' },
+      ] as const,
+    [t],
+  );
+
+  const addCustomerFieldsArray = useMemo(
+    () => [
+      {
+        label: t('register.fullName'),
+        type: 'text',
+        value: custName,
+        onChange: setCustName,
+        placeholder: 'e.g. John Doe',
+        required: true,
+      },
+      {
+        label: t('register.phoneNumber'),
+        type: 'tel',
+        value: custPhone,
+        onChange: setCustPhone,
+        placeholder: 'e.g. 555-0100',
+        required: false,
+      },
+      {
+        label: t('register.emailAddress'),
+        type: 'email',
+        value: custEmail,
+        onChange: setCustEmail,
+        placeholder: 'e.g. john@example.com',
+        required: false,
+      },
+    ],
+    [t, custName, custPhone, custEmail],
+  );
+
+  const receiptActionsArray = useMemo(
+    () => [
+      { icon: Printer, label: t('register.print'), onClick: handlePrintActiveReceipt },
+      ...(kitchenEnabled
+        ? [{ icon: ChefHat, label: t('register.kitchen'), onClick: handlePrintKitchenTicket }]
+        : []),
+      {
+        icon: Share2,
+        label: t('register.share'),
+        onClick: async () => {
+          if (!activeReceipt) return;
+          const r = await shareReceipt(activeReceipt, settings);
+          if (r === 'copied') setScanFeedback({ ok: true, text: t('register.copied') });
+        },
+      },
+      {
+        icon: Mail,
+        label: t('register.email'),
+        onClick: () => {
+          if (!activeReceipt) return;
+          const email = activeReceipt.customerId
+            ? customers.find((c) => c.id === activeReceipt.customerId)?.email
+            : undefined;
+          emailReceipt(activeReceipt, settings, email || undefined, emailTemplate);
+        },
+      },
+    ],
+    [
+      t,
+      handlePrintActiveReceipt,
+      handlePrintKitchenTicket,
+      kitchenEnabled,
+      activeReceipt,
+      settings,
+      customers,
+      emailTemplate,
+    ],
+  );
+
+  return (
+    <div id="register-root" className="app-canvas flex flex-1 h-full overflow-hidden">
+      <ProductGrid
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        cart={cart}
+        addToCart={addToCart}
+      />
+      <CartPanel
+        cart={cart}
+        updateCartQty={updateCartQty}
+        removeFromCart={removeFromCart}
+        clearCart={clearCart}
+        activeCustomer={activeCustomer}
+        selectedCustomerId={selectedCustomerId}
+        setSelectedCustomerId={setSelectedCustomerId}
+        setAddCustomerOpen={setAddCustomerOpen}
+        discountType={discountType}
+        setDiscountType={setDiscountType}
+        discountInput={discountInput}
+        setDiscountInput={setDiscountInput}
+        loyaltyPointsToUse={loyaltyPointsToUse}
+        setLoyaltyPointsToUse={setLoyaltyPointsToUse}
+        showPromoInput={showPromoInput}
+        setShowPromoInput={setShowPromoInput}
+        subtotal={subtotal}
+        discountAmount={discountAmount}
+        taxAmount={taxAmount}
+        totalAmount={totalAmount}
+        handleCheckoutClick={handleCheckoutClick}
+        onHoldOrder={handleHoldOrder}
+        heldCount={heldOrders.length}
+        onOpenHeldOrders={() => setHeldModalOpen(true)}
+        openTabCount={tabs.filter((tab) => tab.status === 'open').length}
+        onOpenTabs={() => {
+          setTabsNow(Date.now());
+          setTabsModalOpen(true);
+        }}
+      />
+
+      {/* Barcode scan feedback toast */}
+      <AnimatePresence>
+        {scanFeedback && (
+          <motion.div
+            role="status"
+            aria-live="polite"
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-lg border text-xs font-medium ${
+              scanFeedback.ok
+                ? 'bg-card text-foreground border-border'
+                : 'bg-destructive text-destructive-foreground border-destructive'
+            }`}
+          >
+            <ScanLine size={18} className="opacity-90" />
+            <span>{scanFeedback.text}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {tabsModalOpen && (
+        <Suspense fallback={null}>
+          <TabsModal
+            open
+            dialogRef={tabsModalRef}
+            tabs={tabs}
+            settings={settings}
+            cartCount={cart.reduce((sum, line) => sum + line.quantity, 0)}
+            now={tabsNow}
+            onClose={() => setTabsModalOpen(false)}
+            onOpenTab={handleOpenTab}
+            onAddRound={handleAddRound}
+            onSettle={handleSettleTab}
+            onDiscard={handleDiscardTab}
+          />
+        </Suspense>
+      )}
+
+      {heldModalOpen && (
+        <Suspense fallback={null}>
+          <HeldOrdersModal
+            open
+            dialogRef={heldModalRef}
+            heldOrders={heldOrders}
+            currency={settings.currency}
+            onClose={() => setHeldModalOpen(false)}
+            onResume={resumeHeldOrder}
+            onRemove={async (id) => {
+              if (await askConfirmation(t('register.deleteHeldConfirm'))) {
+                removeHeldOrder(id);
+              }
+            }}
+          />
+        </Suspense>
+      )}
+
+      {checkoutModalOpen && (
+        <Suspense fallback={null}>
+          <PaymentModal
+            open
+            dialogRef={checkoutModalRef}
+            currency={settings.currency}
+            totalAmount={payableTotal}
+            paymentMethods={paymentMethodsArray}
+            paymentMethod={paymentMethod}
+            onSelectMethod={setPaymentMethod}
+            splitMode={splitMode}
+            onToggleSplit={() => {
+              setSplitMode((m) => !m);
+              if (!splitMode && splitPayments.length === 0) {
+                setSplitPayments([{ method: 'cash', amount: roundAmt(Math.max(0, payableTotal)) }]);
+              }
+            }}
+            splitPayments={splitPayments}
+            splitRemaining={splitRemaining}
+            splitPaidTotal={splitPaidTotal}
+            onAddSplit={addSplitPayment}
+            onUpdateSplit={updateSplitPayment}
+            onRemoveSplit={removeSplitPayment}
+            cashSuggestions={cashSuggestions}
+            cashPaidText={cashPaidText}
+            onCashPaidChange={setCashPaidText}
+            cashChangeDue={cashChangeDue}
+            onComplete={handleCompletePayment}
+            onClose={() => {
+              setCheckoutModalOpen(false);
+              // Otherwise the next ordinary checkout would silently settle this
+              // tab instead of ringing up the cart.
+              setSettlingTab(null);
+            }}
+          />
+        </Suspense>
+      )}
+
+      {addCustomerOpen && (
+        <Suspense fallback={null}>
+          <AddCustomerModal
+            open
+            dialogRef={addCustomerModalRef}
+            fields={addCustomerFieldsArray}
+            onSubmit={handleAddNewCustomer}
+            onClose={() => setAddCustomerOpen(false)}
+          />
+        </Suspense>
+      )}
+
+      {receiptModalOpen && (
+        <Suspense fallback={null}>
+          <ReceiptModal
+            open
+            dialogRef={receiptModalRef}
+            receipt={activeReceipt}
+            settings={settings}
+            printerConfig={printerConfig}
+            receiptLayout={receiptLayout}
+            showBarcode={printerConfig.showBarcode}
+            actions={receiptActionsArray}
+            onClose={() => setReceiptModalOpen(false)}
+          />
+        </Suspense>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,119 @@
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { Product, Category } from '../types';
+import { idbStorage } from '../lib/idbStorage';
+import { shortId } from '../lib/utils/ids';
+import { deleteProductsCloudIfEnabled, deleteCategoriesCloudIfEnabled } from '../lib/sync';
+
+interface ProductState {
+  products: Product[];
+  categories: Category[];
+
+  // Actions
+  setProducts: (products: Product[]) => void;
+  setCategories: (categories: Category[]) => void;
+
+  handleAddProduct: (payload: Omit<Product, 'id'>) => Product;
+  handleUpdateProduct: (updated: Product) => void;
+  handleDeleteProduct: (id: string) => void;
+  reorderProducts: (activeId: string, overId: string) => void;
+
+  handleAddCategory: (name: string, color: string) => Category;
+  handleDeleteCategory: (id: string) => boolean;
+}
+
+/**
+ * Every terminal starts with no catalogue: the operator adds their own, or pulls
+ * it from the cloud once sync is set up.
+ */
+const DEFAULT_PRODUCTS: Product[] = [];
+const DEFAULT_CATEGORIES: Category[] = [];
+
+/**
+ * The product catalog and its categories, including stock levels. Persisted to
+ * IndexedDB so the terminal keeps trading fully offline.
+ */
+export const useProductStore = create<ProductState>()(
+  persist(
+    (set, get) => ({
+      products: DEFAULT_PRODUCTS,
+      categories: DEFAULT_CATEGORIES,
+
+      setProducts: (products) => set({ products }),
+      setCategories: (categories) => set({ categories }),
+
+      handleAddProduct: (payload) => {
+        const newProduct: Product = {
+          ...payload,
+          id: `prod-${shortId()}`,
+        };
+        set({ products: [...get().products, newProduct] });
+        return newProduct;
+      },
+
+      handleUpdateProduct: (updated) => {
+        set({
+          products: get().products.map((p) => (p.id === updated.id ? updated : p)),
+        });
+      },
+
+      handleDeleteProduct: (id) => {
+        set({
+          products: get().products.filter((p) => p.id !== id),
+        });
+        deleteProductsCloudIfEnabled([id]);
+      },
+
+      reorderProducts: (activeId, overId) => {
+        const { products } = get();
+        const oldIndex = products.findIndex((p) => p.id === activeId);
+        const newIndex = products.findIndex((p) => p.id === overId);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newProducts = [...products];
+          const [movedItem] = newProducts.splice(oldIndex, 1);
+          newProducts.splice(newIndex, 0, movedItem);
+          set({ products: newProducts });
+        }
+      },
+
+      handleAddCategory: (name, color) => {
+        const newCat: Category = {
+          id: `cat-${name.toLowerCase().replace(/\s+/g, '-').slice(0, 8)}-${shortId()}`,
+          name,
+          color,
+        };
+        set({ categories: [...get().categories, newCat] });
+        return newCat;
+      },
+
+      handleDeleteCategory: (id) => {
+        // Keep the invariant at the state boundary as well as in the UI button:
+        // realtime callers and future screens must not be able to orphan products.
+        if (get().products.some((product) => product.category === id)) return false;
+        set({
+          categories: get().categories.filter((c) => c.id !== id),
+        });
+        deleteCategoriesCloudIfEnabled([id]);
+        return true;
+      },
+    }),
+    {
+      name: 'pos-product-storage',
+      storage: createJSONStorage(() => idbStorage),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<ProductState>;
+        return {
+          ...current,
+          ...p,
+          // An empty stored list is respected, not overwritten. Re-seeding on
+          // empty treated "the operator deleted everything" and "nothing was
+          // ever saved" as the same state, so a deliberately cleared catalogue
+          // came back on the next reload. A first run has no persisted blob at
+          // all and still gets DEFAULT_PRODUCTS from the initialiser above.
+          products: p.products ?? DEFAULT_PRODUCTS,
+          categories: p.categories ?? DEFAULT_CATEGORIES,
+        };
+      },
+    },
+  ),
+);
