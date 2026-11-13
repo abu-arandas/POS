@@ -35,7 +35,7 @@ module.exports = {
     {
       provider: 'github',
       owner: 'abu-arandas',
-      repo: 'POS',
+      repo: 'zirr-pos',
     },
   ],
   win: {
